@@ -38,9 +38,9 @@ def write(
             c_ih     = getattr(input_shape, 'dim')[2].dim_value
             c_iw     = getattr(input_shape, 'dim')[3].dim_value
 
-            fd.write("#define c_%s_ich    %d\n" % (input_name, c_ich))
-            fd.write("#define c_%s_ih     %d\n" % (input_name, c_ih))
-            fd.write("#define c_%s_iw     %d\n" % (input_name, c_iw))
+            fd.write("const int c_%s_ich    = %d;\n" % (input_name, c_ich))
+            fd.write("const int c_%s_ih     = %d;\n" % (input_name, c_ih))
+            fd.write("const int c_%s_iw     = %d;\n" % (input_name, c_iw))
 
             fd.write("\n")
 
@@ -58,9 +58,9 @@ def write(
             c_oh     = getattr(output_shape, 'dim')[2].dim_value
             c_ow     = getattr(output_shape, 'dim')[3].dim_value
 
-            fd.write("#define c_%s_och %d\n" % (output_name, c_och))
-            fd.write("#define c_%s_oh  %d\n" % (output_name, c_oh))
-            fd.write("#define c_%s_ow  %d\n" % (output_name, c_ow))
+            fd.write("const int c_%s_och = %d;\n" % (output_name, c_och))
+            fd.write("const int c_%s_oh  = %d;\n" % (output_name, c_oh))
+            fd.write("const int c_%s_ow  = %d;\n" % (output_name, c_ow))
 
             fd.write("\n")
 
@@ -73,10 +73,10 @@ def write(
 
         fd.write("typedef ap_uint<8> t_%s_st;\n" % (weight_name))
         fd.write("typedef ap_uint<8> t_%s;\n" % (weight_name))
-        fd.write("#define c_%s_och %d\n" % (weight_name, c_och))
-        fd.write("#define c_%s_ich %d\n" % (weight_name, c_ich))
-        fd.write("#define c_%s_ih  %d\n" % (weight_name, c_ih))
-        fd.write("#define c_%s_iw  %d\n" % (weight_name, c_iw))
+        fd.write("const int c_%s_och = %d;\n" % (weight_name, c_och))
+        fd.write("const int c_%s_ich = %d;\n" % (weight_name, c_ich))
+        fd.write("const int c_%s_ih  = %d;\n" % (weight_name, c_ih))
+        fd.write("const int c_%s_iw  = %d;\n" % (weight_name, c_iw))
         fd.write("const ap_uint<8> c_%s_st[] = {\n" % (weight_name))
         
         weights = numpy_helper.to_array(
@@ -86,44 +86,61 @@ def write(
         # TODO: handle weights quantization
         last_weight = True
         for och in range(weights.shape[0]):
-            last_weight = last_weight and (och < weights.shape[0])
             for ich in range(weights.shape[1]):
-                last_weight = last_weight and (ich < weights.shape[1])
                 for ih in range(weights.shape[2]):
-                    last_weight = last_weight and (ih < weights.shape[2])
                     for iw in range(weights.shape[3]):
-                        last_weight = last_weight and (iw < weights.shape[3])
                         fd.write("%0.3f" % (weights[och][ich][ih][iw]))
-                        if last_weight:
-                            fd.write(", ")
+                        fd.write(", ")
 
-                        last_weight = True
+        fd.write("0")
 
         fd.write("};\n")
         fd.write("\n")
 
     def write_relu(fd, node):
 
+        node_name = node.name.replace(".", "_").lower()
+
         input_name = node.input[0].replace(".", "_")
         input_name = input_name.lower().replace("onnx::", "")
 
         output_name = node.output[0].replace(".", "_")
         output_name = output_name.lower().replace("onnx::", "")
+        output_shape = tensors_info[node.output[0]].tensor_type.shape
 
         fd.write("\n")
 
         fd.write("typedef ap_uint<8> t_%s;\n" % (output_name))
+
+        c_ich = getattr(output_shape, 'dim')[1].dim_value
+        c_ih  = getattr(output_shape, 'dim')[2].dim_value
+        c_iw  = getattr(output_shape, 'dim')[3].dim_value
+
+        fd.write("const int c_%s_ich    = %d;\n" % (node_name, c_ich))
+        fd.write("const int c_%s_ih     = %d;\n" % (node_name, c_ih))
+        fd.write("const int c_%s_iw     = %d;\n" % (node_name, c_iw))
 
         fd.write("\n")
 
     def write_add(fd, node):
 
+        node_name = node.name.replace(".", "_").lower()
+
         output_name = node.output[0].replace(".", "_")
         output_name = output_name.lower().replace("onnx::", "")
+        output_shape = tensors_info[node.output[0]].tensor_type.shape
 
         fd.write("\n")
 
         fd.write("typedef ap_uint<8> t_%s;\n" % (output_name))
+
+        c_ich = getattr(output_shape, 'dim')[1].dim_value
+        c_ih  = getattr(output_shape, 'dim')[2].dim_value
+        c_iw  = getattr(output_shape, 'dim')[3].dim_value
+
+        fd.write("const int c_%s_ich    = %d;\n" % (node_name, c_ich))
+        fd.write("const int c_%s_ih     = %d;\n" % (node_name, c_ih))
+        fd.write("const int c_%s_iw     = %d;\n" % (node_name, c_iw))
 
         fd.write("\n")
 
@@ -154,13 +171,13 @@ def write(
         c_stride = getattr(attributes[2], 'ints')[0]
         c_pad    = getattr(attributes[1], 'ints')[0]
 
-        fd.write("#define c_%s_och    %d\n" % (node_name, c_och))
-        fd.write("#define c_%s_oh     %d\n" % (node_name, c_oh))
-        fd.write("#define c_%s_ow     %d\n" % (node_name, c_ow))
-        fd.write("#define c_%s_fh     %d\n" % (node_name, c_fh))
-        fd.write("#define c_%s_fw     %d\n" % (node_name, c_fw))
-        fd.write("#define c_%s_stride %d\n" % (node_name, c_stride))
-        fd.write("#define c_%s_pad    %d\n" % (node_name, c_pad))
+        fd.write("const int c_%s_och    = %d;\n" % (node_name, c_och))
+        fd.write("const int c_%s_oh     = %d;\n" % (node_name, c_oh))
+        fd.write("const int c_%s_ow     = %d;\n" % (node_name, c_ow))
+        fd.write("const int c_%s_fh     = %d;\n" % (node_name, c_fh))
+        fd.write("const int c_%s_fw     = %d;\n" % (node_name, c_fw))
+        fd.write("const int c_%s_stride = %d;\n" % (node_name, c_stride))
+        fd.write("const int c_%s_pad    = %d;\n" % (node_name, c_pad))
 
         fd.write("\n")
 
@@ -225,16 +242,16 @@ def write(
 
         fd.write("typedef ap_uint<8> t_%s;\n" % (output_name))
         fd.write("typedef ap_uint<32> t_%s_acc;\n" % (node_name))
-        fd.write("#define c_%s_ich    %d\n" % (node_name, c_ich))
-        fd.write("#define c_%s_och    %d\n" % (node_name, c_och))
-        fd.write("#define c_%s_ih     %d\n" % (node_name, c_ih))
-        fd.write("#define c_%s_iw     %d\n" % (node_name, c_iw))
-        fd.write("#define c_%s_ow     %d\n" % (node_name, c_ow))
-        fd.write("#define c_%s_oh     %d\n" % (node_name, c_oh))
-        fd.write("#define c_%s_fw     %d\n" % (node_name, c_fw))
-        fd.write("#define c_%s_fh     %d\n" % (node_name, c_fh))
-        fd.write("#define c_%s_stride %d\n" % (node_name, c_stride))
-        fd.write("#define c_%s_pad    %d\n" % (node_name, c_pad))
+        fd.write("const int c_%s_ich    = %d;\n" % (node_name, c_ich))
+        fd.write("const int c_%s_och    = %d;\n" % (node_name, c_och))
+        fd.write("const int c_%s_ih     = %d;\n" % (node_name, c_ih))
+        fd.write("const int c_%s_iw     = %d;\n" % (node_name, c_iw))
+        fd.write("const int c_%s_ow     = %d;\n" % (node_name, c_ow))
+        fd.write("const int c_%s_oh     = %d;\n" % (node_name, c_oh))
+        fd.write("const int c_%s_fw     = %d;\n" % (node_name, c_fw))
+        fd.write("const int c_%s_fh     = %d;\n" % (node_name, c_fh))
+        fd.write("const int c_%s_stride = %d;\n" % (node_name, c_stride))
+        fd.write("const int c_%s_pad    = %d;\n" % (node_name, c_pad))
 
         fd.write("\n")
 
@@ -266,6 +283,14 @@ def write(
                 write_pad(fd, node)
 
     def write_footer(fd):
+
+        # Adding prototype declaration
+        fd.write("void Network(\n")
+        fd.write("\tt_i_data* i_data,\n")
+        fd.write("\tt_weight* i_weight,\n")
+        fd.write("\tt_o_data* o_data,\n")
+        fd.write("\tint o_last\n")
+        fd.write(");\n")
 
         # End of main file
         fd.write("#endif")

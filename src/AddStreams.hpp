@@ -6,7 +6,10 @@
 
 template <
 	class t_input,
-	class t_output
+	class t_output,
+	const int c_ich,
+	const int c_ih,
+	const int c_iw
 > void AddStreams(
 	hls::stream<t_input> &i_data1,
 	hls::stream<t_input> &i_data2,
@@ -15,15 +18,24 @@ template <
 	ap_uint<1> o_last[1]
 ) {
 
-	t_input s_data1, s_data2;
-	t_output s_o_data; 
+	if (i_data1.empty() | i_data2.empty())
+		return;
 
-	i_data1.read(s_data1);
-	i_data2.read(s_data2);
+	const int c_index = c_ich*c_ih*c_iw;
 
-	s_o_data = s_data1 + s_data2;
+	for (int s_index = 0; s_index < c_index; s_index++) {
 
-	o_data.write(s_o_data);
+		t_input s_data1, s_data2;
+		t_output s_o_data; 
+
+		i_data1.read(s_data1);
+		i_data2.read(s_data2);
+
+		s_o_data = s_data1 + s_data2;
+
+		o_data.write(s_o_data);
+
+	}
 
 	o_last[0] = i_last[0];
 

@@ -28,7 +28,8 @@ def write(
         fd.write("void Network(\n")
         fd.write("\tt_i_data* i_data,\n")
         fd.write("\tt_weight* i_weight,\n")
-        fd.write("\tt_o_data* o_data\n")
+        fd.write("\tt_o_data* o_data,\n")
+        fd.write("\tint o_last\n")
         fd.write(") {\n")
 
         fd.write("\n")
@@ -41,13 +42,13 @@ def write(
 
         fd.write("\n")
 
-        write_stream(fd, "input")
-
-        fd.write("\n")
-
         input_name = model.graph.input[0].name.replace(".", "_")
         input_name = input_name.lower().replace("onnx::", "")
         # input_shape = tensors_info[model.graph.input[0].name].tensor_type.shape
+
+        write_stream(fd, "input", "c_%s_ich" % input_name)
+
+        fd.write("\n")
 
         fd.write("\tProduceStream<\n")
         fd.write("\t\tt_i_data, \n")
@@ -63,14 +64,29 @@ def write(
 
         fd.write("\n")
 
-    def write_stream(fd, name):
-        fd.write("\thls::stream<t_%s> s_%s;\n" % (name, name))
-        fd.write("\t#pragma HLS STREAM variable=s_%s depth=1 type=fifo\n" % (name))
+    def write_stream(fd, name, channels=None):
+        
+        # Each stream has a channel width equal to the number of channels of the 
+        # output feature 
+        fd.write("\thls::stream<t_%s> s_%s(\"s_%s\");\n" % (name, name, name))
+        if (channels is None):
+            fd.write(
+                "\t#pragma HLS STREAM variable=s_%s depth=2 type=fifo\n" % (
+                    name
+                )
+            )
+        else:
+            fd.write(
+                "\t#pragma HLS STREAM variable=s_%s depth=%s type=fifo\n" % (
+                    name,
+                    channels
+                )
+            )
         fd.write("\tap_uint<1> s_%s_last[1];\n" % (name))
 
-    def write_internal_weight(fd, name):
+    def write_internal_weight(fd, name, node_name):
 
-        write_stream(fd, name)
+        write_stream(fd, name, "c_%s_och" % name)
 
         fd.write("\n")
 
@@ -78,9 +94,12 @@ def write(
         fd.write("\t\tt_%s_st,\n" % (name))
         fd.write("\t\tt_%s,\n" % (name))
         fd.write("\t\tc_%s_ich,\n" % (name))
-        fd.write("\t\tc_%s_ich,\n" % (name))
+        fd.write("\t\tc_%s_och,\n" % (name))
         fd.write("\t\tc_%s_iw,\n" % (name))
-        fd.write("\t\tc_%s_ih\n" % (name))
+        fd.write("\t\tc_%s_ih,\n" % (name))
+        fd.write("\t\tc_%s_iw,\n" % (node_name))
+        fd.write("\t\tc_%s_ih,\n" % (node_name))
+        fd.write("\t\tc_%s_stride\n" % (node_name))
         fd.write("\t>(\n")
         fd.write("\t\tc_%s_st,\n" % (name))
         fd.write("\t\ts_%s\n" % (name))
@@ -90,19 +109,23 @@ def write(
 
     def write_relu(fd, node):
 
+        node_name = node.name.replace(".", "_").lower()
         input_name = node.input[0].replace(".", "_")
         input_name = input_name.lower().replace("onnx::", "")
 
         output_name = node.output[0].replace(".", "_")
         output_name = output_name.lower().replace("onnx::", "")
 
-        write_stream(fd, output_name)
+        write_stream(fd, output_name, "c_%s_ich" % node_name)
 
         fd.write("\n")
 
         fd.write("\tReluStreams<\n")
         fd.write("\t\tt_%s,\n" % (input_name))
-        fd.write("\t\tt_%s\n" % (output_name))
+        fd.write("\t\tt_%s,\n" % (output_name))
+        fd.write("\t\tc_%s_ich,\n" % (node_name))
+        fd.write("\t\tc_%s_iw,\n" % (node_name))
+        fd.write("\t\tc_%s_ih\n" % (node_name))
         fd.write("\t> (\n")
         fd.write("\t\ts_%s,\n" % (input_name))
         fd.write("\t\ts_%s,\n" % (output_name))
@@ -114,6 +137,7 @@ def write(
 
     def write_add(fd, node):
 
+        node_name = node.name.replace(".", "_").lower()
         input_name0 = node.input[0].replace(".", "_")
         input_name0 = input_name0.lower().replace("onnx::", "")
 
@@ -135,13 +159,16 @@ def write(
         output_name = node.output[0].replace(".", "_")
         output_name = output_name.lower().replace("onnx::", "")
 
-        write_stream(fd, output_name)
+        write_stream(fd, output_name, "c_%s_ich" % node_name)
 
         fd.write("\n")
 
         fd.write("\tAddStreams<\n")
         fd.write("\t\tt_%s,\n" % (input_name0))
-        fd.write("\t\tt_%s\n" % (output_name))
+        fd.write("\t\tt_%s,\n" % (output_name))
+        fd.write("\t\tc_%s_ich,\n" % (node_name))
+        fd.write("\t\tc_%s_iw,\n" % (node_name))
+        fd.write("\t\tc_%s_ih\n" % (node_name))
         fd.write("\t> (\n")
         fd.write("\t\ts_%s,\n" % (input_name0))
         fd.write("\t\ts_%s,\n" % (input_name1))
@@ -163,7 +190,7 @@ def write(
         output_name = node.output[0].replace(".", "_")
         output_name = output_name.lower().replace("onnx::", "")
 
-        write_stream(fd, output_name)
+        write_stream(fd, output_name, "c_%s_och" % node_name)
 
         fd.write("\n")
 
@@ -240,17 +267,17 @@ def write(
                 no_skip = False
 
                 # Declaring copied stream
-                write_stream(fd, skip_name)
+                write_stream(fd, skip_name, "c_%s_ich" % node_name)
                 fd.write("\n")
 
         output_name = node.output[0].replace(".", "_")
         output_name = output_name.lower().replace("onnx::", "")
 
-        write_stream(fd, output_name)
+        write_stream(fd, output_name, "c_%s_ich" % node_name)
 
         fd.write("\n")
 
-        write_internal_weight(fd, weight_name)
+        write_internal_weight(fd, weight_name, node_name)
 
         fd.write("\n")
 
@@ -349,6 +376,8 @@ def write(
             fd.write("\t\to_data,\n")
             fd.write("\t\ts_%s_last\n" % (output_name))
             fd.write("\t);\n")
+
+            fd.write("\to_last = s_%s_last[0];\n" % (output_name))
 
             # End of main file
             fd.write("}\n")
