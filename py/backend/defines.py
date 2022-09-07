@@ -151,6 +151,7 @@ def write(
         # Removing dots from input names
         input_name = node.input[0].replace(".", "_")
         input_name = input_name.lower().replace("onnx::", "")
+        input_shape = tensors_info[node.input[0]].tensor_type.shape
 
         output_name = node.output[0].replace(".", "_")
         output_name = output_name.lower().replace("onnx::", "")
@@ -163,6 +164,9 @@ def write(
 
         attributes = getattr(node, "attribute" )
 
+        c_ich    = getattr(input_shape, 'dim')[1].dim_value
+        c_ih     = getattr(input_shape, 'dim')[2].dim_value
+        c_iw     = getattr(input_shape, 'dim')[3].dim_value
         c_och    = getattr(output_shape, 'dim')[1].dim_value
         c_oh     = getattr(output_shape, 'dim')[2].dim_value
         c_ow     = getattr(output_shape, 'dim')[3].dim_value
@@ -171,7 +175,10 @@ def write(
         c_stride = getattr(attributes[2], 'ints')[0]
         c_pad    = getattr(attributes[1], 'ints')[0]
 
+        fd.write("const int c_%s_ich    = %d;\n" % (node_name, c_ich))
         fd.write("const int c_%s_och    = %d;\n" % (node_name, c_och))
+        fd.write("const int c_%s_ih     = %d;\n" % (node_name, c_ih))
+        fd.write("const int c_%s_iw     = %d;\n" % (node_name, c_iw))
         fd.write("const int c_%s_oh     = %d;\n" % (node_name, c_oh))
         fd.write("const int c_%s_ow     = %d;\n" % (node_name, c_ow))
         fd.write("const int c_%s_fh     = %d;\n" % (node_name, c_fh))
@@ -188,11 +195,34 @@ def write(
         # Removing dots from input names
         input_name = node.input[0].replace(".", "_")
         input_name = input_name.lower().replace("onnx::", "")
+        input_shape = tensors_info[node.input[0]].tensor_type.shape
 
         output_name = node.output[0].replace(".", "_")
         output_name = output_name.lower().replace("onnx::", "")
+        output_shape = tensors_info[node.output[0]].tensor_type.shape
+
+        fd.write("\n")
 
         fd.write("typedef ap_uint<8> t_%s;\n" % (output_name))
+        fd.write("typedef ap_uint<8> t_%s_acc;\n" % (node_name))
+
+        attributes = getattr(node, "attribute" )
+
+        c_ich    = getattr(input_shape, 'dim')[1].dim_value
+        c_ih     = getattr(input_shape, 'dim')[2].dim_value
+        c_iw     = getattr(input_shape, 'dim')[3].dim_value
+        c_och    = getattr(output_shape, 'dim')[1].dim_value
+        c_oh     = getattr(output_shape, 'dim')[2].dim_value
+        c_ow     = getattr(output_shape, 'dim')[3].dim_value
+        c_pad    = getattr(attributes[1], 'ints')[0]
+
+        fd.write("const int c_%s_ich    = %d;\n" % (node_name, c_ich))
+        fd.write("const int c_%s_och    = %d;\n" % (node_name, c_och))
+        fd.write("const int c_%s_ih     = %d;\n" % (node_name, c_ih))
+        fd.write("const int c_%s_iw     = %d;\n" % (node_name, c_iw))
+        fd.write("const int c_%s_oh     = %d;\n" % (node_name, c_oh))
+        fd.write("const int c_%s_ow     = %d;\n" % (node_name, c_ow))
+        fd.write("const int c_%s_pad    = %d;\n" % (node_name, c_pad))
 
         fd.write("\n")
 

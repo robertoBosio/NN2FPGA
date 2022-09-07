@@ -1567,9 +1567,20 @@ void Network(
 	#pragma HLS STREAM variable=s_averagepool_203 depth=2 type=fifo
 	ap_uint<1> s_averagepool_203_last[1];
 
-	t_pad_202 s_pad_202_tmp;
-	s_pad_202.read(s_pad_202_tmp);
-	s_averagepool_203.write((t_averagepool_203)(s_pad_202_tmp));
+	PadStream<
+		t_pad_202,
+		t_averagepool_203,
+		c_pad_49_ich,
+		c_pad_49_och,
+		c_pad_49_iw,
+		c_pad_49_ih,
+		c_pad_49_ow,
+		c_pad_49_oh,
+		c_pad_49_pad
+	> (
+		s_pad_202,
+		s_averagepool_203
+	);
 
 	hls::stream<t_input_156> s_input_156("s_input_156");
 	#pragma HLS STREAM variable=s_input_156 depth=c_averagepool_50_och type=fifo
@@ -1579,7 +1590,10 @@ void Network(
 		t_averagepool_203,
 		t_input_156,
 		t_averagepool_50_acc,
+		c_averagepool_50_ich,
 		c_averagepool_50_och,
+		c_averagepool_50_iw,
+		c_averagepool_50_ih,
 		c_averagepool_50_ow,
 		c_averagepool_50_oh,
 		c_averagepool_50_fw,

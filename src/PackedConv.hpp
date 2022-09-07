@@ -39,8 +39,8 @@ template <
 
 			/* Module done comparing against constant */
 			/* This works iff s_oh never higher than c_fh*2 */
-			if (s_oh_index >= (c_fh * 2))
-				s_oh_index -= (c_fh*2);
+			if (s_oh_index >= (c_fh << 1))
+				s_oh_index -= (c_fh << 1);
 
 			for (int s_fw = c_fw - 1; s_fw > -1; s_fw-=c_str) {
 				/* s_ow_index = (s_ow + s_fw - c_owt) % c_fw; */
@@ -67,8 +67,8 @@ template <
 
 			/* Module done comparing against constant */
 			/* This works iff s_oh never higher than c_fh*2 */
-			if (s_oh_index >= (c_fh * 2))
-				s_oh_index -= (c_fh*2);
+			if (s_oh_index >= (c_fh << 1))
+				s_oh_index -= (c_fh << 1);
 
 			for (int s_fw = 0; s_fw < c_fw; s_fw+=c_str) {
 				/* s_ow_index = (s_ow + s_fw - c_owt) % c_fw; */
@@ -237,27 +237,27 @@ template <
 			for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
 				s_in_buffer = i_data.read(); 
 
-				 PackedConvKernel<
-						t_input,
-						t_weight,
-						t_acc,
-						c_ich,
-						c_och,
-						c_iw,
-						c_ih,
-						c_ow,
-						c_oh,
-						c_fw,
-						c_fh,
-						c_str,
-						c_pad
-					> (
-						s_in_buffer,
-						i_weights,
-						s_oh,
-						s_ow,
-						s_acc_buffer
-					);
+				PackedConvKernel<
+				 	t_input,
+				 	t_weight,
+				 	t_acc,
+				 	c_ich,
+				 	c_och,
+				 	c_iw,
+				 	c_ih,
+				 	c_ow,
+				 	c_oh,
+				 	c_fw,
+				 	c_fh,
+				 	c_str,
+				 	c_pad
+				 > (
+				 	s_in_buffer,
+				 	i_weights,
+				 	s_oh + s_str,
+				 	s_ow + s_str,
+				 	s_acc_buffer
+				 );
 
 
 				/* This is useful for skip connection propagation, the stream can be read and */
@@ -355,27 +355,27 @@ template <
 			for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
 				s_in_buffer = i_data.read(); 
 
-				 PackedConvKernel<
-						t_input,
-						t_weight,
-						t_acc,
-						c_ich,
-						c_och,
-						c_iw,
-						c_ih,
-						c_ow,
-						c_oh,
-						c_fw,
-						c_fh,
-						c_str,
-						c_pad
-					> (
-						s_in_buffer,
-						i_weights,
-						s_oh,
-						s_ow,
-						s_acc_buffer
-					);
+				PackedConvKernel<
+				 	t_input,
+				 	t_weight,
+				 	t_acc,
+				 	c_ich,
+				 	c_och,
+				 	c_iw,
+				 	c_ih,
+				 	c_ow,
+				 	c_oh,
+				 	c_fw,
+				 	c_fh,
+				 	c_str,
+				 	c_pad
+				 > (
+				 	s_in_buffer,
+				 	i_weights,
+				 	s_oh + s_str,
+				 	s_ow + s_str,
+				 	s_acc_buffer
+				 );
 
 			}
 
@@ -489,8 +489,8 @@ template <
 					> (
 						s_in_buffer,
 						i_weights,
-						s_oh,
-						s_ow,
+						s_oh + s_str,
+						s_ow + s_str,
 						s_acc_buffer
 					);
 
@@ -500,18 +500,12 @@ template <
 			/* buffer are ready to be written out as soon as the input channel values are */
 			/* all considered */
 			/* s_oh_index_w = s_oh % c_fh; */
-			s_oh_index_w = s_oh;
 			for (uint8_t s_och = 0; s_och < c_och; s_och++) {
-
-				/* Module done comparing against constant */
-				/* This works iff s_oh never higher than c_fh*2 */
-				if (s_oh_index_w >= (c_fh << 1))
-					s_oh_index_w = 0;
 
 				/* BIAS ADDITION*/
 				t_bias s_bias;
 				i_bias.read(s_bias);
-				s_acc_buffer[s_oh_index_w][s_ow][s_och] += s_bias;
+				s_acc_buffer[s_oh][s_ow][s_och] += s_bias;
 
 			}
 

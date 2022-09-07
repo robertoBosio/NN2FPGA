@@ -82,7 +82,7 @@ def write(
                     channels
                 )
             )
-        fd.write("\tap_uint<1> s_%s_last[1];\n" % (name))
+        fd.write("\tap_uint<1> s_%s_last[1] = 0;\n" % (name))
 
     def write_internal_weight(fd, name, node_name):
 
@@ -198,7 +198,10 @@ def write(
         fd.write("\t\tt_%s,\n" % (input_name))
         fd.write("\t\tt_%s,\n" % (output_name))
         fd.write("\t\tt_%s_acc,\n" % (node_name))
+        fd.write("\t\tc_%s_ich,\n" % (node_name))
         fd.write("\t\tc_%s_och,\n" % (node_name))
+        fd.write("\t\tc_%s_iw,\n" % (node_name))
+        fd.write("\t\tc_%s_ih,\n" % (node_name))
         fd.write("\t\tc_%s_ow,\n" % (node_name))
         fd.write("\t\tc_%s_oh,\n" % (node_name))
         fd.write("\t\tc_%s_fw,\n" % (node_name))
@@ -229,9 +232,20 @@ def write(
 
         fd.write("\n")
 
-        fd.write("\tt_%s s_%s_tmp;\n" % (input_name, input_name))
-        fd.write("\ts_%s.read(s_%s_tmp);\n" % (input_name, input_name))
-        fd.write("\ts_%s.write((t_%s)(s_%s_tmp));\n" % (output_name, output_name, input_name))
+        fd.write("\tPadStream<\n")
+        fd.write("\t\tt_%s,\n" % (input_name))
+        fd.write("\t\tt_%s,\n" % (output_name))
+        fd.write("\t\tc_%s_ich,\n" % (node_name))
+        fd.write("\t\tc_%s_och,\n" % (node_name))
+        fd.write("\t\tc_%s_iw,\n" % (node_name))
+        fd.write("\t\tc_%s_ih,\n" % (node_name))
+        fd.write("\t\tc_%s_ow,\n" % (node_name))
+        fd.write("\t\tc_%s_oh,\n" % (node_name))
+        fd.write("\t\tc_%s_pad\n" % (node_name))
+        fd.write("\t> (\n")
+        fd.write("\t\ts_%s,\n" % (input_name))
+        fd.write("\t\ts_%s\n" % (output_name))
+        fd.write("\t);\n")
 
         fd.write("\n")
 

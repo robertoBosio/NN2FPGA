@@ -686,12 +686,24 @@ const int c_relu_48_ich    = 64;
 const int c_relu_48_ih     = 8;
 const int c_relu_48_iw     = 8;
 
+
 typedef ap_uint<8> t_averagepool_203;
+typedef ap_uint<8> t_pad_49_acc;
+const int c_pad_49_ich    = 64;
+const int c_pad_49_och    = 64;
+const int c_pad_49_ih     = 8;
+const int c_pad_49_iw     = 8;
+const int c_pad_49_oh     = 8;
+const int c_pad_49_ow     = 8;
+const int c_pad_49_pad    = 0;
 
 
 typedef ap_uint<8> t_input_156;
 typedef ap_uint<8> t_averagepool_50_acc;
+const int c_averagepool_50_ich    = 64;
 const int c_averagepool_50_och    = 64;
+const int c_averagepool_50_ih     = 8;
+const int c_averagepool_50_iw     = 8;
 const int c_averagepool_50_oh     = 1;
 const int c_averagepool_50_ow     = 1;
 const int c_averagepool_50_fh     = 8;

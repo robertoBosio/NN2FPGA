@@ -180,6 +180,45 @@ template <
 
 }
 
+///////////////////////////// FROM STREAM TO STREAM ///////////////////////////
+
+template <
+	class t_input,
+	class t_output,
+	int c_ich,
+	int c_och,
+	int c_iw,
+	int c_ih,
+	int c_ow,
+	int c_oh,
+	int c_pad
+> void PadStream(
+	hls::stream<t_input> &i_data,
+	hls::stream<t_output> &o_data
+) {
+
+	if (c_pad == 0) {
+		for (uint8_t s_ih = 0; s_ih < c_ih; s_ih++) {
+			for (uint8_t s_iw = 0; s_iw < c_iw; s_iw++) {
+				for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
+						o_data.write((t_output)(i_data.read()));
+				}
+			}
+		}
+	}
+
+	if (c_pad == 1) {
+		for (uint8_t s_ih = 0; s_ih < c_ih; s_ih++) {
+			for (uint8_t s_iw = 0; s_iw < c_iw; s_iw++) {
+				for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
+						o_data.write((t_output)(i_data.read()));
+				}
+			}
+		}
+	}
+
+}
+
 //////////////////////////// BLOCK INTERFACES /////////////////////////////////
 
 template <
@@ -196,24 +235,11 @@ template <
 	hls::stream<t_output> &o_data
 ) {
 
-	uint16_t s_oh_index_w = s_oh;
 	for (uint8_t s_och = 0; s_och < c_och; s_och++) {
 
-		if (c_pad == 0) {
-
-			t_output s_out_buffer = (t_output)(s_acc_buffer[s_oh_index_w][s_ow][s_och]);
+			t_output s_out_buffer = (t_output)(s_acc_buffer[s_oh][s_ow][s_och]);
 			o_data.write(s_out_buffer);
-			s_acc_buffer[s_oh_index_w][s_ow][s_och] = 0;
-
-		}
-
-		if (c_pad == 1) {
-
-			t_output s_out_buffer = (t_output)(s_acc_buffer[s_oh_index_w][s_ow][s_och]);
-			o_data.write(s_out_buffer);
-			s_acc_buffer[s_oh_index_w][s_ow][s_och] = 0;
-
-		}
+			s_acc_buffer[s_oh][s_ow][s_och] = 0;
 
 	}
 
