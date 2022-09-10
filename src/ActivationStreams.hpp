@@ -12,9 +12,7 @@ template <
 	const int c_iw
 > void ReluStreams(
 	hls::stream<t_input> &i_data,
-	hls::stream<t_output> &o_data,
-	ap_uint<1> i_last[1],
-	ap_uint<1> o_last[1]
+	hls::stream<t_output> &o_data
 ) {
 
 	if (i_data.empty())
@@ -37,9 +35,6 @@ template <
 		o_data.write(s_o_data);
 
 	}
-
-	o_last[0] = i_last[0];
-	
 
 }
 

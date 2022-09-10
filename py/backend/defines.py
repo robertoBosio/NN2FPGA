@@ -255,7 +255,7 @@ def write(
 
         fd.write("\n")
 
-        write_weights(weight_shape, weight_name)
+        # write_weights(weight_shape, weight_name)
 
         attributes = getattr(node, "attribute" )
 
@@ -318,8 +318,7 @@ def write(
         fd.write("void Network(\n")
         fd.write("\tt_i_data* i_data,\n")
         fd.write("\tt_weight* i_weight,\n")
-        fd.write("\tt_o_data* o_data,\n")
-        fd.write("\tint o_last\n")
+        fd.write("\tt_o_data* o_data\n")
         fd.write(");\n")
 
         # End of main file

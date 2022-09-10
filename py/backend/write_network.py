@@ -64,15 +64,19 @@ def write_network(model):
 
     skip_connections_info = extracts_skip_connections_info(model)
 
-    main.write(inferred_model, skip_connections_info)
+    weights_info = extracts_weights_info(model)
+
+    main.write(
+        inferred_model,
+        weights_info,
+        skip_connections_info
+    )
 
     # TODO: export tensors and weight info
     # TODO: assign correct values on tensors to defines
     # TODO: weights define
     
     tensors_info = extracts_tensors_info(inferred_model)
-
-    weights_info = extracts_weights_info(model)
 
     defines.write(
         inferred_model,
