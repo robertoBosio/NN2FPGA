@@ -288,13 +288,13 @@ def write(
         c_ih     = getattr(weight_shape, 'dims')[2]
         c_iw     = getattr(weight_shape, 'dims')[3]
 
-        fd.write("typedef ap_uint<8> t_%s_st;\n" % (weight_name))
-        fd.write("typedef ap_uint<8> t_%s;\n" % (weight_name))
-        fd.write("const int c_%s_och = %d;\n" % (weight_name, c_och))
-        fd.write("const int c_%s_ich = %d;\n" % (weight_name, c_ich))
-        fd.write("const int c_%s_ih  = %d;\n" % (weight_name, c_ih))
-        fd.write("const int c_%s_iw  = %d;\n" % (weight_name, c_iw))
-        fd.write("const ap_uint<8> c_%s_st[] = {\n" % (weight_name))
+        # fd.write("\ttypedef ap_uint<8> t_%s_st;\n" % (weight_name))
+        # fd.write("\ttypedef ap_uint<8> t_%s;\n" % (weight_name))
+        # fd.write("\tconst int c_%s_och = %d;\n" % (weight_name, c_och))
+        # fd.write("\tconst int c_%s_ich = %d;\n" % (weight_name, c_ich))
+        # fd.write("\tconst int c_%s_ih  = %d;\n" % (weight_name, c_ih))
+        # fd.write("\tconst int c_%s_iw  = %d;\n" % (weight_name, c_iw))
+        fd.write("\tconst ap_uint<8> c_%s_st[] = {\n" % (weight_name))
         
         weights = numpy_helper.to_array(
             weight_shape
@@ -381,8 +381,7 @@ def write(
             fd.write("\t\tc_%s_oh,\n" % (node_name))
             fd.write("\t\tc_%s_fw,\n" % (node_name))
             fd.write("\t\tc_%s_fh,\n" % (node_name))
-            if (c_stride > 1):
-                fd.write("\t\tc_%s_stride,\n" % (node_name))
+            fd.write("\t\tc_%s_stride,\n" % (node_name))
             fd.write("\t\tc_%s_pad\n" % (node_name))
             fd.write("\t> (\n")
             fd.write("\t\ts_%s,\n" % (input_name))
@@ -403,8 +402,7 @@ def write(
             fd.write("\t\tc_%s_oh,\n" % (node_name))
             fd.write("\t\tc_%s_fw,\n" % (node_name))
             fd.write("\t\tc_%s_fh,\n" % (node_name))
-            if (c_stride > 1):
-                fd.write("\t\tc_%s_stride,\n" % (node_name))
+            fd.write("\t\tc_%s_stride,\n" % (node_name))
             fd.write("\t\tc_%s_pad\n" % (node_name))
             fd.write("\t> (\n")
             fd.write("\t\ts_%s,\n" % (input_name))

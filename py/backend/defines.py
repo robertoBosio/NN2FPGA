@@ -77,24 +77,24 @@ def write(
         fd.write("const int c_%s_ich = %d;\n" % (weight_name, c_ich))
         fd.write("const int c_%s_ih  = %d;\n" % (weight_name, c_ih))
         fd.write("const int c_%s_iw  = %d;\n" % (weight_name, c_iw))
-        fd.write("const ap_uint<8> c_%s_st[] = {\n" % (weight_name))
+        # fd.write("const ap_uint<8> c_%s_st[] = {\n" % (weight_name))
         
-        weights = numpy_helper.to_array(
-            weight_shape
-        )
+        # weights = numpy_helper.to_array(
+        #     weight_shape
+        # )
 
-        # TODO: handle weights quantization
-        last_weight = True
-        for och in range(weights.shape[0]):
-            for ich in range(weights.shape[1]):
-                for ih in range(weights.shape[2]):
-                    for iw in range(weights.shape[3]):
-                        fd.write("%0.3f" % (weights[och][ich][ih][iw]))
-                        fd.write(", ")
+        # # TODO: handle weights quantization
+        # last_weight = True
+        # for och in range(weights.shape[0]):
+        #     for ich in range(weights.shape[1]):
+        #         for ih in range(weights.shape[2]):
+        #             for iw in range(weights.shape[3]):
+        #                 fd.write("%0.3f" % (weights[och][ich][ih][iw]))
+        #                 fd.write(", ")
 
-        fd.write("0")
+        # fd.write("0")
 
-        fd.write("};\n")
+        # fd.write("};\n")
         fd.write("\n")
 
     def write_relu(fd, node):
@@ -255,7 +255,7 @@ def write(
 
         fd.write("\n")
 
-        # write_weights(weight_shape, weight_name)
+        write_weights(weight_shape, weight_name)
 
         attributes = getattr(node, "attribute" )
 
