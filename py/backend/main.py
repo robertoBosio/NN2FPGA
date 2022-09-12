@@ -133,11 +133,7 @@ def write(
         fd.write("\t\tc_%s_iw,\n" % (name))
         fd.write("\t\tc_%s_ih,\n" % (name))
         fd.write("\t\tc_%s_iw,\n" % (node_name))
-        if (c_stride > 1):
-            fd.write("\t\tc_%s_ih,\n" % (node_name))
-            fd.write("\t\tc_%s_stride\n" % (node_name))
-        else:
-            fd.write("\t\tc_%s_ih\n" % (node_name))
+        fd.write("\t\tc_%s_ih\n" % (node_name))
         fd.write("\t>(\n")
         fd.write("\t\tc_%s_st,\n" % (name))
         fd.write("\t\ts_%s\n" % (name))

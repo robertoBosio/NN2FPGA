@@ -524,8 +524,7 @@ void Network(
 		c_conv_229_iw,
 		c_conv_229_ih,
 		c_conv_17_iw,
-		c_conv_17_ih,
-		c_conv_17_stride
+		c_conv_17_ih
 	>(
 		c_conv_229_st,
 		s_conv_229
@@ -630,8 +629,7 @@ void Network(
 		c_conv_235_iw,
 		c_conv_235_ih,
 		c_conv_20_iw,
-		c_conv_20_ih,
-		c_conv_20_stride
+		c_conv_20_ih
 	>(
 		c_conv_235_st,
 		s_conv_235
@@ -982,8 +980,7 @@ void Network(
 		c_conv_250_iw,
 		c_conv_250_ih,
 		c_conv_33_iw,
-		c_conv_33_ih,
-		c_conv_33_stride
+		c_conv_33_ih
 	>(
 		c_conv_250_st,
 		s_conv_250
@@ -1088,8 +1085,7 @@ void Network(
 		c_conv_256_iw,
 		c_conv_256_ih,
 		c_conv_36_iw,
-		c_conv_36_ih,
-		c_conv_36_stride
+		c_conv_36_ih
 	>(
 		c_conv_256_st,
 		s_conv_256
