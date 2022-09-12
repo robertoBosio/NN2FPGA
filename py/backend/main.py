@@ -87,23 +87,14 @@ def write(
         
         # Each stream has a channel width equal to the number of channels of the 
         # output feature 
-        if (c_stride > 1):
-            fd.write(
-                "\thls::stream<t_%s> s_%s(\"s_%s\");\n" % (
-                    name, 
-                    name, 
-                    name
-                )
+        fd.write(
+            "\thls::stream<t_%s> s_%s[c_%s_ih*c_%s_iw];\n" % (
+                name, 
+                name,
+                name,
+                name
             )
-        else:
-            fd.write(
-                "\thls::stream<t_%s> s_%s[c_%s_ih*c_%s_iw];\n" % (
-                    name, 
-                    name,
-                    name,
-                    name
-                )
-            )
+        )
 
         if (channels is None):
             fd.write(
