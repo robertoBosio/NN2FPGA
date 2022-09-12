@@ -6,7 +6,8 @@ from onnx import numpy_helper
 def write(
     model,
     weights_info,
-    skip_connections_info
+    skip_connections_info,
+    bias_info
 ):
 
     forwarded_streams = {}
@@ -307,6 +308,7 @@ def write(
 
         # Assuming no skip connection at the start
         no_skip = True
+        bias = False
 
         # Removing dots from input names
         input_name = node.input[0].replace(".", "_")
@@ -337,7 +339,16 @@ def write(
                 write_stream(fd, skip_name, "c_%s_ich" % node_name)
                 fd.write("\n")
 
-        output_name = node.output[0].replace(".", "_")
+        output_name = node.output[0]
+        if output_name in bias_info.keys():
+            bias = True
+            bias_name = bias_info[output_name][0]
+            bias_name = bias_name.replace(".", "_")
+            bias_name = bias_name.lower().replace("onnx::", "")
+
+            output_name = bias_info[output_name][1]
+
+        output_name = output_name.replace(".", "_")
         output_name = output_name.lower().replace("onnx::", "")
 
         write_stream(fd, output_name, "c_%s_ich" % node_name)
@@ -359,6 +370,7 @@ def write(
             fd.write("\t\tt_%s,\n" % (input_name))
             fd.write("\t\tt_%s,\n" % (weight_name))
             fd.write("\t\tt_%s,\n" % (output_name))
+            fd.write("\t\tt_%s,\n" % (input_name))
             fd.write("\t\tt_%s_acc,\n" % (node_name))
             fd.write("\t\tc_%s_ich,\n" % (node_name))
             fd.write("\t\tc_%s_och,\n" % (node_name))
@@ -373,6 +385,8 @@ def write(
             fd.write("\t> (\n")
             fd.write("\t\ts_%s,\n" % (input_name))
             fd.write("\t\ts_%s,\n" % (weight_name))
+            if (bias):
+                fd.write("\t\ts_%s,\n" % (bias_name))
             fd.write("\t\ts_%s\n" % (output_name))
             fd.write("\t);\n")
         else:
@@ -409,7 +423,7 @@ def write(
                 continue
 
             if 'add' == node.op_type.lower():
-                write_add(fd, node)
+                # write_add(fd, node)
                 continue
 
             # TODO: Write Relu and thinks about folding, if the buffer is small
