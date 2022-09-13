@@ -308,8 +308,8 @@ template <
 					int8_t s_ow = s_iw; 
 					t_output s_output = (t_output)(s_acc_buffer[s_ow][s_oh][s_och]);
 					if (c_relu == 1)
-						s_output = (t_output)(ReluOp<t_acc>(s_output))
-					if ((s_iw > -1) & (s_ih > -1)) {
+						s_output = (t_output)(ReluOp<t_acc>(s_output));
+					if ((s_iw > -1) & (s_ih > -1))
 						o_data.write(s_output);
 					s_acc_buffer[s_ow][s_oh][s_och] = 0;
 				}
@@ -375,7 +375,7 @@ template <
 			for (uint8_t s_och = 0; s_och < c_och; s_och++) {
 				t_output s_output = (t_output)(s_acc_buffer[s_ow][s_oh][s_och]);
 				if (c_relu == 1)
-					s_output = (t_output)(ReluOp<t_acc>(s_output))
+					s_output = (t_output)(ReluOp<t_acc>(s_output));
 				if ((s_iw > -1) & (s_ih > -1)) {
 					o_data.write(s_output);
 				}
@@ -574,7 +574,7 @@ template <
 		c_oh,
 		c_fw,
 		c_fh,
-		c_relu
+		c_relu,
 		c_pad
 	> (
 		s_acc_stream,
