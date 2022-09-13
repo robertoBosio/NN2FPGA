@@ -320,6 +320,154 @@ template <
 }
 
 template <
+	class t_acc,
+	class t_output,
+	int c_ich,
+	int c_och,
+	int c_iw,
+	int c_ih,
+	int c_ow,
+	int c_oh,
+	int c_fw,
+	int c_fh,
+	int c_relu,
+	int c_split,
+	int c_pad
+> void AccumulateKernel(
+	hls::stream<t_acc> i_data[c_fh*c_fw],
+	hls::stream<t_output> o_data[c_split]
+) {
+
+#pragma HLS inline
+	const int c_pad_index_h = c_pad * (c_fh - 1) / 2;
+	const int c_pad_index_w = c_pad * (c_fw - 1) / 2;
+	const int c_ih_end = c_ih + c_pad_index_h - (c_fh - 1);
+	const int c_ih_start = 1 - c_fh;
+	const int c_iw_end = c_iw + c_pad_index_w - (c_fw - 1);
+	const int c_iw_start = 1 - c_fw;
+	
+
+	t_acc s_acc_buffer[c_fh*2][c_ow][c_och] = {0};
+
+	for (int8_t s_ih = c_ih_start; s_ih < c_ih_end; s_ih++) { 
+#pragma HLS PIPELINE off
+		for (int8_t s_iw = c_iw_start; s_iw < c_iw_end; s_iw++) { 
+#pragma HLS PIPELINE off
+			for (uint8_t s_fh = 0; s_fh < c_fh; s_fh++) {
+#pragma HLS PIPELINE off
+				int8_t s_oh = (s_ih + s_fh) % (2 * c_fh); 
+				for (uint8_t s_fw = 0; s_fw < c_fw; s_fw++) {
+#pragma HLS PIPELINE off
+					int8_t s_ow = s_iw + s_fw; 
+					for (uint8_t s_och = 0; s_och < c_och; s_och++) {
+#pragma HLS PIPELINE off
+						t_acc s_acc = i_data[s_fh*c_fw + s_fw].read();
+#pragma HLS bind_op variable=s_acc_buffer op=add impl=dsp
+						s_acc_buffer[s_oh][s_ow][s_och] += s_acc;	
+					}
+				}
+			}
+
+			for (uint8_t s_och = 0; s_och < c_och; s_och++) {
+#pragma HLS PIPELINE off
+				if ((s_iw > -1) & (s_ih > -1)) {
+					int8_t s_oh = s_ih % (2 * c_fh); 
+					int8_t s_ow = s_iw; 
+					t_output s_output = (t_output)(s_acc_buffer[s_ow][s_oh][s_och]);
+					if (c_relu == 1)
+						s_output = (t_output)(ReluOp<t_acc>(s_output));
+					for (uint8_t s_split = 0; s_split < c_split; s_split++) {
+						if ((s_iw > -1) & (s_ih > -1))
+							o_data[s_split].write(s_output);
+					}
+					s_acc_buffer[s_ow][s_oh][s_och] = 0;
+				}
+			}
+		}
+	}
+
+}
+
+template <
+	class t_input,
+	class t_acc,
+	class t_output,
+	int c_ich,
+	int c_och,
+	int c_iw,
+	int c_ih,
+	int c_ow,
+	int c_oh,
+	int c_fw,
+	int c_fh,
+	int c_relu,
+	int c_split,
+	int c_pad
+> void AccumulateKernel(
+	hls::stream<t_acc> i_data[c_fh*c_fw],
+	hls::stream<t_input> &i_bias,
+	hls::stream<t_output> o_data[c_split]
+) {
+
+#pragma HLS inline
+	const int c_pad_index_h = c_pad * (c_fh - 1) / 2;
+	const int c_pad_index_w = c_pad * (c_fw - 1) / 2;
+	const int c_ih_end = c_ih + c_pad_index_h - (c_fh - 1);
+	const int c_ih_start = 1 - c_fh;
+	const int c_iw_end = c_iw + c_pad_index_w - (c_fw - 1);
+	const int c_iw_start = 1 - c_fw;
+	
+
+	t_acc s_acc_buffer[c_fh*2][c_ow][c_och] = {0};
+
+	for (int8_t s_ih = c_ih_start; s_ih < c_ih_end; s_ih++) { 
+#pragma HLS PIPELINE off
+		for (int8_t s_iw = c_iw_start; s_iw < c_iw_end; s_iw++) { 
+#pragma HLS PIPELINE off
+			int8_t s_oh = s_ih % (2 * c_fh); 
+			int8_t s_ow = s_iw; 
+			for (uint8_t s_och = 0; s_och < c_och; s_och++) {
+				t_input s_bias = i_bias.read();
+				if ((s_iw > -1) & (s_ih > -1)) {
+					s_acc_buffer[s_ow][s_oh][s_och] = s_bias;
+				}
+			}
+			for (uint8_t s_fh = 0; s_fh < c_fh; s_fh++) {
+#pragma HLS PIPELINE off
+				int8_t s_oh = (s_ih + s_fh) % (2 * c_fh); 
+				for (uint8_t s_fw = 0; s_fw < c_fw; s_fw++) {
+#pragma HLS PIPELINE off
+					int8_t s_ow = s_iw + s_fw; 
+					for (uint8_t s_och = 0; s_och < c_och; s_och++) {
+#pragma HLS PIPELINE off
+						t_acc s_acc = i_data[s_fh*c_fw + s_fw].read();
+#pragma HLS bind_op variable=s_acc_buffer op=add impl=dsp
+						s_acc_buffer[s_oh][s_ow][s_och] += s_acc;	
+					}
+				}
+			}
+
+			for (uint8_t s_och = 0; s_och < c_och; s_och++) {
+#pragma HLS PIPELINE off
+				if ((s_iw > -1) & (s_ih > -1)) {
+					int8_t s_oh = s_ih % (2 * c_fh); 
+					int8_t s_ow = s_iw; 
+					t_output s_output = (t_output)(s_acc_buffer[s_ow][s_oh][s_och]);
+					if (c_relu == 1)
+						s_output = (t_output)(ReluOp<t_acc>(s_output));
+					for (uint8_t s_split = 0; s_split < c_split; s_split++) {
+						if ((s_iw > -1) & (s_ih > -1))
+							o_data[s_split].write(s_output);
+					}
+					s_acc_buffer[s_ow][s_oh][s_och] = 0;
+				}
+			}
+		}
+	}
+
+}
+
+template <
 	class t_input,
 	class t_acc,
 	class t_output,
@@ -588,6 +736,142 @@ template <
 	class t_input,
 	class t_weight,
 	class t_output,
+	class t_bias,
+	class t_acc,
+	int c_ich,
+	int c_och,
+	int c_iw,
+	int c_ih,
+	int c_ow,
+	int c_oh,
+	int c_fw,
+	int c_fh,
+	int c_relu,
+	int c_split,
+	int c_str,
+	int c_pad
+> void PackedConvBuffAcc(
+	hls::stream<t_input> &i_data,
+	hls::stream<t_weight> i_weights[c_fh*c_fw],
+	hls::stream<t_input> &i_bias,
+	hls::stream<t_output> o_data[c_split]
+) {
+
+
+	const int c_conv_index = c_fh*c_fw;
+	hls::stream<t_input, 1> s_data_stream[2];
+	#pragma HLS STREAM variable=s_data_stream
+	hls::stream<t_input, 1> s_bias_stream;
+	#pragma HLS STREAM variable=s_bias_stream
+	hls::stream<t_acc, c_conv_index> s_acc_stream[c_conv_index];
+	#pragma HLS STREAM variable=s_acc_stream
+
+	#pragma HLS DATAFLOW
+	/* #pragma HLS inline */
+
+	/* for (uint8_t s_conv_index = 0; s_conv_index < c_conv_index; s_conv_index++) { */
+	/* 	if (i_weights[s_conv_index].empty()) */
+	/* 		return; */
+	/* } */
+
+	/* if (i_data.empty()) */
+	/* 	return; */
+
+	/* This handles padding aware inputs */
+	/* Higher indices weights can be applied only to central activations */ 
+	/* 1 2 3      9 8 7 */
+	/* 4 5 6 ---> 6 5 4 */
+	/* 7 8 9      3 2 1 */
+	/* 
+	 * D11   D12     D13   D14
+	 * 5 -> 4 6 -> 5 -> 4 6
+	 * 2 8 -> 1 3 7 9 -> 2 8
+	*/
+
+	PadInput<
+		t_input,
+		c_ich,
+		c_ih,
+		c_iw,
+		c_fh,
+		c_fw,
+		c_pad
+	> (
+		i_data,
+		s_data_stream[0]
+	);
+
+	ConvKernel<
+		t_input,
+		t_weight,
+		t_acc,
+		c_ich,
+		c_och,
+		c_ih,
+		c_iw,
+		c_fh,
+		c_fw,
+		c_str,
+		c_pad
+	> (
+		s_data_stream[0],
+		i_weights,
+		s_data_stream[1],
+		s_acc_stream
+	);
+
+	ForwardStream<
+		t_input,
+		c_ich,
+		c_iw,
+		c_ih,
+		c_fw,
+		c_fh,
+		c_pad
+	> (
+		s_data_stream[1]
+	);
+
+	PadInput<
+		t_input,
+		c_ich,
+		c_ih,
+		c_iw,
+		c_fh,
+		c_fw,
+		c_pad
+	> (
+		i_bias,
+		s_bias_stream
+	);
+
+	AccumulateKernel<
+		t_input,
+		t_acc,
+		t_output,
+		c_ich,
+		c_och,
+		c_iw,
+		c_ih,
+		c_ow,
+		c_oh,
+		c_fw,
+		c_fh,
+		c_relu,
+		c_split,
+		c_pad
+	> (
+		s_acc_stream,
+		s_bias_stream,
+		o_data
+	);
+
+}
+
+template <
+	class t_input,
+	class t_weight,
+	class t_output,
 	class t_acc,
 	int c_ich,
 	int c_och,
@@ -812,6 +1096,127 @@ template <
 		c_fw,
 		c_fh,
 		c_relu,
+		c_pad
+	> (
+		s_acc_stream,
+		o_data
+	);
+
+}
+
+/* Config padded version of the packed convolution with Accumulation buffers */
+/* What changes is the association between the filters kernel indices and the */ 
+/* input features map, this translates in a different initialization of the loops */
+template <
+	class t_input,
+	class t_weight,
+	class t_output,
+	class t_acc,
+	int c_ich,
+	int c_och,
+	int c_iw,
+	int c_ih,
+	int c_ow,
+	int c_oh,
+	int c_fw,
+	int c_fh,
+	int c_relu,
+	int c_split,
+	int c_str,
+	int c_pad
+> void PackedConvBuffAcc(
+	hls::stream<t_input> &i_data,
+	hls::stream<t_weight> i_weights[c_fh*c_fw],
+	hls::stream<t_output> o_data[c_split]
+) {
+
+
+	const int c_conv_index = c_fh*c_fw;
+
+	/* for (uint8_t s_conv_index = 0; s_conv_index < c_conv_index; s_conv_index++) { */
+	/* 	if (i_weights[s_conv_index].empty()) */
+	/* 		return; */
+	/* } */
+
+	/* if (i_data.empty()) */
+	/* 	return; */
+
+	#pragma HLS DATAFLOW
+/* #pragma HLS inline */
+
+	/* This handles padding aware inputs */
+	/* Higher indices weights can be applied only to central activations */ 
+	/* 1 2 3      9 8 7 */
+	/* 4 5 6 ---> 6 5 4 */
+	/* 7 8 9      3 2 1 */
+	/* 
+	 * D11   D12     D13   D14
+	 * 5 -> 4 6 -> 5 -> 4 6
+	 * 2 8 -> 1 3 7 9 -> 2 8
+	*/
+
+	hls::stream<t_input> s_data_stream[2];
+	#pragma HLS STREAM variable=s_data_stream type=fifo
+	hls::stream<t_acc, c_conv_index> s_acc_stream[c_conv_index];
+	#pragma HLS STREAM variable=s_acc_stream
+
+	PadInput<
+		t_input,
+		c_ich,
+		c_ih,
+		c_iw,
+		c_fh,
+		c_fw,
+		c_pad
+	> (
+		i_data,
+		s_data_stream[0]
+	);
+
+	ConvKernel<
+		t_input,
+		t_weight,
+		t_acc,
+		c_ich,
+		c_och,
+		c_ih,
+		c_iw,
+		c_fh,
+		c_fw,
+		c_str,
+		c_pad
+	> (
+		s_data_stream[0],
+		i_weights,
+		s_data_stream[1],
+		s_acc_stream
+	);
+
+	ForwardStream<
+		t_input,
+		c_ich,
+		c_iw,
+		c_ih,
+		c_fw,
+		c_fh,
+		c_pad
+	> (
+		s_data_stream[1]
+	);
+
+	AccumulateKernel<
+		t_acc,
+		t_output,
+		c_ich,
+		c_och,
+		c_iw,
+		c_ih,
+		c_ow,
+		c_oh,
+		c_fw,
+		c_fh,
+		c_relu,
+		c_split,
 		c_pad
 	> (
 		s_acc_stream,

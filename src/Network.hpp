@@ -25,7 +25,7 @@ const int c_conv_208_ich = 3;
 const int c_conv_208_ih  = 3;
 const int c_conv_208_iw  = 3;
 
-typedef ap_uint<8> t_input_4;
+typedef ap_uint<8> t_conv_135;
 typedef ap_uint<32> t_conv_0_acc;
 const int c_conv_0_ich    = 3;
 const int c_conv_0_och    = 16;
@@ -36,6 +36,7 @@ const int c_conv_0_oh     = 32;
 const int c_conv_0_fw     = 3;
 const int c_conv_0_fh     = 3;
 const int c_conv_0_relu   = 1;
+const int c_conv_135_split  = 0;
 const int c_conv_0_stride = 1;
 const int c_conv_0_pad    = 1;
 
@@ -55,7 +56,7 @@ const int c_conv_211_ich = 16;
 const int c_conv_211_ih  = 3;
 const int c_conv_211_iw  = 3;
 
-typedef ap_uint<8> t_input_12;
+typedef ap_uint<8> t_conv_138;
 typedef ap_uint<32> t_conv_2_acc;
 const int c_conv_2_ich    = 16;
 const int c_conv_2_och    = 16;
@@ -66,6 +67,7 @@ const int c_conv_2_oh     = 32;
 const int c_conv_2_fw     = 3;
 const int c_conv_2_fh     = 3;
 const int c_conv_2_relu   = 1;
+const int c_conv_138_split  = 0;
 const int c_conv_2_stride = 1;
 const int c_conv_2_pad    = 1;
 
@@ -83,7 +85,7 @@ const int c_conv_214_ich = 16;
 const int c_conv_214_ih  = 3;
 const int c_conv_214_iw  = 3;
 
-typedef ap_uint<8> t_add_213;
+typedef ap_uint<8> t_input_20;
 typedef ap_uint<32> t_conv_4_acc;
 const int c_conv_4_ich    = 16;
 const int c_conv_4_och    = 16;
@@ -94,6 +96,7 @@ const int c_conv_4_oh     = 32;
 const int c_conv_4_fw     = 3;
 const int c_conv_4_fh     = 3;
 const int c_conv_4_relu   = 1;
+const int c_input_20_split  = 0;
 const int c_conv_4_stride = 1;
 const int c_conv_4_pad    = 1;
 
@@ -119,7 +122,7 @@ const int c_conv_217_ich = 16;
 const int c_conv_217_ih  = 3;
 const int c_conv_217_iw  = 3;
 
-typedef ap_uint<8> t_input_28;
+typedef ap_uint<8> t_conv_145;
 typedef ap_uint<32> t_conv_7_acc;
 const int c_conv_7_ich    = 16;
 const int c_conv_7_och    = 16;
@@ -130,6 +133,7 @@ const int c_conv_7_oh     = 32;
 const int c_conv_7_fw     = 3;
 const int c_conv_7_fh     = 3;
 const int c_conv_7_relu   = 1;
+const int c_conv_145_split  = 0;
 const int c_conv_7_stride = 1;
 const int c_conv_7_pad    = 1;
 
@@ -147,7 +151,7 @@ const int c_conv_220_ich = 16;
 const int c_conv_220_ih  = 3;
 const int c_conv_220_iw  = 3;
 
-typedef ap_uint<8> t_add_219;
+typedef ap_uint<8> t_input_36;
 typedef ap_uint<32> t_conv_9_acc;
 const int c_conv_9_ich    = 16;
 const int c_conv_9_och    = 16;
@@ -158,6 +162,7 @@ const int c_conv_9_oh     = 32;
 const int c_conv_9_fw     = 3;
 const int c_conv_9_fh     = 3;
 const int c_conv_9_relu   = 1;
+const int c_input_36_split  = 0;
 const int c_conv_9_stride = 1;
 const int c_conv_9_pad    = 1;
 
@@ -183,7 +188,7 @@ const int c_conv_223_ich = 16;
 const int c_conv_223_ih  = 3;
 const int c_conv_223_iw  = 3;
 
-typedef ap_uint<8> t_input_44;
+typedef ap_uint<8> t_conv_152;
 typedef ap_uint<32> t_conv_12_acc;
 const int c_conv_12_ich    = 16;
 const int c_conv_12_och    = 16;
@@ -194,6 +199,7 @@ const int c_conv_12_oh     = 32;
 const int c_conv_12_fw     = 3;
 const int c_conv_12_fh     = 3;
 const int c_conv_12_relu   = 1;
+const int c_conv_152_split  = 0;
 const int c_conv_12_stride = 1;
 const int c_conv_12_pad    = 1;
 
@@ -211,7 +217,7 @@ const int c_conv_226_ich = 16;
 const int c_conv_226_ih  = 3;
 const int c_conv_226_iw  = 3;
 
-typedef ap_uint<8> t_add_225;
+typedef ap_uint<8> t_input_52;
 typedef ap_uint<32> t_conv_14_acc;
 const int c_conv_14_ich    = 16;
 const int c_conv_14_och    = 16;
@@ -222,6 +228,7 @@ const int c_conv_14_oh     = 32;
 const int c_conv_14_fw     = 3;
 const int c_conv_14_fh     = 3;
 const int c_conv_14_relu   = 1;
+const int c_input_52_split  = 2;
 const int c_conv_14_stride = 1;
 const int c_conv_14_pad    = 1;
 
@@ -245,7 +252,7 @@ const int c_conv_229_ich = 16;
 const int c_conv_229_ih  = 3;
 const int c_conv_229_iw  = 3;
 
-typedef ap_uint<8> t_input_60;
+typedef ap_uint<8> t_conv_159;
 typedef ap_uint<32> t_conv_17_acc;
 const int c_conv_17_ich    = 16;
 const int c_conv_17_och    = 32;
@@ -256,6 +263,7 @@ const int c_conv_17_oh     = 16;
 const int c_conv_17_fw     = 3;
 const int c_conv_17_fh     = 3;
 const int c_conv_17_relu   = 1;
+const int c_conv_159_split  = 0;
 const int c_conv_17_stride = 2;
 const int c_conv_17_pad    = 1;
 
@@ -273,7 +281,7 @@ const int c_conv_232_ich = 32;
 const int c_conv_232_ih  = 3;
 const int c_conv_232_iw  = 3;
 
-typedef ap_uint<8> t_add_231;
+typedef ap_uint<8> t_input_72;
 typedef ap_uint<32> t_conv_19_acc;
 const int c_conv_19_ich    = 32;
 const int c_conv_19_och    = 32;
@@ -284,6 +292,7 @@ const int c_conv_19_oh     = 16;
 const int c_conv_19_fw     = 3;
 const int c_conv_19_fh     = 3;
 const int c_conv_19_relu   = 1;
+const int c_input_72_split  = 0;
 const int c_conv_19_stride = 1;
 const int c_conv_19_pad    = 1;
 
@@ -306,6 +315,7 @@ const int c_conv_20_oh     = 16;
 const int c_conv_20_fw     = 1;
 const int c_conv_20_fh     = 1;
 const int c_conv_20_relu   = 0;
+const int c_add_234_split  = 0;
 const int c_conv_20_stride = 2;
 const int c_conv_20_pad    = 0;
 
@@ -331,7 +341,7 @@ const int c_conv_238_ich = 32;
 const int c_conv_238_ih  = 3;
 const int c_conv_238_iw  = 3;
 
-typedef ap_uint<8> t_input_80;
+typedef ap_uint<8> t_conv_168;
 typedef ap_uint<32> t_conv_23_acc;
 const int c_conv_23_ich    = 32;
 const int c_conv_23_och    = 32;
@@ -342,6 +352,7 @@ const int c_conv_23_oh     = 16;
 const int c_conv_23_fw     = 3;
 const int c_conv_23_fh     = 3;
 const int c_conv_23_relu   = 1;
+const int c_conv_168_split  = 0;
 const int c_conv_23_stride = 1;
 const int c_conv_23_pad    = 1;
 
@@ -359,7 +370,7 @@ const int c_conv_241_ich = 32;
 const int c_conv_241_ih  = 3;
 const int c_conv_241_iw  = 3;
 
-typedef ap_uint<8> t_add_240;
+typedef ap_uint<8> t_input_88;
 typedef ap_uint<32> t_conv_25_acc;
 const int c_conv_25_ich    = 32;
 const int c_conv_25_och    = 32;
@@ -370,6 +381,7 @@ const int c_conv_25_oh     = 16;
 const int c_conv_25_fw     = 3;
 const int c_conv_25_fh     = 3;
 const int c_conv_25_relu   = 1;
+const int c_input_88_split  = 0;
 const int c_conv_25_stride = 1;
 const int c_conv_25_pad    = 1;
 
@@ -395,7 +407,7 @@ const int c_conv_244_ich = 32;
 const int c_conv_244_ih  = 3;
 const int c_conv_244_iw  = 3;
 
-typedef ap_uint<8> t_input_96;
+typedef ap_uint<8> t_conv_175;
 typedef ap_uint<32> t_conv_28_acc;
 const int c_conv_28_ich    = 32;
 const int c_conv_28_och    = 32;
@@ -406,6 +418,7 @@ const int c_conv_28_oh     = 16;
 const int c_conv_28_fw     = 3;
 const int c_conv_28_fh     = 3;
 const int c_conv_28_relu   = 1;
+const int c_conv_175_split  = 0;
 const int c_conv_28_stride = 1;
 const int c_conv_28_pad    = 1;
 
@@ -423,7 +436,7 @@ const int c_conv_247_ich = 32;
 const int c_conv_247_ih  = 3;
 const int c_conv_247_iw  = 3;
 
-typedef ap_uint<8> t_add_246;
+typedef ap_uint<8> t_input_104;
 typedef ap_uint<32> t_conv_30_acc;
 const int c_conv_30_ich    = 32;
 const int c_conv_30_och    = 32;
@@ -434,6 +447,7 @@ const int c_conv_30_oh     = 16;
 const int c_conv_30_fw     = 3;
 const int c_conv_30_fh     = 3;
 const int c_conv_30_relu   = 1;
+const int c_input_104_split  = 2;
 const int c_conv_30_stride = 1;
 const int c_conv_30_pad    = 1;
 
@@ -457,7 +471,7 @@ const int c_conv_250_ich = 32;
 const int c_conv_250_ih  = 3;
 const int c_conv_250_iw  = 3;
 
-typedef ap_uint<8> t_input_112;
+typedef ap_uint<8> t_conv_182;
 typedef ap_uint<32> t_conv_33_acc;
 const int c_conv_33_ich    = 32;
 const int c_conv_33_och    = 64;
@@ -468,6 +482,7 @@ const int c_conv_33_oh     = 8;
 const int c_conv_33_fw     = 3;
 const int c_conv_33_fh     = 3;
 const int c_conv_33_relu   = 1;
+const int c_conv_182_split  = 0;
 const int c_conv_33_stride = 2;
 const int c_conv_33_pad    = 1;
 
@@ -485,7 +500,7 @@ const int c_conv_253_ich = 64;
 const int c_conv_253_ih  = 3;
 const int c_conv_253_iw  = 3;
 
-typedef ap_uint<8> t_add_252;
+typedef ap_uint<8> t_input_124;
 typedef ap_uint<32> t_conv_35_acc;
 const int c_conv_35_ich    = 64;
 const int c_conv_35_och    = 64;
@@ -496,6 +511,7 @@ const int c_conv_35_oh     = 8;
 const int c_conv_35_fw     = 3;
 const int c_conv_35_fh     = 3;
 const int c_conv_35_relu   = 1;
+const int c_input_124_split  = 0;
 const int c_conv_35_stride = 1;
 const int c_conv_35_pad    = 1;
 
@@ -518,6 +534,7 @@ const int c_conv_36_oh     = 8;
 const int c_conv_36_fw     = 1;
 const int c_conv_36_fh     = 1;
 const int c_conv_36_relu   = 0;
+const int c_add_255_split  = 0;
 const int c_conv_36_stride = 2;
 const int c_conv_36_pad    = 0;
 
@@ -543,7 +560,7 @@ const int c_conv_259_ich = 64;
 const int c_conv_259_ih  = 3;
 const int c_conv_259_iw  = 3;
 
-typedef ap_uint<8> t_input_132;
+typedef ap_uint<8> t_conv_191;
 typedef ap_uint<32> t_conv_39_acc;
 const int c_conv_39_ich    = 64;
 const int c_conv_39_och    = 64;
@@ -554,6 +571,7 @@ const int c_conv_39_oh     = 8;
 const int c_conv_39_fw     = 3;
 const int c_conv_39_fh     = 3;
 const int c_conv_39_relu   = 1;
+const int c_conv_191_split  = 0;
 const int c_conv_39_stride = 1;
 const int c_conv_39_pad    = 1;
 
@@ -571,7 +589,7 @@ const int c_conv_262_ich = 64;
 const int c_conv_262_ih  = 3;
 const int c_conv_262_iw  = 3;
 
-typedef ap_uint<8> t_add_261;
+typedef ap_uint<8> t_input_140;
 typedef ap_uint<32> t_conv_41_acc;
 const int c_conv_41_ich    = 64;
 const int c_conv_41_och    = 64;
@@ -582,6 +600,7 @@ const int c_conv_41_oh     = 8;
 const int c_conv_41_fw     = 3;
 const int c_conv_41_fh     = 3;
 const int c_conv_41_relu   = 1;
+const int c_input_140_split  = 0;
 const int c_conv_41_stride = 1;
 const int c_conv_41_pad    = 1;
 
@@ -607,7 +626,7 @@ const int c_conv_265_ich = 64;
 const int c_conv_265_ih  = 3;
 const int c_conv_265_iw  = 3;
 
-typedef ap_uint<8> t_input_148;
+typedef ap_uint<8> t_conv_198;
 typedef ap_uint<32> t_conv_44_acc;
 const int c_conv_44_ich    = 64;
 const int c_conv_44_och    = 64;
@@ -618,6 +637,7 @@ const int c_conv_44_oh     = 8;
 const int c_conv_44_fw     = 3;
 const int c_conv_44_fh     = 3;
 const int c_conv_44_relu   = 1;
+const int c_conv_198_split  = 0;
 const int c_conv_44_stride = 1;
 const int c_conv_44_pad    = 1;
 
@@ -635,7 +655,7 @@ const int c_conv_268_ich = 64;
 const int c_conv_268_ih  = 3;
 const int c_conv_268_iw  = 3;
 
-typedef ap_uint<8> t_add_267;
+typedef ap_uint<8> t_pad_202;
 typedef ap_uint<32> t_conv_46_acc;
 const int c_conv_46_ich    = 64;
 const int c_conv_46_och    = 64;
@@ -646,6 +666,7 @@ const int c_conv_46_oh     = 8;
 const int c_conv_46_fw     = 3;
 const int c_conv_46_fh     = 3;
 const int c_conv_46_relu   = 1;
+const int c_pad_202_split  = 0;
 const int c_conv_46_stride = 1;
 const int c_conv_46_pad    = 1;
 
@@ -705,6 +726,7 @@ const int c_conv_51_oh     = 1;
 const int c_conv_51_fw     = 1;
 const int c_conv_51_fh     = 1;
 const int c_conv_51_relu   = 0;
+const int c_output_split  = 0;
 const int c_conv_51_stride = 1;
 const int c_conv_51_pad    = 0;
 

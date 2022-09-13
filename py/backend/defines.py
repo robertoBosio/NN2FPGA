@@ -8,7 +8,10 @@ def write(
     tensors_info,
     weights_info,
     skip_connections_info,
-    conv_relu
+    bias_info,
+    relu_info,
+    conv_relu,
+    split_info
 ):
 
     def write_header(fd):
@@ -250,7 +253,25 @@ def write(
                 fd.write("typedef ap_uint<8> t_%s;\n" % (skip_name))
                 fd.write("\n")
 
-        output_name = node.output[0].replace(".", "_")
+        output_name = node.output[0]
+        if output_name in bias_info.keys():
+            bias = True
+            bias_name = bias_info[output_name][0]
+            bias_name = bias_name.replace(".", "_")
+            bias_name = bias_name.lower().replace("onnx::", "")
+
+            output_name = bias_info[output_name][1]
+
+        # Merging RELU to conv
+        if output_name in relu_info.keys():
+            output_name = relu_info[output_name][1]
+
+        if output_name in split_info.keys():
+            c_split = len(split_info[output_name])
+        else:
+            c_split = 0
+
+        output_name = output_name.replace(".", "_")
         output_name = output_name.lower().replace("onnx::", "")
         output_shape = tensors_info[node.output[0]].tensor_type.shape
 
@@ -286,6 +307,7 @@ def write(
         fd.write("const int c_%s_fw     = %d;\n" % (node_name, c_fw))
         fd.write("const int c_%s_fh     = %d;\n" % (node_name, c_fh))
         fd.write("const int c_%s_relu   = %d;\n" % (node_name, c_relu))
+        fd.write("const int c_%s_split  = %d;\n" % (output_name, c_split))
         fd.write("const int c_%s_stride = %d;\n" % (node_name, c_stride))
         fd.write("const int c_%s_pad    = %d;\n" % (node_name, c_pad))
 

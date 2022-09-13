@@ -103,7 +103,7 @@ void Network(
 	#pragma HLS STREAM variable=s_conv_223 depth=c_conv_223_och type=fifo
 
 
-	hls::stream<t_input_52> s_input_52("s_input_52");
+	hls::stream<t_input_52> s_input_52[c_input_52_split];
 	#pragma HLS STREAM variable=s_input_52 depth=c_conv_14_ich type=fifo
 
 	const ap_uint<8> c_conv_226_st[] = {
@@ -179,7 +179,7 @@ void Network(
 	#pragma HLS STREAM variable=s_conv_244 depth=c_conv_244_och type=fifo
 
 
-	hls::stream<t_input_104> s_input_104("s_input_104");
+	hls::stream<t_input_104> s_input_104[c_input_104_split];
 	#pragma HLS STREAM variable=s_input_104 depth=c_conv_30_ich type=fifo
 
 	const ap_uint<8> c_conv_247_st[] = {
@@ -543,6 +543,7 @@ void Network(
 		c_conv_14_fw,
 		c_conv_14_fh,
 		c_conv_14_relu,
+		c_input_52_split,
 		c_conv_14_stride,
 		c_conv_14_pad
 	> (
@@ -584,7 +585,7 @@ void Network(
 		c_conv_17_stride,
 		c_conv_17_pad
 	> (
-		s_input_52,
+		s_input_52[0],
 		s_conv_229,
 		s_conv_159
 	);
@@ -660,7 +661,7 @@ void Network(
 		c_conv_20_stride,
 		c_conv_20_pad
 	> (
-		s_input_52,
+		s_input_52[1],
 		s_conv_235,
 		s_add_234
 	);
@@ -812,6 +813,7 @@ void Network(
 		c_conv_30_fw,
 		c_conv_30_fh,
 		c_conv_30_relu,
+		c_input_104_split,
 		c_conv_30_stride,
 		c_conv_30_pad
 	> (
@@ -853,7 +855,7 @@ void Network(
 		c_conv_33_stride,
 		c_conv_33_pad
 	> (
-		s_input_104,
+		s_input_104[0],
 		s_conv_250,
 		s_conv_182
 	);
@@ -929,7 +931,7 @@ void Network(
 		c_conv_36_stride,
 		c_conv_36_pad
 	> (
-		s_input_104,
+		s_input_104[1],
 		s_conv_256,
 		s_add_255
 	);

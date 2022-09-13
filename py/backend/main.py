@@ -8,7 +8,8 @@ def write(
     weights_info,
     skip_connections_info,
     bias_info,
-    relu_info
+    relu_info,
+    split_info
 ):
 
     forwarded_streams = {}
@@ -89,18 +90,27 @@ def write(
                 )
             )
 
-    def write_array_stream(fd, name, channels=None, c_stride=1):
+    def write_array_stream(fd, name, channels=None, c_split=None):
         
         # Each stream has a channel width equal to the number of channels of the 
         # output feature 
-        fd.write(
-            "\thls::stream<t_%s> s_%s[c_%s_ih*c_%s_iw];\n" % (
-                name, 
-                name,
-                name,
-                name
+        if (c_split is not None):
+            fd.write(
+                "\thls::stream<t_%s> s_%s[c_%s_split];\n" % (
+                    name,
+                    name,
+                    name
+                )
             )
-        )
+        else:
+            fd.write(
+                "\thls::stream<t_%s> s_%s[c_%s_ih*c_%s_iw];\n" % (
+                    name, 
+                    name,
+                    name,
+                    name
+                )
+            )
 
         if (channels is None):
             fd.write(
@@ -126,7 +136,7 @@ def write(
     ):
 
         if emit_streams:
-            write_array_stream(fd, name, "c_%s_och" % name, c_stride)
+            write_array_stream(fd, name, "c_%s_och" % name)
 
             fd.write("\n")
 
@@ -327,9 +337,17 @@ def write(
         # Assuming no skip connection at the start
         no_skip = True
         bias = False
+        split = False
 
         # Removing dots from input names
-        input_name = node.input[0].replace(".", "_")
+        input_name = node.input[0]
+
+        indexed = False
+        if (input_name in split_info.keys()):
+            indexed = True
+            index = split_info[input_name].index(node.name)
+
+        input_name = input_name.replace(".", "_")
         input_name = input_name.lower().replace("onnx::", "")
 
         if (node.name in skip_connections_info.keys()):
@@ -368,17 +386,23 @@ def write(
 
             output_name = bias_info[output_name][1]
 
-        #Merging RELU to conv
+        # Merging RELU to conv
         if output_name in relu_info.keys():
             replaced_relu.append(relu_info[output_name][0])
             conv_relu.append(node.name)
             output_name = relu_info[output_name][1]
 
+        if output_name in split_info.keys():
+            split = True
+
         output_name = output_name.replace(".", "_")
         output_name = output_name.lower().replace("onnx::", "")
 
         if emit_streams:
-            write_stream(fd, output_name, "c_%s_ich" % node_name)
+            if (split):
+                write_array_stream(fd, output_name, "c_%s_ich" % node_name, 2)
+            else:
+                write_stream(fd, output_name, "c_%s_ich" % node_name)
             fd.write("\n")
 
         attributes = getattr(node, "attribute" )
@@ -417,10 +441,15 @@ def write(
                 fd.write("\t\tc_%s_fw,\n" % (node_name))
                 fd.write("\t\tc_%s_fh,\n" % (node_name))
                 fd.write("\t\tc_%s_relu,\n" % (node_name))
+                if (split):
+                    fd.write("\t\tc_%s_split,\n" % (output_name))
                 fd.write("\t\tc_%s_stride,\n" % (node_name))
                 fd.write("\t\tc_%s_pad\n" % (node_name))
                 fd.write("\t> (\n")
-                fd.write("\t\ts_%s,\n" % (input_name))
+                if indexed:
+                    fd.write("\t\ts_%s[%d],\n" % (input_name, index))
+                else:
+                    fd.write("\t\ts_%s,\n" % (input_name))
                 fd.write("\t\ts_%s,\n" % (weight_name))
                 if (bias):
                     fd.write("\t\ts_%s,\n" % (bias_name))
@@ -441,10 +470,15 @@ def write(
                 fd.write("\t\tc_%s_fw,\n" % (node_name))
                 fd.write("\t\tc_%s_fh,\n" % (node_name))
                 fd.write("\t\tc_%s_relu,\n" % (node_name))
+                if (split):
+                    fd.write("\t\tc_%s_split,\n" % (output_name))
                 fd.write("\t\tc_%s_stride,\n" % (node_name))
                 fd.write("\t\tc_%s_pad\n" % (node_name))
                 fd.write("\t> (\n")
-                fd.write("\t\ts_%s,\n" % (input_name))
+                if indexed:
+                    fd.write("\t\ts_%s[%d],\n" % (input_name, index))
+                else:
+                    fd.write("\t\ts_%s,\n" % (input_name))
                 fd.write("\t\ts_%s,\n" % (weight_name))
                 fd.write("\t\ts_%s,\n" % (output_name))
                 fd.write("\t\ts_%s\n" % (skip_name))
