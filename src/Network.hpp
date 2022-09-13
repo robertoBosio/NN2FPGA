@@ -230,8 +230,6 @@ const int c_relu_16_ich    = 16;
 const int c_relu_16_ih     = 32;
 const int c_relu_16_iw     = 32;
 
-typedef ap_uint<8> t_input_52_skip;
-
 
 typedef ap_uint<8> t_conv_229_st;
 typedef ap_uint<8> t_conv_229;
@@ -436,8 +434,6 @@ typedef ap_uint<8> t_input_104;
 const int c_relu_32_ich    = 32;
 const int c_relu_32_ih     = 16;
 const int c_relu_32_iw     = 16;
-
-typedef ap_uint<8> t_input_104_skip;
 
 
 typedef ap_uint<8> t_conv_250_st;
