@@ -35,6 +35,7 @@ const int c_conv_0_ow     = 32;
 const int c_conv_0_oh     = 32;
 const int c_conv_0_fw     = 3;
 const int c_conv_0_fh     = 3;
+const int c_conv_0_relu   = 1;
 const int c_conv_0_stride = 1;
 const int c_conv_0_pad    = 1;
 
@@ -64,6 +65,7 @@ const int c_conv_2_ow     = 32;
 const int c_conv_2_oh     = 32;
 const int c_conv_2_fw     = 3;
 const int c_conv_2_fh     = 3;
+const int c_conv_2_relu   = 1;
 const int c_conv_2_stride = 1;
 const int c_conv_2_pad    = 1;
 
@@ -91,6 +93,7 @@ const int c_conv_4_ow     = 32;
 const int c_conv_4_oh     = 32;
 const int c_conv_4_fw     = 3;
 const int c_conv_4_fh     = 3;
+const int c_conv_4_relu   = 1;
 const int c_conv_4_stride = 1;
 const int c_conv_4_pad    = 1;
 
@@ -126,6 +129,7 @@ const int c_conv_7_ow     = 32;
 const int c_conv_7_oh     = 32;
 const int c_conv_7_fw     = 3;
 const int c_conv_7_fh     = 3;
+const int c_conv_7_relu   = 1;
 const int c_conv_7_stride = 1;
 const int c_conv_7_pad    = 1;
 
@@ -153,6 +157,7 @@ const int c_conv_9_ow     = 32;
 const int c_conv_9_oh     = 32;
 const int c_conv_9_fw     = 3;
 const int c_conv_9_fh     = 3;
+const int c_conv_9_relu   = 1;
 const int c_conv_9_stride = 1;
 const int c_conv_9_pad    = 1;
 
@@ -188,6 +193,7 @@ const int c_conv_12_ow     = 32;
 const int c_conv_12_oh     = 32;
 const int c_conv_12_fw     = 3;
 const int c_conv_12_fh     = 3;
+const int c_conv_12_relu   = 1;
 const int c_conv_12_stride = 1;
 const int c_conv_12_pad    = 1;
 
@@ -215,6 +221,7 @@ const int c_conv_14_ow     = 32;
 const int c_conv_14_oh     = 32;
 const int c_conv_14_fw     = 3;
 const int c_conv_14_fh     = 3;
+const int c_conv_14_relu   = 1;
 const int c_conv_14_stride = 1;
 const int c_conv_14_pad    = 1;
 
@@ -248,6 +255,7 @@ const int c_conv_17_ow     = 16;
 const int c_conv_17_oh     = 16;
 const int c_conv_17_fw     = 3;
 const int c_conv_17_fh     = 3;
+const int c_conv_17_relu   = 1;
 const int c_conv_17_stride = 2;
 const int c_conv_17_pad    = 1;
 
@@ -275,6 +283,7 @@ const int c_conv_19_ow     = 16;
 const int c_conv_19_oh     = 16;
 const int c_conv_19_fw     = 3;
 const int c_conv_19_fh     = 3;
+const int c_conv_19_relu   = 1;
 const int c_conv_19_stride = 1;
 const int c_conv_19_pad    = 1;
 
@@ -296,6 +305,7 @@ const int c_conv_20_ow     = 16;
 const int c_conv_20_oh     = 16;
 const int c_conv_20_fw     = 1;
 const int c_conv_20_fh     = 1;
+const int c_conv_20_relu   = 0;
 const int c_conv_20_stride = 2;
 const int c_conv_20_pad    = 0;
 
@@ -331,6 +341,7 @@ const int c_conv_23_ow     = 16;
 const int c_conv_23_oh     = 16;
 const int c_conv_23_fw     = 3;
 const int c_conv_23_fh     = 3;
+const int c_conv_23_relu   = 1;
 const int c_conv_23_stride = 1;
 const int c_conv_23_pad    = 1;
 
@@ -358,6 +369,7 @@ const int c_conv_25_ow     = 16;
 const int c_conv_25_oh     = 16;
 const int c_conv_25_fw     = 3;
 const int c_conv_25_fh     = 3;
+const int c_conv_25_relu   = 1;
 const int c_conv_25_stride = 1;
 const int c_conv_25_pad    = 1;
 
@@ -393,6 +405,7 @@ const int c_conv_28_ow     = 16;
 const int c_conv_28_oh     = 16;
 const int c_conv_28_fw     = 3;
 const int c_conv_28_fh     = 3;
+const int c_conv_28_relu   = 1;
 const int c_conv_28_stride = 1;
 const int c_conv_28_pad    = 1;
 
@@ -420,6 +433,7 @@ const int c_conv_30_ow     = 16;
 const int c_conv_30_oh     = 16;
 const int c_conv_30_fw     = 3;
 const int c_conv_30_fh     = 3;
+const int c_conv_30_relu   = 1;
 const int c_conv_30_stride = 1;
 const int c_conv_30_pad    = 1;
 
@@ -453,6 +467,7 @@ const int c_conv_33_ow     = 8;
 const int c_conv_33_oh     = 8;
 const int c_conv_33_fw     = 3;
 const int c_conv_33_fh     = 3;
+const int c_conv_33_relu   = 1;
 const int c_conv_33_stride = 2;
 const int c_conv_33_pad    = 1;
 
@@ -480,6 +495,7 @@ const int c_conv_35_ow     = 8;
 const int c_conv_35_oh     = 8;
 const int c_conv_35_fw     = 3;
 const int c_conv_35_fh     = 3;
+const int c_conv_35_relu   = 1;
 const int c_conv_35_stride = 1;
 const int c_conv_35_pad    = 1;
 
@@ -501,6 +517,7 @@ const int c_conv_36_ow     = 8;
 const int c_conv_36_oh     = 8;
 const int c_conv_36_fw     = 1;
 const int c_conv_36_fh     = 1;
+const int c_conv_36_relu   = 0;
 const int c_conv_36_stride = 2;
 const int c_conv_36_pad    = 0;
 
@@ -536,6 +553,7 @@ const int c_conv_39_ow     = 8;
 const int c_conv_39_oh     = 8;
 const int c_conv_39_fw     = 3;
 const int c_conv_39_fh     = 3;
+const int c_conv_39_relu   = 1;
 const int c_conv_39_stride = 1;
 const int c_conv_39_pad    = 1;
 
@@ -563,6 +581,7 @@ const int c_conv_41_ow     = 8;
 const int c_conv_41_oh     = 8;
 const int c_conv_41_fw     = 3;
 const int c_conv_41_fh     = 3;
+const int c_conv_41_relu   = 1;
 const int c_conv_41_stride = 1;
 const int c_conv_41_pad    = 1;
 
@@ -598,6 +617,7 @@ const int c_conv_44_ow     = 8;
 const int c_conv_44_oh     = 8;
 const int c_conv_44_fw     = 3;
 const int c_conv_44_fh     = 3;
+const int c_conv_44_relu   = 1;
 const int c_conv_44_stride = 1;
 const int c_conv_44_pad    = 1;
 
@@ -625,6 +645,7 @@ const int c_conv_46_ow     = 8;
 const int c_conv_46_oh     = 8;
 const int c_conv_46_fw     = 3;
 const int c_conv_46_fh     = 3;
+const int c_conv_46_relu   = 1;
 const int c_conv_46_stride = 1;
 const int c_conv_46_pad    = 1;
 
@@ -683,6 +704,7 @@ const int c_conv_51_ow     = 1;
 const int c_conv_51_oh     = 1;
 const int c_conv_51_fw     = 1;
 const int c_conv_51_fh     = 1;
+const int c_conv_51_relu   = 0;
 const int c_conv_51_stride = 1;
 const int c_conv_51_pad    = 0;
 

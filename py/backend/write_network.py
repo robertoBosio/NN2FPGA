@@ -4,46 +4,95 @@ import onnx
 import backend.main as main
 import backend.defines as defines
 
+def evaluate_connection_level(model):
+    connection_level = {}
+    connection_level[model.graph.input[0].name] = 0
+
+    diff_level = {}
+    diff_level[model.graph.input[0].name] = [0, ""]
+
+    for node in model.graph.node:
+        node_level = 0
+        for input in node.input:
+            if input in connection_level.keys():
+                if connection_level[input] > node_level:
+                    node_level = connection_level[input]
+
+        for input in node.input:
+            if input in connection_level.keys():
+                diff_level[input] = [node_level - connection_level[input], node]
+            else:
+                diff_level[input] = 0
+
+        connection_level[node.output[0]] = node_level + 1
+
+    return connection_level, diff_level 
+
 def extracts_skip_connections_info(model):
 
     skip_connections_info = {}
+
+    skip_connections = []
 
     general_info = {}
 
     bias_info = {}
 
+    connection_level, diff_level = evaluate_connection_level(model)
+
     for node in model.graph.node:
         for input in node.input:
             if input not in general_info.keys():
                 general_info[input] = []
-            general_info[input].append(node.name)
+            general_info[input].append(node)
 
     # DONT USE SKIP IN MODEL
     for input_name, nodes in general_info.items():
         if len(nodes) > 1:
+            passthrough = False 
+            if diff_level[input_name][0] > 0:
+                passthrough = True
             suffix = ""
-            for i, node in enumerate(nodes):
-                skip_connections_info[node] = []
-                connection_name = input_name + suffix
-                skip_connections_info[node].append(connection_name)
-                if i < (len(nodes) - 1):
-                    suffix += "_skip"
+            if passthrough:
+                for i, node in enumerate(nodes):
+                    skip_connections_info[node.name] = []
                     connection_name = input_name + suffix
-                    skip_connections_info[node].append(connection_name)
+                    skip_connections_info[node.name].append(connection_name)
+                    if i < (len(nodes) - 1):
+                        suffix += "_skip"
+                        connection_name = input_name + suffix
+                        skip_connections_info[node.name].append(connection_name)
+                        skip_connections.append(connection_name)
 
     for node in model.graph.node:
         if 'add' == node.op_type.lower():
             for input in node.input:
-                if len(general_info[input]) > 1:
+                if diff_level[input][0] > 0:
                     skip_name = input + "_skip"
+                    if skip_name not in skip_connections:
+                        skip_name = input
             for input in node.input:
-                if len(general_info[input]) == 1:
+                if diff_level[input][0] == 0:
                     no_skip_name = input
             for output in node.output:
                 out_name = output
+            # NO_SKIP_NAME is the output of the branch which has diff_level 0
+            # SKIP_NAME is the name of the BIAS that should be applied
+            # OUT_NAME is the name of the output to the relu function
             bias_info[no_skip_name] = [skip_name, out_name]
 
     return skip_connections_info, bias_info
+
+def extracts_relu_info(model):
+
+    relu_info = {}
+
+    for node in model.graph.node:
+        if 'relu' in node.op_type.lower():
+            relu_info[node.input[0]] = [node.name, node.output[0]]
+
+    return relu_info
+
 
 def extracts_tensors_info(model):
 
@@ -80,11 +129,14 @@ def write_network(model):
 
     weights_info = extracts_weights_info(model)
 
-    main.write(
+    relu_info = extracts_relu_info(model)
+
+    conv_relu = main.write(
         inferred_model,
         weights_info,
         skip_connections_info,
-        bias_info
+        bias_info,
+        relu_info
     )
 
     # TODO: export tensors and weight info
@@ -97,5 +149,6 @@ def write_network(model):
         inferred_model,
         tensors_info,
         weights_info,
-        skip_connections_info
+        skip_connections_info,
+        conv_relu
     )

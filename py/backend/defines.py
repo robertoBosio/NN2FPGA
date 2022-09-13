@@ -7,7 +7,8 @@ def write(
     model,
     tensors_info,
     weights_info,
-    skip_connections_info
+    skip_connections_info,
+    conv_relu
 ):
 
     def write_header(fd):
@@ -269,6 +270,10 @@ def write(
         c_fw     = getattr(attributes[2], 'ints')[1]
         c_stride = getattr(attributes[4], 'ints')[0]
         c_pad    = getattr(attributes[3], 'ints')[0]
+        if node.name in conv_relu:
+            c_relu = 1
+        else:
+            c_relu = 0
 
         fd.write("typedef ap_uint<8> t_%s;\n" % (output_name))
         fd.write("typedef ap_uint<32> t_%s_acc;\n" % (node_name))
@@ -280,6 +285,7 @@ def write(
         fd.write("const int c_%s_oh     = %d;\n" % (node_name, c_oh))
         fd.write("const int c_%s_fw     = %d;\n" % (node_name, c_fw))
         fd.write("const int c_%s_fh     = %d;\n" % (node_name, c_fh))
+        fd.write("const int c_%s_relu   = %d;\n" % (node_name, c_relu))
         fd.write("const int c_%s_stride = %d;\n" % (node_name, c_stride))
         fd.write("const int c_%s_pad    = %d;\n" % (node_name, c_pad))
 

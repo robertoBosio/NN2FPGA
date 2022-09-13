@@ -3,6 +3,17 @@
 
 #include "ap_int.h"
 #include "hls_stream.h"
+template <
+	class t_input
+> t_input ReluOp(
+	t_input i_data
+) {
+#pragma HLS inline
+	if (i_data > 0)
+		return i_data
+	else
+		return 0	
+}
 
 template <
 	class t_input,
