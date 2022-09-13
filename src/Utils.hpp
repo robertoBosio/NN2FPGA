@@ -18,7 +18,6 @@ template <
 
 	PRODSTR: for (int s_index = 0; s_index < c_index; s_index++) {
 		s_i_data.write((t_output)(i_data[s_index]));
-		s_index++;
 	}
 
 }
@@ -45,7 +44,6 @@ template <
 		for (int s_ow = 0; s_ow < c_ow; s_ow++) {
 			PRODSTR: for (int s_index = 0; s_index < c_index; s_index++) {
 				s_i_data.write((t_output)(i_data[s_index]));
-				s_index++;
 			}
 		}
 	}
@@ -110,7 +108,6 @@ template <
 		for (int s_ow = 0; s_ow < c_ow; s_ow++) {
 			PRODSTR: for (int s_index = 0; s_index < c_index; s_index++) {
 				s_i_data.write((t_output)(i_data[s_index]));
-				s_index++;
 			}
 		}
 	}
