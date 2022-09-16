@@ -288,8 +288,8 @@ void Network(
 		c_conv_208_och,
 		c_conv_208_iw,
 		c_conv_208_ih,
-		c_conv_0_iw,
-		c_conv_0_ih
+		c_conv_0_ow,
+		c_conv_0_oh
 	>(
 		c_conv_208_st,
 		s_conv_208
@@ -326,8 +326,8 @@ void Network(
 		c_conv_211_och,
 		c_conv_211_iw,
 		c_conv_211_ih,
-		c_conv_2_iw,
-		c_conv_2_ih
+		c_conv_2_ow,
+		c_conv_2_oh
 	>(
 		c_conv_211_st,
 		s_conv_211
@@ -364,8 +364,8 @@ void Network(
 		c_conv_214_och,
 		c_conv_214_iw,
 		c_conv_214_ih,
-		c_conv_4_iw,
-		c_conv_4_ih
+		c_conv_4_ow,
+		c_conv_4_oh
 	>(
 		c_conv_214_st,
 		s_conv_214
@@ -404,8 +404,8 @@ void Network(
 		c_conv_217_och,
 		c_conv_217_iw,
 		c_conv_217_ih,
-		c_conv_7_iw,
-		c_conv_7_ih
+		c_conv_7_ow,
+		c_conv_7_oh
 	>(
 		c_conv_217_st,
 		s_conv_217
@@ -442,8 +442,8 @@ void Network(
 		c_conv_220_och,
 		c_conv_220_iw,
 		c_conv_220_ih,
-		c_conv_9_iw,
-		c_conv_9_ih
+		c_conv_9_ow,
+		c_conv_9_oh
 	>(
 		c_conv_220_st,
 		s_conv_220
@@ -482,8 +482,8 @@ void Network(
 		c_conv_223_och,
 		c_conv_223_iw,
 		c_conv_223_ih,
-		c_conv_12_iw,
-		c_conv_12_ih
+		c_conv_12_ow,
+		c_conv_12_oh
 	>(
 		c_conv_223_st,
 		s_conv_223
@@ -520,8 +520,8 @@ void Network(
 		c_conv_226_och,
 		c_conv_226_iw,
 		c_conv_226_ih,
-		c_conv_14_iw,
-		c_conv_14_ih
+		c_conv_14_ow,
+		c_conv_14_oh
 	>(
 		c_conv_226_st,
 		s_conv_226
@@ -560,8 +560,8 @@ void Network(
 		c_conv_229_och,
 		c_conv_229_iw,
 		c_conv_229_ih,
-		c_conv_17_iw,
-		c_conv_17_ih
+		c_conv_17_ow,
+		c_conv_17_oh
 	>(
 		c_conv_229_st,
 		s_conv_229
@@ -597,8 +597,8 @@ void Network(
 		c_conv_232_och,
 		c_conv_232_iw,
 		c_conv_232_ih,
-		c_conv_19_iw,
-		c_conv_19_ih
+		c_conv_19_ow,
+		c_conv_19_oh
 	>(
 		c_conv_232_st,
 		s_conv_232
@@ -636,8 +636,8 @@ void Network(
 		c_conv_235_och,
 		c_conv_235_iw,
 		c_conv_235_ih,
-		c_conv_20_iw,
-		c_conv_20_ih
+		c_conv_20_ow,
+		c_conv_20_oh
 	>(
 		c_conv_235_st,
 		s_conv_235
@@ -655,8 +655,6 @@ void Network(
 		c_conv_20_ih,
 		c_conv_20_ow,
 		c_conv_20_oh,
-		c_conv_20_fw,
-		c_conv_20_fh,
 		c_conv_20_relu,
 		c_conv_20_stride,
 		c_conv_20_pad
@@ -674,8 +672,8 @@ void Network(
 		c_conv_238_och,
 		c_conv_238_iw,
 		c_conv_238_ih,
-		c_conv_23_iw,
-		c_conv_23_ih
+		c_conv_23_ow,
+		c_conv_23_oh
 	>(
 		c_conv_238_st,
 		s_conv_238
@@ -712,8 +710,8 @@ void Network(
 		c_conv_241_och,
 		c_conv_241_iw,
 		c_conv_241_ih,
-		c_conv_25_iw,
-		c_conv_25_ih
+		c_conv_25_ow,
+		c_conv_25_oh
 	>(
 		c_conv_241_st,
 		s_conv_241
@@ -752,8 +750,8 @@ void Network(
 		c_conv_244_och,
 		c_conv_244_iw,
 		c_conv_244_ih,
-		c_conv_28_iw,
-		c_conv_28_ih
+		c_conv_28_ow,
+		c_conv_28_oh
 	>(
 		c_conv_244_st,
 		s_conv_244
@@ -790,8 +788,8 @@ void Network(
 		c_conv_247_och,
 		c_conv_247_iw,
 		c_conv_247_ih,
-		c_conv_30_iw,
-		c_conv_30_ih
+		c_conv_30_ow,
+		c_conv_30_oh
 	>(
 		c_conv_247_st,
 		s_conv_247
@@ -830,8 +828,8 @@ void Network(
 		c_conv_250_och,
 		c_conv_250_iw,
 		c_conv_250_ih,
-		c_conv_33_iw,
-		c_conv_33_ih
+		c_conv_33_ow,
+		c_conv_33_oh
 	>(
 		c_conv_250_st,
 		s_conv_250
@@ -867,8 +865,8 @@ void Network(
 		c_conv_253_och,
 		c_conv_253_iw,
 		c_conv_253_ih,
-		c_conv_35_iw,
-		c_conv_35_ih
+		c_conv_35_ow,
+		c_conv_35_oh
 	>(
 		c_conv_253_st,
 		s_conv_253
@@ -906,8 +904,8 @@ void Network(
 		c_conv_256_och,
 		c_conv_256_iw,
 		c_conv_256_ih,
-		c_conv_36_iw,
-		c_conv_36_ih
+		c_conv_36_ow,
+		c_conv_36_oh
 	>(
 		c_conv_256_st,
 		s_conv_256
@@ -925,8 +923,6 @@ void Network(
 		c_conv_36_ih,
 		c_conv_36_ow,
 		c_conv_36_oh,
-		c_conv_36_fw,
-		c_conv_36_fh,
 		c_conv_36_relu,
 		c_conv_36_stride,
 		c_conv_36_pad
@@ -944,8 +940,8 @@ void Network(
 		c_conv_259_och,
 		c_conv_259_iw,
 		c_conv_259_ih,
-		c_conv_39_iw,
-		c_conv_39_ih
+		c_conv_39_ow,
+		c_conv_39_oh
 	>(
 		c_conv_259_st,
 		s_conv_259
@@ -982,8 +978,8 @@ void Network(
 		c_conv_262_och,
 		c_conv_262_iw,
 		c_conv_262_ih,
-		c_conv_41_iw,
-		c_conv_41_ih
+		c_conv_41_ow,
+		c_conv_41_oh
 	>(
 		c_conv_262_st,
 		s_conv_262
@@ -1022,8 +1018,8 @@ void Network(
 		c_conv_265_och,
 		c_conv_265_iw,
 		c_conv_265_ih,
-		c_conv_44_iw,
-		c_conv_44_ih
+		c_conv_44_ow,
+		c_conv_44_oh
 	>(
 		c_conv_265_st,
 		s_conv_265
@@ -1060,8 +1056,8 @@ void Network(
 		c_conv_268_och,
 		c_conv_268_iw,
 		c_conv_268_ih,
-		c_conv_46_iw,
-		c_conv_46_ih
+		c_conv_46_ow,
+		c_conv_46_oh
 	>(
 		c_conv_268_st,
 		s_conv_268
@@ -1133,8 +1129,8 @@ void Network(
 		c_conv_271_och,
 		c_conv_271_iw,
 		c_conv_271_ih,
-		c_conv_51_iw,
-		c_conv_51_ih
+		c_conv_51_ow,
+		c_conv_51_oh
 	>(
 		c_conv_271_st,
 		s_conv_271
@@ -1152,8 +1148,6 @@ void Network(
 		c_conv_51_ih,
 		c_conv_51_ow,
 		c_conv_51_oh,
-		c_conv_51_fw,
-		c_conv_51_fh,
 		c_conv_51_relu,
 		c_conv_51_stride,
 		c_conv_51_pad
