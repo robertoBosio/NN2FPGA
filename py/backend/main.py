@@ -148,8 +148,8 @@ def write(
             fd.write("\t\tc_%s_och,\n" % (name))
             fd.write("\t\tc_%s_iw,\n" % (name))
             fd.write("\t\tc_%s_ih,\n" % (name))
-            fd.write("\t\tc_%s_iw,\n" % (node_name))
-            fd.write("\t\tc_%s_ih\n" % (node_name))
+            fd.write("\t\tc_%s_ow,\n" % (node_name))
+            fd.write("\t\tc_%s_oh\n" % (node_name))
             fd.write("\t>(\n")
             fd.write("\t\tc_%s_st,\n" % (name))
             fd.write("\t\ts_%s\n" % (name))
@@ -338,6 +338,7 @@ def write(
         no_skip = True
         bias = False
         split = False
+        pointwise = False
 
         # Removing dots from input names
         input_name = node.input[0]
@@ -407,6 +408,10 @@ def write(
 
         attributes = getattr(node, "attribute" )
         # Specializing by stride, only 1 and 2 are supported right now
+        c_fh     = int(getattr(attributes[2], 'ints')[0])
+        c_fw     = int(getattr(attributes[2], 'ints')[1])
+        if (c_fh*c_fw) == 1:
+        	pointwise = True 
         c_stride = getattr(attributes[4], 'ints')[0]
 
         if emit_streams:
@@ -438,8 +443,9 @@ def write(
                 fd.write("\t\tc_%s_ih,\n" % (node_name))
                 fd.write("\t\tc_%s_ow,\n" % (node_name))
                 fd.write("\t\tc_%s_oh,\n" % (node_name))
-                fd.write("\t\tc_%s_fw,\n" % (node_name))
-                fd.write("\t\tc_%s_fh,\n" % (node_name))
+                if (not pointwise):
+                  fd.write("\t\tc_%s_fw,\n" % (node_name))
+                  fd.write("\t\tc_%s_fh,\n" % (node_name))
                 fd.write("\t\tc_%s_relu,\n" % (node_name))
                 if (split):
                     fd.write("\t\tc_%s_split,\n" % (output_name))
@@ -467,8 +473,9 @@ def write(
                 fd.write("\t\tc_%s_ih,\n" % (node_name))
                 fd.write("\t\tc_%s_ow,\n" % (node_name))
                 fd.write("\t\tc_%s_oh,\n" % (node_name))
-                fd.write("\t\tc_%s_fw,\n" % (node_name))
-                fd.write("\t\tc_%s_fh,\n" % (node_name))
+                if (not pointwise):
+                  fd.write("\t\tc_%s_fw,\n" % (node_name))
+                  fd.write("\t\tc_%s_fh,\n" % (node_name))
                 fd.write("\t\tc_%s_relu,\n" % (node_name))
                 if (split):
                     fd.write("\t\tc_%s_split,\n" % (output_name))
