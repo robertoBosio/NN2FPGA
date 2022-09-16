@@ -66,20 +66,17 @@ template <
 ) {
 
 	const int c_index = c_oh*c_ow;
+	const int c_stream_sel = c_ih*c_iw;
+	const int c_ch = c_ich*c_och;
+#pragma HLS array_partition type=cyclic factor=c_stream_sel variable=i_data
 
-	for (int s_index = 0; s_index < c_index; s_index++) {
+	for (uint16_t s_index = 0; s_index < c_index; s_index++) {
 		uint16_t s_addr = 0;
-		for (uint8_t s_ih = 0; s_ih < c_ih; s_ih++) {
-			#pragma HLS UNROLL
-			for (uint8_t s_iw = 0; s_iw < c_iw; s_iw++) {
+		for (uint16_t s_ch = 0; s_ch < c_ch; s_ch++) {
+			for (uint8_t s_stream_sel = 0; s_stream_sel < c_stream_sel; s_stream_sel++) {
 				#pragma HLS UNROLL
-				uint8_t s_stream_sel = c_ih*c_iw - s_ih*c_iw - s_iw - 1;
-				for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
-					for (uint8_t s_och = 0; s_och < c_och; s_och++) {
-						o_data[s_stream_sel].write((t_output)(i_data[s_addr]));
-						s_addr++;
-					}
-				}
+				o_data[s_stream_sel].write((t_output)(i_data[s_addr]));
+				s_addr++;
 			}
 		}
 	}
@@ -207,6 +204,230 @@ template <
 
 	}
 
+}
+
+template <
+	class t_input,
+	int c_ich,
+	int c_iw,
+	int c_ih
+> void PadInput(
+	hls::stream<t_input> &o_data
+) {
+
+	for (uint8_t s_ih = 0; s_ih < c_ih; s_ih++) {
+		for (uint8_t s_iw = 0; s_iw < c_iw; s_iw++) {
+			for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
+				o_data.write(0);
+			}
+		}
+	}
+
+}
+
+template <
+	class t_input,
+	int c_ich,
+	int c_iw,
+	int c_ih,
+	int c_fw,
+	int c_fh,
+	int c_pad
+> void PadInput(
+	hls::stream<t_input> &o_data
+) {
+
+	/* This handles padding aware inputs */
+
+	const int c_pad_index_h = c_pad * (c_fh - 1) / 2;
+	const int c_pad_index_w = c_pad * (c_fw - 1) / 2;
+
+	/* Top padding */
+	for (uint8_t s_pad = 0; s_pad < c_pad_index_h; s_pad++){
+		for (uint8_t s_iw = 0; s_iw < c_iw+c_pad_index_w*2; s_iw++) {
+			for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
+				o_data.write(0);
+			}
+		}
+	}
+
+	for (uint8_t s_ih = 0; s_ih < c_ih; s_ih++) {
+		/* Right padding */
+		for (uint8_t s_pad = 0; s_pad < c_pad_index_w; s_pad++){
+			for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
+				o_data.write(0);
+			}
+		}
+
+		for (uint8_t s_iw = 0; s_iw < c_iw; s_iw++) {
+			for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
+				o_data.write(0);
+			}
+		}
+
+		/* Left padding */
+		for (uint8_t s_pad = 0; s_pad < c_pad_index_w; s_pad++){
+			for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
+				o_data.write(0);
+			}
+		}
+
+	}
+
+	for (uint8_t s_pad = 0; s_pad < c_pad_index_h; s_pad++){
+		for (uint8_t s_iw = 0; s_iw < c_iw+c_pad_index_w*2; s_iw++) {
+			for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
+				o_data.write(0);
+			}
+		}
+	}
+
+}
+
+template <
+	class t_input,
+	int c_ich,
+	int c_iw,
+	int c_ih,
+	int c_fw,
+	int c_fh,
+	int c_pad
+> void PadInput(
+	hls::stream<t_input> &i_data,
+	hls::stream<t_input> &o_data
+) {
+
+	/* This handles padding aware inputs */
+
+	const int c_pad_index_h = c_pad * (c_fh - 1) / 2;
+	const int c_pad_index_w = c_pad * (c_fw - 1) / 2;
+
+	/* Top padding */
+	for (uint8_t s_pad = 0; s_pad < c_pad_index_h; s_pad++){
+		for (uint8_t s_iw = 0; s_iw < c_iw+c_pad_index_w*2; s_iw++) {
+			for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
+				o_data.write(0);
+			}
+		}
+	}
+
+	for (uint8_t s_ih = 0; s_ih < c_ih; s_ih++) {
+
+		/* Right padding */
+		for (uint8_t s_pad = 0; s_pad < c_pad_index_w; s_pad++){
+			for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
+				o_data.write(0);
+			}
+		}
+
+		for (uint8_t s_iw = 0; s_iw < c_iw; s_iw++) {
+			for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
+				o_data.write(i_data.read());
+			}
+		}
+
+		/* Left padding */
+		for (uint8_t s_pad = 0; s_pad < c_pad_index_w; s_pad++){
+			for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
+				o_data.write(0);
+			}
+		}
+
+	}
+
+	for (uint8_t s_pad = 0; s_pad < c_pad_index_h; s_pad++){
+		for (uint8_t s_iw = 0; s_iw < c_iw+c_pad_index_w*2; s_iw++) {
+			for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
+				o_data.write(0);
+			}
+		}
+	}
+
+}
+
+template <
+	class t_input,
+	int c_ich,
+	int c_iw,
+	int c_ih,
+	int c_fw,
+	int c_fh,
+	int c_pad
+> void ForwardStream(
+	hls::stream<t_input> &i_data
+) {
+
+	const int c_pad_index_h = c_pad * (c_fh - 1) / 2;
+	const int c_pad_index_w = c_pad * (c_fw - 1) / 2;
+	const int c_ih_end = c_ih + c_pad_index_h;
+	const int c_ih_start = -1 * c_pad_index_h;
+	const int c_iw_end = c_iw + c_pad_index_w;
+	const int c_iw_start = -1 * c_pad_index_w;
+	
+	for (int8_t s_ih = c_ih_start; s_ih < c_ih_end; s_ih++) { 
+		for (int8_t s_iw = c_iw_start; s_iw < c_iw_end; s_iw++) { 
+			for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) { 
+				t_input s_tmp = i_data.read();
+			}
+		}
+	}
+
+}
+
+template <
+	class t_input,
+	int c_ich,
+	int c_iw,
+	int c_ih,
+	int c_fw,
+	int c_fh,
+	int c_pad
+> void ForwardStream(
+	hls::stream<t_input> &i_data,
+	hls::stream<t_input> &o_forward
+) {
+
+	const int c_pad_index_h = c_pad * (c_fh - 1) / 2;
+	const int c_pad_index_w = c_pad * (c_fw - 1) / 2;
+	const int c_ih_end = c_ih + c_pad_index_h;
+	const int c_ih_start = -1 * c_pad_index_h;
+	const int c_iw_end = c_iw + c_pad_index_w;
+	const int c_iw_start = -1 * c_pad_index_w;
+	
+	for (int8_t s_ih = c_ih_start; s_ih < c_ih_end; s_ih++) { 
+		for (int8_t s_iw = c_iw_start; s_iw < c_iw_end; s_iw++) { 
+			for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) { 
+				t_input s_tmp = i_data.read();
+				if ((s_ih > -1) & (s_iw > -1))
+					o_forward.write(s_tmp);
+			}
+		}
+	}
+
+}
+
+template <
+	class t_output,
+	int c_och,
+	int c_ow,
+	int c_oh,
+	int c_split
+> void SplitStream(
+	hls::stream<t_output> &i_data,
+	hls::stream<t_output> o_data[c_split]
+) {
+
+	for (uint8_t s_oh = 0; s_oh < c_oh; s_oh++) {
+		for (uint8_t s_ow = 0; s_ow < c_ow; s_ow++) {
+			for (uint8_t s_och = 0; s_och < c_och; s_och++) {
+				t_output s_out = i_data.read();
+				for (uint8_t s_split = 0; s_split < c_split; s_split++) {
+#pragma HLS unroll
+					o_data[s_split].write(s_out);
+				}
+			}
+		}
+	}
 }
 
 #endif

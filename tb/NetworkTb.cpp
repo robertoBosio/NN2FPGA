@@ -25,8 +25,7 @@ int main() {
 	Network(
 		i_data,
 		i_weight,
-		o_data_sim,
-		o_last
+		o_data_sim
 	);
 
 	/* while(o_last == 0); */

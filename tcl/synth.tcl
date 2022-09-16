@@ -12,6 +12,10 @@ set_part {xczu3eg-sbva484-1-i}
 add_files src/${PRJ_NAME}.cpp
 add_files -tb tb/ConvTb.cpp
 
+create_clock -period 5
+
+# Done to avoid forced pipelining of loops that could waste resources
+# config_compile -pipeline_loops 200000
 # csim_design
 
 csynth_design

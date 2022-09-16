@@ -14,584 +14,550 @@ template <
 	int c_och,
 	int c_ih,
 	int c_iw,
+	int c_oh,
+	int c_ow,
 	int c_fh,
 	int c_fw,
+	int c_relu,
 	int c_str,
-	int c_pad
-> void ConvKernel(
+	int c_bypass
+> void ConvOp(
 	hls::stream<t_input> &i_data,
 	hls::stream<t_weight> &i_weights,
+	hls::stream<t_input> &i_bias,
 	hls::stream<t_input> &o_data,
-	hls::stream<t_acc> &o_acc,
-	const int c_posh,
-	const int c_posw
+	hls::stream<t_acc> &o_acc
 ) {
 
-	const int c_pad_index_h = c_pad * (c_fh - 1) / 2;
-	const int c_pad_index_w = c_pad * (c_fw - 1) / 2;
-	const int c_ih_end = c_ih + c_pad_index_h - (c_fh - 1) + c_posh;
-	const int c_ih_start = 1 - c_fh + c_posh;
-	const int c_iw_end = c_iw + c_pad_index_w - (c_fw - 1) + c_posw;
-	const int c_iw_start = 1 - c_fw + c_posw;
-	
-
-	for (int8_t s_ih = c_ih_start; s_ih < c_ih_end; s_ih++) { 
 #pragma HLS PIPELINE off
-		bool s_str_condh = (s_ih % c_str) == (c_posh % c_str);
-		for (int8_t s_iw = c_iw_start; s_iw < c_iw_end; s_iw++) { 
-#pragma HLS PIPELINE off
-			bool s_str_condw = (s_iw % c_str) == (c_posw % c_str);
-			bool s_str_cond = s_str_condh & s_str_condw;
-			t_acc s_acc[c_och] = {0};
+	const int c_bypass_w = c_fw - 1;
+	const int c_paddingh_shift = c_bypass*c_iw*c_ich;
+	const int c_paddingw_shift = c_bypass_w*c_ich;
+	const int c_strideh_shift = (c_str-1)*c_iw*c_ich;
+	const int c_stridew_shift = (c_str-1)*c_ich;
 
-			for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
-#pragma HLS PIPELINE off
-
-				t_input s_input = i_data.read();
-
-				for (uint8_t s_och = 0; s_och < c_och; s_och++) {
-
-#pragma HLS PIPELINE off
-
-					s_acc[s_och] += s_input * i_weights.read();
-
-				}
-
-				if ((s_ih > -1) & (s_iw > -1) & (s_ih < c_ih) & (s_iw < c_iw) & s_str_cond)
-					o_data.write(s_input);
-				else 
-					o_data.write(0);
-
-			}
-
-			for (uint8_t s_och = 0; s_och < c_och; s_och++)
-				o_acc.write(s_acc[s_och]);
-
-		}
+	/* This shift is for height padding, after this initial phase the first useful
+	 * data will be at the start of the last group of DSPs */
+	for (uint32_t s_index = 0; s_index < c_paddingh_shift; s_index++) {
+		t_input s_bias = i_bias.read();
+		o_data.write(i_data.read());
 	}
 
-}
+	for (uint8_t s_ih = 0; s_ih < c_ih; s_ih+=c_str) {
 
-template <
-	class t_input,
-	class t_weight,
-	class t_acc,
-	int c_ich,
-	int c_och,
-	int c_ih,
-	int c_iw,
-	int c_fh,
-	int c_fw,
-	int c_str,
-	int c_pad
-> void ConvKernel(
-	hls::stream<t_input> &i_data,
-	hls::stream<t_weight> i_weights[c_fh*c_fw],
-	hls::stream<t_input> &o_data,
-	hls::stream<t_acc> o_acc[c_fh*c_fw]
-) {
+	/* This shift is for width padding, after this initial phase the first useful
+	 * data will be at the start of the last DSP */
+		for (uint8_t s_index = 0; s_index < c_paddingw_shift; s_index++) {
+			t_input s_bias = i_bias.read();
+			o_data.write(i_data.read());
+		}
 
-#pragma HLS inline
+		for (uint8_t s_iw = 0; s_iw < c_iw; s_iw+=c_str) {
 
-	const int c_pad_index_h = c_pad * (c_fh - 1) / 2;
-	const int c_pad_index_w = c_pad * (c_fw - 1) / 2;
-	const int c_ih_end = c_ih + c_pad_index_h - (c_fh - 1);
-	const int c_ih_start = 1 - c_fh;
-	const int c_iw_end = c_iw + c_pad_index_w - (c_fw - 1);
-	const int c_iw_start = 1 - c_fw;
-	
-	t_input s_buffer[c_fh*c_fw] = {0};
+			/* One at a time the input channel activations are evaluated */
+			/* One output is generated each cin*coch cycles */
+			t_acc s_acc_buff[c_och];
 
-	for (int8_t s_ih = c_ih_start; s_ih < c_ih_end; s_ih++) { 
-		for (int8_t s_iw = c_iw_start; s_iw < c_iw_end; s_iw++) { 
-			t_acc s_acc[c_fh*c_fw][c_och] = {0};
+			for (uint8_t s_och = 0; s_och < c_och; s_och++)
+				s_acc_buff[s_och] = i_bias.read();
 
 			for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
-
 				t_input s_input = i_data.read();
-
-				for (uint8_t s_index = c_fh*c_fw-1; s_index > 0; s_index--) {
-					s_buffer[s_index] = s_buffer[s_index - 1];
-				}
-
-				s_buffer[0] = s_input;
-
 				for (uint8_t s_och = 0; s_och < c_och; s_och++) {
-
-					for (uint8_t s_index = 0; s_index < c_fh*c_fw; s_index++) {
-#pragma HLS PIPELINE
-						s_acc[s_index][s_och] += s_buffer[s_index] * i_weights[s_index].read();
-
-					}
+					t_weight s_weights = i_weights.read();
+					s_acc_buff[s_och] += s_input * s_weights;
 				}
-
-				o_data.write(s_buffer[0]);
-
+				o_data.write(s_input);
 			}
 
 			for (uint8_t s_och = 0; s_och < c_och; s_och++) {
-#pragma HLS PIPELINE
-				for (uint8_t s_fh = 0; s_fh < c_fh; s_fh++) {
-					bool s_str_condh = ((s_ih % c_str) == (s_fh % c_str)) & (s_ih > -1) & (s_ih < c_ih);
-					for (uint8_t s_fw = 0; s_fw < c_fw; s_fw++) {
-						bool s_str_condw = ((s_iw % c_str) == (s_fw % c_str)) & (s_iw > -1) & (s_iw < c_iw);;
-						if (s_str_condh & s_str_condw)
-							o_acc[s_fh*c_fw+s_fw].write(s_acc[s_fh*c_fw+s_fw][s_och]);
-					}
-				}
+					o_acc.write(s_acc_buff[s_och]); 
 			}
 
-		}
-	}
-
-}
-
-template <
-	class t_input,
-	class t_weight,
-	class t_acc,
-	int c_ich,
-	int c_och,
-	int c_ih,
-	int c_iw,
-	int c_fh,
-	int c_fw,
-	int c_pad
-> void CascadedConvKernel(
-	hls::stream<t_input> i_data[c_fh*c_fw+1],
-	hls::stream<t_weight> i_weights[c_fh*c_fw],
-	hls::stream<t_acc> o_acc[c_fh*c_fw+1]
-) {
-
-	const int c_conv_index = c_fh*c_fw;
-
-	for (uint8_t s_conv_index = 0; s_conv_index < c_conv_index; s_conv_index++) {
-		#pragma HLS UNROLL
-		ConvKernel<
-			t_input,
-			t_weight,
-			t_acc,
-			c_ich,
-			c_och,
-			c_ih,
-			c_iw,
-			c_fh,
-			c_fw,
-			c_pad
-		> (
-			i_data[s_conv_index],
-			i_weights[s_conv_index],
-			i_data[s_conv_index+1],
-			o_acc[s_conv_index]
-		);
-	}
-
-}
-
-template <
-	class t_input,
-	int c_ich,
-	int c_iw,
-	int c_ih,
-	int c_fw,
-	int c_fh,
-	int c_pad
-> void PadInput(
-	hls::stream<t_input> &i_data,
-	hls::stream<t_input> &o_data
-) {
-
-	/* This handles padding aware inputs */
-
-	const int c_pad_index_h = c_pad * (c_fh - 1) / 2;
-	const int c_pad_index_w = c_pad * (c_fw - 1) / 2;
-
-#pragma HLS PIPELINE off
-
-	for (uint8_t s_ih = 0; s_ih < c_ih; s_ih++) {
-
-		/* Top padding */
-		for (uint8_t s_pad = 0; s_pad < c_pad_index_h; s_pad++){
-			for (uint8_t s_iw = 0; s_iw < c_iw; s_iw++) {
-				for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
-					o_data.write(0);
-				}
-			}
-		}
-
-		for (uint8_t s_iw = 0; s_iw < c_iw; s_iw++) {
-
-			/* Right padding */
-			for (uint8_t s_pad = 0; s_pad < c_pad_index_w; s_pad++){
-				for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
-					o_data.write(0);
-				}
-			}
-
-			for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
+			/* Width shifts for stride */
+			for (uint8_t s_index = 0; s_index < c_stridew_shift; s_index++) {
+				t_input s_bias = i_bias.read();
 				o_data.write(i_data.read());
 			}
 
-			/* Left padding */
-			for (uint8_t s_pad = 0; s_pad < c_pad_index_w; s_pad++){
-				for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
-					o_data.write(0);
-				}
-			}
-
 		}
 
-		/* Bottom padding */
-		for (uint8_t s_pad = 0; s_pad < c_pad_index_h; s_pad++){
-			for (uint8_t s_iw = 0; s_iw < c_iw; s_iw++) {
-				for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
-					o_data.write(0);
-				}
-			}
+		for (uint8_t s_index = 0; s_index < c_strideh_shift; s_index++) {
+			t_input s_bias = i_bias.read();
+			o_data.write(i_data.read());
 		}
-	}
 
-}
-
-template <
-	class t_acc,
-	class t_output,
-	int c_ich,
-	int c_och,
-	int c_iw,
-	int c_ih,
-	int c_ow,
-	int c_oh,
-	int c_fw,
-	int c_fh,
-	int c_relu,
-	int c_pad
-> void AccumulateKernel(
-	hls::stream<t_acc> i_data[c_fh*c_fw],
-	hls::stream<t_output> &o_data
-) {
-
-#pragma HLS inline
-	const int c_pad_index_h = c_pad * (c_fh - 1) / 2;
-	const int c_pad_index_w = c_pad * (c_fw - 1) / 2;
-	const int c_ih_end = c_ih + c_pad_index_h - (c_fh - 1);
-	const int c_ih_start = 1 - c_fh;
-	const int c_iw_end = c_iw + c_pad_index_w - (c_fw - 1);
-	const int c_iw_start = 1 - c_fw;
-	
-
-	t_acc s_acc_buffer[c_fh*2][c_ow][c_och] = {0};
-
-	for (int8_t s_ih = c_ih_start; s_ih < c_ih_end; s_ih++) { 
-#pragma HLS PIPELINE off
-		for (int8_t s_iw = c_iw_start; s_iw < c_iw_end; s_iw++) { 
-#pragma HLS PIPELINE off
-			for (uint8_t s_fh = 0; s_fh < c_fh; s_fh++) {
-#pragma HLS PIPELINE off
-				int8_t s_oh = (s_ih + s_fh) % (2 * c_fh); 
-				for (uint8_t s_fw = 0; s_fw < c_fw; s_fw++) {
-#pragma HLS PIPELINE off
-					int8_t s_ow = s_iw + s_fw; 
-					for (uint8_t s_och = 0; s_och < c_och; s_och++) {
-#pragma HLS PIPELINE off
-						t_acc s_acc = i_data[s_fh*c_fw + s_fw].read();
-#pragma HLS bind_op variable=s_acc_buffer op=add impl=dsp
-						s_acc_buffer[s_oh][s_ow][s_och] += s_acc;	
-					}
-				}
-			}
-
-			for (uint8_t s_och = 0; s_och < c_och; s_och++) {
-#pragma HLS PIPELINE off
-				if ((s_iw > -1) & (s_ih > -1)) {
-					int8_t s_oh = s_ih % (2 * c_fh); 
-					int8_t s_ow = s_iw; 
-					t_output s_output = (t_output)(s_acc_buffer[s_ow][s_oh][s_och]);
-					if (c_relu == 1)
-						s_output = (t_output)(ReluOp<t_acc>(s_output));
-					if ((s_iw > -1) & (s_ih > -1))
-						o_data.write(s_output);
-					s_acc_buffer[s_ow][s_oh][s_och] = 0;
-				}
-			}
-		}
-	}
-
-}
-
-template <
-	class t_acc,
-	class t_output,
-	int c_ich,
-	int c_och,
-	int c_iw,
-	int c_ih,
-	int c_ow,
-	int c_oh,
-	int c_fw,
-	int c_fh,
-	int c_relu,
-	int c_split,
-	int c_pad
-> void AccumulateKernel(
-	hls::stream<t_acc> i_data[c_fh*c_fw],
-	hls::stream<t_output> o_data[c_split]
-) {
-
-#pragma HLS inline
-	const int c_pad_index_h = c_pad * (c_fh - 1) / 2;
-	const int c_pad_index_w = c_pad * (c_fw - 1) / 2;
-	const int c_ih_end = c_ih + c_pad_index_h - (c_fh - 1);
-	const int c_ih_start = 1 - c_fh;
-	const int c_iw_end = c_iw + c_pad_index_w - (c_fw - 1);
-	const int c_iw_start = 1 - c_fw;
-	
-
-	t_acc s_acc_buffer[c_fh*2][c_ow][c_och] = {0};
-
-	for (int8_t s_ih = c_ih_start; s_ih < c_ih_end; s_ih++) { 
-#pragma HLS PIPELINE off
-		for (int8_t s_iw = c_iw_start; s_iw < c_iw_end; s_iw++) { 
-#pragma HLS PIPELINE off
-			for (uint8_t s_fh = 0; s_fh < c_fh; s_fh++) {
-#pragma HLS PIPELINE off
-				int8_t s_oh = (s_ih + s_fh) % (2 * c_fh); 
-				for (uint8_t s_fw = 0; s_fw < c_fw; s_fw++) {
-#pragma HLS PIPELINE off
-					int8_t s_ow = s_iw + s_fw; 
-					for (uint8_t s_och = 0; s_och < c_och; s_och++) {
-#pragma HLS PIPELINE off
-						t_acc s_acc = i_data[s_fh*c_fw + s_fw].read();
-#pragma HLS bind_op variable=s_acc_buffer op=add impl=dsp
-						s_acc_buffer[s_oh][s_ow][s_och] += s_acc;	
-					}
-				}
-			}
-
-			for (uint8_t s_och = 0; s_och < c_och; s_och++) {
-#pragma HLS PIPELINE off
-				if ((s_iw > -1) & (s_ih > -1)) {
-					int8_t s_oh = s_ih % (2 * c_fh); 
-					int8_t s_ow = s_iw; 
-					t_output s_output = (t_output)(s_acc_buffer[s_ow][s_oh][s_och]);
-					if (c_relu == 1)
-						s_output = (t_output)(ReluOp<t_acc>(s_output));
-					for (uint8_t s_split = 0; s_split < c_split; s_split++) {
-						if ((s_iw > -1) & (s_ih > -1))
-							o_data[s_split].write(s_output);
-					}
-					s_acc_buffer[s_ow][s_oh][s_och] = 0;
-				}
-			}
-		}
 	}
 
 }
 
 template <
 	class t_input,
+	class t_weight,
 	class t_acc,
-	class t_output,
 	int c_ich,
 	int c_och,
-	int c_iw,
 	int c_ih,
-	int c_ow,
+	int c_iw,
 	int c_oh,
-	int c_fw,
-	int c_fh,
-	int c_relu,
-	int c_split,
-	int c_pad
-> void AccumulateKernel(
-	hls::stream<t_acc> i_data[c_fh*c_fw],
-	hls::stream<t_input> &i_bias,
-	hls::stream<t_output> o_data[c_split]
-) {
-
-#pragma HLS inline
-	const int c_pad_index_h = c_pad * (c_fh - 1) / 2;
-	const int c_pad_index_w = c_pad * (c_fw - 1) / 2;
-	const int c_ih_end = c_ih + c_pad_index_h - (c_fh - 1);
-	const int c_ih_start = 1 - c_fh;
-	const int c_iw_end = c_iw + c_pad_index_w - (c_fw - 1);
-	const int c_iw_start = 1 - c_fw;
-	
-
-	t_acc s_acc_buffer[c_fh*2][c_ow][c_och] = {0};
-
-	for (int8_t s_ih = c_ih_start; s_ih < c_ih_end; s_ih++) { 
-#pragma HLS PIPELINE off
-		for (int8_t s_iw = c_iw_start; s_iw < c_iw_end; s_iw++) { 
-#pragma HLS PIPELINE off
-			int8_t s_oh = s_ih % (2 * c_fh); 
-			int8_t s_ow = s_iw; 
-			for (uint8_t s_och = 0; s_och < c_och; s_och++) {
-				t_input s_bias = i_bias.read();
-				if ((s_iw > -1) & (s_ih > -1)) {
-					s_acc_buffer[s_ow][s_oh][s_och] = s_bias;
-				}
-			}
-			for (uint8_t s_fh = 0; s_fh < c_fh; s_fh++) {
-#pragma HLS PIPELINE off
-				int8_t s_oh = (s_ih + s_fh) % (2 * c_fh); 
-				for (uint8_t s_fw = 0; s_fw < c_fw; s_fw++) {
-#pragma HLS PIPELINE off
-					int8_t s_ow = s_iw + s_fw; 
-					for (uint8_t s_och = 0; s_och < c_och; s_och++) {
-#pragma HLS PIPELINE off
-						t_acc s_acc = i_data[s_fh*c_fw + s_fw].read();
-#pragma HLS bind_op variable=s_acc_buffer op=add impl=dsp
-						s_acc_buffer[s_oh][s_ow][s_och] += s_acc;	
-					}
-				}
-			}
-
-			for (uint8_t s_och = 0; s_och < c_och; s_och++) {
-#pragma HLS PIPELINE off
-				if ((s_iw > -1) & (s_ih > -1)) {
-					int8_t s_oh = s_ih % (2 * c_fh); 
-					int8_t s_ow = s_iw; 
-					t_output s_output = (t_output)(s_acc_buffer[s_ow][s_oh][s_och]);
-					if (c_relu == 1)
-						s_output = (t_output)(ReluOp<t_acc>(s_output));
-					for (uint8_t s_split = 0; s_split < c_split; s_split++) {
-						if ((s_iw > -1) & (s_ih > -1))
-							o_data[s_split].write(s_output);
-					}
-					s_acc_buffer[s_ow][s_oh][s_och] = 0;
-				}
-			}
-		}
-	}
-
-}
-
-template <
-	class t_input,
-	class t_acc,
-	class t_output,
-	int c_ich,
-	int c_och,
-	int c_iw,
-	int c_ih,
 	int c_ow,
-	int c_oh,
-	int c_fw,
 	int c_fh,
+	int c_fw,
 	int c_relu,
-	int c_pad
-> void AccumulateKernel(
-	hls::stream<t_acc> i_data[c_fh*c_fw],
-	hls::stream<t_input> &i_bias,
-	hls::stream<t_output> &o_data
-) {
-
-	const int c_pad_index_h = c_pad * (c_fh - 1) / 2;
-	const int c_pad_index_w = c_pad * (c_fw - 1) / 2;
-	const int c_ih_end = c_ih + c_pad_index_h - (c_fh - 1);
-	const int c_ih_start = 1 - c_fh;
-	const int c_iw_end = c_iw + c_pad_index_w - (c_fw - 1);
-	const int c_iw_start = 1 - c_fw;
-	
-
-	t_acc s_acc_buffer[c_fh*2][c_ow][c_och] = {0};
-
-	for (int8_t s_ih = c_ih_start; s_ih < c_ih_end; s_ih++) { 
-		for (int8_t s_iw = c_iw_start; s_iw < c_iw_end; s_iw++) { 
-			int8_t s_oh = s_ih % (2 * c_fh); 
-			int8_t s_ow = s_iw; 
-			for (uint8_t s_och = 0; s_och < c_och; s_och++) {
-				t_input s_bias = i_bias.read();
-				if ((s_iw > -1) & (s_ih > -1)) {
-					s_acc_buffer[s_ow][s_oh][s_och] = s_bias;
-				}
-			}
-			for (uint8_t s_fh = 0; s_fh < c_fh; s_fh++) {
-				for (uint8_t s_fw = 0; s_fw < c_fw; s_fw++) {
-					int8_t s_oh = (s_ih + c_fh - s_fh - 1) % (2 * c_fh); 
-					int8_t s_ow = s_iw + c_fw - s_fw - 1; 
-					for (uint8_t s_och = 0; s_och < c_och; s_och++) {
-						t_acc s_acc = i_data[s_fh*c_fw + s_fw].read();
-						if ((s_oh > -1) & (s_oh > -1)) {
-							s_acc_buffer[s_oh][s_ow][s_och] += s_acc;	
-						}
-					}
-				}
-			}
-
-			for (uint8_t s_och = 0; s_och < c_och; s_och++) {
-				t_output s_output = (t_output)(s_acc_buffer[s_ow][s_oh][s_och]);
-				if (c_relu == 1)
-					s_output = (t_output)(ReluOp<t_acc>(s_output));
-				if ((s_iw > -1) & (s_ih > -1)) {
-					o_data.write(s_output);
-				}
-			}
-		}
-	}
-
-}
-
-
-template <
-	class t_input,
-	int c_ich,
-	int c_iw,
-	int c_ih,
-	int c_fw,
-	int c_fh,
-	int c_pad
-> void ForwardStream(
-	hls::stream<t_input> &i_data
-) {
-
-	const int c_pad_index_h = c_pad * (c_fh - 1) / 2;
-	const int c_pad_index_w = c_pad * (c_fw - 1) / 2;
-	const int c_ih_end = c_ih + c_pad_index_h;
-	const int c_ih_start = -1 * c_pad_index_h;
-	const int c_iw_end = c_iw + c_pad_index_w;
-	const int c_iw_start = -1 * c_pad_index_w;
-	
-	for (int8_t s_ih = c_ih_start; s_ih < c_ih_end; s_ih++) { 
-		for (int8_t s_iw = c_iw_start; s_iw < c_iw_end; s_iw++) { 
-			for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) { 
-				t_input s_tmp = i_data.read();
-			}
-		}
-	}
-
-}
-
-template <
-	class t_input,
-	int c_ich,
-	int c_iw,
-	int c_ih,
-	int c_fw,
-	int c_fh,
-	int c_pad
-> void ForwardStream(
+	int c_str,
+	int c_bypass
+> void ConvOp(
 	hls::stream<t_input> &i_data,
-	hls::stream<t_input> &o_forward
+	hls::stream<t_weight> &i_weights,
+	hls::stream<t_input> &o_data,
+	hls::stream<t_acc> &o_acc
 ) {
 
-	const int c_pad_index_h = c_pad * (c_fh - 1) / 2;
-	const int c_pad_index_w = c_pad * (c_fw - 1) / 2;
-	const int c_ih_end = c_ih + c_pad_index_h;
-	const int c_ih_start = -1 * c_pad_index_h;
-	const int c_iw_end = c_iw + c_pad_index_w;
-	const int c_iw_start = -1 * c_pad_index_w;
-	
-	for (int8_t s_ih = c_ih_start; s_ih < c_ih_end; s_ih++) { 
-		for (int8_t s_iw = c_iw_start; s_iw < c_iw_end; s_iw++) { 
-			for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) { 
-				t_input s_tmp = i_data.read();
-				if ((s_ih > -1) & (s_iw > -1))
-					o_forward.write(s_tmp);
+#pragma HLS PIPELINE off
+	const int c_bypass_w = c_fw - 1;
+	const int c_paddingh_shift = c_bypass*c_iw*c_ich;
+	const int c_paddingw_shift = c_bypass_w*c_ich;
+	const int c_strideh_shift = (c_str-1)*c_iw*c_ich;
+	const int c_stridew_shift = (c_str-1)*c_ich;
+
+	/* This shift is for height padding, after this initial phase the first useful
+	 * data will be at the start of the last group of DSPs */
+	for (uint32_t s_index = 0; s_index < c_paddingh_shift; s_index++) {
+		o_data.write(i_data.read());
+	}
+
+	for (uint8_t s_ih = 0; s_ih < c_ih; s_ih+=c_str) {
+
+	/* This shift is for width padding, after this initial phase the first useful
+	 * data will be at the start of the last DSP */
+		for (uint8_t s_index = 0; s_index < c_paddingw_shift; s_index++) {
+			o_data.write(i_data.read());
+		}
+
+		for (uint8_t s_iw = 0; s_iw < c_iw; s_iw+=c_str) {
+
+			/* One at a time the input channel activations are evaluated */
+			/* One output is generated each cin*coch cycles */
+			t_acc s_acc_buff[c_och] = {0};
+
+			for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
+				t_input s_input = i_data.read();
+				for (uint8_t s_och = 0; s_och < c_och; s_och++) {
+					t_weight s_weights = i_weights.read();
+					s_acc_buff[s_och] += s_input * s_weights;
+				}
+				o_data.write(s_input);
+			}
+
+			for (uint8_t s_och = 0; s_och < c_och; s_och++) {
+					o_acc.write(s_acc_buff[s_och]); 
+			}
+
+			/* Width shifts for stride */
+			for (uint8_t s_index = 0; s_index < c_stridew_shift; s_index++) {
+				o_data.write(i_data.read());
+			}
+
+		}
+
+		for (uint8_t s_index = 0; s_index < c_strideh_shift; s_index++) {
+			o_data.write(i_data.read());
+		}
+
+	}
+
+}
+
+template <
+	class t_acc,
+	class t_output,
+	int c_och,
+	int c_oh,
+	int c_ow,
+	int c_relu
+> void WriteOutput(
+	hls::stream<t_acc> &i_data,
+	hls::stream<t_output> &o_data
+) {
+
+	for (uint8_t s_oh = 0; s_oh < c_oh; s_oh++) {
+		for (uint8_t s_ow = 0; s_ow < c_ow; s_ow++) {
+			for (uint8_t s_och = 0; s_och < c_och; s_och++) {
+#pragma HLS loop_flatten
+#pragma HLS PIPELINE off
+				t_acc s_o_acc = i_data.read();
+				if (c_relu == 1)
+					s_o_acc = ReluOp<t_acc>(s_o_acc);
+				o_data.write((t_output)(s_o_acc));
 			}
 		}
 	}
+}
+
+template <
+	class t_input,
+	class t_weight,
+	class t_acc,
+	class t_output,
+	int c_ich,
+	int c_och,
+	int c_ih,
+	int c_iw,
+	int c_oh,
+	int c_ow,
+	int c_fh,
+	int c_fw,
+	int c_relu,
+	int c_str,
+	int c_pad
+> void ConvKernel1x1(
+	hls::stream<t_input> &i_data,
+	hls::stream<t_weight> i_weights[c_fh*c_fw],
+	hls::stream<t_input> &o_forward,
+	hls::stream<t_input> &i_bias,
+	hls::stream<t_output> &o_data
+) {
+
+#pragma HLS inline
+
+	const int c_index = c_fh*c_fw;
+
+	hls::stream<t_acc> s_acc;
+	#pragma HLS STREAM variable=s_acc depth=2
+
+	ConvOp<
+		t_input,
+		t_weight,
+		t_acc,
+		c_ich,
+		c_och,
+		c_ih,
+		c_iw,
+		c_oh,
+		c_ow,
+		c_fh,
+		c_fw,
+		c_relu,
+		c_str,
+		0
+	> (
+		i_data,
+		i_weights[0],
+		i_bias,
+		o_forward,
+		s_acc
+	);
+
+	WriteOutput<
+		t_acc,
+		t_output,
+		c_och,
+		c_oh,
+		c_ow,
+		c_relu
+	> (
+		s_acc,
+		o_data
+	);
+
+}
+
+template <
+	class t_acc,
+	class t_output,
+	int c_och,
+	int c_oh,
+	int c_ow,
+	int c_fh,
+	int c_fw,
+	int c_relu
+> void WriteOutput(
+	hls::stream<t_acc> i_data[c_fh*c_fw],
+	hls::stream<t_output> &o_data
+) {
+
+	const int c_index = c_fh*c_fw;
+
+	for (uint8_t s_oh = 0; s_oh < c_oh; s_oh++) {
+		for (uint8_t s_ow = 0; s_ow < c_ow; s_ow++) {
+			for (uint8_t s_och = 0; s_och < c_och; s_och++) {
+#pragma HLS loop_flatten
+				t_acc s_o_acc = 0;
+				for (uint8_t s_index = 0; s_index < c_index; s_index++) {
+#pragma HLS PIPELINE off
+#pragma HLS bind_op variable=s_o_acc op=add impl=dsp
+					s_o_acc += i_data[s_index].read();
+				}
+				if (c_relu == 1)
+					s_o_acc = ReluOp<t_acc>(s_o_acc);
+				o_data.write((t_output)(s_o_acc));
+			}
+		}
+	}
+
+}
+
+template <
+	class t_input,
+	class t_weight,
+	class t_acc,
+	class t_output,
+	int c_ich,
+	int c_och,
+	int c_ih,
+	int c_iw,
+	int c_oh,
+	int c_ow,
+	int c_fh,
+	int c_fw,
+	int c_relu,
+	int c_str,
+	int c_pad
+> void ConvKernel3x3(
+	hls::stream<t_input> &i_data,
+	hls::stream<t_weight> i_weights[c_fh*c_fw],
+	hls::stream<t_input> &i_bias,
+	hls::stream<t_input> &o_forward,
+	hls::stream<t_output> &o_data
+) {
+
+#pragma HLS inline
+
+	const int c_index = c_fh*c_fw;
+	hls::stream<t_input> s_data[c_index-1];
+	#pragma HLS STREAM variable=s_data[0] depth=c_ich
+	#pragma HLS STREAM variable=s_data[1] depth=c_ich
+	#pragma HLS STREAM variable=s_data[2] depth=c_ich*(c_iw-2)
+	#pragma HLS STREAM variable=s_data[3] depth=c_ich
+	#pragma HLS STREAM variable=s_data[4] depth=c_ich
+	#pragma HLS STREAM variable=s_data[5] depth=c_ich*(c_iw-2)
+	#pragma HLS STREAM variable=s_data[6] depth=c_ich
+	#pragma HLS STREAM variable=s_data[7] depth=c_ich
+	hls::stream<t_acc> s_acc[c_index];
+	#pragma HLS STREAM variable=s_acc[0] depth=9
+	#pragma HLS STREAM variable=s_acc[1] depth=9
+	#pragma HLS STREAM variable=s_acc[2] depth=9
+	#pragma HLS STREAM variable=s_acc[3] depth=9
+	#pragma HLS STREAM variable=s_acc[4] depth=9
+	#pragma HLS STREAM variable=s_acc[5] depth=9
+	#pragma HLS STREAM variable=s_acc[6] depth=9
+	#pragma HLS STREAM variable=s_acc[7] depth=9
+	#pragma HLS STREAM variable=s_acc[8] depth=9
+
+	ConvOp<
+		t_input,
+		t_weight,
+		t_acc,
+		c_ich,
+		c_och,
+		c_ih,
+		c_iw,
+		c_oh,
+		c_ow,
+		c_fh,
+		c_fw,
+		c_relu,
+		c_str,
+		(c_fh-1)
+	> (
+		i_data,
+		i_weights[0],
+		i_bias,
+		s_data[0],
+		s_acc[0]
+	);
+
+	ConvOp<
+		t_input,
+		t_weight,
+		t_acc,
+		c_ich,
+		c_och,
+		c_ih,
+		c_iw,
+		c_oh,
+		c_ow,
+		c_fh,
+		c_fw,
+		c_relu,
+		c_str,
+		(c_fh-1)
+	> (
+		s_data[0],
+		i_weights[1],
+		s_data[1],
+		s_acc[1]
+	);
+
+	ConvOp<
+		t_input,
+		t_weight,
+		t_acc,
+		c_ich,
+		c_och,
+		c_ih,
+		c_iw,
+		c_oh,
+		c_ow,
+		c_fh,
+		c_fw,
+		c_relu,
+		c_str,
+		(c_fh-1)
+	> (
+		s_data[1],
+		i_weights[2],
+		s_data[2],
+		s_acc[2]
+	);
+
+	ConvOp<
+		t_input,
+		t_weight,
+		t_acc,
+		c_ich,
+		c_och,
+		c_ih,
+		c_iw,
+		c_oh,
+		c_ow,
+		c_fh,
+		c_fw,
+		c_relu,
+		c_str,
+		(c_fh-2)
+	> (
+		s_data[2],
+		i_weights[3],
+		s_data[3],
+		s_acc[3]
+	);
+
+	ConvOp<
+		t_input,
+		t_weight,
+		t_acc,
+		c_ich,
+		c_och,
+		c_ih,
+		c_iw,
+		c_oh,
+		c_ow,
+		c_fh,
+		c_fw,
+		c_relu,
+		c_str,
+		(c_fh-2)
+	> (
+		s_data[3],
+		i_weights[4],
+		s_data[4],
+		s_acc[4]
+	);
+
+	ConvOp<
+		t_input,
+		t_weight,
+		t_acc,
+		c_ich,
+		c_och,
+		c_ih,
+		c_iw,
+		c_oh,
+		c_ow,
+		c_fh,
+		c_fw,
+		c_relu,
+		c_str,
+		(c_fh-2)
+	> (
+		s_data[4],
+		i_weights[5],
+		s_data[5],
+		s_acc[5]
+	);
+
+	ConvOp<
+		t_input,
+		t_weight,
+		t_acc,
+		c_ich,
+		c_och,
+		c_ih,
+		c_iw,
+		c_oh,
+		c_ow,
+		c_fh,
+		c_fw,
+		c_relu,
+		c_str,
+		(c_fh-3)
+	> (
+		s_data[5],
+		i_weights[6],
+		s_data[6],
+		s_acc[6]
+	);
+
+	ConvOp<
+		t_input,
+		t_weight,
+		t_acc,
+		c_ich,
+		c_och,
+		c_ih,
+		c_iw,
+		c_oh,
+		c_ow,
+		c_fh,
+		c_fw,
+		c_relu,
+		c_str,
+		(c_fh-3)
+	> (
+		s_data[6],
+		i_weights[7],
+		s_data[7],
+		s_acc[7]
+	);
+
+	ConvOp<
+		t_input,
+		t_weight,
+		t_acc,
+		c_ich,
+		c_och,
+		c_ih,
+		c_iw,
+		c_oh,
+		c_ow,
+		c_fh,
+		c_fw,
+		c_relu,
+		c_str,
+		0
+	> (
+		s_data[7],
+		i_weights[8],
+		o_forward,
+		s_acc[8]
+	);
+
+
+	WriteOutput<
+		t_acc,
+		t_output,
+		c_och,
+		c_oh,
+		c_ow,
+		c_fh,
+		c_fw,
+		c_relu
+	> (
+		s_acc,
+		o_data
+	);
+
 
 }
 
@@ -622,36 +588,19 @@ template <
 	hls::stream<t_output> &o_data
 ) {
 
+#pragma HLS inline
+
+	if (i_data.empty())
+		return;
+
+	if (i_bias.empty())
+		return;
 
 	const int c_conv_index = c_fh*c_fw;
-	hls::stream<t_input, 1> s_data_stream[2];
+	hls::stream<t_input, 2> s_data_stream[2];
 	#pragma HLS STREAM variable=s_data_stream
-	hls::stream<t_input, 1> s_bias_stream;
+	hls::stream<t_input, 2> s_bias_stream;
 	#pragma HLS STREAM variable=s_bias_stream
-	hls::stream<t_acc, c_conv_index> s_acc_stream[c_conv_index];
-	#pragma HLS STREAM variable=s_acc_stream
-
-	#pragma HLS DATAFLOW
-	/* #pragma HLS inline */
-
-	/* for (uint8_t s_conv_index = 0; s_conv_index < c_conv_index; s_conv_index++) { */
-	/* 	if (i_weights[s_conv_index].empty()) */
-	/* 		return; */
-	/* } */
-
-	/* if (i_data.empty()) */
-	/* 	return; */
-
-	/* This handles padding aware inputs */
-	/* Higher indices weights can be applied only to central activations */ 
-	/* 1 2 3      9 8 7 */
-	/* 4 5 6 ---> 6 5 4 */
-	/* 7 8 9      3 2 1 */
-	/* 
-	 * D11   D12     D13   D14
-	 * 5 -> 4 6 -> 5 -> 4 6
-	 * 2 8 -> 1 3 7 9 -> 2 8
-	*/
 
 	PadInput<
 		t_input,
@@ -664,37 +613,6 @@ template <
 	> (
 		i_data,
 		s_data_stream[0]
-	);
-
-	ConvKernel<
-		t_input,
-		t_weight,
-		t_acc,
-		c_ich,
-		c_och,
-		c_ih,
-		c_iw,
-		c_fh,
-		c_fw,
-		c_str,
-		c_pad
-	> (
-		s_data_stream[0],
-		i_weights,
-		s_data_stream[1],
-		s_acc_stream
-	);
-
-	ForwardStream<
-		t_input,
-		c_ich,
-		c_iw,
-		c_ih,
-		c_fw,
-		c_fh,
-		c_pad
-	> (
-		s_data_stream[1]
 	);
 
 	PadInput<
@@ -710,24 +628,40 @@ template <
 		s_bias_stream
 	);
 
-	AccumulateKernel<
+	ConvKernel3x3 <
 		t_input,
+		t_weight,
 		t_acc,
 		t_output,
 		c_ich,
 		c_och,
-		c_iw,
 		c_ih,
-		c_ow,
+		c_iw,
 		c_oh,
-		c_fw,
+		c_ow,
 		c_fh,
+		c_fw,
 		c_relu,
+		c_str,
 		c_pad
 	> (
-		s_acc_stream,
+		s_data_stream[0],
+		i_weights,
 		s_bias_stream,
+		s_data_stream[1],
 		o_data
+	);
+
+	ForwardStream<
+		t_input,
+		c_ich,
+		c_iw,
+		c_ih,
+		c_fw,
+		c_fh,
+		c_pad
+	> (
+		s_data_stream[1]
 	);
 
 }
@@ -757,36 +691,18 @@ template <
 	hls::stream<t_output> o_data[c_split]
 ) {
 
+#pragma HLS inline
+
+	if (i_data.empty())
+		return;
 
 	const int c_conv_index = c_fh*c_fw;
-	hls::stream<t_input, 1> s_data_stream[2];
+	hls::stream<t_input, 2> s_data_stream[2];
 	#pragma HLS STREAM variable=s_data_stream
-	hls::stream<t_input, 1> s_bias_stream;
+	hls::stream<t_input, 2> s_bias_stream;
 	#pragma HLS STREAM variable=s_bias_stream
-	hls::stream<t_acc, c_conv_index> s_acc_stream[c_conv_index];
-	#pragma HLS STREAM variable=s_acc_stream
-
-	#pragma HLS DATAFLOW
-	/* #pragma HLS inline */
-
-	/* for (uint8_t s_conv_index = 0; s_conv_index < c_conv_index; s_conv_index++) { */
-	/* 	if (i_weights[s_conv_index].empty()) */
-	/* 		return; */
-	/* } */
-
-	/* if (i_data.empty()) */
-	/* 	return; */
-
-	/* This handles padding aware inputs */
-	/* Higher indices weights can be applied only to central activations */ 
-	/* 1 2 3      9 8 7 */
-	/* 4 5 6 ---> 6 5 4 */
-	/* 7 8 9      3 2 1 */
-	/* 
-	 * D11   D12     D13   D14
-	 * 5 -> 4 6 -> 5 -> 4 6
-	 * 2 8 -> 1 3 7 9 -> 2 8
-	*/
+	hls::stream<t_output, 2> s_out_stream;
+	#pragma HLS STREAM variable=s_out_stream
 
 	PadInput<
 		t_input,
@@ -799,37 +715,6 @@ template <
 	> (
 		i_data,
 		s_data_stream[0]
-	);
-
-	ConvKernel<
-		t_input,
-		t_weight,
-		t_acc,
-		c_ich,
-		c_och,
-		c_ih,
-		c_iw,
-		c_fh,
-		c_fw,
-		c_str,
-		c_pad
-	> (
-		s_data_stream[0],
-		i_weights,
-		s_data_stream[1],
-		s_acc_stream
-	);
-
-	ForwardStream<
-		t_input,
-		c_ich,
-		c_iw,
-		c_ih,
-		c_fw,
-		c_fh,
-		c_pad
-	> (
-		s_data_stream[1]
 	);
 
 	PadInput<
@@ -845,25 +730,130 @@ template <
 		s_bias_stream
 	);
 
-	AccumulateKernel<
+	ConvKernel3x3 <
 		t_input,
+		t_weight,
 		t_acc,
 		t_output,
 		c_ich,
 		c_och,
-		c_iw,
 		c_ih,
-		c_ow,
+		c_iw,
 		c_oh,
-		c_fw,
+		c_ow,
 		c_fh,
+		c_fw,
 		c_relu,
-		c_split,
+		c_str,
 		c_pad
 	> (
-		s_acc_stream,
+		s_data_stream[0],
+		i_weights,
 		s_bias_stream,
+		s_data_stream[1],
+		s_out_stream
+	);
+
+	ForwardStream<
+		t_input,
+		c_ich,
+		c_iw,
+		c_ih,
+		c_fw,
+		c_fh,
+		c_pad
+	> (
+		s_data_stream[1]
+	);
+
+	SplitStream<
+		t_output,
+		c_och,
+		c_ow,
+		c_oh,
+		c_split
+	> (
+		s_out_stream,
 		o_data
+	);
+
+}
+
+template <
+	class t_input,
+	class t_weight,
+	class t_output,
+	class t_acc,
+	int c_ich,
+	int c_och,
+	int c_iw,
+	int c_ih,
+	int c_ow,
+	int c_oh,
+	int c_relu,
+	int c_str,
+	int c_pad
+> void PackedConvBuffAcc(
+	hls::stream<t_input> &i_data,
+	hls::stream<t_weight> i_weights[1],
+	hls::stream<t_output> &o_data,
+	hls::stream<t_input> &o_forward
+) {
+
+#pragma HLS inline
+
+	if (i_data.empty())
+		return;
+
+	hls::stream<t_input, 2> s_data_stream;
+	#pragma HLS STREAM variable=s_data_stream
+	hls::stream<t_input, 2> s_bias_stream;
+	#pragma HLS STREAM variable=s_bias_stream
+
+	PadInput<
+		t_input,
+		c_ich,
+		c_ih,
+		c_iw
+	> (
+		s_bias_stream
+	);
+
+	ConvKernel1x1 <
+		t_input,
+		t_weight,
+		t_acc,
+		t_output,
+		c_ich,
+		c_och,
+		c_ih,
+		c_iw,
+		c_oh,
+		c_ow,
+		1,
+		1,
+		c_relu,
+		c_str,
+		c_pad
+	> (
+		i_data,
+		i_weights,
+		s_bias_stream,
+		s_data_stream,
+		o_data
+	);
+
+	ForwardStream<
+		t_input,
+		c_ich,
+		c_iw,
+		c_ih,
+		1,
+		1,
+		c_pad
+	> (
+		s_data_stream,
+		o_forward
 	);
 
 }
@@ -891,34 +881,16 @@ template <
 	hls::stream<t_input> &o_forward
 ) {
 
+#pragma HLS inline
+
+	if (i_data.empty())
+		return;
 
 	const int c_conv_index = c_fh*c_fw;
-	hls::stream<t_input, 1> s_data_stream[2];
+	hls::stream<t_input, 2> s_data_stream[2];
 	#pragma HLS STREAM variable=s_data_stream
-	hls::stream<t_acc, c_conv_index> s_acc_stream[c_conv_index];
-	#pragma HLS STREAM variable=s_acc_stream
-
-	#pragma HLS DATAFLOW
-/* #pragma HLS inline */
-
-	/* for (uint8_t s_conv_index = 0; s_conv_index < c_conv_index; s_conv_index++) { */
-	/* 	if (i_weights[s_conv_index].empty()) */
-	/* 		return; */
-	/* } */
-
-	/* if (i_data.empty()) */
-	/* 	return; */
-
-	/* This handles padding aware inputs */
-	/* Higher indices weights can be applied only to central activations */ 
-	/* 1 2 3      9 8 7 */
-	/* 4 5 6 ---> 6 5 4 */
-	/* 7 8 9      3 2 1 */
-	/* 
-	 * D11   D12     D13   D14
-	 * 5 -> 4 6 -> 5 -> 4 6
-	 * 2 8 -> 1 3 7 9 -> 2 8
-	*/
+	hls::stream<t_input, 2> s_bias_stream;
+	#pragma HLS STREAM variable=s_bias_stream
 
 	PadInput<
 		t_input,
@@ -933,23 +905,40 @@ template <
 		s_data_stream[0]
 	);
 
-	ConvKernel<
+	PadInput<
 		t_input,
-		t_weight,
-		t_acc,
 		c_ich,
-		c_och,
 		c_ih,
 		c_iw,
 		c_fh,
 		c_fw,
+		c_pad
+	> (
+		s_bias_stream
+	);
+
+	ConvKernel3x3 <
+		t_input,
+		t_weight,
+		t_acc,
+		t_output,
+		c_ich,
+		c_och,
+		c_ih,
+		c_iw,
+		c_oh,
+		c_ow,
+		c_fh,
+		c_fw,
+		c_relu,
 		c_str,
 		c_pad
 	> (
 		s_data_stream[0],
 		i_weights,
+		s_bias_stream,
 		s_data_stream[1],
-		s_acc_stream
+		o_data
 	);
 
 	ForwardStream<
@@ -965,29 +954,88 @@ template <
 		o_forward
 	);
 
-	AccumulateKernel<
-		t_acc,
-		t_output,
-		c_ich,
-		c_och,
-		c_iw,
-		c_ih,
-		c_ow,
-		c_oh,
-		c_fw,
-		c_fh,
-		c_relu,
-		c_pad
-	> (
-		s_acc_stream,
-		o_data
-	);
-
 }
 
 /* Config padded version of the packed convolution with Accumulation buffers */
 /* What changes is the association between the filters kernel indices and the */ 
 /* input features map, this translates in a different initialization of the loops */
+template <
+	class t_input,
+	class t_weight,
+	class t_output,
+	class t_acc,
+	int c_ich,
+	int c_och,
+	int c_iw,
+	int c_ih,
+	int c_ow,
+	int c_oh,
+	int c_relu,
+	int c_str,
+	int c_pad
+> void PackedConvBuffAcc(
+	hls::stream<t_input> &i_data,
+	hls::stream<t_weight> i_weights[1],
+	hls::stream<t_output> &o_data
+) {
+
+#pragma HLS inline
+
+	if (i_data.empty())
+		return;
+
+	hls::stream<t_input, 2> s_data_stream;
+	#pragma HLS STREAM variable=s_data_stream
+	hls::stream<t_input, 2> s_bias_stream;
+	#pragma HLS STREAM variable=s_bias_stream
+
+	PadInput<
+		t_input,
+		c_ich,
+		c_ih,
+		c_iw
+	> (
+		s_bias_stream
+	);
+
+	ConvKernel1x1 <
+		t_input,
+		t_weight,
+		t_acc,
+		t_output,
+		c_ich,
+		c_och,
+		c_ih,
+		c_iw,
+		c_oh,
+		c_ow,
+		1,
+		1,
+		c_relu,
+		c_str,
+		c_pad
+	> (
+		i_data,
+		i_weights,
+		s_bias_stream,
+		s_data_stream,
+		o_data
+	);
+
+	ForwardStream<
+		t_input,
+		c_ich,
+		c_iw,
+		c_ih,
+		1,
+		1,
+		c_pad
+	> (
+		s_data_stream
+	);
+
+}
+
 template <
 	class t_input,
 	class t_weight,
@@ -1010,35 +1058,16 @@ template <
 	hls::stream<t_output> &o_data
 ) {
 
+#pragma HLS inline
+
+	if (i_data.empty())
+		return;
 
 	const int c_conv_index = c_fh*c_fw;
-
-	/* for (uint8_t s_conv_index = 0; s_conv_index < c_conv_index; s_conv_index++) { */
-	/* 	if (i_weights[s_conv_index].empty()) */
-	/* 		return; */
-	/* } */
-
-	/* if (i_data.empty()) */
-	/* 	return; */
-
-	#pragma HLS DATAFLOW
-/* #pragma HLS inline */
-
-	/* This handles padding aware inputs */
-	/* Higher indices weights can be applied only to central activations */ 
-	/* 1 2 3      9 8 7 */
-	/* 4 5 6 ---> 6 5 4 */
-	/* 7 8 9      3 2 1 */
-	/* 
-	 * D11   D12     D13   D14
-	 * 5 -> 4 6 -> 5 -> 4 6
-	 * 2 8 -> 1 3 7 9 -> 2 8
-	*/
-
-	hls::stream<t_input> s_data_stream[2];
-	#pragma HLS STREAM variable=s_data_stream type=fifo
-	hls::stream<t_acc, c_conv_index> s_acc_stream[c_conv_index];
-	#pragma HLS STREAM variable=s_acc_stream
+	hls::stream<t_input, 2> s_data_stream[2];
+	#pragma HLS STREAM variable=s_data_stream
+	hls::stream<t_input, 2> s_bias_stream;
+	#pragma HLS STREAM variable=s_bias_stream
 
 	PadInput<
 		t_input,
@@ -1053,23 +1082,40 @@ template <
 		s_data_stream[0]
 	);
 
-	ConvKernel<
+	PadInput<
 		t_input,
-		t_weight,
-		t_acc,
 		c_ich,
-		c_och,
 		c_ih,
 		c_iw,
 		c_fh,
 		c_fw,
+		c_pad
+	> (
+		s_bias_stream
+	);
+
+	ConvKernel3x3 <
+		t_input,
+		t_weight,
+		t_acc,
+		t_output,
+		c_ich,
+		c_och,
+		c_ih,
+		c_iw,
+		c_oh,
+		c_ow,
+		c_fh,
+		c_fw,
+		c_relu,
 		c_str,
 		c_pad
 	> (
 		s_data_stream[0],
 		i_weights,
+		s_bias_stream,
 		s_data_stream[1],
-		s_acc_stream
+		o_data
 	);
 
 	ForwardStream<
@@ -1082,24 +1128,6 @@ template <
 		c_pad
 	> (
 		s_data_stream[1]
-	);
-
-	AccumulateKernel<
-		t_acc,
-		t_output,
-		c_ich,
-		c_och,
-		c_iw,
-		c_ih,
-		c_ow,
-		c_oh,
-		c_fw,
-		c_fh,
-		c_relu,
-		c_pad
-	> (
-		s_acc_stream,
-		o_data
 	);
 
 }
@@ -1130,35 +1158,18 @@ template <
 	hls::stream<t_output> o_data[c_split]
 ) {
 
+#pragma HLS inline
+
+	if (i_data.empty())
+		return;
 
 	const int c_conv_index = c_fh*c_fw;
-
-	/* for (uint8_t s_conv_index = 0; s_conv_index < c_conv_index; s_conv_index++) { */
-	/* 	if (i_weights[s_conv_index].empty()) */
-	/* 		return; */
-	/* } */
-
-	/* if (i_data.empty()) */
-	/* 	return; */
-
-	#pragma HLS DATAFLOW
-/* #pragma HLS inline */
-
-	/* This handles padding aware inputs */
-	/* Higher indices weights can be applied only to central activations */ 
-	/* 1 2 3      9 8 7 */
-	/* 4 5 6 ---> 6 5 4 */
-	/* 7 8 9      3 2 1 */
-	/* 
-	 * D11   D12     D13   D14
-	 * 5 -> 4 6 -> 5 -> 4 6
-	 * 2 8 -> 1 3 7 9 -> 2 8
-	*/
-
-	hls::stream<t_input> s_data_stream[2];
-	#pragma HLS STREAM variable=s_data_stream type=fifo
-	hls::stream<t_acc, c_conv_index> s_acc_stream[c_conv_index];
-	#pragma HLS STREAM variable=s_acc_stream
+	hls::stream<t_input, 2> s_data_stream[2];
+	#pragma HLS STREAM variable=s_data_stream
+	hls::stream<t_input, 2> s_bias_stream;
+	#pragma HLS STREAM variable=s_bias_stream
+	hls::stream<t_output, 2> s_out_stream;
+	#pragma HLS STREAM variable=s_out_stream
 
 	PadInput<
 		t_input,
@@ -1173,23 +1184,40 @@ template <
 		s_data_stream[0]
 	);
 
-	ConvKernel<
+	PadInput<
 		t_input,
-		t_weight,
-		t_acc,
 		c_ich,
-		c_och,
 		c_ih,
 		c_iw,
 		c_fh,
 		c_fw,
+		c_pad
+	> (
+		s_bias_stream
+	);
+
+	ConvKernel3x3 <
+		t_input,
+		t_weight,
+		t_acc,
+		t_output,
+		c_ich,
+		c_och,
+		c_ih,
+		c_iw,
+		c_oh,
+		c_ow,
+		c_fh,
+		c_fw,
+		c_relu,
 		c_str,
 		c_pad
 	> (
 		s_data_stream[0],
 		i_weights,
+		s_bias_stream,
 		s_data_stream[1],
-		s_acc_stream
+		s_out_stream	
 	);
 
 	ForwardStream<
@@ -1204,22 +1232,14 @@ template <
 		s_data_stream[1]
 	);
 
-	AccumulateKernel<
-		t_acc,
+	SplitStream<
 		t_output,
-		c_ich,
 		c_och,
-		c_iw,
-		c_ih,
 		c_ow,
 		c_oh,
-		c_fw,
-		c_fh,
-		c_relu,
-		c_split,
-		c_pad
+		c_split
 	> (
-		s_acc_stream,
+		s_out_stream,
 		o_data
 	);
 

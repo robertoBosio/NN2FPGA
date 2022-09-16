@@ -74,6 +74,7 @@ template <
 				t_acc s_acc = 0;
 
 				for (uint8_t s_fh = 0; s_fh < c_fh; s_fh++) {
+/* #pragma HLS pipeline off */
 					for (uint8_t s_fw =0; s_fw < c_fw; s_fw++) {
 						t_input s_data = s_data_buffer[s_ich][(s_ih + s_fh) % c_fh][s_iw + s_fw];
 						s_acc += s_data;
