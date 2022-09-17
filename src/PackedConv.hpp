@@ -20,6 +20,7 @@ template <
 	int c_fw,
 	int c_relu,
 	int c_str,
+	int c_pad,
 	int c_bypass
 > void ConvOp(
 	hls::stream<t_input> &i_data,
@@ -30,66 +31,68 @@ template <
 ) {
 
 #pragma HLS PIPELINE off
+	const int c_starth = (c_fh-1)*(1-c_pad);
+	const int c_startw = (c_fh-1)*(1-c_pad);
 	const int c_bypass_w = c_fw - 1;
+	const int c_iw_pad = c_iw + (c_fh-1)*(c_pad);
+	const int c_paddingh_shift = c_bypass*c_iw_pad*c_ich;
+	const int c_paddingw_shift = c_bypass_w*c_ich;
+	const int c_strideh_shift = (c_str-1)*c_iw_pad*c_ich;
+	const int c_stridew_shift = (c_str-1)*c_ich;
 
-	for (uint8_t s_ih = 0; s_ih < c_bypass; s_ih+=c_str) {
-		for (uint8_t s_strh = 0; s_strh < c_str; s_strh++) {
-			for (uint8_t s_iw = 0; s_iw < c_iw; s_iw+=c_str) {
-				for (uint8_t s_strw = 0; s_strw < c_str; s_strw++) {
-					for (uint8_t s_och = 0; s_och < c_och; s_och++)
-						t_input s_bias = i_bias.read();
-					for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
-						t_input s_input = i_data.read();
-						o_data.write(s_input);
-					}
-				}
-			}
-		}
+	/* Shifting first lines through the fifo chain */
+	/* After this shift, all the useless computations with data at the borders are */
+	/* skipped */
+	for (uint16_t s_index = 0; s_index < c_paddingh_shift; s_index++) {
+		t_input s_bias = i_bias.read();
+		t_input s_input = i_data.read();
+		o_data.write(s_input);
 	}
 
-	for (uint8_t s_ih = 0; s_ih < c_ih; s_ih+=c_str) {
-		for (uint8_t s_strh = 0; s_strh < c_str; s_strh++) {
+	for (uint8_t s_ih = c_starth; s_ih < c_ih; s_ih+=c_str) {
 
-			/* Start shifting for padding */
-			for (uint8_t s_iw = 0; s_iw < c_bypass_w; s_iw+=c_str) {
-				for (uint8_t s_strw = 0; s_strw < c_str; s_strw++) {
-					for (uint8_t s_och = 0; s_och < c_och; s_och++) {
-						t_input s_bias = i_bias.read();
-					}
-					for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
-						t_input s_input = i_data.read();
-						o_data.write(s_input);
-					}
+		/* Start shifting for padding */
+		/* After this shift, the first row data are shifted forward */
+		for (uint16_t s_index = 0; s_index < c_paddingw_shift; s_index++) {
+			t_input s_bias = i_bias.read();
+			t_input s_input = i_data.read();
+			o_data.write(s_input);
+		}
+
+		for (uint8_t s_iw = c_startw; s_iw < c_iw; s_iw+=c_str) {
+
+			uint8_t s_bypass_w = 0;
+
+			t_acc s_acc_buff[c_och];
+
+			for (uint8_t s_och = 0; s_och < c_och; s_och++)
+				s_acc_buff[s_och] = i_bias.read();
+
+			for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
+				t_input s_input = i_data.read();
+				for (uint8_t s_och = 0; s_och < c_och; s_och++) {
+					t_weight s_weights = i_weights.read();
+					s_acc_buff[s_och] += s_input * s_weights;
 				}
+				o_data.write(s_input);
 			}
 
-			for (uint8_t s_iw = 0; s_iw < c_iw; s_iw+=c_str) {
-				for (uint8_t s_strw = 0; s_strw < c_str; s_strw++) {
-
-					uint8_t s_bypass_w = 0;
-
-					t_acc s_acc_buff[c_och];
-
-					for (uint8_t s_och = 0; s_och < c_och; s_och++)
-						s_acc_buff[s_och] = i_bias.read();
-
-					for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
-						t_input s_input = i_data.read();
-						for (uint8_t s_och = 0; s_och < c_och; s_och++) {
-							t_weight s_weights = i_weights.read();
-							s_acc_buff[s_och] += s_input * s_weights;
-						}
-						o_data.write(s_input);
-					}
-
-					for (uint8_t s_och = 0; s_och < c_och; s_och++) {
-						if ((s_strh == 0) & (s_strw == 0)) {
-							o_acc.write(s_acc_buff[s_och]); 
-						}
-					}
-
-				}
+			for (uint8_t s_och = 0; s_och < c_och; s_och++) {
+				o_acc.write(s_acc_buff[s_och]); 
 			}
+
+			for (uint8_t s_index = 1; s_index < c_stridew_shift; s_index++) {
+				t_input s_bias = i_bias.read();
+				t_input s_input = i_data.read();
+				o_data.write(s_input);
+			}
+		}
+
+		/* Start shifting for h stride */
+		for (uint16_t s_index = 1; s_index < c_strideh_shift; s_index++) {
+			t_input s_bias = i_bias.read();
+			t_input s_input = i_data.read();
+			o_data.write(s_input);
 		}
 	}
 
@@ -109,6 +112,7 @@ template <
 	int c_fw,
 	int c_relu,
 	int c_str,
+	int c_pad,
 	int c_bypass
 > void ConvOp(
 	hls::stream<t_input> &i_data,
@@ -118,56 +122,59 @@ template <
 ) {
 
 #pragma HLS PIPELINE off
+	const int c_starth = (c_fh-1)*(1-c_pad);
+	const int c_startw = (c_fh-1)*(1-c_pad);
 	const int c_bypass_w = c_fw - 1;
+	const int c_iw_pad = c_iw + (c_fh-1)*(c_pad);
+	const int c_paddingh_shift = c_bypass*c_iw_pad*c_ich;
+	const int c_paddingw_shift = c_bypass_w*c_ich;
+	const int c_strideh_shift = (c_str-1)*c_iw_pad*c_ich;
+	const int c_stridew_shift = (c_str-1)*c_ich;
 
-	for (uint8_t s_ih = 0; s_ih < c_bypass; s_ih+=c_str) {
-		for (uint8_t s_strh = 0; s_strh < c_str; s_strh++) {
-			for (uint8_t s_iw = 0; s_iw < c_iw; s_iw+=c_str) {
-				for (uint8_t s_strw = 0; s_strw < c_str; s_strw++) {
-					for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
-						t_input s_input = i_data.read();
-						o_data.write(s_input);
-					}
-				}
-			}
-		}
+	/* Shifting first lines through the fifo chain */
+	/* After this shift, all the useless computations with data at the borders are */
+	/* skipped */
+	for (uint16_t s_index = 0; s_index < c_paddingh_shift; s_index++) {
+		t_input s_input = i_data.read();
+		o_data.write(s_input);
 	}
 
+	for (uint8_t s_ih = c_starth; s_ih < c_ih; s_ih+=c_str) {
 
-	for (uint8_t s_ih = c_bypass; s_ih < c_ih; s_ih+=c_str) {
-		for (uint8_t s_strh = 0; s_strh < c_str; s_strh++) {
+		/* Start shifting for padding */
+		/* After this shift, the first row data are shifted forward */
+		for (uint16_t s_index = 0; s_index < c_paddingw_shift; s_index++) {
+			t_input s_input = i_data.read();
+			o_data.write(s_input);
+		}
 
-			/* Start shifting for padding */
-			for (uint8_t s_iw = 0; s_iw < c_bypass_w; s_iw+=c_str) {
-				for (uint8_t s_strw = 0; s_strw < c_str; s_strw++) {
-					for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
-						t_input s_input = i_data.read();
-						o_data.write(s_input);
-					}
+		for (uint8_t s_iw = c_startw; s_iw < c_iw; s_iw+=c_str) {
+
+			t_acc s_acc_buff[c_och] = {0};
+
+			for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
+				t_input s_input = i_data.read();
+				for (uint8_t s_och = 0; s_och < c_och; s_och++) {
+					t_weight s_weights = i_weights.read();
+					s_acc_buff[s_och] += s_input * s_weights;
 				}
+				o_data.write(s_input);
 			}
 
-			for (uint8_t s_iw = c_bypass_w; s_iw < c_iw; s_iw+=c_str) {
-				for (uint8_t s_strw = 0; s_strw < c_str; s_strw++) {
-					t_acc s_acc_buff[c_och] = {0};
-
-					for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
-						t_input s_input = i_data.read();
-						for (uint8_t s_och = 0; s_och < c_och; s_och++) {
-							t_weight s_weights = i_weights.read();
-							s_acc_buff[s_och] += s_input * s_weights;
-						}
-						o_data.write(s_input);
-					}
-
-					for (uint8_t s_och = 0; s_och < c_och; s_och++) {
-						if ((s_strh == 0) & (s_strw == 0)) {
-							o_acc.write(s_acc_buff[s_och]); 
-						}
-					}
-
-				}
+			for (uint8_t s_och = 0; s_och < c_och; s_och++) {
+				o_acc.write(s_acc_buff[s_och]); 
 			}
+
+			for (uint8_t s_index = 1; s_index < c_stridew_shift; s_index++) {
+				t_input s_input = i_data.read();
+				o_data.write(s_input);
+			}
+		}
+
+		/* Start shifting for h stride */
+		for (uint16_t s_index = 1; s_index < c_strideh_shift; s_index++) {
+			t_input s_input = i_data.read();
+			o_data.write(s_input);
 		}
 	}
 
@@ -244,6 +251,7 @@ template <
 		c_fw,
 		c_relu,
 		c_str,
+		c_pad,
 		0
 	> (
 		i_data,
@@ -362,6 +370,7 @@ template <
 		c_fw,
 		c_relu,
 		c_str,
+		c_pad,
 		(c_fh-1)
 	> (
 		i_data,
@@ -385,6 +394,7 @@ template <
 		c_fw,
 		c_relu,
 		c_str,
+		c_pad,
 		(c_fh-1)
 	> (
 		s_data[0],
@@ -407,6 +417,7 @@ template <
 		c_fw,
 		c_relu,
 		c_str,
+		c_pad,
 		(c_fh-1)
 	> (
 		s_data[1],
@@ -429,6 +440,7 @@ template <
 		c_fw,
 		c_relu,
 		c_str,
+		c_pad,
 		(c_fh-2)
 	> (
 		s_data[2],
@@ -451,6 +463,7 @@ template <
 		c_fw,
 		c_relu,
 		c_str,
+		c_pad,
 		(c_fh-2)
 	> (
 		s_data[3],
@@ -473,6 +486,7 @@ template <
 		c_fw,
 		c_relu,
 		c_str,
+		c_pad,
 		(c_fh-2)
 	> (
 		s_data[4],
@@ -495,6 +509,7 @@ template <
 		c_fw,
 		c_relu,
 		c_str,
+		c_pad,
 		(c_fh-3)
 	> (
 		s_data[5],
@@ -517,6 +532,7 @@ template <
 		c_fw,
 		c_relu,
 		c_str,
+		c_pad,
 		(c_fh-3)
 	> (
 		s_data[6],
@@ -539,6 +555,7 @@ template <
 		c_fw,
 		c_relu,
 		c_str,
+		c_pad,
 		0
 	> (
 		s_data[7],
