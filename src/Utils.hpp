@@ -252,6 +252,7 @@ template <
 	}
 
 	for (uint8_t s_ih = 0; s_ih < c_ih; s_ih++) {
+
 		/* Right padding */
 		for (uint8_t s_pad = 0; s_pad < c_pad_index_w; s_pad++){
 			for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {

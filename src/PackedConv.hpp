@@ -31,62 +31,66 @@ template <
 
 #pragma HLS PIPELINE off
 	const int c_bypass_w = c_fw - 1;
-	const int c_paddingh_shift = c_bypass*c_iw*c_ich;
-	const int c_paddingw_shift = c_bypass_w*c_ich;
-	const int c_strideh_shift = (c_str-1)*c_iw*c_ich;
-	const int c_stridew_shift = (c_str-1)*c_ich;
 
-	/* This shift is for height padding, after this initial phase the first useful
-	 * data will be at the start of the last group of DSPs */
-	for (uint32_t s_index = 0; s_index < c_paddingh_shift; s_index++) {
-		t_input s_bias = i_bias.read();
-		o_data.write(i_data.read());
+	for (uint8_t s_ih = 0; s_ih < c_bypass; s_ih+=c_str) {
+		for (uint8_t s_strh = 0; s_strh < c_str; s_strh++) {
+			for (uint8_t s_iw = 0; s_iw < c_iw; s_iw+=c_str) {
+				for (uint8_t s_strw = 0; s_strw < c_str; s_strw++) {
+					for (uint8_t s_och = 0; s_och < c_och; s_och++)
+						t_input s_bias = i_bias.read();
+					for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
+						t_input s_input = i_data.read();
+						o_data.write(s_input);
+					}
+				}
+			}
+		}
 	}
 
 	for (uint8_t s_ih = 0; s_ih < c_ih; s_ih+=c_str) {
+		for (uint8_t s_strh = 0; s_strh < c_str; s_strh++) {
 
-	/* This shift is for width padding, after this initial phase the first useful
-	 * data will be at the start of the last DSP */
-		for (uint8_t s_index = 0; s_index < c_paddingw_shift; s_index++) {
-			t_input s_bias = i_bias.read();
-			o_data.write(i_data.read());
-		}
-
-		for (uint8_t s_iw = 0; s_iw < c_iw; s_iw+=c_str) {
-
-			/* One at a time the input channel activations are evaluated */
-			/* One output is generated each cin*coch cycles */
-			t_acc s_acc_buff[c_och];
-
-			for (uint8_t s_och = 0; s_och < c_och; s_och++)
-				s_acc_buff[s_och] = i_bias.read();
-
-			for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
-				t_input s_input = i_data.read();
-				for (uint8_t s_och = 0; s_och < c_och; s_och++) {
-					t_weight s_weights = i_weights.read();
-					s_acc_buff[s_och] += s_input * s_weights;
+			/* Start shifting for padding */
+			for (uint8_t s_iw = 0; s_iw < c_bypass_w; s_iw+=c_str) {
+				for (uint8_t s_strw = 0; s_strw < c_str; s_strw++) {
+					for (uint8_t s_och = 0; s_och < c_och; s_och++) {
+						t_input s_bias = i_bias.read();
+					}
+					for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
+						t_input s_input = i_data.read();
+						o_data.write(s_input);
+					}
 				}
-				o_data.write(s_input);
 			}
 
-			for (uint8_t s_och = 0; s_och < c_och; s_och++) {
-					o_acc.write(s_acc_buff[s_och]); 
-			}
+			for (uint8_t s_iw = 0; s_iw < c_iw; s_iw+=c_str) {
+				for (uint8_t s_strw = 0; s_strw < c_str; s_strw++) {
 
-			/* Width shifts for stride */
-			for (uint8_t s_index = 0; s_index < c_stridew_shift; s_index++) {
-				t_input s_bias = i_bias.read();
-				o_data.write(i_data.read());
-			}
+					uint8_t s_bypass_w = 0;
 
+					t_acc s_acc_buff[c_och];
+
+					for (uint8_t s_och = 0; s_och < c_och; s_och++)
+						s_acc_buff[s_och] = i_bias.read();
+
+					for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
+						t_input s_input = i_data.read();
+						for (uint8_t s_och = 0; s_och < c_och; s_och++) {
+							t_weight s_weights = i_weights.read();
+							s_acc_buff[s_och] += s_input * s_weights;
+						}
+						o_data.write(s_input);
+					}
+
+					for (uint8_t s_och = 0; s_och < c_och; s_och++) {
+						if ((s_strh == 0) & (s_strw == 0)) {
+							o_acc.write(s_acc_buff[s_och]); 
+						}
+					}
+
+				}
+			}
 		}
-
-		for (uint8_t s_index = 0; s_index < c_strideh_shift; s_index++) {
-			t_input s_bias = i_bias.read();
-			o_data.write(i_data.read());
-		}
-
 	}
 
 }
@@ -115,55 +119,56 @@ template <
 
 #pragma HLS PIPELINE off
 	const int c_bypass_w = c_fw - 1;
-	const int c_paddingh_shift = c_bypass*c_iw*c_ich;
-	const int c_paddingw_shift = c_bypass_w*c_ich;
-	const int c_strideh_shift = (c_str-1)*c_iw*c_ich;
-	const int c_stridew_shift = (c_str-1)*c_ich;
 
-	/* This shift is for height padding, after this initial phase the first useful
-	 * data will be at the start of the last group of DSPs */
-	for (uint32_t s_index = 0; s_index < c_paddingh_shift; s_index++) {
-		o_data.write(i_data.read());
+	for (uint8_t s_ih = 0; s_ih < c_bypass; s_ih+=c_str) {
+		for (uint8_t s_strh = 0; s_strh < c_str; s_strh++) {
+			for (uint8_t s_iw = 0; s_iw < c_iw; s_iw+=c_str) {
+				for (uint8_t s_strw = 0; s_strw < c_str; s_strw++) {
+					for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
+						t_input s_input = i_data.read();
+						o_data.write(s_input);
+					}
+				}
+			}
+		}
 	}
 
-	for (uint8_t s_ih = 0; s_ih < c_ih; s_ih+=c_str) {
 
-	/* This shift is for width padding, after this initial phase the first useful
-	 * data will be at the start of the last DSP */
-		for (uint8_t s_index = 0; s_index < c_paddingw_shift; s_index++) {
-			o_data.write(i_data.read());
-		}
+	for (uint8_t s_ih = c_bypass; s_ih < c_ih; s_ih+=c_str) {
+		for (uint8_t s_strh = 0; s_strh < c_str; s_strh++) {
 
-		for (uint8_t s_iw = 0; s_iw < c_iw; s_iw+=c_str) {
-
-			/* One at a time the input channel activations are evaluated */
-			/* One output is generated each cin*coch cycles */
-			t_acc s_acc_buff[c_och] = {0};
-
-			for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
-				t_input s_input = i_data.read();
-				for (uint8_t s_och = 0; s_och < c_och; s_och++) {
-					t_weight s_weights = i_weights.read();
-					s_acc_buff[s_och] += s_input * s_weights;
+			/* Start shifting for padding */
+			for (uint8_t s_iw = 0; s_iw < c_bypass_w; s_iw+=c_str) {
+				for (uint8_t s_strw = 0; s_strw < c_str; s_strw++) {
+					for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
+						t_input s_input = i_data.read();
+						o_data.write(s_input);
+					}
 				}
-				o_data.write(s_input);
 			}
 
-			for (uint8_t s_och = 0; s_och < c_och; s_och++) {
-					o_acc.write(s_acc_buff[s_och]); 
-			}
+			for (uint8_t s_iw = c_bypass_w; s_iw < c_iw; s_iw+=c_str) {
+				for (uint8_t s_strw = 0; s_strw < c_str; s_strw++) {
+					t_acc s_acc_buff[c_och] = {0};
 
-			/* Width shifts for stride */
-			for (uint8_t s_index = 0; s_index < c_stridew_shift; s_index++) {
-				o_data.write(i_data.read());
-			}
+					for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
+						t_input s_input = i_data.read();
+						for (uint8_t s_och = 0; s_och < c_och; s_och++) {
+							t_weight s_weights = i_weights.read();
+							s_acc_buff[s_och] += s_input * s_weights;
+						}
+						o_data.write(s_input);
+					}
 
+					for (uint8_t s_och = 0; s_och < c_och; s_och++) {
+						if ((s_strh == 0) & (s_strw == 0)) {
+							o_acc.write(s_acc_buff[s_och]); 
+						}
+					}
+
+				}
+			}
 		}
-
-		for (uint8_t s_index = 0; s_index < c_strideh_shift; s_index++) {
-			o_data.write(i_data.read());
-		}
-
 	}
 
 }
@@ -218,9 +223,9 @@ template <
 	hls::stream<t_output> &o_data
 ) {
 
-#pragma HLS inline
-
 	const int c_index = c_fh*c_fw;
+
+#pragma HLS inline
 
 	hls::stream<t_acc> s_acc;
 	#pragma HLS STREAM variable=s_acc depth=2
@@ -285,7 +290,6 @@ template <
 				t_acc s_o_acc = 0;
 				for (uint8_t s_index = 0; s_index < c_index; s_index++) {
 #pragma HLS PIPELINE off
-#pragma HLS bind_op variable=s_o_acc op=add impl=dsp
 					s_o_acc += i_data[s_index].read();
 				}
 				if (c_relu == 1)
@@ -321,8 +325,6 @@ template <
 	hls::stream<t_output> &o_data
 ) {
 
-#pragma HLS inline
-
 	const int c_index = c_fh*c_fw;
 	hls::stream<t_input> s_data[c_index-1];
 	#pragma HLS STREAM variable=s_data[0] depth=c_ich
@@ -343,6 +345,8 @@ template <
 	#pragma HLS STREAM variable=s_acc[6] depth=9
 	#pragma HLS STREAM variable=s_acc[7] depth=9
 	#pragma HLS STREAM variable=s_acc[8] depth=9
+
+#pragma HLS inline
 
 	ConvOp<
 		t_input,
@@ -588,19 +592,13 @@ template <
 	hls::stream<t_output> &o_data
 ) {
 
-#pragma HLS inline
-
-	if (i_data.empty())
-		return;
-
-	if (i_bias.empty())
-		return;
-
 	const int c_conv_index = c_fh*c_fw;
 	hls::stream<t_input, 2> s_data_stream[2];
 	#pragma HLS STREAM variable=s_data_stream
 	hls::stream<t_input, 2> s_bias_stream;
 	#pragma HLS STREAM variable=s_bias_stream
+
+#pragma HLS inline
 
 	PadInput<
 		t_input,
@@ -691,10 +689,6 @@ template <
 	hls::stream<t_output> o_data[c_split]
 ) {
 
-#pragma HLS inline
-
-	if (i_data.empty())
-		return;
 
 	const int c_conv_index = c_fh*c_fw;
 	hls::stream<t_input, 2> s_data_stream[2];
@@ -703,6 +697,8 @@ template <
 	#pragma HLS STREAM variable=s_bias_stream
 	hls::stream<t_output, 2> s_out_stream;
 	#pragma HLS STREAM variable=s_out_stream
+
+#pragma HLS inline
 
 	PadInput<
 		t_input,
@@ -800,15 +796,13 @@ template <
 	hls::stream<t_input> &o_forward
 ) {
 
-#pragma HLS inline
-
-	if (i_data.empty())
-		return;
 
 	hls::stream<t_input, 2> s_data_stream;
 	#pragma HLS STREAM variable=s_data_stream
 	hls::stream<t_input, 2> s_bias_stream;
 	#pragma HLS STREAM variable=s_bias_stream
+
+#pragma HLS inline
 
 	PadInput<
 		t_input,
@@ -881,16 +875,14 @@ template <
 	hls::stream<t_input> &o_forward
 ) {
 
-#pragma HLS inline
-
-	if (i_data.empty())
-		return;
 
 	const int c_conv_index = c_fh*c_fw;
 	hls::stream<t_input, 2> s_data_stream[2];
 	#pragma HLS STREAM variable=s_data_stream
 	hls::stream<t_input, 2> s_bias_stream;
 	#pragma HLS STREAM variable=s_bias_stream
+
+#pragma HLS inline
 
 	PadInput<
 		t_input,
@@ -979,15 +971,12 @@ template <
 	hls::stream<t_output> &o_data
 ) {
 
-#pragma HLS inline
-
-	if (i_data.empty())
-		return;
-
 	hls::stream<t_input, 2> s_data_stream;
 	#pragma HLS STREAM variable=s_data_stream
 	hls::stream<t_input, 2> s_bias_stream;
 	#pragma HLS STREAM variable=s_bias_stream
+
+#pragma HLS inline
 
 	PadInput<
 		t_input,
@@ -1058,16 +1047,13 @@ template <
 	hls::stream<t_output> &o_data
 ) {
 
-#pragma HLS inline
-
-	if (i_data.empty())
-		return;
-
 	const int c_conv_index = c_fh*c_fw;
 	hls::stream<t_input, 2> s_data_stream[2];
 	#pragma HLS STREAM variable=s_data_stream
 	hls::stream<t_input, 2> s_bias_stream;
 	#pragma HLS STREAM variable=s_bias_stream
+
+#pragma HLS inline
 
 	PadInput<
 		t_input,
@@ -1158,10 +1144,7 @@ template <
 	hls::stream<t_output> o_data[c_split]
 ) {
 
-#pragma HLS inline
 
-	if (i_data.empty())
-		return;
 
 	const int c_conv_index = c_fh*c_fw;
 	hls::stream<t_input, 2> s_data_stream[2];
@@ -1170,6 +1153,8 @@ template <
 	#pragma HLS STREAM variable=s_bias_stream
 	hls::stream<t_output, 2> s_out_stream;
 	#pragma HLS STREAM variable=s_out_stream
+
+#pragma HLS inline
 
 	PadInput<
 		t_input,
