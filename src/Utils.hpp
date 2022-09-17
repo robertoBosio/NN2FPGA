@@ -215,12 +215,10 @@ template <
 	hls::stream<t_input> &o_data
 ) {
 
-	for (uint8_t s_ih = 0; s_ih < c_ih; s_ih++) {
-		for (uint8_t s_iw = 0; s_iw < c_iw; s_iw++) {
-			for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
-				o_data.write(0);
-			}
-		}
+	const int c_index = c_ich*c_ih*c_iw;
+
+	PRODSTR: for (int s_index = 0; s_index < c_index; s_index++) {
+		o_data.write(0);
 	}
 
 }
@@ -246,6 +244,7 @@ template <
 	for (uint8_t s_pad = 0; s_pad < c_pad_index_h; s_pad++){
 		for (uint8_t s_iw = 0; s_iw < c_iw+c_pad_index_w*2; s_iw++) {
 			for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
+#pragma loop_flatten
 				o_data.write(0);
 			}
 		}

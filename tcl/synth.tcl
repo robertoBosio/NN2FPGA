@@ -10,7 +10,7 @@ open_solution solution_1
 set_part {xczu3eg-sbva484-1-i}
 
 add_files src/${PRJ_NAME}.cpp
-add_files -tb tb/ConvTb.cpp
+add_files -tb tb/${PRJ_NAME}Tb.cpp
 
 create_clock -period 5
 

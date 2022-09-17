@@ -14,7 +14,7 @@ int main() {
 	for (int s_input_ich = 0; s_input_ich < c_input_ich; s_input_ich++) {
 		for (int s_input_ih = 0; s_input_ih < c_input_ih; s_input_ih++) {
 			for (int s_input_iw = 0; s_input_iw < c_input_iw; s_input_iw++) {
-				i_data[s_index] = (char)(rand() % 256);
+				i_data[s_index] = rand() % 256;
 				/* std::cout << i_data[s_index] << "\n"; */
 				s_index++;
 			}
