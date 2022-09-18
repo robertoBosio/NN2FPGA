@@ -1,6 +1,7 @@
 #ifndef __POOLSTREAM__
 #define __POOLSTREAM__
 
+#include "math.h"
 #include "ap_int.h"
 #include "hls_stream.h"
 
@@ -24,39 +25,70 @@ template <
 ) {
 
 #pragma HLS PIPELINE off
-	/* const int c_starth = (c_fh-1)*(1-c_pad); */
-	/* const int c_startw = (c_fh-1)*(1-c_pad); */
-	/* const int c_bypass_w = c_fw - 1; */
-	/* const int c_ih_pad = (c_ih + (c_fh-1)*(c_pad)); */
-	/* const int c_iw_pad = (c_iw + (c_fw-1)*(c_pad)); */
-	/* const int c_paddingh_shift = c_bypass*c_iw_pad*c_ich; */
-	/* const int c_paddingw_shift = c_bypass_w*c_ich; */
-	/* const int c_strideh_shift = (c_str-1)*c_iw_pad*c_ich; */
-	/* const int c_stridew_shift = (c_str-1)*c_ich; */
+	const int c_starth = (c_fh-1)*(1-c_pad);
+	const int c_startw = (c_fw-1)*(1-c_pad);
+	const int c_bypass_w = c_fw - 1;
+	const int c_pad_index_h = c_pad * (c_fh - 1) / 2;
+	const int c_pad_index_w = c_pad * (c_fw - 1) / 2;
+	const int c_ih_pad = c_ih + c_pad_index_h*2;
+	const int c_iw_pad = c_iw + c_pad_index_w*2;
+	const int c_paddingh_shift = c_bypass*c_iw_pad*c_ich;
+	const int c_paddingw_shift = c_bypass_w*c_ich;
+	const int c_strideh_shift = (c_str-1)*c_iw_pad*c_ich;
+	const int c_stridew_shift = (c_str-1)*c_ich;
+	const int c_end_paddingh_shift = (c_fh - 1 - c_bypass)*c_iw_pad*c_ich;
 
-	const int c_pad_index_h = c_pad * (c_fh - 1);
-	const int c_pad_index_w = c_pad * (c_fw - 1);
-	const int c_ih_pad = c_ih + c_pad_index_h;
-	const int c_iw_pad = c_iw + c_pad_index_w;
-
-	const int c_index_i = c_iw_pad * c_ih_pad * c_ich;
-	const int c_index_o = c_ow * c_oh * c_och;
-
-	for (uint32_t s_index = 0; s_index < c_index_i; s_index++) {
-
-		t_input s_data = i_data.read();
-
+	/* Shifting first lines through the fifo chain */
+	/* After this shift, all the useless computations with data at the borders are */
+	/* skipped */
+	for (uint16_t s_index = 0; s_index < c_paddingh_shift; s_index++) {
+		t_input s_input = i_data.read();
 	}
 
-	for (uint32_t s_index = 0; s_index < c_index_o; s_index++) {
+	for (uint8_t s_ih = c_starth; s_ih < c_ih; s_ih+=c_str) {
 
-			o_acc.write(0);
+		/* Start shifting for padding */
+		/* After this shift, the first row data are shifted forward */
+		for (uint16_t s_index = 0; s_index < c_paddingw_shift; s_index++) {
+			t_input s_input = i_data.read();
+		}
 
+		for (uint8_t s_iw = c_startw; s_iw < c_iw; s_iw+=c_str) {
+
+			t_acc s_acc_buff[c_och] = {0};
+
+			for (uint8_t s_och = 0; s_och < c_och; s_och++) {
+				s_acc_buff[s_och] += i_data.read();
+			}
+
+			for (uint8_t s_och = 0; s_och < c_och; s_och++) {
+				o_acc.write(s_acc_buff[s_och]); 
+			}
+
+			for (uint8_t s_index = 0; s_index < c_stridew_shift; s_index++) {
+				t_input s_input = i_data.read();
+			}
+		}
+
+		/* Start shifting for h stride */
+		for (uint16_t s_index = 0; s_index < c_strideh_shift; s_index++) {
+			t_input s_input = i_data.read();
+		}
 	}
-
-	EmptyStream<t_input>(i_data);
 
 #ifndef __SYNTHESIS__
+
+	if (c_end_paddingh_shift > 0)
+		while(i_data.empty());
+
+#endif
+
+	for (uint16_t s_index = 0; s_index < c_end_paddingh_shift; s_index++) {
+		t_input s_input = i_data.read();
+	}
+
+#ifndef __SYNTHESIS__
+	EmptyStream<t_input>(i_data);
 	std::cout << "AVERAGEOP: " << c_ih << " " << c_iw << " " << c_ich << " " << c_str << " " << c_pad << " " << std::endl;
 #endif
 
@@ -75,12 +107,15 @@ template <
 	hls::stream<t_output> &o_data
 ) {
 
+	const uint8_t c_average_scale = (uint8_t)(log2(c_fh*c_fw));
+
 	for (uint8_t s_oh = 0; s_oh < c_oh; s_oh++) {
 		for (uint8_t s_ow = 0; s_ow < c_ow; s_ow++) {
 			for (uint8_t s_och = 0; s_och < c_och; s_och++) {
 #pragma HLS loop_flatten
 #pragma HLS PIPELINE off
 				t_acc s_acc = i_data.read();
+				s_acc = s_acc >> c_average_scale;
 				o_data.write((t_output)(s_acc));
 			}
 		}

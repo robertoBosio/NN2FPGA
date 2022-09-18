@@ -225,7 +225,7 @@ template <
 	for (uint8_t s_ih = 0; s_ih < c_ih_pad; s_ih++){
 		for (uint8_t s_iw = 0; s_iw < c_iw_pad; s_iw++) {
 			for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
-#pragma loop_flatten
+#pragma HLS loop_flatten
 				o_data.write(0);
 			}
 		}
@@ -248,79 +248,60 @@ template <
 
 	/* This handles padding aware inputs */
 
-	const int c_pad_index_h = c_pad * (c_fh - 1);
-	const int c_pad_index_w = c_pad * (c_fw - 1);
-	const int c_ih_pad = c_ih + c_pad_index_h;
-	const int c_iw_pad = c_iw + c_pad_index_w;
+	const int c_pad_index_h = c_pad * (c_fh - 1) / 2;
+	const int c_pad_index_w = c_pad * (c_fw - 1) / 2;
+
+	const int c_ih_pad = c_ih + c_pad_index_h*2;
+	const int c_iw_pad = c_iw + c_pad_index_w*2;
 
 	/* Top padding */
-	for (uint8_t s_ih = 0; s_ih < c_ih; s_ih++){
-		for (uint8_t s_iw = 0; s_iw < c_iw; s_iw++) {
-			for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
-#pragma loop_flatten
-				t_input s_data = i_data.read();
-			}
-		}
-	}
-
-	for (uint8_t s_ih = 0; s_ih < c_ih_pad; s_ih++){
+	for (uint8_t s_pad = 0; s_pad < c_pad_index_h; s_pad++){
 		for (uint8_t s_iw = 0; s_iw < c_iw_pad; s_iw++) {
 			for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
-#pragma loop_flatten
 				o_data.write(0);
 			}
 		}
 	}
 
+	for (uint8_t s_ih = 0; s_ih < c_ih; s_ih++) {
+
+		/* Right padding */
+		for (uint8_t s_pad = 0; s_pad < c_pad_index_w; s_pad++){
+			for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
+				o_data.write(0);
+			}
+		}
+
+		for (uint8_t s_iw = 0; s_iw < c_iw; s_iw++) {
+			for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
+				o_data.write(i_data.read());
+			}
+		}
+
+		/* Left padding */
+		for (uint8_t s_pad = 0; s_pad < c_pad_index_w; s_pad++){
+			for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
+				o_data.write(0);
+			}
+		}
+
+	}
+
+	for (uint8_t s_pad = 0; s_pad < c_pad_index_h; s_pad++){
+		for (uint8_t s_iw = 0; s_iw < c_iw_pad; s_iw++) {
+			for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
+				o_data.write(0);
+			}
+		}
+	}
+
+#ifndef __SYNTHESIS__
 	EmptyStream<t_input>(i_data);
+#endif
 
 #ifndef __SYNTHESIS__
 	std::cout << "PADINPUT: " << c_ih << " " << c_iw << " " << c_ich << std::endl;
 #endif
-
-	/* const int c_pad_index_h = c_pad * (c_fh - 1) / 2; */
-	/* const int c_pad_index_w = c_pad * (c_fw - 1) / 2; */
-
-	/* /1* Top padding *1/ */
-	/* for (uint8_t s_pad = 0; s_pad < c_pad_index_h; s_pad++){ */
-	/* 	for (uint8_t s_iw = 0; s_iw < c_iw+c_pad_index_w*2; s_iw++) { */
-	/* 		for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) { */
-	/* 			o_data.write(0); */
-	/* 		} */
-	/* 	} */
-	/* } */
-
-	/* for (uint8_t s_ih = 0; s_ih < c_ih; s_ih++) { */
-
-	/* 	/1* Right padding *1/ */
-	/* 	for (uint8_t s_pad = 0; s_pad < c_pad_index_w; s_pad++){ */
-	/* 		for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) { */
-	/* 			o_data.write(0); */
-	/* 		} */
-	/* 	} */
-
-	/* 	for (uint8_t s_iw = 0; s_iw < c_iw; s_iw++) { */
-	/* 		for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) { */
-	/* 			o_data.write(i_data.read()); */
-	/* 		} */
-	/* 	} */
-
-	/* 	/1* Left padding *1/ */
-	/* 	for (uint8_t s_pad = 0; s_pad < c_pad_index_w; s_pad++){ */
-	/* 		for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) { */
-	/* 			o_data.write(0); */
-	/* 		} */
-	/* 	} */
-
-	/* } */
-
-	/* for (uint8_t s_pad = 0; s_pad < c_pad_index_h; s_pad++){ */
-	/* 	for (uint8_t s_iw = 0; s_iw < c_iw+c_pad_index_w*2; s_iw++) { */
-	/* 		for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) { */
-	/* 			o_data.write(0); */
-	/* 		} */
-	/* 	} */
-	/* } */
 
 }
 
@@ -376,18 +357,18 @@ template <
 
 #endif
 
-	const int c_pad_index_h = c_pad * (c_fh - 1);
-	const int c_pad_index_w = c_pad * (c_fw - 1);
+	const int c_pad_index_h = c_pad * (c_fh - 1) / 2;
+	const int c_pad_index_w = c_pad * (c_fw - 1) / 2;
+	const int c_ih_start = -1*c_pad_index_h;
+	const int c_iw_start = -1*c_pad_index_w;
 	const int c_ih_end = c_ih + c_pad_index_h;
 	const int c_iw_end = c_iw + c_pad_index_w;
-	const int c_pad_h = c_pad * (c_fh - 1) / 2;
-	const int c_pad_w = c_pad * (c_fw - 1) / 2;
 	
-	for (uint8_t s_ih = 0; s_ih < c_ih_end; s_ih++) { 
-		for (uint8_t s_iw = 0; s_iw < c_iw_end; s_iw++) { 
+	for (int8_t s_ih = c_ih_start; s_ih < c_ih_end; s_ih++) { 
+		for (int8_t s_iw = c_iw_start; s_iw < c_iw_end; s_iw++) { 
 			for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) { 
 				t_input s_tmp = i_data.read();
-				if ((s_ih >= c_pad_h) & (s_iw >= c_pad_w))
+				if ((s_ih > -1) & (s_iw > -1) & (s_ih < c_ih) & (s_iw < c_iw))
 					o_forward.write(s_tmp);
 			}
 		}
