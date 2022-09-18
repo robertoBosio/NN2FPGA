@@ -28,6 +28,20 @@ def evaluate_connection_level(model):
 
     return connection_level, diff_level 
 
+def reorder_layers(model, connection_level):
+
+    # Reordering nodes for optimized residual layer
+    reordered_layers = [[]]
+    for node in model.graph.node:
+        node_level = connection_level[node.output[0]]
+
+        while node_level >= len(reordered_layers):
+            reordered_layers.append([])
+
+        reordered_layers[node_level].append(node)
+
+    return reordered_layers
+
 def extracts_skip_connections_info(model):
 
     skip_connections_info = {}
@@ -41,6 +55,8 @@ def extracts_skip_connections_info(model):
     split_info = {}
 
     connection_level, diff_level = evaluate_connection_level(model)
+
+    reordered_layers = reorder_layers(model, connection_level)
 
     for node in model.graph.node:
         for input in node.input:
@@ -84,7 +100,7 @@ def extracts_skip_connections_info(model):
             # OUT_NAME is the name of the output to the relu function
             bias_info[no_skip_name] = [skip_name, out_name]
 
-    return skip_connections_info, bias_info, split_info
+    return skip_connections_info, bias_info, split_info, reordered_layers
 
 def extracts_relu_info(model):
 
@@ -128,20 +144,21 @@ def write_network(model):
 
     inferred_model = onnx.shape_inference.infer_shapes(model)
 
-    skip_connections_info, bias_info, split_info = extracts_skip_connections_info(model)
+    skip_connections_info, bias_info, split_info, reordered_layers = extracts_skip_connections_info(model)
 
     weights_info = extracts_weights_info(model)
 
     relu_info = extracts_relu_info(model)
 
-    print(split_info)
+    print(reordered_layers)
     conv_relu = main.write(
         inferred_model,
         weights_info,
         skip_connections_info,
         bias_info,
         relu_info,
-        split_info
+        split_info,
+        reordered_layers
     )
 
     # TODO: export tensors and weight info

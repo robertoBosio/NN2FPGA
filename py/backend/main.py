@@ -9,7 +9,8 @@ def write(
     skip_connections_info,
     bias_info,
     relu_info,
-    split_info
+    split_info,
+    reordered_layers
 ):
 
     forwarded_streams = {}
@@ -495,31 +496,32 @@ def write(
 
     def write_body(fd, model, emit_streams=True, write_blocks=True):
 
-        for node in model.graph.node:
+        for node_level in reordered_layers:
+            for node in node_level:
 
-            if 'conv' in node.op_type.lower():
-                write_conv(fd, node, emit_streams, write_blocks)
-                continue
+                if 'conv' in node.op_type.lower():
+                    write_conv(fd, node, emit_streams, write_blocks)
+                    continue
 
-            if 'add' == node.op_type.lower():
-                # write_add(fd, node)
-                continue
+                if 'add' == node.op_type.lower():
+                    # write_add(fd, node)
+                    continue
 
-            # TODO: Write Relu and thinks about folding, if the buffer is small
-            # then there is a good chance the overhead is negligible
+                # TODO: Write Relu and thinks about folding, if the buffer is small
+                # then there is a good chance the overhead is negligible
 
-            if 'relu' == node.op_type.lower():
-                if node.name not in replaced_relu:
-                    write_relu(fd, node, emit_streams, write_blocks)
-                continue
+                if 'relu' == node.op_type.lower():
+                    if node.name not in replaced_relu:
+                        write_relu(fd, node, emit_streams, write_blocks)
+                    continue
 
-            if 'pool' in node.op_type.lower():
-                if 'average' in node.op_type.lower():
-                    write_average_pool(fd, node, emit_streams, write_blocks)
-                continue
+                if 'pool' in node.op_type.lower():
+                    if 'average' in node.op_type.lower():
+                        write_average_pool(fd, node, emit_streams, write_blocks)
+                    continue
 
-            if 'pad' in node.op_type.lower():
-                write_pad(fd, node, emit_streams, write_blocks)
+                if 'pad' in node.op_type.lower():
+                    write_pad(fd, node, emit_streams, write_blocks)
 
     def write_footer(fd):
 
