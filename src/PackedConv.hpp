@@ -5,6 +5,7 @@
 #include "hls_stream.h"
 #include "Utils.hpp"
 #include "ActivationStreams.hpp"
+#include "Debug.hpp"
 
 template <
 	class t_input,
@@ -31,70 +32,112 @@ template <
 ) {
 
 #pragma HLS PIPELINE off
-	const int c_starth = (c_fh-1)*(1-c_pad);
-	const int c_startw = (c_fh-1)*(1-c_pad);
-	const int c_bypass_w = c_fw - 1;
-	const int c_iw_pad = (c_iw + (c_fh-1)*(c_pad))*c_ich;
-	const int c_paddingh_shift = c_bypass*c_iw_pad;
-	const int c_paddingw_shift = c_bypass_w*c_ich;
-	const int c_strideh_shift = (c_str-1)*c_iw_pad;
-	const int c_stridew_shift = (c_str-1)*c_ich;
+	/* const int c_starth = (c_fh-1)*(1-c_pad); */
+	/* const int c_startw = (c_fh-1)*(1-c_pad); */
+	/* const int c_bypass_w = c_fw - 1; */
+	/* const int c_ih_pad = (c_ih + (c_fh-1)*(c_pad)); */
+	/* const int c_iw_pad = (c_iw + (c_fw-1)*(c_pad)); */
+	/* const int c_paddingh_shift = c_bypass*c_iw_pad*c_ich; */
+	/* const int c_paddingw_shift = c_bypass_w*c_ich; */
+	/* const int c_strideh_shift = (c_str-1)*c_iw_pad*c_ich; */
+	/* const int c_stridew_shift = (c_str-1)*c_ich; */
 
-	/* Shifting first lines through the fifo chain */
-	/* After this shift, all the useless computations with data at the borders are */
-	/* skipped */
-	for (uint16_t s_index = 0; s_index < c_paddingh_shift; s_index++) {
+	const int c_pad_index_h = c_pad * (c_fh - 1);
+	const int c_pad_index_w = c_pad * (c_fw - 1);
+	const int c_ih_pad = c_ih + c_pad_index_h;
+	const int c_iw_pad = c_iw + c_pad_index_w;
+
+	const int c_index_i = c_iw_pad * c_ih_pad * c_ich;
+	const int c_index_o = c_ow * c_oh * c_och;
+
+	for (uint32_t s_index = 0; s_index < c_index_i; s_index++) {
+
+		t_input s_data = i_data.read();
+		o_data.write(s_data);
 		t_input s_bias = i_bias.read();
-		t_input s_input = i_data.read();
-		o_data.write(s_input);
+
 	}
 
-	for (uint8_t s_ih = c_starth; s_ih < c_ih; s_ih+=c_str) {
+	for (uint32_t s_index = 0; s_index < c_index_o; s_index++) {
 
-		/* Start shifting for padding */
-		/* After this shift, the first row data are shifted forward */
-		for (uint16_t s_index = 0; s_index < c_paddingw_shift; s_index++) {
-			t_input s_bias = i_bias.read();
-			t_input s_input = i_data.read();
-			o_data.write(s_input);
+		for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
+			t_weight s_weight = i_weights.read();
 		}
+		o_acc.write(0);
 
-		for (uint8_t s_iw = c_startw; s_iw < c_iw; s_iw+=c_str) {
-
-			uint8_t s_bypass_w = 0;
-
-			t_acc s_acc_buff[c_och];
-
-			for (uint8_t s_och = 0; s_och < c_och; s_och++)
-				s_acc_buff[s_och] = i_bias.read();
-
-			for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
-				t_input s_input = i_data.read();
-				for (uint8_t s_och = 0; s_och < c_och; s_och++) {
-					t_weight s_weights = i_weights.read();
-					s_acc_buff[s_och] += s_input * s_weights;
-				}
-				o_data.write(s_input);
-			}
-
-			for (uint8_t s_och = 0; s_och < c_och; s_och++) {
-				o_acc.write(s_acc_buff[s_och]); 
-			}
-
-			for (uint8_t s_index = 0; s_index < c_stridew_shift; s_index++) {
-				t_input s_bias = i_bias.read();
-				t_input s_input = i_data.read();
-				o_data.write(s_input);
-			}
-		}
-
-		/* Start shifting for h stride */
-		for (uint16_t s_index = 0; s_index < c_strideh_shift; s_index++) {
-			t_input s_bias = i_bias.read();
-			t_input s_input = i_data.read();
-			o_data.write(s_input);
-		}
 	}
+
+	EmptyStream<t_input>(i_data);
+	EmptyStream<t_weight>(i_weights);
+
+#ifndef __SYNTHESIS__
+	std::cout << "CONVOP: " << c_ih << " " << c_iw << " " << c_ich << " " << c_str << " " << c_pad << " " << std::endl;
+#endif
+
+}
+
+template <
+	class t_input,
+	class t_weight,
+	class t_acc,
+	int c_ich,
+	int c_och,
+	int c_ih,
+	int c_iw,
+	int c_oh,
+	int c_ow,
+	int c_fh,
+	int c_fw,
+	int c_relu,
+	int c_str,
+	int c_pad,
+	int c_bypass
+> void ConvOp(
+	hls::stream<t_input> &i_data,
+	hls::stream<t_weight> &i_weights,
+	hls::stream<t_acc> &o_acc
+) {
+
+#pragma HLS PIPELINE off
+	/* const int c_starth = (c_fh-1)*(1-c_pad); */
+	/* const int c_startw = (c_fh-1)*(1-c_pad); */
+	/* const int c_bypass_w = c_fw - 1; */
+	/* const int c_ih_pad = (c_ih + (c_fh-1)*(c_pad)); */
+	/* const int c_iw_pad = (c_iw + (c_fh-1)*(c_pad)); */
+	/* const int c_paddingh_shift = c_bypass*c_iw_pad*c_ich; */
+	/* const int c_paddingw_shift = c_bypass_w*c_ich; */
+	/* const int c_strideh_shift = (c_str-1)*c_iw_pad*c_ich; */
+	/* const int c_stridew_shift = (c_str-1)*c_ich; */
+
+	const int c_pad_index_h = c_pad * (c_fh - 1);
+	const int c_pad_index_w = c_pad * (c_fw - 1);
+	const int c_ih_pad = c_ih + c_pad_index_h;
+	const int c_iw_pad = c_iw + c_pad_index_w;
+
+	const int c_index_i = c_iw_pad * c_ih_pad * c_ich;
+	const int c_index_o = c_ow * c_oh * c_och;
+
+	for (uint32_t s_index = 0; s_index < c_index_i; s_index++) {
+
+		t_input s_data = i_data.read();
+
+	}
+
+	for (uint32_t s_index = 0; s_index < c_index_o; s_index++) {
+
+		for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
+			t_weight s_weight = i_weights.read();
+		}
+		o_acc.write(0);
+
+	}
+
+	EmptyStream<t_input>(i_data);
+	EmptyStream<t_weight>(i_weights);
+
+#ifndef __SYNTHESIS__
+	std::cout << "CONVOP: " << c_ih << " " << c_iw << " " << c_ich << " " << c_str << " " << c_pad << " " << std::endl;
+#endif
 
 }
 
@@ -122,61 +165,46 @@ template <
 ) {
 
 #pragma HLS PIPELINE off
-	const int c_starth = (c_fh-1)*(1-c_pad);
-	const int c_startw = (c_fh-1)*(1-c_pad);
-	const int c_bypass_w = c_fw - 1;
-	const int c_iw_pad = (c_iw + (c_fh-1)*(c_pad))*c_ich;
-	const int c_paddingh_shift = c_bypass*c_iw_pad;
-	const int c_paddingw_shift = c_bypass_w*c_ich;
-	const int c_strideh_shift = (c_str-1)*c_iw_pad;
-	const int c_stridew_shift = (c_str-1)*c_ich;
+	/* const int c_starth = (c_fh-1)*(1-c_pad); */
+	/* const int c_startw = (c_fh-1)*(1-c_pad); */
+	/* const int c_bypass_w = c_fw - 1; */
+	/* const int c_ih_pad = (c_ih + (c_fh-1)*(c_pad)); */
+	/* const int c_iw_pad = (c_iw + (c_fh-1)*(c_pad)); */
+	/* const int c_paddingh_shift = c_bypass*c_iw_pad*c_ich; */
+	/* const int c_paddingw_shift = c_bypass_w*c_ich; */
+	/* const int c_strideh_shift = (c_str-1)*c_iw_pad*c_ich; */
+	/* const int c_stridew_shift = (c_str-1)*c_ich; */
 
-	/* Shifting first lines through the fifo chain */
-	/* After this shift, all the useless computations with data at the borders are */
-	/* skipped */
-	for (uint16_t s_index = 0; s_index < c_paddingh_shift; s_index++) {
-		t_input s_input = i_data.read();
-		o_data.write(s_input);
+	const int c_pad_index_h = c_pad * (c_fh - 1);
+	const int c_pad_index_w = c_pad * (c_fw - 1);
+	const int c_ih_pad = c_ih + c_pad_index_h;
+	const int c_iw_pad = c_iw + c_pad_index_w;
+
+	const int c_index_i = c_iw_pad * c_ih_pad * c_ich;
+	const int c_index_o = c_ow * c_oh * c_och;
+
+	for (uint32_t s_index = 0; s_index < c_index_i; s_index++) {
+
+		t_input s_data = i_data.read();
+		o_data.write(s_data);
+
 	}
 
-	for (uint8_t s_ih = c_starth; s_ih < c_ih; s_ih+=c_str) {
+	for (uint32_t s_index = 0; s_index < c_index_o; s_index++) {
 
-		/* Start shifting for padding */
-		/* After this shift, the first row data are shifted forward */
-		for (uint16_t s_index = 0; s_index < c_paddingw_shift; s_index++) {
-			t_input s_input = i_data.read();
-			o_data.write(s_input);
+		for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
+			t_weight s_weight = i_weights.read();
 		}
+		o_acc.write(0);
 
-		for (uint8_t s_iw = c_startw; s_iw < c_iw; s_iw+=c_str) {
-
-			t_acc s_acc_buff[c_och] = {0};
-
-			for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
-				t_input s_input = i_data.read();
-				for (uint8_t s_och = 0; s_och < c_och; s_och++) {
-					t_weight s_weights = i_weights.read();
-					s_acc_buff[s_och] += s_input * s_weights;
-				}
-				o_data.write(s_input);
-			}
-
-			for (uint8_t s_och = 0; s_och < c_och; s_och++) {
-				o_acc.write(s_acc_buff[s_och]); 
-			}
-
-			for (uint8_t s_index = 0; s_index < c_stridew_shift; s_index++) {
-				t_input s_input = i_data.read();
-				o_data.write(s_input);
-			}
-		}
-
-		/* Start shifting for h stride */
-		for (uint16_t s_index = 0; s_index < c_strideh_shift; s_index++) {
-			t_input s_input = i_data.read();
-			o_data.write(s_input);
-		}
 	}
+
+	EmptyStream<t_input>(i_data);
+	EmptyStream<t_weight>(i_weights);
+
+#ifndef __SYNTHESIS__
+	std::cout << "CONVOP: " << c_ih << " " << c_iw << " " << c_ich << " " << c_str << " " << c_pad << " " << std::endl;
+#endif
 
 }
 
@@ -233,7 +261,7 @@ template <
 
 #pragma HLS inline
 
-	hls::stream<t_acc> s_acc;
+	hls::stream<t_acc> s_acc("s_acc");
 	#pragma HLS STREAM variable=s_acc depth=2
 
 	ConvOp<
@@ -292,8 +320,6 @@ template <
 > void ConvKernel1x1(
 	hls::stream<t_input> &i_data,
 	hls::stream<t_weight> i_weights[c_fh*c_fw],
-	hls::stream<t_input> &o_forward,
-	hls::stream<t_input> &i_bias,
 	hls::stream<t_output> &o_data
 ) {
 
@@ -301,7 +327,7 @@ template <
 
 #pragma HLS inline
 
-	hls::stream<t_acc> s_acc;
+	hls::stream<t_acc> s_acc("s_acc");
 	#pragma HLS STREAM variable=s_acc depth=2
 
 	ConvOp<
@@ -323,8 +349,6 @@ template <
 	> (
 		i_data,
 		i_weights[0],
-		i_bias,
-		o_forward,
 		s_acc
 	);
 
@@ -957,15 +981,10 @@ template <
 
 #pragma HLS inline
 
-#ifndef __SYNTHESIS
+#ifndef __SYNTHESIS__
 
-	if (i_bias.empty()) {
-		return;
-	}
-
-	if (i_data.empty()) {
-		return;
-	}
+	while(i_data.empty());
+	while(i_bias.empty());
 
 	for (int s_index = 0; s_index < c_fh*c_fw; s_index++) {
 		if (i_weights[s_index].empty()) {
@@ -1077,15 +1096,10 @@ template <
 
 #pragma HLS inline
 
-#ifndef __SYNTHESIS
+#ifndef __SYNTHESIS__
 
-	if (i_bias.empty()) {
-		return;
-	}
-
-	if (i_data.empty()) {
-		return;
-	}
+	while(i_data.empty());
+	while(i_bias.empty());
 
 	for (int s_index = 0; s_index < c_fh*c_fw; s_index++) {
 		if (i_weights[s_index].empty()) {
@@ -1192,16 +1206,14 @@ template <
 ) {
 
 
-	hls::stream<t_input, 2> s_data_stream("data_in");
+	hls::stream<t_input, 2> s_data_stream("data_out_1x1");
 	#pragma HLS STREAM variable=s_data_stream
 
 #pragma HLS inline
 
-#ifndef __SYNTHESIS
+#ifndef __SYNTHESIS__
 
-	if (i_data.empty()) {
-		return;
-	}
+	while(i_data.empty());
 
 	for (int s_index = 0; s_index < 1; s_index++) {
 		if (i_weights[s_index].empty()) {
@@ -1280,11 +1292,9 @@ template <
 
 #pragma HLS inline
 
-#ifndef __SYNTHESIS
+#ifndef __SYNTHESIS__
 
-	if (i_data.empty()) {
-		return;
-	}
+	while(i_data.empty());
 
 	for (int s_index = 0; s_index < c_fh*c_fw; s_index++) {
 		if (i_weights[s_index].empty()) {
@@ -1367,18 +1377,11 @@ template <
 	hls::stream<t_output> &o_data
 ) {
 
-	hls::stream<t_input, 2> s_data_stream("data_in");
-	#pragma HLS STREAM variable=s_data_stream
-	hls::stream<t_input, 2> s_bias_stream("bias_in");
-	#pragma HLS STREAM variable=s_bias_stream
-
 #pragma HLS inline
 
-#ifndef __SYNTHESIS
+#ifndef __SYNTHESIS__
 
-	if (i_data.empty()) {
-		return;
-	}
+	while(i_data.empty());
 
 	for (int s_index = 0; s_index < 1; s_index++) {
 		if (i_weights[s_index].empty()) {
@@ -1386,15 +1389,6 @@ template <
 		}
 	}
 #endif
-
-	PadInput<
-		t_input,
-		c_ich,
-		c_ih,
-		c_iw
-	> (
-		s_bias_stream
-	);
 
 	ConvKernel1x1 <
 		t_input,
@@ -1415,21 +1409,7 @@ template <
 	> (
 		i_data,
 		i_weights,
-		s_bias_stream,
-		s_data_stream,
 		o_data
-	);
-
-	ForwardStream<
-		t_input,
-		c_ich,
-		c_iw,
-		c_ih,
-		1,
-		1,
-		c_pad
-	> (
-		s_data_stream
 	);
 
 }
@@ -1466,11 +1446,9 @@ template <
 
 #pragma HLS inline
 
-#ifndef __SYNTHESIS
+#ifndef __SYNTHESIS__
 
-	if (i_data.empty()) {
-		return;
-	}
+	while(i_data.empty());
 
 	for (int s_index = 0; s_index < c_fh*c_fw; s_index++) {
 		if (i_weights[s_index].empty()) {
@@ -1569,17 +1547,16 @@ template <
 
 #pragma HLS inline
 
-#ifndef __SYNTHESIS
+#ifndef __SYNTHESIS__
 
-	if (i_data.empty()) {
-		return;
-	}
+	while(i_data.empty());
 
 	for (int s_index = 0; s_index < c_fh*c_fw; s_index++) {
 		if (i_weights[s_index].empty()) {
 			return;
 		}
 	}
+
 #endif
 
 	PadInput<

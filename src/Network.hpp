@@ -3,9 +3,9 @@
 #include "hls_stream.h"
 #include "ap_int.h"
 #include <stdint.h>
-typedef uint8_t t_i_data;
-typedef uint8_t t_weight;
-typedef uint8_t t_o_data;
+typedef int8_t t_i_data;
+typedef int8_t t_weight;
+typedef int8_t t_o_data;
 typedef uint8_t t_input;
 
 const int c_input_ich    = 3;
