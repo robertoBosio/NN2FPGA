@@ -99,8 +99,12 @@ template <
 	t_output *o_data
 ) {
 
+#ifndef __SYNTHESIS__
+
 	if (i_data.empty())
 		return;
+
+#endif
 
 	t_input s_read;
 	const int c_index = c_och*c_oh*c_ow;

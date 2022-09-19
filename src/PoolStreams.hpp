@@ -1,7 +1,7 @@
 #ifndef __POOLSTREAM__
 #define __POOLSTREAM__
 
-#include "math.h"
+#include "hls_math.h"
 #include "ap_int.h"
 #include "hls_stream.h"
 

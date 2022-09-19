@@ -1457,6 +1457,7 @@ template <
 			return;
 		}
 	}
+
 #endif
 
 
@@ -1546,6 +1547,7 @@ template <
 			return;
 		}
 	}
+
 #endif
 
 	ConvKernel1x1 <
@@ -1627,6 +1629,7 @@ template <
 			return;
 		}
 	}
+
 #endif
 
 	PadInput<
@@ -1714,6 +1717,7 @@ template <
 			return;
 		}
 	}
+
 #endif
 
 	ConvKernel1x1 <
@@ -1777,6 +1781,7 @@ template <
 			return;
 		}
 	}
+
 #endif
 
 	PadInput<

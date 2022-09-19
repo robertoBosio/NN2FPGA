@@ -17,7 +17,7 @@ void Network(
 	#pragma HLS interface m_axi port=i_data depth=10 offset=slave bundle=gmem0
 	#pragma HLS interface m_axi port=i_weight depth=10 offset=slave bundle=gmem1 max_read_burst_length=256
 	#pragma HLS interface m_axi port=o_data depth=10 offset=slave
-	#pragma HLS INTERFACE mode=ap_ctrl_chain port=return
+	#pragma HLS INTERFACE mode=ap_ctrl_none port=return
 	#pragma HLS DATAFLOW
 
 	hls::stream<t_input> s_input("s_input");
