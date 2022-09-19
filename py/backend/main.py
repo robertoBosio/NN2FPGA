@@ -2,6 +2,7 @@ import os
 import sys
 import onnx
 from onnx import numpy_helper
+import numpy as np
 
 def write(
     model,
