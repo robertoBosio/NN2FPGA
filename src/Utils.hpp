@@ -70,7 +70,7 @@ template <
 	const int c_index = c_oh*c_ow;
 	const int c_stream_sel = c_ih*c_iw;
 	const int c_ch = c_ich*c_och;
-#pragma HLS array_partition type=cyclic factor=c_stream_sel variable=i_data
+/* #pragma HLS array_partition type=cyclic factor=c_stream_sel variable=i_data */
 
 	for (uint16_t s_index = 0; s_index < c_index; s_index++) {
 		uint16_t s_addr = 0;
