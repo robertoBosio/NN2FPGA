@@ -45,7 +45,7 @@ def write(
             fd.write("\t#pragma HLS interface m_axi port=i_data depth=10 offset=slave bundle=gmem0\n")
             fd.write("\t#pragma HLS interface m_axi port=i_weight depth=10 offset=slave bundle=gmem1 max_read_burst_length=256\n")
             fd.write("\t#pragma HLS interface m_axi port=o_data depth=10 offset=slave\n")
-            fd.write("\t#pragma HLS INTERFACE mode=ap_ctrl_chain port=return\n")
+            fd.write("\t#pragma HLS INTERFACE mode=ap_ctrl_none port=return\n")
             fd.write("\t#pragma HLS DATAFLOW\n")
 
             fd.write("\n")
@@ -323,7 +323,9 @@ def write(
             for ich in range(weights.shape[1]):
                 for ih in range(weights.shape[2]):
                     for iw in range(weights.shape[3]):
-                        fd.write("%0.3f" % (weights[och][ich][ih][iw]))
+                        # fd.write("%0.3f" % (weights[och][ich][ih][iw]))
+                        weight_value = np.random.randint(0, 256)
+                        fd.write("%0d" % (weight_value))
                         fd.write(", ")
 
         fd.write("0")
