@@ -134,7 +134,8 @@ def write(
         node_name,
         c_stride,
         emit_streams=True,
-        write_blocks=True
+        write_blocks=True,
+        weight_shape=None
     ):
 
         if emit_streams:
@@ -143,21 +144,24 @@ def write(
             fd.write("\n")
 
         if write_blocks:
-            fd.write("\tProduceStream<\n")
-            fd.write("\t\tt_%s_st,\n" % (name))
-            fd.write("\t\tt_%s,\n" % (name))
-            fd.write("\t\tc_%s_ich,\n" % (name))
-            fd.write("\t\tc_%s_och,\n" % (name))
-            fd.write("\t\tc_%s_iw,\n" % (name))
-            fd.write("\t\tc_%s_ih,\n" % (name))
-            fd.write("\t\tc_%s_ow,\n" % (node_name))
-            fd.write("\t\tc_%s_oh\n" % (node_name))
-            fd.write("\t>(\n")
-            fd.write("\t\tc_%s_st,\n" % (name))
-            fd.write("\t\ts_%s\n" % (name))
-            fd.write("\t);\n")
+            c_ih     = getattr(weight_shape, 'dims')[2]
+            c_iw     = getattr(weight_shape, 'dims')[3]
 
-            fd.write("\n")
+            for ih in range(c_ih):
+                for iw in range(c_iw):
+                    fd.write("\tProduceStream<\n")
+                    fd.write("\t\tt_%s_st,\n" % (name))
+                    fd.write("\t\tt_%s,\n" % (name))
+                    fd.write("\t\tc_%s_ich,\n" % (name))
+                    fd.write("\t\tc_%s_och,\n" % (name))
+                    fd.write("\t\tc_%s_ow,\n" % (node_name))
+                    fd.write("\t\tc_%s_oh\n" % (node_name))
+                    fd.write("\t>(\n")
+                    fd.write("\t\tc_%s_st_%0d,\n" % (name, ih*c_iw+iw))
+                    fd.write("\t\ts_%s[%0d]\n" % (name, ih*c_iw+iw))
+                    fd.write("\t);\n")
+
+                    fd.write("\n")
 
     def write_relu(fd, node, emit_streams=True, write_blocks=True):
 
@@ -312,27 +316,26 @@ def write(
         # fd.write("\tconst int c_%s_ich = %d;\n" % (weight_name, c_ich))
         # fd.write("\tconst int c_%s_ih  = %d;\n" % (weight_name, c_ih))
         # fd.write("\tconst int c_%s_iw  = %d;\n" % (weight_name, c_iw))
-        fd.write("\tconst uint8_t c_%s_st[] = {\n" % (weight_name))
-        
         weights = numpy_helper.to_array(
             weight_shape
         )
 
         # TODO: handle weights quantization
         last_weight = True
-        for och in range(weights.shape[0]):
-            for ich in range(weights.shape[1]):
-                for ih in range(weights.shape[2]):
-                    for iw in range(weights.shape[3]):
+        for ih in range(weights.shape[2]):
+            for iw in range(weights.shape[3]):
+                fd.write("\tconst uint8_t c_%s_st_%0d[] = {\n" % (weight_name, ih*c_iw+iw))
+                for och in range(weights.shape[0]):
+                    for ich in range(weights.shape[1]):
                         # fd.write("%0.3f" % (weights[och][ich][ih][iw]))
                         weight_value = np.random.randint(0, 256)
                         fd.write("%0d" % (weight_value))
                         fd.write(", ")
 
-        fd.write("0")
+                fd.write("0")
 
-        fd.write("};\n")
-        fd.write("\n")
+                fd.write("};\n")
+                fd.write("\n")
 
     def write_conv(fd, node, emit_streams=True, write_blocks=True):
 
@@ -427,7 +430,8 @@ def write(
             node_name,
             c_stride,
             emit_streams,
-            write_blocks
+            write_blocks,
+            weight_shape
         )
 
         fd.write("\n")
