@@ -70,7 +70,7 @@ template <
 	const int c_index = c_oh*c_ow;
 	const int c_stream_sel = c_ih*c_iw;
 	const int c_ch = c_ich*c_och;
-/* #pragma HLS array_partition type=cyclic factor=c_stream_sel variable=i_data */
+#pragma HLS array_partition type=cyclic factor=c_stream_sel variable=i_data
 
 	for (uint16_t s_index = 0; s_index < c_index; s_index++) {
 		uint16_t s_addr = 0;
@@ -80,6 +80,30 @@ template <
 				o_data[s_stream_sel].write((t_output)(i_data[s_addr]));
 				s_addr++;
 			}
+		}
+	}
+
+}
+
+template <
+	class t_input,
+	class t_output,
+	int c_ich,
+	int c_och,
+	int c_ow,
+	int c_oh
+> void ProduceStream(
+	const t_input i_data[c_och*c_ich],
+	hls::stream<t_output> &o_data
+) {
+
+	const int c_index = c_oh*c_ow;
+	const int c_ch = c_ich*c_och;
+
+	for (uint16_t s_index = 0; s_index < c_index; s_index++) {
+		for (uint16_t s_ch = 0; s_ch < c_ch; s_ch++) {
+			#pragma HLS UNROLL
+			o_data.write((t_output)(i_data[s_ch]));
 		}
 	}
 

@@ -347,8 +347,8 @@ template <
 
 #pragma HLS inline
 
-	hls::stream<t_input> s_data[c_fh*c_fw];
-	#pragma HLS STREAM variable=s_data depth=2
+	hls::stream<t_input> s_compute[c_fh*c_fw];
+	#pragma HLS STREAM variable=s_compute depth=3
 
 	ShiftOp<
 		t_input,
@@ -366,7 +366,7 @@ template <
 		0
 	> (
 		i_data,
-		s_data[0],
+		s_compute[0],
 		o_forward
 	);
 
@@ -388,7 +388,7 @@ template <
 		c_pad,
 		0
 	> (
-		s_data,
+		s_compute,
 		i_weights,
 		o_data
 	);
@@ -421,8 +421,8 @@ template <
 
 #pragma HLS inline
 
-	hls::stream<t_input> s_data_stream[c_fh*c_fw];
-	#pragma HLS STREAM variable=s_data_stream depth=2
+	hls::stream<t_input> s_compute[c_fh*c_fw];
+	#pragma HLS STREAM variable=s_compute depth=3
 
 	ShiftOp<
 		t_input,
@@ -440,7 +440,7 @@ template <
 		0
 	> (
 		i_data,
-		s_data_stream[0]
+		s_compute[0]
 	);
 
 	ConvOp<
@@ -461,7 +461,7 @@ template <
 		c_pad,
 		0
 	> (
-		s_data_stream,
+		s_compute,
 		i_weights,
 		o_data
 	);
@@ -963,7 +963,7 @@ template <
 		c_pad,
 		0
 	> (
-		s_data,
+		s_compute,
 		i_weights,
 		o_data
 	);
@@ -1214,7 +1214,7 @@ template <
 		c_pad,
 		0
 	> (
-		s_data,
+		s_compute,
 		i_weights,
 		i_bias,
 		o_data
