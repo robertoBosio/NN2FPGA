@@ -312,7 +312,7 @@ def write(
         # fd.write("\tconst int c_%s_ich = %d;\n" % (weight_name, c_ich))
         # fd.write("\tconst int c_%s_ih  = %d;\n" % (weight_name, c_ih))
         # fd.write("\tconst int c_%s_iw  = %d;\n" % (weight_name, c_iw))
-        fd.write("\tconst ap_uint<8> c_%s_st[] = {\n" % (weight_name))
+        fd.write("\tconst uint8_t c_%s_st[] = {\n" % (weight_name))
         
         weights = numpy_helper.to_array(
             weight_shape

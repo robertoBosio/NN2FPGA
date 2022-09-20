@@ -75,7 +75,7 @@ def write(
         c_ih     = getattr(weight_shape, 'dims')[2]
         c_iw     = getattr(weight_shape, 'dims')[3]
 
-        fd.write("typedef ap_uint<8> t_%s_st;\n" % (weight_name))
+        fd.write("typedef uint8_t t_%s_st;\n" % (weight_name))
         fd.write("typedef ap_uint<8> t_%s;\n" % (weight_name))
         fd.write("const int c_%s_och = %d;\n" % (weight_name, c_och))
         fd.write("const int c_%s_ich = %d;\n" % (weight_name, c_ich))
