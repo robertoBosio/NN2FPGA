@@ -19,16 +19,17 @@ def write(
         # Write header with network definitions
         fd.write("#ifndef __NETWORK__\n")
         fd.write("#define __NETWORK__\n")
+        fd.write("#include \"ap_axi_sdata.h\"\n")
         fd.write("#include \"hls_stream.h\"\n")
         fd.write("#include \"ap_int.h\"\n")
         fd.write("#include <stdint.h>\n")
 
         # Handle internal or external parameters
-        fd.write("#define c_i_data 32;\n")
-        fd.write("typedef ap_axiu<c_i_data> t_i_data;\n")
+        fd.write("#define c_i_data 32\n")
+        fd.write("typedef ap_axiu<c_i_data, 0, 0, 0> t_i_data;\n")
         # fd.write("typedef int8_t t_weight;\n")
-        fd.write("#define c_o_data 32;\n")
-        fd.write("typedef ap_axiu<c_o_data> t_o_data;\n")
+        fd.write("#define c_o_data 32\n")
+        fd.write("typedef ap_axiu<c_o_data, 0, 0, 0> t_o_data;\n")
 
         # Removing dots from input names
         for input in model.graph.input:
@@ -347,7 +348,6 @@ def write(
         # Adding prototype declaration
         fd.write("void Network(\n")
         fd.write("\tt_i_data* i_data,\n")
-        fd.write("\tt_weight* i_weight,\n")
         fd.write("\tt_o_data* o_data\n")
         fd.write(");\n")
 

@@ -43,6 +43,32 @@ template <
 
 }
 
+template <
+	class t_input,
+	class t_output,
+	int c_ich,
+	int c_iw,
+	int c_ih,
+	int c_bits
+> void ProduceStream(
+	hls::stream<t_input> &i_data,
+	hls::stream<t_output> &s_i_data
+) {
+
+	const int c_par = c_bits/8;
+	const int c_index = c_ich*c_ih*c_iw/c_par;
+
+	PRODSTR: for (int s_index = 0; s_index < c_index; s_index++) {
+		t_input tmp_r = i_data.read();
+		for (int s_par = 0; s_par < c_par; s_par++) {
+			#pragma HLS pipeline
+			t_output tmp_w = (t_output)(tmp_r.data((s_par + 1)*8-1,s_par*8));
+			s_i_data.write(tmp_w);
+		}
+	}
+
+}
+
 // For input weights
 template <
 	class t_input,
@@ -186,6 +212,44 @@ template <
 
 		s_read = i_data.read();
 		o_data[s_index] = (t_output)(s_read);
+
+	}
+
+}
+
+template <
+	class t_input,
+	class t_output,
+	int c_och,
+	int c_ow,
+	int c_oh,
+	int c_bits
+> void ConsumeStream(
+	hls::stream<t_input> &i_data,
+	hls::stream<t_output> &o_data
+) {
+
+#ifndef __SYNTHESIS__
+
+	if (i_data.empty())
+		return;
+
+#endif
+
+	t_input s_read;
+	const int c_par = c_bits/8;
+	const int c_index = c_och*c_oh*c_ow/c_par;
+	const int c_out_pad = (c_och*c_oh*c_ow)%c_par;
+
+	for (int s_index = 0; s_index < c_index; s_index++) {
+
+		t_output tmp;
+		for (int s_par = 0; s_par < c_par; s_par++) {
+			#pragma HLS pipeline
+			s_read = i_data.read();
+			tmp.data((s_par + 1)*8-1,s_par*8) = s_read;
+		}
+		o_data.write(tmp);
 
 	}
 
