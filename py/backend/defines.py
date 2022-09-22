@@ -24,9 +24,11 @@ def write(
         fd.write("#include <stdint.h>\n")
 
         # Handle internal or external parameters
-        fd.write("typedef int8_t t_i_data;\n")
-        fd.write("typedef int8_t t_weight;\n")
-        fd.write("typedef int8_t t_o_data;\n")
+        fd.write("#define c_i_data 32;\n")
+        fd.write("typedef ap_axiu<c_i_data> t_i_data;\n")
+        # fd.write("typedef int8_t t_weight;\n")
+        fd.write("#define c_o_data 32;\n")
+        fd.write("typedef ap_axiu<c_o_data> t_o_data;\n")
 
         # Removing dots from input names
         for input in model.graph.input:
