@@ -36,16 +36,17 @@ def write(
 
             # Handle internal or external parameters
             fd.write("void Network(\n")
-            fd.write("\tt_i_data* i_data,\n")
-            fd.write("\tt_weight* i_weight,\n")
-            fd.write("\tt_o_data* o_data\n")
+            fd.write("\thls::stream<t_i_data> &i_data,\n")
+            fd.write("\thls::stream<t_o_data> &o_data\n")
             fd.write(") {\n")
 
             fd.write("\n")
 
-            fd.write("\t#pragma HLS interface m_axi port=i_data depth=10 offset=slave bundle=gmem0\n")
-            fd.write("\t#pragma HLS interface m_axi port=i_weight depth=10 offset=slave bundle=gmem1 max_read_burst_length=256\n")
-            fd.write("\t#pragma HLS interface m_axi port=o_data depth=10 offset=slave\n")
+            # fd.write("\t#pragma HLS interface m_axi port=i_data depth=10 offset=slave bundle=gmem0\n")
+            # fd.write("\t#pragma HLS interface m_axi port=i_weight depth=10 offset=slave bundle=gmem1 max_read_burst_length=256\n")
+            # fd.write("\t#pragma HLS interface m_axi port=o_data depth=10 offset=slave\n")
+            fd.write("\t#pragma HLS interface axis port=i_data\n")
+            fd.write("\t#pragma HLS interface axis port=o_data\n")
             fd.write("\t#pragma HLS INTERFACE mode=ap_ctrl_none port=return\n")
             fd.write("\t#pragma HLS DATAFLOW\n")
 
@@ -65,7 +66,8 @@ def write(
             fd.write("\t\tt_%s,\n" % (input_name))
             fd.write("\t\tc_%s_ich,\n" % (input_name))
             fd.write("\t\tc_%s_iw,\n" % (input_name))
-            fd.write("\t\tc_%s_ih\n" % (input_name))
+            fd.write("\t\tc_%s_ih,\n" % (input_name))
+            fd.write("\t\tc_i_data\n" % (input_name))
             fd.write("\t>(\n")
             fd.write("\t\ti_data,\n")
             fd.write("\t\ts_%s\n" % (input_name))
@@ -541,7 +543,8 @@ def write(
             fd.write("\t\tt_o_data,\n")
             fd.write("\t\tc_%s_och,\n" % (output_name))
             fd.write("\t\tc_%s_ow,\n" % (output_name))
-            fd.write("\t\tc_%s_oh\n" % (output_name))
+            fd.write("\t\tc_%s_oh,\n" % (output_name))
+            fd.write("\t\tc_o_data\n" % (output_name))
             fd.write("\t> (\n")
             fd.write("\t\ts_%s,\n" % (output_name))
             fd.write("\t\to_data\n")
