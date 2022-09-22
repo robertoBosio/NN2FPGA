@@ -26,6 +26,10 @@ template <
 	hls::stream<t_input> &o_compute
 ) {
 
+#ifndef __SYNTHESIS__
+	while(i_data.empty());
+#endif
+
 	const int c_starth = (c_fh-1)*(1-c_pad);
 	const int c_startw = (c_fw-1)*(1-c_pad);
 	const int c_bypass_w = c_fw - 1;
@@ -112,6 +116,10 @@ template <
 	hls::stream<t_input> &o_compute,
 	hls::stream<t_input> &o_data
 ) {
+
+#ifndef __SYNTHESIS__
+	while(i_data.empty());
+#endif
 
 	const int c_starth = (c_fh-1)*(1-c_pad);
 	const int c_startw = (c_fw-1)*(1-c_pad);
@@ -212,15 +220,24 @@ template <
 	const int c_index = c_fh*c_fw;
 	const int c_o_index = c_oh*c_ow;
 
-	for (uint8_t s_index = 0; s_index < c_index; s_index++) {
+#ifndef __SYNTHESIS__
+	for (uint8_t s_index = 0; s_index < c_index; s_index++)
+		while(i_data[s_index].empty());
+	for (uint8_t s_index = 0; s_index < c_index; s_index++)
+		while(i_weights[s_index].empty());
+	while(i_bias.empty());
+#endif
+
+	for (uint16_t s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
 		t_acc s_acc_buff[c_och];
 		for (uint8_t s_och = 0; s_och < c_och; s_och++)
 			s_acc_buff[s_och] = i_bias.read();
 
 		for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
 			t_input s_input[c_index];
-			for (uint8_t s_index = 0; s_index < c_index; s_index++)
+			for (uint8_t s_index = 0; s_index < c_index; s_index++) {
 				s_input[s_index] = i_data[s_index].read();
+			}
 			for (uint8_t s_och = 0; s_och < c_och; s_och++) {
 				for (uint8_t s_index = 0; s_index < c_index; s_index++) {
 					t_weight s_weights = i_weights[s_index].read();
@@ -239,14 +256,10 @@ template <
 
 #ifndef __SYNTHESIS__
 
-	if (c_end_paddingh_shift > 0)
-		while(i_data.empty());
-
-#endif
-
-#ifndef __SYNTHESIS__
-	EmptyStream<t_input>(i_data);
-	EmptyStream<t_weight>(i_weights);
+	for (uint8_t s_index = 0; s_index < c_index; s_index++)
+		EmptyStream<t_input>(i_data[s_index]);
+	for (uint8_t s_index = 0; s_index < c_index; s_index++)
+		EmptyStream<t_weight>(i_weights[s_index]);
 	std::cout << "BIAS INFO" << std::endl;
 	EmptyStream<t_input>(i_bias);
 	std::cout << "CONVOP: " << c_ih << " " << c_iw << " " << c_ich << " " << c_str << " " << c_pad << " " << std::endl;
@@ -280,13 +293,21 @@ template <
 	const int c_index = c_fh*c_fw;
 	const int c_o_index = c_oh*c_ow;
 
-	for (uint8_t s_index = 0; s_index < c_index; s_index++) {
+#ifndef __SYNTHESIS__
+	for (uint8_t s_index = 0; s_index < c_index; s_index++)
+		while(i_data[s_index].empty());
+	for (uint8_t s_index = 0; s_index < c_index; s_index++)
+		while(i_weights[s_index].empty());
+#endif
+
+	for (uint16_t s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
 		t_acc s_acc_buff[c_och] = {0};
 
 		for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
 			t_input s_input[c_index];
-			for (uint8_t s_index = 0; s_index < c_index; s_index++)
+			for (uint8_t s_index = 0; s_index < c_index; s_index++) {
 				s_input[s_index] = i_data[s_index].read();
+			}
 			for (uint8_t s_och = 0; s_och < c_och; s_och++) {
 				for (uint8_t s_index = 0; s_index < c_index; s_index++) {
 					t_weight s_weights = i_weights[s_index].read();
@@ -304,17 +325,10 @@ template <
 	}
 
 #ifndef __SYNTHESIS__
-
-	if (c_end_paddingh_shift > 0)
-		while(i_data.empty());
-
-#endif
-
-#ifndef __SYNTHESIS__
-	EmptyStream<t_input>(i_data);
-	EmptyStream<t_weight>(i_weights);
-	std::cout << "BIAS INFO" << std::endl;
-	EmptyStream<t_input>(i_bias);
+	for (uint8_t s_index = 0; s_index < c_index; s_index++)
+		EmptyStream<t_input>(i_data[s_index]);
+	for (uint8_t s_index = 0; s_index < c_index; s_index++)
+		EmptyStream<t_weight>(i_weights[s_index]);
 	std::cout << "CONVOP: " << c_ih << " " << c_iw << " " << c_ich << " " << c_str << " " << c_pad << " " << std::endl;
 #endif
 

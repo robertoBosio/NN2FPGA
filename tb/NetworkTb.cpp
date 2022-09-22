@@ -24,7 +24,6 @@ int main() {
 	std::cout << "--------------------- KERNEL -----------------------" << "\n";
 	Network(
 		i_data,
-		i_weight,
 		o_data_sim
 	);
 

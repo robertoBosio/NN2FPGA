@@ -5,6 +5,25 @@
 
 //////////////////////////// FROM POINTER TO STREAM /////////////////////////// 
 // For input activations
+/* template < */
+/* 	class t_input, */
+/* 	class t_output, */
+/* 	int c_ich, */
+/* 	int c_iw, */
+/* 	int c_ih */
+/* > void ProduceStream( */
+/* 	t_input *i_data, */
+/* 	hls::stream<t_output> &s_i_data */
+/* ) { */
+
+/* 	const int c_index = c_ich*c_ih*c_iw; */
+
+/* 	PRODSTR: for (int s_index = 0; s_index < c_index; s_index++) { */
+/* 		s_i_data.write((t_output)(i_data[s_index])); */
+/* 	} */
+
+/* } */
+
 template <
 	class t_input,
 	class t_output,
@@ -12,7 +31,7 @@ template <
 	int c_iw,
 	int c_ih
 > void ProduceStream(
-	t_input *i_data,
+	t_input i_data[c_ich*c_ih*c_iw],
 	hls::stream<t_output> &s_i_data
 ) {
 
@@ -102,7 +121,6 @@ template <
 
 	for (uint16_t s_index = 0; s_index < c_index; s_index++) {
 		for (uint16_t s_ch = 0; s_ch < c_ch; s_ch++) {
-			#pragma HLS UNROLL
 			o_data.write((t_output)(i_data[s_ch]));
 		}
 	}
@@ -110,6 +128,37 @@ template <
 }
 
 ///////////////////////////// FROM STREAM TO POINTER ////////////////////////// 
+
+/* // For output activations */
+/* template < */
+/* 	class t_input, */
+/* 	class t_output, */
+/* 	int c_och, */
+/* 	int c_ow, */
+/* 	int c_oh */
+/* > void ConsumeStream( */
+/* 	hls::stream<t_input> &i_data, */
+/* 	t_output *o_data */
+/* ) { */
+
+/* #ifndef __SYNTHESIS__ */
+
+/* 	if (i_data.empty()) */
+/* 		return; */
+
+/* #endif */
+
+/* 	t_input s_read; */
+/* 	const int c_index = c_och*c_oh*c_ow; */
+
+/* 	for (int s_index = 0; s_index < c_index; s_index++) { */
+
+/* 		s_read = i_data.read(); */
+/* 		o_data[s_index] = (t_output)(s_read); */
+
+/* 	} */
+
+/* } */
 
 // For output activations
 template <
@@ -120,7 +169,7 @@ template <
 	int c_oh
 > void ConsumeStream(
 	hls::stream<t_input> &i_data,
-	t_output *o_data
+	t_output o_data[c_och*c_ow*c_oh]
 ) {
 
 #ifndef __SYNTHESIS__

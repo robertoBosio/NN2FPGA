@@ -19,3 +19,5 @@ create_clock -period 5
 # csim_design
 
 csynth_design
+
+export_design

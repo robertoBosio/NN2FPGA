@@ -9,14 +9,12 @@
 #include "Utils.hpp"
 
 void Network(
-	t_i_data* i_data,
-	t_weight* i_weight,
-	t_o_data* o_data
+	t_i_data i_data[c_input_ich*c_input_ih*c_input_iw],
+	t_o_data o_data[c_conv_51_och*c_conv_51_ow*c_conv_51_oh]
 ) {
 
-	#pragma HLS interface m_axi port=i_data depth=10 offset=slave bundle=gmem0
-	#pragma HLS interface m_axi port=i_weight depth=10 offset=slave bundle=gmem1 max_read_burst_length=256
-	#pragma HLS interface m_axi port=o_data depth=10 offset=slave
+	#pragma HLS interface axis port=i_data
+	#pragma HLS interface axis port=o_data
 	#pragma HLS INTERFACE mode=ap_ctrl_none port=return
 	#pragma HLS DATAFLOW
 
