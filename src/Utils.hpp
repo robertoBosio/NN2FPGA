@@ -52,20 +52,23 @@ template <
 	int c_bits
 > void ProduceStream(
 	hls::stream<t_input> &i_data,
+	hls::stream<ap_uint<1>> &o_last,
 	hls::stream<t_output> &s_i_data
 ) {
 
 	const int c_par = c_bits/8;
 	const int c_index = c_ich*c_ih*c_iw/c_par;
 
+	t_input tmp_r;
 	PRODSTR: for (int s_index = 0; s_index < c_index; s_index++) {
-		t_input tmp_r = i_data.read();
+		tmp_r = i_data.read();
 		for (int s_par = 0; s_par < c_par; s_par++) {
 			#pragma HLS pipeline
 			t_output tmp_w = (t_output)(tmp_r.data((s_par + 1)*8-1,s_par*8));
 			s_i_data.write(tmp_w);
 		}
 	}
+	o_last.write(tmp_r.last);
 
 }
 
@@ -226,6 +229,7 @@ template <
 	int c_bits
 > void ConsumeStream(
 	hls::stream<t_input> &i_data,
+	hls::stream<ap_uint<1>> &i_last,
 	hls::stream<t_output> &o_data
 ) {
 
@@ -236,7 +240,6 @@ template <
 
 #endif
 
-	t_input s_read;
 	const int c_par = c_bits/8;
 	const int c_index = c_och*c_oh*c_ow/c_par;
 	const int c_out_pad = (c_och*c_oh*c_ow)%c_par;
@@ -246,12 +249,25 @@ template <
 		t_output tmp;
 		for (int s_par = 0; s_par < c_par; s_par++) {
 			#pragma HLS pipeline
-			s_read = i_data.read();
+			t_input s_read = i_data.read();
 			tmp.data((s_par + 1)*8-1,s_par*8) = s_read;
 		}
+		tmp.last = false;
 		o_data.write(tmp);
 
 	}
+
+	t_output tmp;
+	tmp.data = 0;
+	for (int s_out_pad = 0; s_out_pad < c_out_pad; s_out_pad++) {
+		#pragma HLS pipeline
+		t_input s_read = i_data.read();
+		tmp.data((s_out_pad + 1)*8-1,s_out_pad*8) = s_read;
+	}
+	/* The input last stream doesn't count the number of activations streamed but the */
+	/* number of batches analyzed */
+	tmp.last = i_last.read();
+	o_data.write(tmp);
 
 }
 

@@ -57,6 +57,7 @@ def write(
             # input_shape = tensors_info[model.graph.input[0].name].tensor_type.shape
 
             write_stream(fd, "input", "c_%s_ich" % input_name)
+            write_stream(fd, "last", "c_last_depth")
 
         fd.write("\n")
 
@@ -70,6 +71,8 @@ def write(
             fd.write("\t\tc_i_data\n")
             fd.write("\t>(\n")
             fd.write("\t\ti_data,\n")
+            fd.write("\t\ti_last,\n")
+            fd.write("\t\ts_last,\n")
             fd.write("\t\ts_%s\n" % (input_name))
             fd.write("\t);\n")
 
@@ -547,6 +550,7 @@ def write(
             fd.write("\t\tc_o_data\n")
             fd.write("\t> (\n")
             fd.write("\t\ts_%s,\n" % (output_name))
+            fd.write("\t\ts_last,\n")
             fd.write("\t\to_data\n")
             fd.write("\t);\n")
 
