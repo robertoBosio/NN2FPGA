@@ -98,6 +98,7 @@ template <
 	int c_str
 > void ProduceStream(
 	t_input *i_data,
+	hls::stream<ap_uint<1>> &i_last,
 	hls::stream<t_output> &s_i_data
 ) {
 
@@ -125,6 +126,7 @@ template <
 	int c_oh
 > void ProduceStream(
 	const t_input i_data[c_och*c_ich*c_iw*c_ih],
+	hls::stream<ap_uint<1>> &i_last,
 	hls::stream<t_output> o_data[c_ih*c_iw]
 ) {
 
@@ -146,6 +148,9 @@ template <
 			}
 		}
 
+		if (i_last.read())
+			break;
+
 	}
 }
 
@@ -158,16 +163,21 @@ template <
 	int c_oh
 > void ProduceStream(
 	const t_input i_data[c_och*c_ich],
+	hls::stream<ap_uint<1>> &i_last,
 	hls::stream<t_output> &o_data
 ) {
 
 	const int c_index = c_oh*c_ow;
 	const int c_ch = c_ich*c_och;
 
-	for (uint16_t s_index = 0; s_index < c_index; s_index++) {
-		for (uint16_t s_ch = 0; s_ch < c_ch; s_ch++) {
-			o_data.write((t_output)(i_data[s_ch]));
+	while(1) {
+		for (uint16_t s_index = 0; s_index < c_index; s_index++) {
+			for (uint16_t s_ch = 0; s_ch < c_ch; s_ch++) {
+				o_data.write((t_output)(i_data[s_ch]));
+			}
 		}
+		if (i_last.read())
+			break;
 	}
 
 }
@@ -677,12 +687,12 @@ template <
 
 	while(1) {
 
-		ap_uint<1> s_last = i_last.read();
+		ap_uint<1> s_data = i_data.read();
 		for (uint8_t s_split = 0; s_split < c_split; s_split++) {
 #pragma HLS unroll
-			o_last[s_split].write(s_last);
+			o_data[s_split].write(s_data);
 		}
-		if (s_last)
+		if (s_data)
 			break;
 
 	}
