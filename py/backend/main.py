@@ -57,6 +57,7 @@ def write(
             # input_shape = tensors_info[model.graph.input[0].name].tensor_type.shape
 
             write_stream(fd, "input", "c_%s_ich" % input_name)
+            fd.write("#define c_last_depth 256\n")
             write_stream(fd, "last", "c_last_depth")
 
         fd.write("\n")
@@ -137,6 +138,9 @@ def write(
             "\thls::stream<ap_uint<1>> s_last_split[%0d];\n" % (
                 layers_allocated
             )
+        )
+        fd.write(
+            "\t#pragma HLS STREAM variable=s_last_split depth=10 type=fifo\n"
         )
 
         fd.write("\tSplitStream<\n")
@@ -472,6 +476,30 @@ def write(
         	pointwise = True 
         c_stride = getattr(attributes[4], 'ints')[0]
 
+        fd.write("\n")
+
+        fd.write(
+            "\thls::stream<ap_uint<1>> s_last_%s[c_%s_split];\n" % (
+                node_name,
+                node_name
+            )
+        )
+        fd.write(
+            "\t#pragma HLS STREAM variable=s_last_%s depth=10 type=fifo\n" % (
+                node_name
+            )
+        )
+
+
+        fd.write("\n")
+
+        fd.write("\tSplitStream<\n")
+        fd.write("\t\tc_%s_split\n" % (node_name))
+        fd.write("\t>(\n")
+        fd.write("\t\ts_last_split[%0d],\n" % (last_flag))
+        fd.write("\t\ts_last_%s\n" % (node_name))
+        fd.write("\t);\n")
+
         if emit_streams:
             write_weights(weight_shape, weight_name)
         # Given stride a different weight stream is selected
@@ -484,15 +512,6 @@ def write(
             write_blocks,
             weight_shape
         )
-
-        fd.write("\n")
-
-        fd.write("\tSplitStream<\n")
-        fd.write("\t\tc_%s_split\n" % (node_name))
-        fd.write("\t>(\n")
-        fd.write("\t\ts_last_split[%0d],\n" % (last_flag))
-        fd.write("\t\ts_last_%s\n" % (node_name))
-        fd.write("\t);\n")
 
         fd.write("\n")
 
@@ -563,6 +582,36 @@ def write(
 
             fd.write("\n")
 
+    def count_allocated(model):
+
+        layers_n = 0
+
+        for node_level in reordered_layers:
+            for node in node_level:
+
+                if 'conv' in node.op_type.lower():
+                    layers_n = layers_n + 1
+                    continue
+
+                if 'add' == node.op_type.lower():
+                    # write_add(fd, node)
+                    continue
+
+                if 'relu' == node.op_type.lower():
+                    # if node.name not in replaced_relu:
+                        # layers_n = layers_n + 1
+                    continue
+
+                if 'pool' in node.op_type.lower():
+                    if 'average' in node.op_type.lower():
+                        layers_n = layers_n + 1
+                    continue
+
+                if 'pad' in node.op_type.lower():
+                    layers_n = layers_n + 1
+
+        return layers_n
+
     def write_body(fd, model, emit_streams=True, write_blocks=True):
 
         layers_n = 0
@@ -598,8 +647,6 @@ def write(
                     write_pad(fd, node, emit_streams, write_blocks, layers_n)
                     layers_n = layers_n + 1
 
-        return layers_n
-
     def write_footer(fd, layers_allocated):
 
         for output in model.graph.output:
@@ -625,13 +672,9 @@ def write(
 
         write_header(fd)
 
-        layers_allocated = write_body(
-            fd,
-            model,
-            emit_streams=True,
-            write_blocks=False
-        )
+        layers_allocated = count_allocated(model)
         write_last_flags(fd, layers_allocated)
+        write_body(fd, model, emit_streams=True, write_blocks=False)
         write_body(fd, model, emit_streams=False, write_blocks=True)
 
         write_footer(fd, layers_allocated)

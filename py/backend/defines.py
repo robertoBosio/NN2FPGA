@@ -31,7 +31,6 @@ def write(
         fd.write("#define c_o_data 8\n")
         fd.write("typedef ap_axiu<c_o_data, 0, 0, 0> t_o_data;\n")
 
-        fd.write("#define c_last_depth 256\n")
         fd.write("typedef ap_uint<1> t_last;\n")
 
         # Removing dots from input names
