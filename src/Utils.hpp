@@ -32,13 +32,19 @@ template <
 	int c_ih
 > void ProduceStream(
 	t_input i_data[c_ich*c_ih*c_iw],
-	hls::stream<t_output> &s_i_data
+	hls::stream<ap_uint<1>> &i_last,
+	hls::stream<t_output> &o_data
 ) {
 
 	const int c_index = c_ich*c_ih*c_iw;
 
-	PRODSTR: for (int s_index = 0; s_index < c_index; s_index++) {
-		s_i_data.write((t_output)(i_data[s_index]));
+	while(1) {
+		PRODSTR: for (int s_index = 0; s_index < c_index; s_index++) {
+			o_data.write((t_output)(i_data[s_index]));
+		}
+		ap_uint<1> s_last = i_last.read();
+		if (s_last)
+			break;
 	}
 
 }
@@ -271,6 +277,9 @@ template <
 		tmp.keep = -1;
 		o_data.write(tmp);
 
+		if (tmp.last)
+			break;
+
 	}
 
 }
@@ -379,36 +388,46 @@ template <
 	int c_pad
 > void PadStream(
 	hls::stream<t_input> &i_data,
+	hls::stream<ap_uint<1>> &i_last,
 	hls::stream<t_output> &o_data
 ) {
 
+	while(1) {
+
 #ifndef __SYNTHESIS__
 
-	while(i_data.empty());
+		while(i_data.empty());
 
 #endif
 
-	if (c_pad == 0) {
-		for (uint8_t s_ih = 0; s_ih < c_ih; s_ih++) {
-			for (uint8_t s_iw = 0; s_iw < c_iw; s_iw++) {
-				for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
-						o_data.write((t_output)(i_data.read()));
+		if (c_pad == 0) {
+			for (uint8_t s_ih = 0; s_ih < c_ih; s_ih++) {
+				for (uint8_t s_iw = 0; s_iw < c_iw; s_iw++) {
+					for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
+							o_data.write((t_output)(i_data.read()));
+					}
 				}
 			}
 		}
-	}
 
-	if (c_pad == 1) {
-		for (uint8_t s_ih = 0; s_ih < c_ih; s_ih++) {
-			for (uint8_t s_iw = 0; s_iw < c_iw; s_iw++) {
-				for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
-						o_data.write((t_output)(i_data.read()));
+		if (c_pad == 1) {
+			for (uint8_t s_ih = 0; s_ih < c_ih; s_ih++) {
+				for (uint8_t s_iw = 0; s_iw < c_iw; s_iw++) {
+					for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
+							o_data.write((t_output)(i_data.read()));
+					}
 				}
 			}
 		}
+
+		ap_uint<1> s_last = i_last.read();
+		if (s_last)
+			break;
+
 	}
 
 }
+
 
 //////////////////////////// BLOCK INTERFACES /////////////////////////////////
 
@@ -494,6 +513,7 @@ template <
 	int c_pad
 > void PadInput(
 	hls::stream<t_input> &i_data,
+	hls::stream<ap_uint<1>> &i_last,
 	hls::stream<t_input> &o_data
 ) {
 
@@ -505,54 +525,62 @@ template <
 	const int c_ih_pad = c_ih + c_pad_index_h*2;
 	const int c_iw_pad = c_iw + c_pad_index_w*2;
 
-	/* Top padding */
-	for (uint8_t s_pad = 0; s_pad < c_pad_index_h; s_pad++){
-		for (uint8_t s_iw = 0; s_iw < c_iw_pad; s_iw++) {
-			for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
-				o_data.write(0);
-			}
-		}
-	}
+	while(1) {
 
-	for (uint8_t s_ih = 0; s_ih < c_ih; s_ih++) {
-
-		/* Right padding */
-		for (uint8_t s_pad = 0; s_pad < c_pad_index_w; s_pad++){
-			for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
-				o_data.write(0);
+		/* Top padding */
+		for (uint8_t s_pad = 0; s_pad < c_pad_index_h; s_pad++){
+			for (uint8_t s_iw = 0; s_iw < c_iw_pad; s_iw++) {
+				for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
+					o_data.write(0);
+				}
 			}
 		}
 
-		for (uint8_t s_iw = 0; s_iw < c_iw; s_iw++) {
-			for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
-				o_data.write(i_data.read());
+		for (uint8_t s_ih = 0; s_ih < c_ih; s_ih++) {
+
+			/* Right padding */
+			for (uint8_t s_pad = 0; s_pad < c_pad_index_w; s_pad++){
+				for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
+					o_data.write(0);
+				}
 			}
+
+			for (uint8_t s_iw = 0; s_iw < c_iw; s_iw++) {
+				for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
+					o_data.write(i_data.read());
+				}
+			}
+
+			/* Left padding */
+			for (uint8_t s_pad = 0; s_pad < c_pad_index_w; s_pad++){
+				for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
+					o_data.write(0);
+				}
+			}
+
 		}
 
-		/* Left padding */
-		for (uint8_t s_pad = 0; s_pad < c_pad_index_w; s_pad++){
-			for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
-				o_data.write(0);
+		for (uint8_t s_pad = 0; s_pad < c_pad_index_h; s_pad++){
+			for (uint8_t s_iw = 0; s_iw < c_iw_pad; s_iw++) {
+				for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
+					o_data.write(0);
+				}
 			}
 		}
-
-	}
-
-	for (uint8_t s_pad = 0; s_pad < c_pad_index_h; s_pad++){
-		for (uint8_t s_iw = 0; s_iw < c_iw_pad; s_iw++) {
-			for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
-				o_data.write(0);
-			}
-		}
-	}
 
 #ifndef __SYNTHESIS__
-	EmptyStream<t_input>(i_data);
+		EmptyStream<t_input>(i_data);
 #endif
 
 #ifndef __SYNTHESIS__
-	std::cout << "PADINPUT: " << c_ih << " " << c_iw << " " << c_ich << std::endl;
+		std::cout << "PADINPUT: " << c_ih << " " << c_iw << " " << c_ich << std::endl;
 #endif
+
+		ap_uint<1> s_last = i_last.read();
+		if (s_last)
+			break;
+
+	}
 
 }
 
@@ -568,23 +596,27 @@ template <
 	hls::stream<t_input> &i_data
 ) {
 
+	while(1) {
+
 #ifndef __SYNTHESIS__
 
-	while(i_data.empty());
+		while(i_data.empty());
 
 #endif
 
-	const int c_pad_index_h = c_pad * (c_fh - 1);
-	const int c_pad_index_w = c_pad * (c_fw - 1);
-	const int c_ih_end = c_ih + c_pad_index_h;
-	const int c_iw_end = c_iw + c_pad_index_w;
-	
-	for (uint8_t s_ih = 0; s_ih < c_ih_end; s_ih++) { 
-		for (uint8_t s_iw = 0; s_iw < c_iw_end; s_iw++) { 
-			for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) { 
-				t_input s_tmp = i_data.read();
+		const int c_pad_index_h = c_pad * (c_fh - 1);
+		const int c_pad_index_w = c_pad * (c_fw - 1);
+		const int c_ih_end = c_ih + c_pad_index_h;
+		const int c_iw_end = c_iw + c_pad_index_w;
+		
+		for (uint8_t s_ih = 0; s_ih < c_ih_end; s_ih++) { 
+			for (uint8_t s_iw = 0; s_iw < c_iw_end; s_iw++) { 
+				for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) { 
+					t_input s_tmp = i_data.read();
+				}
 			}
 		}
+
 	}
 
 }
@@ -599,30 +631,60 @@ template <
 	int c_pad
 > void ForwardStream(
 	hls::stream<t_input> &i_data,
+	hls::stream<ap_uint<1>> &i_last,
 	hls::stream<t_input> &o_forward
 ) {
 
+	while(1) {
+
 #ifndef __SYNTHESIS__
 
-	while(i_data.empty());
+		while(i_data.empty());
 
 #endif
 
-	const int c_pad_index_h = c_pad * (c_fh - 1) / 2;
-	const int c_pad_index_w = c_pad * (c_fw - 1) / 2;
-	const int c_ih_start = -1*c_pad_index_h;
-	const int c_iw_start = -1*c_pad_index_w;
-	const int c_ih_end = c_ih + c_pad_index_h;
-	const int c_iw_end = c_iw + c_pad_index_w;
-	
-	for (int8_t s_ih = c_ih_start; s_ih < c_ih_end; s_ih++) { 
-		for (int8_t s_iw = c_iw_start; s_iw < c_iw_end; s_iw++) { 
-			for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) { 
-				t_input s_tmp = i_data.read();
-				if ((s_ih > -1) & (s_iw > -1) & (s_ih < c_ih) & (s_iw < c_iw))
-					o_forward.write(s_tmp);
+		const int c_pad_index_h = c_pad * (c_fh - 1) / 2;
+		const int c_pad_index_w = c_pad * (c_fw - 1) / 2;
+		const int c_ih_start = -1*c_pad_index_h;
+		const int c_iw_start = -1*c_pad_index_w;
+		const int c_ih_end = c_ih + c_pad_index_h;
+		const int c_iw_end = c_iw + c_pad_index_w;
+		
+		for (int8_t s_ih = c_ih_start; s_ih < c_ih_end; s_ih++) { 
+			for (int8_t s_iw = c_iw_start; s_iw < c_iw_end; s_iw++) { 
+				for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) { 
+					t_input s_tmp = i_data.read();
+					if ((s_ih > -1) & (s_iw > -1) & (s_ih < c_ih) & (s_iw < c_iw))
+						o_forward.write(s_tmp);
+				}
 			}
 		}
+
+		ap_uint<1> s_last = i_last.read();
+		if (s_last)
+			break;
+
+	}
+
+}
+
+template <
+	int c_split
+> void SplitStream(
+	hls::stream<ap_uint<1>> &i_data,
+	hls::stream<ap_uint<1>> o_data[c_split]
+) {
+
+	while(1) {
+
+		ap_uint<1> s_last = i_last.read();
+		for (uint8_t s_split = 0; s_split < c_split; s_split++) {
+#pragma HLS unroll
+			o_last[s_split].write(s_last);
+		}
+		if (s_last)
+			break;
+
 	}
 
 }
@@ -635,20 +697,28 @@ template <
 	int c_split
 > void SplitStream(
 	hls::stream<t_output> &i_data,
+	hls::stream<ap_uint<1>> &i_last,
 	hls::stream<t_output> o_data[c_split]
 ) {
 
-	for (uint8_t s_oh = 0; s_oh < c_oh; s_oh++) {
-		for (uint8_t s_ow = 0; s_ow < c_ow; s_ow++) {
-			for (uint8_t s_och = 0; s_och < c_och; s_och++) {
-				t_output s_out = i_data.read();
-				for (uint8_t s_split = 0; s_split < c_split; s_split++) {
+	while(1) {
+		for (uint8_t s_oh = 0; s_oh < c_oh; s_oh++) {
+			for (uint8_t s_ow = 0; s_ow < c_ow; s_ow++) {
+				for (uint8_t s_och = 0; s_och < c_och; s_och++) {
+					t_output s_out = i_data.read();
+					for (uint8_t s_split = 0; s_split < c_split; s_split++) {
 #pragma HLS unroll
-					o_data[s_split].write(s_out);
+						o_data[s_split].write(s_out);
+					}
 				}
 			}
 		}
+
+		ap_uint<1> s_last = i_last.read();
+		if (s_last)
+			break;
 	}
+
 }
 
 #endif

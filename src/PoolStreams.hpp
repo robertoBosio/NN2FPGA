@@ -21,6 +21,7 @@ template <
 	int c_bypass
 > void AveragePoolOp(
 	hls::stream<t_input> &i_data,
+	hls::stream<ap_uint<1>> &i_last,
 	hls::stream<t_acc> &o_acc
 ) {
 
@@ -94,6 +95,10 @@ template <
 		std::cout << "AVERAGEOP: " << c_ih << " " << c_iw << " " << c_ich << " " << c_str << " " << c_pad << " " << std::endl;
 #endif
 
+		ap_uint<1> s_last = i_last.read();
+		if (s_last)
+			break;
+
 	}
 
 }
@@ -108,12 +113,14 @@ template <
 	int c_fw
 > void WriteOutput(
 	hls::stream<t_acc> &i_data,
+	hls::stream<ap_uint<1>> &i_last,
 	hls::stream<t_output> &o_data
 ) {
 
 	const uint8_t c_average_scale = (uint8_t)(log2(c_fh*c_fw));
 
 	while(1) {
+
 		for (uint8_t s_oh = 0; s_oh < c_oh; s_oh++) {
 			for (uint8_t s_ow = 0; s_ow < c_ow; s_ow++) {
 				for (uint8_t s_och = 0; s_och < c_och; s_och++) {
@@ -125,6 +132,11 @@ template <
 				}
 			}
 		}
+
+		ap_uint<1> s_last = i_last.read();
+		if (s_last)
+			break;
+
 	}
 }
 
@@ -144,6 +156,7 @@ template <
 	int c_pad
 > void AveragePoolKernel8x8(
 	hls::stream<t_input> &i_data,
+	hls::stream<ap_uint<1>> &i_last,
 	hls::stream<t_output> &o_data
 ) {
 
@@ -153,6 +166,16 @@ template <
 
 	hls::stream<t_acc> s_acc("s_acc");
 	#pragma HLS STREAM variable=s_acc depth=2
+
+	hls::stream<ap_uint<1>> s_last[2];
+	#pragma HLS STREAM variable=s_last depth=10
+
+	SplitStream<
+		2
+	> (
+		i_last,
+		s_last
+	);
 
 	AveragePoolOp<
 		t_input,
@@ -170,6 +193,7 @@ template <
 		0
 	> (
 		i_data,
+		s_last[0],
 		s_acc
 	);
 
@@ -183,6 +207,7 @@ template <
 		c_fw
 	> (
 		s_acc,
+		s_last[1],
 		o_data
 	);
 
@@ -204,6 +229,7 @@ template <
 	int c_pad
 > void AveragePoolStreams(
 	hls::stream<t_input> &i_data,
+	hls::stream<ap_uint<1>> &i_last,
 	hls::stream<t_output> &o_data
 ) {
 
@@ -231,6 +257,7 @@ template <
 		c_pad
 	> (
 		i_data,
+		i_last,
 		o_data
 	);
 

@@ -297,6 +297,7 @@ def write(
         c_fw     = getattr(attributes[2], 'ints')[1]
         c_stride = getattr(attributes[4], 'ints')[0]
         c_pad    = getattr(attributes[3], 'ints')[0]
+        c_split  = c_fh*c_fw+1
         if node.name in conv_relu:
             c_relu = 1
         else:
@@ -316,6 +317,7 @@ def write(
         fd.write("const int c_%s_split  = %d;\n" % (output_name, c_split))
         fd.write("const int c_%s_stride = %d;\n" % (node_name, c_stride))
         fd.write("const int c_%s_pad    = %d;\n" % (node_name, c_pad))
+        fd.write("const int c_%s_split  = %d;\n" % (node_name, c_split))
 
         fd.write("\n")
 

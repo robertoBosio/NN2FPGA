@@ -47,7 +47,7 @@ def write(
             # fd.write("\t#pragma HLS interface m_axi port=o_data depth=10 offset=slave\n")
             fd.write("\t#pragma HLS interface axis port=i_data\n")
             fd.write("\t#pragma HLS interface axis port=o_data\n")
-            fd.write("\t#pragma HLS INTERFACE mode=ap_ctrl_none port=return\n")
+            fd.write("\t#pragma HLS INTERFACE s_axilite port=return\n")
             fd.write("\t#pragma HLS DATAFLOW\n")
 
             fd.write("\n")
@@ -71,7 +71,6 @@ def write(
             fd.write("\t\tc_i_data\n")
             fd.write("\t>(\n")
             fd.write("\t\ti_data,\n")
-            fd.write("\t\ti_last,\n")
             fd.write("\t\ts_last,\n")
             fd.write("\t\ts_%s\n" % (input_name))
             fd.write("\t);\n")
@@ -133,6 +132,22 @@ def write(
                 )
             )
 
+    def write_last_flags(fd, layers_allocated):
+        fd.write(
+            "\thls::stream<ap_uint<1>> s_last_split[%0d];\n" % (
+                layers_allocated
+            )
+        )
+
+        fd.write("\tSplitStream<\n")
+        fd.write("\t\t%0d\n" % (layers_allocated + 1))
+        fd.write("\t>(\n")
+        fd.write("\t\ts_last,\n")
+        fd.write("\t\ts_last_split\n")
+        fd.write("\t);\n")
+
+        fd.write("\n")
+
     def write_internal_weight(
         fd,
         name,
@@ -163,12 +178,22 @@ def write(
                     fd.write("\t\tc_%s_oh\n" % (node_name))
                     fd.write("\t>(\n")
                     fd.write("\t\tc_%s_st_%0d,\n" % (name, ih*c_iw+iw))
+                    fd.write("\t\ts_last_%s[%0d],\n" % (
+                            node_name, 1 + ih*c_iw+iw
+                        )
+                    )
                     fd.write("\t\ts_%s[%0d]\n" % (name, ih*c_iw+iw))
                     fd.write("\t);\n")
 
                     fd.write("\n")
 
-    def write_relu(fd, node, emit_streams=True, write_blocks=True):
+    def write_relu(
+        fd,
+        node,
+        emit_streams=True,
+        write_blocks=True,
+        last_flag=0
+    ):
 
         node_name = node.name.replace(".", "_").lower()
         input_name = node.input[0].replace(".", "_")
@@ -190,6 +215,7 @@ def write(
             fd.write("\t\tc_%s_ih\n" % (node_name))
             fd.write("\t> (\n")
             fd.write("\t\ts_%s,\n" % (input_name))
+            fd.write("\t\ts_last_split[%0d],\n" % (last_flag))
             fd.write("\t\ts_%s\n" % (output_name))
             fd.write("\t);\n")
 
@@ -238,7 +264,13 @@ def write(
 
             fd.write("\n")
 
-    def write_average_pool(fd, node, emit_streams=True, write_blocks=True):
+    def write_average_pool(
+        fd,
+        node,
+        emit_streams=True,
+        write_blocks=True,
+        last_flag=0
+    ):
 
         node_name = node.name.replace(".", "_").lower()
 
@@ -270,12 +302,19 @@ def write(
             fd.write("\t\tc_%s_pad\n" % (node_name))
             fd.write("\t> (\n")
             fd.write("\t\ts_%s,\n" % (input_name))
+            fd.write("\t\ts_last_split[%0d],\n" % (last_flag))
             fd.write("\t\ts_%s\n" % (output_name))
             fd.write("\t);\n")
 
             fd.write("\n")
 
-    def write_pad(fd, node, emit_streams=True, write_blocks=True):
+    def write_pad(
+        fd,
+        node,
+        emit_streams=True,
+        write_blocks=True,
+        last_flag=0
+    ):
 
         node_name = node.name.replace(".", "_").lower()
 
@@ -303,6 +342,7 @@ def write(
             fd.write("\t\tc_%s_pad\n" % (node_name))
             fd.write("\t> (\n")
             fd.write("\t\ts_%s,\n" % (input_name))
+            fd.write("\t\ts_last_split[%0d],\n" % (last_flag))
             fd.write("\t\ts_%s\n" % (output_name))
             fd.write("\t);\n")
 
@@ -342,7 +382,13 @@ def write(
                 fd.write("};\n")
                 fd.write("\n")
 
-    def write_conv(fd, node, emit_streams=True, write_blocks=True):
+    def write_conv(
+        fd,
+        node,
+        emit_streams=True,
+        write_blocks=True,
+        last_flag=0
+    ):
 
         node_name = node.name.replace(".", "_").lower()
 
@@ -441,6 +487,15 @@ def write(
 
         fd.write("\n")
 
+        fd.write("\tSplitStream<\n")
+        fd.write("\t\tc_%s_split\n" % (node_name))
+        fd.write("\t>(\n")
+        fd.write("\t\ts_last_split[%0d],\n" % (last_flag))
+        fd.write("\t\ts_last_%s\n" % (node_name))
+        fd.write("\t);\n")
+
+        fd.write("\n")
+
         if write_blocks:
             if (no_skip):
                 fd.write("\tPackedConvBuffAcc<\n")
@@ -472,6 +527,7 @@ def write(
                 fd.write("\t\ts_%s,\n" % (weight_name))
                 if (bias):
                     fd.write("\t\ts_%s,\n" % (bias_name))
+                fd.write("\t\ts_last_%s[0],\n" % (node_name))
                 fd.write("\t\ts_%s\n" % (output_name))
                 fd.write("\t);\n")
             else:
@@ -500,6 +556,7 @@ def write(
                 else:
                     fd.write("\t\ts_%s,\n" % (input_name))
                 fd.write("\t\ts_%s,\n" % (weight_name))
+                fd.write("\t\ts_last_%s[0],\n" % (node_name))
                 fd.write("\t\ts_%s,\n" % (output_name))
                 fd.write("\t\ts_%s\n" % (skip_name))
                 fd.write("\t);\n")
@@ -508,11 +565,14 @@ def write(
 
     def write_body(fd, model, emit_streams=True, write_blocks=True):
 
+        layers_n = 0
+
         for node_level in reordered_layers:
             for node in node_level:
 
                 if 'conv' in node.op_type.lower():
-                    write_conv(fd, node, emit_streams, write_blocks)
+                    write_conv(fd, node, emit_streams, write_blocks, layers_n)
+                    layers_n = layers_n + 1
                     continue
 
                 if 'add' == node.op_type.lower():
@@ -524,18 +584,23 @@ def write(
 
                 if 'relu' == node.op_type.lower():
                     if node.name not in replaced_relu:
-                        write_relu(fd, node, emit_streams, write_blocks)
+                        write_relu(fd, node, emit_streams, write_blocks, layers_n)
+                        layers_n = layers_n + 1
                     continue
 
                 if 'pool' in node.op_type.lower():
                     if 'average' in node.op_type.lower():
-                        write_average_pool(fd, node, emit_streams, write_blocks)
+                        write_average_pool(fd, node, emit_streams, write_blocks, layers_n)
+                        layers_n = layers_n + 1
                     continue
 
                 if 'pad' in node.op_type.lower():
-                    write_pad(fd, node, emit_streams, write_blocks)
+                    write_pad(fd, node, emit_streams, write_blocks, layers_n)
+                    layers_n = layers_n + 1
 
-    def write_footer(fd):
+        return layers_n
+
+    def write_footer(fd, layers_allocated):
 
         for output in model.graph.output:
             output_name = output.name.replace(".", "_")
@@ -549,7 +614,7 @@ def write(
             fd.write("\t\tc_%s_oh\n" % (output_name))
             fd.write("\t> (\n")
             fd.write("\t\ts_%s,\n" % (output_name))
-            fd.write("\t\ts_last,\n")
+            fd.write("\t\ts_last[%0d],\n" % layers_allocated)
             fd.write("\t\to_data\n")
             fd.write("\t);\n")
 
@@ -560,9 +625,15 @@ def write(
 
         write_header(fd)
 
-        write_body(fd, model, emit_streams=True, write_blocks=False)
+        layers_allocated = write_body(
+            fd,
+            model,
+            emit_streams=True,
+            write_blocks=False
+        )
+        write_last_flags(fd, layers_allocated)
         write_body(fd, model, emit_streams=False, write_blocks=True)
 
-        write_footer(fd)
+        write_footer(fd, layers_allocated)
 
     return conv_relu
