@@ -136,7 +136,7 @@ def write(
     def write_last_flags(fd, layers_allocated):
         fd.write(
             "\thls::stream<ap_uint<1>> s_last_split[%0d];\n" % (
-                layers_allocated
+                layers_allocated + 1
             )
         )
         fd.write(
