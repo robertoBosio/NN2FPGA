@@ -660,7 +660,7 @@ def write(
             fd.write("\t\tc_%s_oh\n" % (output_name))
             fd.write("\t> (\n")
             fd.write("\t\ts_%s,\n" % (output_name))
-            fd.write("\t\ts_last[%0d],\n" % layers_allocated)
+            fd.write("\t\ts_last_split[%0d],\n" % layers_allocated)
             fd.write("\t\to_data\n")
             fd.write("\t);\n")
 
