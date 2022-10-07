@@ -477,20 +477,19 @@ def write(
         c_stride = getattr(attributes[4], 'ints')[0]
 
         if emit_streams:
-            if last_flag != 0:
-                fd.write("\n")
+            fd.write("\n")
 
-                fd.write(
-                    "\thls::stream<ap_uint<1>> s_last_%s[c_%s_split];\n" % (
-                        node_name,
-                        node_name
-                    )
+            fd.write(
+                "\thls::stream<ap_uint<1>> s_last_%s[c_%s_split];\n" % (
+                    node_name,
+                    node_name
                 )
-                fd.write(
-                    "\t#pragma HLS STREAM variable=s_last_%s depth=10 type=fifo\n" % (
-                        node_name
-                    )
+            )
+            fd.write(
+                "\t#pragma HLS STREAM variable=s_last_%s depth=10 type=fifo\n" % (
+                    node_name
                 )
+            )
 
             fd.write("\n")
 
