@@ -4,9 +4,9 @@
 #include "hls_stream.h"
 #include "ap_int.h"
 #include <stdint.h>
-#define c_i_data 32
+#define c_i_data 64
 typedef ap_axiu<c_i_data, 0, 0, 0> t_i_data;
-#define c_o_data 32
+#define c_o_data 8
 typedef ap_axiu<c_o_data, 0, 0, 0> t_o_data;
 #define c_last_depth 256
 typedef ap_uint<1> t_last;
@@ -735,7 +735,7 @@ const int c_conv_51_stride = 1;
 const int c_conv_51_pad    = 0;
 
 void Network(
-	t_i_data* i_data,
-	t_o_data* o_data
+	hls::stream<t_i_data> &i_data,
+	hls::stream<t_o_data> &o_data
 );
 #endif

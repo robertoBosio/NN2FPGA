@@ -56,19 +56,26 @@ template <
 	hls::stream<t_output> &s_i_data
 ) {
 
-	const int c_par = c_bits/8;
-	const int c_index = c_ich*c_ih*c_iw/c_par;
+	const int c_par = c_i_data/8;
+	const int c_index = (c_ich*c_ih*c_iw)/c_par;
 
-	t_input tmp_r;
-	PRODSTR: for (int s_index = 0; s_index < c_index; s_index++) {
-		tmp_r = i_data.read();
-		for (int s_par = 0; s_par < c_par; s_par++) {
-			#pragma HLS pipeline
-			t_output tmp_w = (t_output)(tmp_r.data((s_par + 1)*8-1,s_par*8));
-			s_i_data.write(tmp_w);
+	while(1) {
+
+		t_input tmp_r;
+		PRODSTR: for (int s_index = 0; s_index < c_index; s_index++) {
+			tmp_r = i_data.read();
+			for (int s_par = 0; s_par < c_par; s_par++) {
+#pragma HLS pipeline
+				t_output tmp_w = (t_output)(tmp_r.data(8*(s_par+1)-1,8*s_par));
+				s_i_data.write(tmp_w);
+			}
 		}
+		o_last.write(tmp_r.last);
+
+		if (tmp_r.last)
+			break;
+
 	}
-	o_last.write(tmp_r.last);
 
 }
 
@@ -120,17 +127,20 @@ template <
 	const int c_ch = c_ich*c_och;
 #pragma HLS array_partition type=cyclic factor=c_stream_sel variable=i_data
 
-	for (uint16_t s_index = 0; s_index < c_index; s_index++) {
-		uint16_t s_addr = 0;
-		for (uint16_t s_ch = 0; s_ch < c_ch; s_ch++) {
-			for (uint8_t s_stream_sel = 0; s_stream_sel < c_stream_sel; s_stream_sel++) {
-				#pragma HLS UNROLL
-				o_data[s_stream_sel].write((t_output)(i_data[s_addr]));
-				s_addr++;
+	while(1) {
+
+		for (uint16_t s_index = 0; s_index < c_index; s_index++) {
+			uint16_t s_addr = 0;
+			for (uint16_t s_ch = 0; s_ch < c_ch; s_ch++) {
+				for (uint8_t s_stream_sel = 0; s_stream_sel < c_stream_sel; s_stream_sel++) {
+					#pragma HLS UNROLL
+					o_data[s_stream_sel].write((t_output)(i_data[s_addr]));
+					s_addr++;
+				}
 			}
 		}
-	}
 
+	}
 }
 
 template <
@@ -219,6 +229,90 @@ template <
 	}
 
 }
+
+template <
+	class t_input,
+	class t_output,
+	int c_och,
+	int c_ow,
+	int c_oh
+> void ConsumeStream(
+	hls::stream<t_input> &i_data,
+	hls::stream<ap_uint<1>> &i_last,
+	hls::stream<t_output> &o_data
+) {
+
+#ifndef __SYNTHESIS__
+
+	if (i_data.empty())
+		return;
+
+#endif
+
+	const int c_index = c_och*c_oh*c_ow;
+
+	while(1) {
+
+		for (int s_index = 0; s_index < c_index-1; s_index++) {
+
+			t_input s_read = i_data.read();
+			t_output tmp;
+			tmp.data = s_read;
+			tmp.last = false;
+			tmp.keep = -1;
+			o_data.write(tmp);
+
+		}
+
+		t_output tmp;
+		t_input s_read = i_data.read();
+		tmp.data = s_read;
+		tmp.last = i_last.read();
+		tmp.keep = -1;
+		o_data.write(tmp);
+
+	}
+
+}
+
+/* template < */
+/* 	class t_input, */
+/* 	class t_output, */
+/* 	int c_och, */
+/* 	int c_ow, */
+/* 	int c_oh */
+/* > void ConsumeStream( */
+/* 	hls::stream<t_input> &i_data, */
+/* 	hls::stream<ap_uint<1>> &i_last, */
+/* 	hls::stream<t_output> &o_data */
+/* ) { */
+
+/* #ifndef __SYNTHESIS__ */
+
+/* 	if (i_data.empty()) */
+/* 		return; */
+
+/* #endif */
+
+/* 	const int c_par = c_bits/8; */
+/* 	const int c_index = c_och*c_oh*c_ow/c_par; */
+/* 	const int c_out_pad = (c_och*c_oh*c_ow)%c_par; */
+
+/* 	for (int s_index = 0; s_index < c_index-1; s_index++) { */
+
+/* 		t_input s_read = i_data.read(); */
+/* 		tmp.data = s_read; */
+/* 		tmp.last = false; */
+/* 		o_data.write(tmp); */
+
+/* 	} */
+
+/* 	t_input s_read = i_data.read(); */
+/* 	tmp.data = s_read; */
+/* 	tmp.last = i_last.read(); */
+/* 	o_data.write(tmp); */
+
+/* } */
 
 template <
 	class t_input,

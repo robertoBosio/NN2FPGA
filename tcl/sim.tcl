@@ -2,7 +2,6 @@ set impl_sel "solution_0"
 
 set PRJ_NAME Network
 
-delete_project ${PRJ_NAME}_ip
 open_project ${PRJ_NAME}_ip
 set_top ${PRJ_NAME}
 

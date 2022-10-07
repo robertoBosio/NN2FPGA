@@ -38,59 +38,63 @@ template <
 	const int c_stridew_shift = (c_str-1)*c_ich;
 	const int c_end_paddingh_shift = (c_fh - 1 - c_bypass)*c_iw_pad*c_ich;
 
-	/* Shifting first lines through the fifo chain */
-	/* After this shift, all the useless computations with data at the borders are */
-	/* skipped */
-	for (uint16_t s_index = 0; s_index < c_paddingh_shift; s_index++) {
-		t_input s_input = i_data.read();
-	}
+	while(1) {
 
-	for (uint8_t s_ih = c_starth; s_ih < c_ih; s_ih+=c_str) {
-
-		/* Start shifting for padding */
-		/* After this shift, the first row data are shifted forward */
-		for (uint16_t s_index = 0; s_index < c_paddingw_shift; s_index++) {
+		/* Shifting first lines through the fifo chain */
+		/* After this shift, all the useless computations with data at the borders are */
+		/* skipped */
+		for (uint16_t s_index = 0; s_index < c_paddingh_shift; s_index++) {
 			t_input s_input = i_data.read();
 		}
 
-		for (uint8_t s_iw = c_startw; s_iw < c_iw; s_iw+=c_str) {
+		for (uint8_t s_ih = c_starth; s_ih < c_ih; s_ih+=c_str) {
 
-			t_acc s_acc_buff[c_och] = {0};
-
-			for (uint8_t s_och = 0; s_och < c_och; s_och++) {
-				s_acc_buff[s_och] += i_data.read();
+			/* Start shifting for padding */
+			/* After this shift, the first row data are shifted forward */
+			for (uint16_t s_index = 0; s_index < c_paddingw_shift; s_index++) {
+				t_input s_input = i_data.read();
 			}
 
-			for (uint8_t s_och = 0; s_och < c_och; s_och++) {
-				o_acc.write(s_acc_buff[s_och]); 
+			for (uint8_t s_iw = c_startw; s_iw < c_iw; s_iw+=c_str) {
+
+				t_acc s_acc_buff[c_och] = {0};
+
+				for (uint8_t s_och = 0; s_och < c_och; s_och++) {
+					s_acc_buff[s_och] += i_data.read();
+				}
+
+				for (uint8_t s_och = 0; s_och < c_och; s_och++) {
+					o_acc.write(s_acc_buff[s_och]); 
+				}
+
+				for (uint8_t s_index = 0; s_index < c_stridew_shift; s_index++) {
+					t_input s_input = i_data.read();
+				}
 			}
 
-			for (uint8_t s_index = 0; s_index < c_stridew_shift; s_index++) {
+			/* Start shifting for h stride */
+			for (uint16_t s_index = 0; s_index < c_strideh_shift; s_index++) {
 				t_input s_input = i_data.read();
 			}
 		}
 
-		/* Start shifting for h stride */
-		for (uint16_t s_index = 0; s_index < c_strideh_shift; s_index++) {
+#ifndef __SYNTHESIS__
+
+		if (c_end_paddingh_shift > 0)
+			while(i_data.empty());
+
+#endif
+
+		for (uint16_t s_index = 0; s_index < c_end_paddingh_shift; s_index++) {
 			t_input s_input = i_data.read();
 		}
-	}
 
 #ifndef __SYNTHESIS__
-
-	if (c_end_paddingh_shift > 0)
-		while(i_data.empty());
-
+		EmptyStream<t_input>(i_data);
+		std::cout << "AVERAGEOP: " << c_ih << " " << c_iw << " " << c_ich << " " << c_str << " " << c_pad << " " << std::endl;
 #endif
 
-	for (uint16_t s_index = 0; s_index < c_end_paddingh_shift; s_index++) {
-		t_input s_input = i_data.read();
 	}
-
-#ifndef __SYNTHESIS__
-	EmptyStream<t_input>(i_data);
-	std::cout << "AVERAGEOP: " << c_ih << " " << c_iw << " " << c_ich << " " << c_str << " " << c_pad << " " << std::endl;
-#endif
 
 }
 
@@ -109,14 +113,16 @@ template <
 
 	const uint8_t c_average_scale = (uint8_t)(log2(c_fh*c_fw));
 
-	for (uint8_t s_oh = 0; s_oh < c_oh; s_oh++) {
-		for (uint8_t s_ow = 0; s_ow < c_ow; s_ow++) {
-			for (uint8_t s_och = 0; s_och < c_och; s_och++) {
+	while(1) {
+		for (uint8_t s_oh = 0; s_oh < c_oh; s_oh++) {
+			for (uint8_t s_ow = 0; s_ow < c_ow; s_ow++) {
+				for (uint8_t s_och = 0; s_och < c_och; s_och++) {
 #pragma HLS loop_flatten
 #pragma HLS PIPELINE off
-				t_acc s_acc = i_data.read();
-				s_acc = s_acc >> c_average_scale;
-				o_data.write((t_output)(s_acc));
+					t_acc s_acc = i_data.read();
+					s_acc = s_acc >> c_average_scale;
+					o_data.write((t_output)(s_acc));
+				}
 			}
 		}
 	}

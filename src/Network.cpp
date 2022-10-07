@@ -15,7 +15,7 @@ void Network(
 
 	#pragma HLS interface axis port=i_data
 	#pragma HLS interface axis port=o_data
-	#pragma HLS INTERFACE mode=ap_ctrl_none port=return
+	#pragma HLS INTERFACE s_axilite port=return
 	#pragma HLS DATAFLOW
 
 	hls::stream<t_input> s_input("s_input");
@@ -3400,8 +3400,7 @@ void Network(
 		t_o_data,
 		c_output_och,
 		c_output_ow,
-		c_output_oh,
-		c_o_data
+		c_output_oh
 	> (
 		s_output,
 		s_last,
