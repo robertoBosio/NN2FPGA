@@ -332,9 +332,9 @@ def write(
                 fd.write("\tconst uint8_t c_%s_st_%0d[] = {\n" % (weight_name, ih*c_iw+iw))
                 for och in range(weights.shape[0]):
                     for ich in range(weights.shape[1]):
-                        fd.write("%.2f" % (weights[och][ich][ih][iw]))
-                        # weight_value = np.random.randint(0, 256)
-                        # fd.write("%0d" % (weight_value))
+                        # fd.write("%.2f" % (weights[och][ich][ih][iw]))
+                        weight_value = np.random.randint(0, 256)
+                        fd.write("%0d" % (weight_value))
                         fd.write(", ")
 
                 fd.write("0")
@@ -546,8 +546,7 @@ def write(
             fd.write("\t\tt_o_data,\n")
             fd.write("\t\tc_%s_och,\n" % (output_name))
             fd.write("\t\tc_%s_ow,\n" % (output_name))
-            fd.write("\t\tc_%s_oh,\n" % (output_name))
-            fd.write("\t\tc_o_data\n")
+            fd.write("\t\tc_%s_oh\n" % (output_name))
             fd.write("\t> (\n")
             fd.write("\t\ts_%s,\n" % (output_name))
             fd.write("\t\ts_last,\n")

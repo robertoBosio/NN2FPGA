@@ -25,10 +25,10 @@ def write(
         fd.write("#include <stdint.h>\n")
 
         # Handle internal or external parameters
-        fd.write("#define c_i_data 32\n")
+        fd.write("#define c_i_data 64\n")
         fd.write("typedef ap_axiu<c_i_data, 0, 0, 0> t_i_data;\n")
         # fd.write("typedef int8_t t_weight;\n")
-        fd.write("#define c_o_data 32\n")
+        fd.write("#define c_o_data 8\n")
         fd.write("typedef ap_axiu<c_o_data, 0, 0, 0> t_o_data;\n")
 
         fd.write("#define c_last_depth 256\n")
@@ -180,10 +180,10 @@ def write(
         c_och    = getattr(output_shape, 'dim')[1].dim_value
         c_oh     = getattr(output_shape, 'dim')[2].dim_value
         c_ow     = getattr(output_shape, 'dim')[3].dim_value
-        c_fh     = getattr(attributes[0], 'ints')[0]
-        c_fw     = getattr(attributes[0], 'ints')[1]
-        c_stride = getattr(attributes[2], 'ints')[0]
-        c_pad    = getattr(attributes[1], 'ints')[0]
+        c_fh     = getattr(attributes[1], 'ints')[0]
+        c_fw     = getattr(attributes[1], 'ints')[1]
+        c_stride = getattr(attributes[3], 'ints')[0]
+        c_pad    = getattr(attributes[2], 'ints')[0]
 
         fd.write("const int c_%s_ich    = %d;\n" % (node_name, c_ich))
         fd.write("const int c_%s_och    = %d;\n" % (node_name, c_och))
@@ -224,7 +224,7 @@ def write(
         c_och    = getattr(output_shape, 'dim')[1].dim_value
         c_oh     = getattr(output_shape, 'dim')[2].dim_value
         c_ow     = getattr(output_shape, 'dim')[3].dim_value
-        c_pad    = getattr(attributes[1], 'ints')[0]
+        # c_pad    = getattr(attributes[1], 'ints')[0]
 
         fd.write("const int c_%s_ich    = %d;\n" % (node_name, c_ich))
         fd.write("const int c_%s_och    = %d;\n" % (node_name, c_och))
@@ -232,7 +232,7 @@ def write(
         fd.write("const int c_%s_iw     = %d;\n" % (node_name, c_iw))
         fd.write("const int c_%s_oh     = %d;\n" % (node_name, c_oh))
         fd.write("const int c_%s_ow     = %d;\n" % (node_name, c_ow))
-        fd.write("const int c_%s_pad    = %d;\n" % (node_name, c_pad))
+        fd.write("const int c_%s_pad    = %d;\n" % (node_name, 0))
 
         fd.write("\n")
 

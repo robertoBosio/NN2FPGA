@@ -46,7 +46,7 @@ test_loader = torch.utils.data.DataLoader(
 
 model = resnet20.resnet20()
 state_dict = torch.load(
-    "./tmp/resnet20_w8a8.weights",
+    "./tmp/resnet20.weights",
     map_location=torch.device('cpu')
 )
 
