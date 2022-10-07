@@ -58,7 +58,7 @@ def write(
 
             write_stream(fd, "input", "c_%s_ich" % input_name)
             fd.write("#define c_last_depth 256\n")
-            write_stream(fd, "last", "c_last_depth")
+            write_stream(fd, "last", "256")
 
         fd.write("\n")
 
@@ -476,31 +476,31 @@ def write(
         	pointwise = True 
         c_stride = getattr(attributes[4], 'ints')[0]
 
-        fd.write("\n")
-
-        fd.write(
-            "\thls::stream<ap_uint<1>> s_last_%s[c_%s_split];\n" % (
-                node_name,
-                node_name
-            )
-        )
-        fd.write(
-            "\t#pragma HLS STREAM variable=s_last_%s depth=10 type=fifo\n" % (
-                node_name
-            )
-        )
-
-
-        fd.write("\n")
-
-        fd.write("\tSplitStream<\n")
-        fd.write("\t\tc_%s_split\n" % (node_name))
-        fd.write("\t>(\n")
-        fd.write("\t\ts_last_split[%0d],\n" % (last_flag))
-        fd.write("\t\ts_last_%s\n" % (node_name))
-        fd.write("\t);\n")
-
         if emit_streams:
+            if last_flag != 0:
+                fd.write("\n")
+
+                fd.write(
+                    "\thls::stream<ap_uint<1>> s_last_%s[c_%s_split];\n" % (
+                        node_name,
+                        node_name
+                    )
+                )
+                fd.write(
+                    "\t#pragma HLS STREAM variable=s_last_%s depth=10 type=fifo\n" % (
+                        node_name
+                    )
+                )
+
+            fd.write("\n")
+
+            fd.write("\tSplitStream<\n")
+            fd.write("\t\tc_%s_split\n" % (node_name))
+            fd.write("\t>(\n")
+            fd.write("\t\ts_last_split[%0d],\n" % (last_flag))
+            fd.write("\t\ts_last_%s\n" % (node_name))
+            fd.write("\t);\n")
+
             write_weights(weight_shape, weight_name)
         # Given stride a different weight stream is selected
         write_internal_weight(
