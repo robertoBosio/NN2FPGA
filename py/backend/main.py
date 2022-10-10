@@ -56,7 +56,7 @@ def write(
             input_name = input_name.lower().replace("onnx::", "")
             # input_shape = tensors_info[model.graph.input[0].name].tensor_type.shape
 
-            write_stream(fd, "input", "c_%s_ich" % input_name)
+            write_stream(fd, "input", "2*c_%s_ich" % input_name)
             fd.write("#define c_last_depth 256\n")
             write_stream(fd, "last", "256")
 

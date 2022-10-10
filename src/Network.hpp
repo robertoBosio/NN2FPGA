@@ -237,7 +237,7 @@ const int c_conv_14_oh     = 32;
 const int c_conv_14_fw     = 3;
 const int c_conv_14_fh     = 3;
 const int c_conv_14_relu   = 1;
-const int c_input_52_split  = 10;
+const int c_input_52_split  = 2;
 const int c_conv_14_stride = 1;
 const int c_conv_14_pad    = 1;
 const int c_conv_14_split  = 10;
@@ -463,7 +463,7 @@ const int c_conv_30_oh     = 16;
 const int c_conv_30_fw     = 3;
 const int c_conv_30_fh     = 3;
 const int c_conv_30_relu   = 1;
-const int c_input_104_split  = 10;
+const int c_input_104_split  = 2;
 const int c_conv_30_stride = 1;
 const int c_conv_30_pad    = 1;
 const int c_conv_30_split  = 10;
@@ -756,7 +756,7 @@ const int c_conv_52_pad    = 0;
 const int c_conv_52_split  = 2;
 
 void Network(
-	t_i_data* i_data,
-	t_o_data* o_data
+	hls::stream<t_i_data> &i_data,
+	hls::stream<t_o_data> &o_data
 );
 #endif

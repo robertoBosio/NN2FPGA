@@ -15,11 +15,11 @@ void Network(
 
 	#pragma HLS interface axis port=i_data
 	#pragma HLS interface axis port=o_data
-	#pragma HLS INTERFACE s_axilite port=return
+	#pragma HLS INTERFACE ap_ctrl_none port=return
 	#pragma HLS DATAFLOW
 
 	hls::stream<t_input> s_input("s_input");
-	#pragma HLS STREAM variable=s_input depth=c_input_ich type=fifo
+	#pragma HLS STREAM variable=s_input depth=c_input_ich*2 type=fifo
 #define c_last_depth 256
 	hls::stream<t_last> s_last("s_last");
 	#pragma HLS STREAM variable=s_last depth=256 type=fifo
