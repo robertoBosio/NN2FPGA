@@ -58,7 +58,7 @@ def write(
 
             write_stream(fd, "input", "c_%s_ich" % input_name)
             fd.write("#define c_last_depth 256\n")
-            write_stream(fd, "last", "256")
+            # write_stream(fd, "last", "256")
 
         fd.write("\n")
 
@@ -72,7 +72,7 @@ def write(
             fd.write("\t\tc_i_data\n")
             fd.write("\t>(\n")
             fd.write("\t\ti_data,\n")
-            fd.write("\t\ts_last,\n")
+            fd.write("\t\ts_last_split[0],\n")
             fd.write("\t\ts_%s\n" % (input_name))
             fd.write("\t);\n")
 
@@ -143,12 +143,12 @@ def write(
             "\t#pragma HLS STREAM variable=s_last_split depth=10 type=fifo\n"
         )
 
-        fd.write("\tSplitStream<\n")
-        fd.write("\t\t%0d\n" % (layers_allocated + 1))
-        fd.write("\t>(\n")
-        fd.write("\t\ts_last,\n")
-        fd.write("\t\ts_last_split\n")
-        fd.write("\t);\n")
+        # fd.write("\tSplitStream<\n")
+        # fd.write("\t\t%0d\n" % (layers_allocated + 1))
+        # fd.write("\t>(\n")
+        # fd.write("\t\ts_last,\n")
+        # fd.write("\t\ts_last_split\n")
+        # fd.write("\t);\n")
 
         fd.write("\n")
 
@@ -183,7 +183,7 @@ def write(
                     fd.write("\t>(\n")
                     fd.write("\t\tc_%s_st_%0d,\n" % (name, ih*c_iw+iw))
                     fd.write("\t\ts_last_%s[%0d],\n" % (
-                            node_name, 1 + ih*c_iw+iw
+                            node_name, ih*c_iw+iw
                         )
                     )
                     fd.write("\t\ts_%s[%0d]\n" % (name, ih*c_iw+iw))
@@ -220,6 +220,7 @@ def write(
             fd.write("\t> (\n")
             fd.write("\t\ts_%s,\n" % (input_name))
             fd.write("\t\ts_last_split[%0d],\n" % (last_flag))
+            fd.write("\t\ts_last_split[%0d],\n" % (last_flag+1))
             fd.write("\t\ts_%s\n" % (output_name))
             fd.write("\t);\n")
 
@@ -307,6 +308,7 @@ def write(
             fd.write("\t> (\n")
             fd.write("\t\ts_%s,\n" % (input_name))
             fd.write("\t\ts_last_split[%0d],\n" % (last_flag))
+            fd.write("\t\ts_last_split[%0d],\n" % (last_flag+1))
             fd.write("\t\ts_%s\n" % (output_name))
             fd.write("\t);\n")
 
@@ -347,6 +349,7 @@ def write(
             fd.write("\t> (\n")
             fd.write("\t\ts_%s,\n" % (input_name))
             fd.write("\t\ts_last_split[%0d],\n" % (last_flag))
+            fd.write("\t\ts_last_split[%0d],\n" % (last_flag+1))
             fd.write("\t\ts_%s\n" % (output_name))
             fd.write("\t);\n")
 
@@ -461,6 +464,15 @@ def write(
         output_name = output_name.replace(".", "_")
         output_name = output_name.lower().replace("onnx::", "")
 
+        if write_blocks:
+            fd.write("\tSplitStream<\n")
+            fd.write("\t\tc_%s_split\n" % (node_name))
+            fd.write("\t>(\n")
+            fd.write("\t\ts_last_split[%0d],\n" % (last_flag))
+            fd.write("\t\ts_last_%s\n" % (node_name))
+            fd.write("\t);\n")
+            fd.write("\n")
+
         if emit_streams:
             if (split):
                 write_array_stream(fd, output_name, "c_%s_ich" % node_name, 2)
@@ -493,13 +505,6 @@ def write(
 
             fd.write("\n")
 
-            fd.write("\tSplitStream<\n")
-            fd.write("\t\tc_%s_split\n" % (node_name))
-            fd.write("\t>(\n")
-            fd.write("\t\ts_last_split[%0d],\n" % (last_flag))
-            fd.write("\t\ts_last_%s\n" % (node_name))
-            fd.write("\t);\n")
-
             write_weights(weight_shape, weight_name)
         # Given stride a different weight stream is selected
         write_internal_weight(
@@ -515,6 +520,7 @@ def write(
         fd.write("\n")
 
         if write_blocks:
+
             if (no_skip):
                 fd.write("\tPackedConvBuffAcc<\n")
                 fd.write("\t\tt_%s,\n" % (input_name))
@@ -545,7 +551,8 @@ def write(
                 fd.write("\t\ts_%s,\n" % (weight_name))
                 if (bias):
                     fd.write("\t\ts_%s,\n" % (bias_name))
-                fd.write("\t\ts_last_%s[0],\n" % (node_name))
+                fd.write("\t\ts_last_%s[c_%s_fh*c_%s_fw],\n" % (node_name, node_name, node_name))
+                fd.write("\t\ts_last_split[%0d],\n" % (last_flag + 1))
                 fd.write("\t\ts_%s\n" % (output_name))
                 fd.write("\t);\n")
             else:
@@ -574,7 +581,8 @@ def write(
                 else:
                     fd.write("\t\ts_%s,\n" % (input_name))
                 fd.write("\t\ts_%s,\n" % (weight_name))
-                fd.write("\t\ts_last_%s[0],\n" % (node_name))
+                fd.write("\t\ts_last_%s[c_%s_fh*c_%s_fw],\n" % (node_name, node_name, node_name))
+                fd.write("\t\ts_last_split[%0d],\n" % (last_flag + 1))
                 fd.write("\t\ts_%s,\n" % (output_name))
                 fd.write("\t\ts_%s\n" % (skip_name))
                 fd.write("\t);\n")
@@ -669,10 +677,11 @@ def write(
 
     with open("src/Network.cpp", "w+") as fd:
 
-        write_header(fd)
-
         layers_allocated = count_allocated(model)
+
+        write_header(fd)
         write_last_flags(fd, layers_allocated)
+
         write_body(fd, model, emit_streams=True, write_blocks=False)
         write_body(fd, model, emit_streams=False, write_blocks=True)
 

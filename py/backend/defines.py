@@ -286,17 +286,17 @@ def write(
 
         attributes = getattr(node, "attribute" )
 
-        c_ich    = getattr(input_shape, 'dim')[1].dim_value
-        c_ih     = getattr(input_shape, 'dim')[2].dim_value
-        c_iw     = getattr(input_shape, 'dim')[3].dim_value
-        c_och    = getattr(output_shape, 'dim')[1].dim_value
-        c_oh     = getattr(output_shape, 'dim')[2].dim_value
-        c_ow     = getattr(output_shape, 'dim')[3].dim_value
-        c_fh     = getattr(attributes[2], 'ints')[0]
-        c_fw     = getattr(attributes[2], 'ints')[1]
-        c_stride = getattr(attributes[4], 'ints')[0]
-        c_pad    = getattr(attributes[3], 'ints')[0]
-        c_split  = c_fh*c_fw+1
+        c_ich     = getattr(input_shape, 'dim')[1].dim_value
+        c_ih      = getattr(input_shape, 'dim')[2].dim_value
+        c_iw      = getattr(input_shape, 'dim')[3].dim_value
+        c_och     = getattr(output_shape, 'dim')[1].dim_value
+        c_oh      = getattr(output_shape, 'dim')[2].dim_value
+        c_ow      = getattr(output_shape, 'dim')[3].dim_value
+        c_fh      = getattr(attributes[2], 'ints')[0]
+        c_fw      = getattr(attributes[2], 'ints')[1]
+        c_stride  = getattr(attributes[4], 'ints')[0]
+        c_pad     = getattr(attributes[3], 'ints')[0]
+        c_l_split = c_fh*c_fw+1
         if node.name in conv_relu:
             c_relu = 1
         else:
@@ -316,7 +316,7 @@ def write(
         fd.write("const int c_%s_split  = %d;\n" % (output_name, c_split))
         fd.write("const int c_%s_stride = %d;\n" % (node_name, c_stride))
         fd.write("const int c_%s_pad    = %d;\n" % (node_name, c_pad))
-        fd.write("const int c_%s_split  = %d;\n" % (node_name, c_split))
+        fd.write("const int c_%s_split  = %d;\n" % (node_name, c_l_split))
 
         fd.write("\n")
 
