@@ -351,8 +351,8 @@ def write(
 
         # Adding prototype declaration
         fd.write("void Network(\n")
-        fd.write("\tt_i_data* i_data,\n")
-        fd.write("\tt_o_data* o_data\n")
+        fd.write("\thls::stream<t_i_data> &i_data,\n")
+        fd.write("\thls::stream<t_o_data> &o_data\n")
         fd.write(");\n")
 
         # End of main file

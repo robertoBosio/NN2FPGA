@@ -59,13 +59,23 @@ template <
 > void ProduceStream(
 	hls::stream<t_input> &i_data,
 	hls::stream<ap_uint<1>> &o_last,
-	hls::stream<t_output> &s_i_data
+	hls::stream<t_output> &o_data
 ) {
 
 	const int c_par = c_i_data/8;
 	const int c_index = (c_ich*c_ih*c_iw)/c_par;
 
+#ifndef __SYNTHESIS__
+
+	while(i_data.empty());
+
+#endif
+
 	while(1) {
+
+#ifndef __SYNTHESIS__
+		int s_dbg_count_bytes = 0;
+#endif
 
 		t_input tmp_r;
 		PRODSTR: for (int s_index = 0; s_index < c_index; s_index++) {
@@ -73,15 +83,32 @@ template <
 			for (int s_par = 0; s_par < c_par; s_par++) {
 #pragma HLS pipeline
 				t_output tmp_w = (t_output)(tmp_r.data(8*(s_par+1)-1,8*s_par));
-				s_i_data.write(tmp_w);
+				o_data.write(tmp_w);
 			}
+
+#ifndef __SYNTHESIS__
+			s_dbg_count_bytes += c_par;
+#endif
+			
 		}
 		o_last.write(tmp_r.last);
+
+#ifndef __SYNTHESIS__
+
+		std::cout << "Read " << s_dbg_count_bytes << " bytes" << std::endl;
+		std::cout << "Producing last signal" << std::endl;
+
+#endif
 
 		if (tmp_r.last)
 			break;
 
 	}
+
+#ifndef __SYNTHESIS__
+	EmptyStream<t_input>(i_data);
+	std::cout << "PRODUCESTREAM: " << c_ih << " " << c_iw << " " << c_ich << std::endl;
+#endif
 
 }
 
@@ -104,12 +131,19 @@ template <
 
 	const int c_index = c_och*c_ich*c_ih*c_iw;
 
-	for (int s_oh = 0; s_oh < c_oh; s_oh++) {
-		for (int s_ow = 0; s_ow < c_ow; s_ow++) {
-			PRODSTR: for (int s_index = 0; s_index < c_index; s_index++) {
-				s_i_data.write((t_output)(i_data[s_index]));
+	while(1) {
+		for (int s_oh = 0; s_oh < c_oh; s_oh++) {
+			for (int s_ow = 0; s_ow < c_ow; s_ow++) {
+				PRODSTR: for (int s_index = 0; s_index < c_index; s_index++) {
+					s_i_data.write((t_output)(i_data[s_index]));
+				}
 			}
 		}
+
+		ap_uint<1> s_last;
+		s_last = i_last.read();
+		if (s_last)
+			break;
 	}
 
 }
@@ -535,6 +569,10 @@ template <
 	const int c_ih_pad = c_ih + c_pad_index_h*2;
 	const int c_iw_pad = c_iw + c_pad_index_w*2;
 
+#ifndef __SYNTHESIS__
+	while(i_data.empty());
+#endif
+
 	while(1) {
 
 		/* Top padding */
@@ -578,19 +616,20 @@ template <
 			}
 		}
 
-#ifndef __SYNTHESIS__
-		EmptyStream<t_input>(i_data);
-#endif
-
-#ifndef __SYNTHESIS__
-		std::cout << "PADINPUT: " << c_ih << " " << c_iw << " " << c_ich << std::endl;
-#endif
-
+/* // TODO: Problem seems multiple reads */
 		ap_uint<1> s_last = i_last.read();
 		if (s_last)
 			break;
 
 	}
+
+#ifndef __SYNTHESIS__
+	EmptyStream<t_input>(i_data);
+#endif
+
+#ifndef __SYNTHESIS__
+	std::cout << "PADINPUT: " << c_ih << " " << c_iw << " " << c_ich << std::endl;
+#endif
 
 }
 
@@ -710,6 +749,12 @@ template <
 	hls::stream<ap_uint<1>> &i_last,
 	hls::stream<t_output> o_data[c_split]
 ) {
+
+#ifndef __SYNTHESIS__
+
+	while(i_data.empty());
+
+#endif
 
 	while(1) {
 		for (uint8_t s_oh = 0; s_oh < c_oh; s_oh++) {

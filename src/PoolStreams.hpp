@@ -79,27 +79,20 @@ template <
 			}
 		}
 
-#ifndef __SYNTHESIS__
-
-		if (c_end_paddingh_shift > 0)
-			while(i_data.empty());
-
-#endif
-
 		for (uint16_t s_index = 0; s_index < c_end_paddingh_shift; s_index++) {
 			t_input s_input = i_data.read();
 		}
-
-#ifndef __SYNTHESIS__
-		EmptyStream<t_input>(i_data);
-		std::cout << "AVERAGEOP: " << c_ih << " " << c_iw << " " << c_ich << " " << c_str << " " << c_pad << " " << std::endl;
-#endif
 
 		ap_uint<1> s_last = i_last.read();
 		if (s_last)
 			break;
 
 	}
+
+#ifndef __SYNTHESIS__
+	EmptyStream<t_input>(i_data);
+	std::cout << "AVERAGEOP: " << c_ih << " " << c_iw << " " << c_ich << " " << c_str << " " << c_pad << " " << std::endl;
+#endif
 
 }
 

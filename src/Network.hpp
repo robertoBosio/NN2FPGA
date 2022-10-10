@@ -756,7 +756,7 @@ const int c_conv_52_pad    = 0;
 const int c_conv_52_split  = 2;
 
 void Network(
-	t_i_data* i_data,
-	t_o_data* o_data
+	hls::stream<t_i_data> &i_data,
+	hls::stream<t_o_data> &o_data
 );
 #endif
