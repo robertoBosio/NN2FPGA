@@ -47,7 +47,7 @@ def write(
             # fd.write("\t#pragma HLS interface m_axi port=o_data depth=10 offset=slave\n")
             fd.write("\t#pragma HLS interface axis port=i_data\n")
             fd.write("\t#pragma HLS interface axis port=o_data\n")
-            fd.write("\t#pragma HLS INTERFACE s_axilite port=return\n")
+            fd.write("\t#pragma HLS INTERFACE ap_ctrl_none port=return\n")
             fd.write("\t#pragma HLS DATAFLOW\n")
 
             fd.write("\n")
@@ -85,7 +85,7 @@ def write(
         fd.write("\thls::stream<t_%s> s_%s(\"s_%s\");\n" % (name, name, name))
         if (channels is None):
             fd.write(
-                "\t#pragma HLS STREAM variable=s_%s depth=2 type=fifo\n" % (
+                "\t#pragma HLS STREAM variable=s_%s depth=3 type=fifo\n" % (
                     name
                 )
             )
@@ -121,7 +121,7 @@ def write(
 
         if (channels is None):
             fd.write(
-                "\t#pragma HLS STREAM variable=s_%s depth=2 type=fifo\n" % (
+                "\t#pragma HLS STREAM variable=s_%s depth=3 type=fifo\n" % (
                     name
                 )
             )
@@ -439,7 +439,11 @@ def write(
 
                 # Declaring copied stream
                 if emit_streams:
-                    write_stream(fd, skip_name, "c_%s_ich" % node_name)
+                    write_stream(
+												fd,
+												skip_name,
+												"c_%s_ich*c_%s_och" % (node_name, node_name)
+										)
                 fd.write("\n")
 
         # Adding BIAS and merging to add layer
@@ -475,9 +479,18 @@ def write(
 
         if emit_streams:
             if (split):
-                write_array_stream(fd, output_name, "c_%s_ich" % node_name, 2)
+                write_array_stream(
+										fd,
+										output_name,
+										"c_%s_ich*c_%s_och" % (node_name, node_name),
+										2
+								)
             else:
-                write_stream(fd, output_name, "c_%s_ich" % node_name)
+                write_stream(
+										fd,
+										output_name,
+										"c_%s_ich*c_%s_och" % (node_name, node_name),
+								)
             fd.write("\n")
 
         attributes = getattr(node, "attribute" )

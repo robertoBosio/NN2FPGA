@@ -433,6 +433,7 @@ template <
 > void PadStream(
 	hls::stream<t_input> &i_data,
 	hls::stream<ap_uint<1>> &i_last,
+	hls::stream<ap_uint<1>> &o_last,
 	hls::stream<t_output> &o_data
 ) {
 
@@ -465,6 +466,7 @@ template <
 		}
 
 		ap_uint<1> s_last = i_last.read();
+		o_last.write(s_last);
 		if (s_last)
 			break;
 
@@ -558,6 +560,7 @@ template <
 > void PadInput(
 	hls::stream<t_input> &i_data,
 	hls::stream<ap_uint<1>> &i_last,
+	hls::stream<ap_uint<1>> &o_last,
 	hls::stream<t_input> &o_data
 ) {
 
@@ -618,6 +621,7 @@ template <
 
 /* // TODO: Problem seems multiple reads */
 		ap_uint<1> s_last = i_last.read();
+		o_last.write(s_last);
 		if (s_last)
 			break;
 
@@ -681,6 +685,7 @@ template <
 > void ForwardStream(
 	hls::stream<t_input> &i_data,
 	hls::stream<ap_uint<1>> &i_last,
+	hls::stream<ap_uint<1>> &o_last,
 	hls::stream<t_input> &o_forward
 ) {
 
@@ -710,6 +715,7 @@ template <
 		}
 
 		ap_uint<1> s_last = i_last.read();
+		o_last.write(s_last);
 		if (s_last)
 			break;
 
@@ -747,6 +753,7 @@ template <
 > void SplitStream(
 	hls::stream<t_output> &i_data,
 	hls::stream<ap_uint<1>> &i_last,
+	hls::stream<ap_uint<1>> &o_last,
 	hls::stream<t_output> o_data[c_split]
 ) {
 
@@ -770,6 +777,7 @@ template <
 		}
 
 		ap_uint<1> s_last = i_last.read();
+		o_last.write(s_last);
 		if (s_last)
 			break;
 	}

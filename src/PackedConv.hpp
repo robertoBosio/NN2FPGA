@@ -20,7 +20,8 @@ template <
 	int c_relu,
 	int c_str,
 	int c_pad,
-	int c_bypass
+	int c_bypass,
+	int c_bypass_w
 > void ShiftOp(
 	hls::stream<t_input> &i_data,
 	hls::stream<ap_uint<1>> &i_last,
@@ -29,7 +30,6 @@ template <
 
 	const int c_starth = (c_fh-1)*(1-c_pad);
 	const int c_startw = (c_fw-1)*(1-c_pad);
-	const int c_bypass_w = c_fw - 1;
 	const int c_pad_index_h = c_pad * (c_fh - 1) / 2;
 	const int c_pad_index_w = c_pad * (c_fw - 1) / 2;
 	const int c_ih_pad = c_ih + c_pad_index_h*2;
@@ -39,6 +39,7 @@ template <
 	const int c_strideh_shift = (c_str-1)*c_iw_pad*c_ich;
 	const int c_stridew_shift = (c_str-1)*c_ich;
 	const int c_end_paddingh_shift = (c_fh - 1 - c_bypass)*c_iw_pad*c_ich;
+	const int c_end_paddingw_shift = (c_fw - 1 - c_bypass_w)*c_ich;
 
 	while(1) {
 #ifndef __SYNTHESIS__
@@ -71,6 +72,10 @@ template <
 					t_input s_input = i_data.read();
 				}
 
+			}
+
+			for (uint16_t s_index = 0; s_index < c_end_paddingw_shift; s_index++) {
+				t_input s_input = i_data.read();
 			}
 
 			/* Start shifting for h stride */
@@ -123,7 +128,8 @@ template <
 	int c_relu,
 	int c_str,
 	int c_pad,
-	int c_bypass
+	int c_bypass,
+	int c_bypass_w
 > void ShiftOp(
 	hls::stream<t_input> &i_data,
 	hls::stream<ap_uint<1>> &i_last,
@@ -133,7 +139,6 @@ template <
 
 	const int c_starth = (c_fh-1)*(1-c_pad);
 	const int c_startw = (c_fw-1)*(1-c_pad);
-	const int c_bypass_w = c_fw - 1;
 	const int c_pad_index_h = c_pad * (c_fh - 1) / 2;
 	const int c_pad_index_w = c_pad * (c_fw - 1) / 2;
 	const int c_ih_pad = c_ih + c_pad_index_h*2;
@@ -143,6 +148,7 @@ template <
 	const int c_strideh_shift = (c_str-1)*c_iw_pad*c_ich;
 	const int c_stridew_shift = (c_str-1)*c_ich;
 	const int c_end_paddingh_shift = (c_fh - 1 - c_bypass)*c_iw_pad*c_ich;
+	const int c_end_paddingw_shift = (c_fw - 1 - c_bypass_w)*c_ich;
 
 	while(1) {
 
@@ -180,6 +186,11 @@ template <
 					o_data.write(s_input);
 				}
 
+			}
+
+			for (uint16_t s_index = 0; s_index < c_end_paddingw_shift; s_index++) {
+				t_input s_input = i_data.read();
+				o_data.write(s_input);
 			}
 
 			/* Start shifting for h stride */
@@ -244,6 +255,7 @@ template <
 	hls::stream<t_weight> i_weights[c_fh*c_fw],
 	hls::stream<t_input> &i_bias,
 	hls::stream<ap_uint<1>> &i_last,
+	hls::stream<ap_uint<1>> &o_last,
 	hls::stream<t_output> &o_data
 ) {
 
@@ -293,6 +305,7 @@ template <
 #endif
 
 		ap_uint<1> s_last = i_last.read();
+		o_last.write(s_last);
 		if (s_last)
 			break;
 
@@ -337,6 +350,7 @@ template <
 	hls::stream<t_input> i_data[c_fh*c_fw],
 	hls::stream<t_weight> i_weights[c_fh*c_fw],
 	hls::stream<ap_uint<1>> &i_last,
+	hls::stream<ap_uint<1>> &o_last,
 	hls::stream<t_output> &o_data
 ) {
 
@@ -382,6 +396,7 @@ template <
 #endif
 
 		ap_uint<1> s_last = i_last.read();
+		o_last.write(s_last);
 		if (s_last)
 			break;
 
@@ -423,6 +438,7 @@ template <
 	hls::stream<t_input> &i_data,
 	hls::stream<t_weight> i_weights[c_fh*c_fw],
 	hls::stream<ap_uint<1>> &i_last,
+	hls::stream<ap_uint<1>> &o_last,
 	hls::stream<t_input> &o_forward,
 	hls::stream<t_output> &o_data
 ) {
@@ -457,6 +473,7 @@ template <
 		c_relu,
 		c_str,
 		c_pad,
+		0,
 		0
 	> (
 		i_data,
@@ -486,6 +503,7 @@ template <
 		s_compute,
 		i_weights,
 		s_last[1],
+		o_last,
 		o_data
 	);
 
@@ -511,6 +529,7 @@ template <
 	hls::stream<t_input> &i_data,
 	hls::stream<t_weight> i_weights[c_fh*c_fw],
 	hls::stream<ap_uint<1>> &i_last,
+	hls::stream<ap_uint<1>> &o_last,
 	hls::stream<t_output> &o_data
 ) {
 
@@ -544,6 +563,7 @@ template <
 		c_relu,
 		c_str,
 		c_pad,
+		0,
 		0
 	> (
 		i_data,
@@ -572,6 +592,7 @@ template <
 		s_compute,
 		i_weights,
 		s_last[1],
+		o_last,
 		o_data
 	);
 
@@ -597,6 +618,7 @@ template <
 	hls::stream<t_input> &i_data,
 	hls::stream<t_weight> i_weights[c_fh*c_fw],
 	hls::stream<ap_uint<1>> &i_last,
+	hls::stream<ap_uint<1>> &o_last,
 	hls::stream<t_output> &o_data
 ) {
 
@@ -604,10 +626,10 @@ template <
 	hls::stream<t_input> s_data[c_index-1];
 	#pragma HLS STREAM variable=s_data[0] depth=c_ich
 	#pragma HLS STREAM variable=s_data[1] depth=c_ich
-	#pragma HLS STREAM variable=s_data[2] depth=c_ich*(c_iw-2)
+	#pragma HLS STREAM variable=s_data[2] depth=c_ich*(c_iw)
 	#pragma HLS STREAM variable=s_data[3] depth=c_ich
 	#pragma HLS STREAM variable=s_data[4] depth=c_ich
-	#pragma HLS STREAM variable=s_data[5] depth=c_ich*(c_iw-2)
+	#pragma HLS STREAM variable=s_data[5] depth=c_ich*(c_iw)
 	#pragma HLS STREAM variable=s_data[6] depth=c_ich
 	#pragma HLS STREAM variable=s_data[7] depth=c_ich
 
@@ -625,7 +647,7 @@ template <
 #pragma HLS inline
 
 	hls::stream<ap_uint<1>> s_last[10];
-	#pragma HLS STREAM variable=s_last depth=10
+	#pragma HLS STREAM variable=s_last depth=11
 
 	SplitStream<
 		10
@@ -647,7 +669,8 @@ template <
 		c_relu,
 		c_str,
 		c_pad,
-		(c_fh-1)
+		(c_fh-1),
+		(c_fw-1)
 	> (
 		i_data,
 		s_last[0],
@@ -668,7 +691,8 @@ template <
 		c_relu,
 		c_str,
 		c_pad,
-		(c_fh-1)
+		(c_fh-1),
+		(c_fw-2)
 	> (
 		s_data[0],
 		s_last[1],
@@ -689,7 +713,8 @@ template <
 		c_relu,
 		c_str,
 		c_pad,
-		(c_fh-1)
+		(c_fh-1),
+		(c_fw-3)
 	> (
 		s_data[1],
 		s_last[2],
@@ -710,7 +735,8 @@ template <
 		c_relu,
 		c_str,
 		c_pad,
-		(c_fh-2)
+		(c_fh-2),
+		(c_fw-1)
 	> (
 		s_data[2],
 		s_last[3],
@@ -731,7 +757,8 @@ template <
 		c_relu,
 		c_str,
 		c_pad,
-		(c_fh-2)
+		(c_fh-2),
+		(c_fw-2)
 	> (
 		s_data[3],
 		s_last[4],
@@ -752,7 +779,8 @@ template <
 		c_relu,
 		c_str,
 		c_pad,
-		(c_fh-2)
+		(c_fh-2),
+		(c_fw-3)
 	> (
 		s_data[4],
 		s_last[5],
@@ -773,7 +801,8 @@ template <
 		c_relu,
 		c_str,
 		c_pad,
-		(c_fh-3)
+		(c_fh-3),
+		(c_fw-1)
 	> (
 		s_data[5],
 		s_last[6],
@@ -794,7 +823,8 @@ template <
 		c_relu,
 		c_str,
 		c_pad,
-		(c_fh-3)
+		(c_fh-3),
+		(c_fw-2)
 	> (
 		s_data[6],
 		s_last[7],
@@ -815,7 +845,8 @@ template <
 		c_relu,
 		c_str,
 		c_pad,
-		(c_fh-3)
+		(c_fh-3),
+		(c_fw-3)
 	> (
 		s_data[7],
 		s_last[8],
@@ -843,6 +874,7 @@ template <
 		s_compute,
 		i_weights,
 		s_last[9],
+		o_last,
 		o_data
 	);
 
@@ -868,6 +900,7 @@ template <
 	hls::stream<t_input> &i_data,
 	hls::stream<t_weight> i_weights[c_fh*c_fw],
 	hls::stream<ap_uint<1>> &i_last,
+	hls::stream<ap_uint<1>> &o_last,
 	hls::stream<t_input> &o_forward,
 	hls::stream<t_output> &o_data
 ) {
@@ -876,10 +909,10 @@ template <
 	hls::stream<t_input> s_data[c_index-1];
 	#pragma HLS STREAM variable=s_data[0] depth=c_ich
 	#pragma HLS STREAM variable=s_data[1] depth=c_ich
-	#pragma HLS STREAM variable=s_data[2] depth=c_ich*(c_iw-2)
+	#pragma HLS STREAM variable=s_data[2] depth=c_ich*(c_iw)
 	#pragma HLS STREAM variable=s_data[3] depth=c_ich
 	#pragma HLS STREAM variable=s_data[4] depth=c_ich
-	#pragma HLS STREAM variable=s_data[5] depth=c_ich*(c_iw-2)
+	#pragma HLS STREAM variable=s_data[5] depth=c_ich*(c_iw)
 	#pragma HLS STREAM variable=s_data[6] depth=c_ich
 	#pragma HLS STREAM variable=s_data[7] depth=c_ich
 
@@ -897,7 +930,7 @@ template <
 #pragma HLS inline
 
 	hls::stream<ap_uint<1>> s_last[10];
-	#pragma HLS STREAM variable=s_last depth=10
+	#pragma HLS STREAM variable=s_last depth=11
 
 	SplitStream<
 		10
@@ -919,7 +952,8 @@ template <
 		c_relu,
 		c_str,
 		c_pad,
-		(c_fh-1)
+		(c_fh-1),
+		(c_fw-1)
 	> (
 		i_data,
 		s_last[0],
@@ -940,7 +974,8 @@ template <
 		c_relu,
 		c_str,
 		c_pad,
-		(c_fh-1)
+		(c_fh-1),
+		(c_fw-2)
 	> (
 		s_data[0],
 		s_last[1],
@@ -961,7 +996,8 @@ template <
 		c_relu,
 		c_str,
 		c_pad,
-		(c_fh-1)
+		(c_fh-1),
+		(c_fw-3)
 	> (
 		s_data[1],
 		s_last[2],
@@ -982,7 +1018,8 @@ template <
 		c_relu,
 		c_str,
 		c_pad,
-		(c_fh-2)
+		(c_fh-2),
+		(c_fw-1)
 	> (
 		s_data[2],
 		s_last[3],
@@ -1003,7 +1040,8 @@ template <
 		c_relu,
 		c_str,
 		c_pad,
-		(c_fh-2)
+		(c_fh-2),
+		(c_fw-2)
 	> (
 		s_data[3],
 		s_last[4],
@@ -1024,7 +1062,8 @@ template <
 		c_relu,
 		c_str,
 		c_pad,
-		(c_fh-2)
+		(c_fh-2),
+		(c_fw-3)
 	> (
 		s_data[4],
 		s_last[5],
@@ -1045,7 +1084,8 @@ template <
 		c_relu,
 		c_str,
 		c_pad,
-		(c_fh-3)
+		(c_fh-3),
+		(c_fw-1)
 	> (
 		s_data[5],
 		s_last[6],
@@ -1066,7 +1106,8 @@ template <
 		c_relu,
 		c_str,
 		c_pad,
-		(c_fh-3)
+		(c_fh-3),
+		(c_fw-2)
 	> (
 		s_data[6],
 		s_last[7],
@@ -1087,7 +1128,8 @@ template <
 		c_relu,
 		c_str,
 		c_pad,
-		(c_fh-3)
+		(c_fh-3),
+		(c_fw-3)
 	> (
 		s_data[7],
 		s_last[8],
@@ -1116,6 +1158,7 @@ template <
 		s_compute,
 		i_weights,
 		s_last[9],
+		o_last,
 		o_data
 	);
 
@@ -1143,6 +1186,7 @@ template <
 	hls::stream<t_input> &i_bias,
 	hls::stream<t_weight> i_weights[c_fh*c_fw],
 	hls::stream<ap_uint<1>> &i_last,
+	hls::stream<ap_uint<1>> &o_last,
 	hls::stream<t_output> &o_data
 ) {
 
@@ -1150,10 +1194,10 @@ template <
 	hls::stream<t_input> s_data[c_index-1];
 	#pragma HLS STREAM variable=s_data[0] depth=c_ich
 	#pragma HLS STREAM variable=s_data[1] depth=c_ich
-	#pragma HLS STREAM variable=s_data[2] depth=c_ich*(c_iw-2)
+	#pragma HLS STREAM variable=s_data[2] depth=c_ich*(c_iw)
 	#pragma HLS STREAM variable=s_data[3] depth=c_ich
 	#pragma HLS STREAM variable=s_data[4] depth=c_ich
-	#pragma HLS STREAM variable=s_data[5] depth=c_ich*(c_iw-2)
+	#pragma HLS STREAM variable=s_data[5] depth=c_ich*(c_iw)
 	#pragma HLS STREAM variable=s_data[6] depth=c_ich
 	#pragma HLS STREAM variable=s_data[7] depth=c_ich
 	hls::stream<t_input> s_compute[c_index];
@@ -1170,7 +1214,7 @@ template <
 #pragma HLS inline
 
 	hls::stream<ap_uint<1>> s_last[10];
-	#pragma HLS STREAM variable=s_last depth=10
+	#pragma HLS STREAM variable=s_last depth=11
 
 	SplitStream<
 		10
@@ -1192,7 +1236,8 @@ template <
 		c_relu,
 		c_str,
 		c_pad,
-		(c_fh-1)
+		(c_fh-1),
+		(c_fw-1)
 	> (
 		i_data,
 		s_last[0],
@@ -1213,7 +1258,8 @@ template <
 		c_relu,
 		c_str,
 		c_pad,
-		(c_fh-1)
+		(c_fh-1),
+		(c_fw-2)
 	> (
 		s_data[0],
 		s_last[1],
@@ -1234,7 +1280,8 @@ template <
 		c_relu,
 		c_str,
 		c_pad,
-		(c_fh-1)
+		(c_fh-1),
+		(c_fw-3)
 	> (
 		s_data[1],
 		s_last[2],
@@ -1255,7 +1302,8 @@ template <
 		c_relu,
 		c_str,
 		c_pad,
-		(c_fh-2)
+		(c_fh-2),
+		(c_fw-1)
 	> (
 		s_data[2],
 		s_last[3],
@@ -1276,7 +1324,8 @@ template <
 		c_relu,
 		c_str,
 		c_pad,
-		(c_fh-2)
+		(c_fh-2),
+		(c_fw-2)
 	> (
 		s_data[3],
 		s_last[4],
@@ -1297,7 +1346,8 @@ template <
 		c_relu,
 		c_str,
 		c_pad,
-		(c_fh-2)
+		(c_fh-2),
+		(c_fw-3)
 	> (
 		s_data[4],
 		s_last[5],
@@ -1318,7 +1368,8 @@ template <
 		c_relu,
 		c_str,
 		c_pad,
-		(c_fh-3)
+		(c_fh-3),
+		(c_fw-1)
 	> (
 		s_data[5],
 		s_last[6],
@@ -1339,7 +1390,8 @@ template <
 		c_relu,
 		c_str,
 		c_pad,
-		(c_fh-3)
+		(c_fh-3),
+		(c_fw-2)
 	> (
 		s_data[6],
 		s_last[7],
@@ -1360,7 +1412,8 @@ template <
 		c_relu,
 		c_str,
 		c_pad,
-		(c_fh-3)
+		(c_fh-3),
+		(c_fw-3)
 	> (
 		s_data[7],
 		s_last[8],
@@ -1389,6 +1442,7 @@ template <
 		i_weights,
 		i_bias,
 		s_last[9],
+		o_last,
 		o_data
 	);
 
@@ -1419,14 +1473,15 @@ template <
 	hls::stream<t_weight> i_weights[c_fh*c_fw],
 	hls::stream<t_input> &i_bias,
 	hls::stream<ap_uint<1>> &i_last,
+	hls::stream<ap_uint<1>> &o_last,
 	hls::stream<t_output> &o_data
 ) {
 
 	const int c_conv_index = c_fh*c_fw;
-	hls::stream<t_input, 2> s_data_in_stream("data_in");
-	#pragma HLS STREAM variable=s_data_in_stream
-	hls::stream<t_input, 2> s_data_out_stream("data_out");
-	#pragma HLS STREAM variable=s_data_out_stream
+	hls::stream<t_input> s_data_in_stream("data_in");
+	#pragma HLS STREAM variable=s_data_in_stream depth=3
+	hls::stream<t_input> s_data_out_stream("data_out");
+	#pragma HLS STREAM variable=s_data_out_stream depth=3
 
 #pragma HLS inline
 
@@ -1443,15 +1498,8 @@ template <
 
 #endif
 
-	hls::stream<ap_uint<1>> s_last[2];
+	hls::stream<ap_uint<1>> s_last;
 	#pragma HLS STREAM variable=s_last depth=10
-
-	SplitStream<
-		2
-	> (
-		i_last,
-		s_last
-	);
 
 	PadInput<
 		t_input,
@@ -1463,7 +1511,8 @@ template <
 		c_pad
 	> (
 		i_data,
-		s_last[0],
+		i_last,
+		s_last,
 		s_data_in_stream
 	);
 
@@ -1488,7 +1537,8 @@ template <
 		s_data_in_stream,
 		i_bias,
 		i_weights,
-		s_last[1],
+		s_last,
+		o_last,
 		o_data
 	);
 
@@ -1517,15 +1567,16 @@ template <
 	hls::stream<t_weight> i_weights[c_fh*c_fw],
 	hls::stream<t_input> &i_bias,
 	hls::stream<ap_uint<1>> &i_last,
+	hls::stream<ap_uint<1>> &o_last,
 	hls::stream<t_output> o_data[c_split]
 ) {
 
 
 	const int c_conv_index = c_fh*c_fw;
-	hls::stream<t_input, 2> s_data_in_stream("data_in");
-	#pragma HLS STREAM variable=s_data_in_stream
-	hls::stream<t_output, 2> s_out_stream;
-	#pragma HLS STREAM variable=s_out_stream
+	hls::stream<t_input> s_data_in_stream("data_in");
+	#pragma HLS STREAM variable=s_data_in_stream depth=3
+	hls::stream<t_output> s_out_stream;
+	#pragma HLS STREAM variable=s_out_stream depth=3
 
 #pragma HLS inline
 
@@ -1542,15 +1593,8 @@ template <
 
 #endif
 
-	hls::stream<ap_uint<1>> s_last[3];
+	hls::stream<ap_uint<1>> s_last[2];
 	#pragma HLS STREAM variable=s_last depth=10
-
-	SplitStream<
-		3
-	> (
-		i_last,
-		s_last
-	);
 
 	PadInput<
 		t_input,
@@ -1562,6 +1606,7 @@ template <
 		c_pad
 	> (
 		i_data,
+		i_last,
 		s_last[0],
 		s_data_in_stream
 	);
@@ -1587,6 +1632,7 @@ template <
 		s_data_in_stream,
 		i_bias,
 		i_weights,
+		s_last[0],
 		s_last[1],
 		s_out_stream
 	);
@@ -1599,7 +1645,8 @@ template <
 		c_split
 	> (
 		s_out_stream,
-		s_last[2],
+		s_last[1],
+		o_last,
 		o_data
 	);
 
@@ -1622,14 +1669,15 @@ template <
 > void PackedConvBuffAcc(
 	hls::stream<t_input> &i_data,
 	hls::stream<t_weight> i_weights[1],
-	hls::stream<t_output> &o_data,
 	hls::stream<ap_uint<1>> &i_last,
+	hls::stream<ap_uint<1>> &o_last,
+	hls::stream<t_output> &o_data,
 	hls::stream<t_input> &o_forward
 ) {
 
 
-	hls::stream<t_input, 2> s_data_stream("data_out_1x1");
-	#pragma HLS STREAM variable=s_data_stream
+	hls::stream<t_input> s_data_stream("data_out_1x1");
+	#pragma HLS STREAM variable=s_data_stream depth=3
 
 #pragma HLS inline
 
@@ -1645,15 +1693,8 @@ template <
 
 #endif
 
-	hls::stream<ap_uint<1>> s_last[2];
+	hls::stream<ap_uint<1>> s_last;
 	#pragma HLS STREAM variable=s_last depth=10
-
-	SplitStream<
-		2
-	> (
-		i_last,
-		s_last
-	);
 
 	ConvKernel1x1 <
 		t_input,
@@ -1675,7 +1716,8 @@ template <
 		i_data,
 		i_weights,
 		s_data_stream,
-		s_last[0],
+		i_last,
+		s_last,
 		o_data
 	);
 
@@ -1689,7 +1731,8 @@ template <
 		c_pad
 	> (
 		s_data_stream,
-		s_last[1],
+		s_last,
+		o_last,
 		o_forward
 	);
 
@@ -1715,16 +1758,17 @@ template <
 	hls::stream<t_input> &i_data,
 	hls::stream<t_weight> i_weights[c_fh*c_fw],
 	hls::stream<ap_uint<1>> &i_last,
+	hls::stream<ap_uint<1>> &o_last,
 	hls::stream<t_output> &o_data,
 	hls::stream<t_input> &o_forward
 ) {
 
 
 	const int c_conv_index = c_fh*c_fw;
-	hls::stream<t_input, 2> s_data_in_stream("data_in");
-	#pragma HLS STREAM variable=s_data_in_stream
-	hls::stream<t_input, 2> s_data_out_stream("data_out");
-	#pragma HLS STREAM variable=s_data_out_stream
+	hls::stream<t_input> s_data_in_stream("data_in");
+	#pragma HLS STREAM variable=s_data_in_stream depth=3
+	hls::stream<t_output> s_data_out_stream;
+	#pragma HLS STREAM variable=s_data_out_stream depth=3
 
 #pragma HLS inline
 
@@ -1740,15 +1784,8 @@ template <
 
 #endif
 
-	hls::stream<ap_uint<1>> s_last[3];
+	hls::stream<ap_uint<1>> s_last[2];
 	#pragma HLS STREAM variable=s_last depth=10
-
-	SplitStream<
-		3
-	> (
-		i_last,
-		s_last
-	);
 
 	PadInput<
 		t_input,
@@ -1760,6 +1797,7 @@ template <
 		c_pad
 	> (
 		i_data,
+		i_last,
 		s_last[0],
 		s_data_in_stream
 	);
@@ -1783,6 +1821,7 @@ template <
 	> (
 		s_data_in_stream,
 		i_weights,
+		s_last[0],
 		s_last[1],
 		s_data_out_stream,
 		o_data
@@ -1798,7 +1837,8 @@ template <
 		c_pad
 	> (
 		s_data_out_stream,
-		s_last[2],
+		s_last[1],
+		o_last,
 		o_forward
 	);
 
@@ -1825,6 +1865,7 @@ template <
 	hls::stream<t_input> &i_data,
 	hls::stream<t_weight> i_weights[1],
 	hls::stream<ap_uint<1>> &i_last,
+	hls::stream<ap_uint<1>> &o_last,
 	hls::stream<t_output> &o_data
 ) {
 
@@ -1862,6 +1903,7 @@ template <
 		i_data,
 		i_weights,
 		i_last,
+		o_last,
 		o_data
 	);
 
@@ -1887,12 +1929,13 @@ template <
 	hls::stream<t_input> &i_data,
 	hls::stream<t_weight> i_weights[c_fh*c_fw],
 	hls::stream<ap_uint<1>> &i_last,
+	hls::stream<ap_uint<1>> &o_last,
 	hls::stream<t_output> &o_data
 ) {
 
 	const int c_conv_index = c_fh*c_fw;
-	hls::stream<t_input, 2> s_data_in_stream("data_in");
-	#pragma HLS STREAM variable=s_data_in_stream
+	hls::stream<t_input> s_data_in_stream("data_in");
+	#pragma HLS STREAM variable=s_data_in_stream depth=3
 
 #pragma HLS inline
 
@@ -1908,15 +1951,8 @@ template <
 
 #endif
 
-	hls::stream<ap_uint<1>> s_last[2];
+	hls::stream<ap_uint<1>> s_last;
 	#pragma HLS STREAM variable=s_last depth=10
-
-	SplitStream<
-		2
-	> (
-		i_last,
-		s_last
-	);
 
 	PadInput<
 		t_input,
@@ -1928,7 +1964,8 @@ template <
 		c_pad
 	> (
 		i_data,
-		s_last[0],
+		i_last,
+		s_last,
 		s_data_in_stream
 	);
 
@@ -1951,7 +1988,8 @@ template <
 	> (
 		s_data_in_stream,
 		i_weights,
-		s_last[1],
+		s_last,
+		o_last,
 		o_data
 	);
 
@@ -1981,16 +2019,17 @@ template <
 	hls::stream<t_input> &i_data,
 	hls::stream<t_weight> i_weights[c_fh*c_fw],
 	hls::stream<ap_uint<1>> &i_last,
+	hls::stream<ap_uint<1>> &o_last,
 	hls::stream<t_output> o_data[c_split]
 ) {
 
 
 
 	const int c_conv_index = c_fh*c_fw;
-	hls::stream<t_input, 2> s_data_in_stream("data_in");
-	#pragma HLS STREAM variable=s_data_in_stream
-	hls::stream<t_output, 2> s_out_stream;
-	#pragma HLS STREAM variable=s_out_stream
+	hls::stream<t_input> s_data_in_stream("data_in");
+	#pragma HLS STREAM variable=s_data_in_stream depth=3
+	hls::stream<t_output> s_out_stream;
+	#pragma HLS STREAM variable=s_out_stream depth=3
 
 #pragma HLS inline
 
@@ -2006,15 +2045,8 @@ template <
 
 #endif
 
-	hls::stream<ap_uint<1>> s_last[3];
+	hls::stream<ap_uint<1>> s_last[2];
 	#pragma HLS STREAM variable=s_last depth=10
-
-	SplitStream<
-		3
-	> (
-		i_last,
-		s_last
-	);
 
 	PadInput<
 		t_input,
@@ -2026,6 +2058,7 @@ template <
 		c_pad
 	> (
 		i_data,
+		i_last,
 		s_last[0],
 		s_data_in_stream
 	);
@@ -2049,6 +2082,7 @@ template <
 	> (
 		s_data_in_stream,
 		i_weights,
+		s_last[0],
 		s_last[1],
 		s_out_stream	
 	);
@@ -2061,7 +2095,8 @@ template <
 		c_split
 	> (
 		s_out_stream,
-		s_last[2],
+		s_last[1],
+		o_last,
 		o_data
 	);
 

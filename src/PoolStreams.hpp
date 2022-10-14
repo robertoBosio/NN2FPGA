@@ -107,6 +107,7 @@ template <
 > void WriteOutput(
 	hls::stream<t_acc> &i_data,
 	hls::stream<ap_uint<1>> &i_last,
+	hls::stream<ap_uint<1>> &o_last,
 	hls::stream<t_output> &o_data
 ) {
 
@@ -127,6 +128,7 @@ template <
 		}
 
 		ap_uint<1> s_last = i_last.read();
+		o_last.write(s_last);
 		if (s_last)
 			break;
 
@@ -150,6 +152,7 @@ template <
 > void AveragePoolKernel8x8(
 	hls::stream<t_input> &i_data,
 	hls::stream<ap_uint<1>> &i_last,
+	hls::stream<ap_uint<1>> &o_last,
 	hls::stream<t_output> &o_data
 ) {
 
@@ -201,6 +204,7 @@ template <
 	> (
 		s_acc,
 		s_last[1],
+		o_last,
 		o_data
 	);
 
@@ -223,6 +227,7 @@ template <
 > void AveragePoolStreams(
 	hls::stream<t_input> &i_data,
 	hls::stream<ap_uint<1>> &i_last,
+	hls::stream<ap_uint<1>> &o_last,
 	hls::stream<t_output> &o_data
 ) {
 
@@ -251,6 +256,7 @@ template <
 	> (
 		i_data,
 		i_last,
+		o_last,
 		o_data
 	);
 

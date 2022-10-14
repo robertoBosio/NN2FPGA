@@ -15,12 +15,15 @@ void Network(
 
 	#pragma HLS interface axis port=i_data
 	#pragma HLS interface axis port=o_data
-	#pragma HLS INTERFACE s_axilite port=return
+	#pragma HLS INTERFACE ap_ctrl_none port=return
 	#pragma HLS DATAFLOW
 
 	hls::stream<t_input> s_input("s_input");
 	#pragma HLS STREAM variable=s_input depth=2*c_input_ich type=fifo
 #define c_last_depth 256
+
+	hls::stream<ap_uint<1>> s_last_split[25];
+	#pragma HLS STREAM variable=s_last_split depth=10 type=fifo
 
 	ProduceStream<
 		t_i_data, 
@@ -34,9 +37,6 @@ void Network(
 		s_last_split[0],
 		s_input
 	);
-
-	hls::stream<ap_uint<1>> s_last_split[25];
-	#pragma HLS STREAM variable=s_last_split depth=10 type=fifo
 
 	hls::stream<t_conv_135> s_conv_135("s_conv_135");
 	#pragma HLS STREAM variable=s_conv_135 depth=c_conv_0_ich type=fifo
@@ -276,7 +276,7 @@ void Network(
 
 
 	hls::stream<t_input_52> s_input_52[c_input_52_split];
-	#pragma HLS STREAM variable=s_input_52 depth=c_conv_14_ich type=fifo
+	#pragma HLS STREAM variable=s_input_52 depth=c_conv_14_ich+c_input_52_split type=fifo
 
 
 	hls::stream<ap_uint<1>> s_last_conv_14[c_conv_14_split];
@@ -810,7 +810,7 @@ void Network(
 
 
 	hls::stream<t_averagepool_204> s_averagepool_204("s_averagepool_204");
-	#pragma HLS STREAM variable=s_averagepool_204 depth=2 type=fifo
+	#pragma HLS STREAM variable=s_averagepool_204 depth=3 type=fifo
 
 	hls::stream<t_input_156> s_input_156("s_input_156");
 	#pragma HLS STREAM variable=s_input_156 depth=c_averagepool_51_och type=fifo
