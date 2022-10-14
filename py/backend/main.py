@@ -18,7 +18,12 @@ def write(
     replaced_relu = []
     conv_relu = []
 
-    def write_header(fd, emit_streams=True, write_blocks=True):
+    def write_header(
+        fd,
+        layers_allocated,
+        emit_streams=True,
+        write_blocks=True
+    ):
 
         if emit_streams:
             # Write header with network definitions
@@ -61,6 +66,8 @@ def write(
             # write_stream(fd, "last", "256")
 
         fd.write("\n")
+
+        write_last_flags(fd, layers_allocated)
 
         if write_blocks:
             fd.write("\tProduceStream<\n")
@@ -692,8 +699,7 @@ def write(
 
         layers_allocated = count_allocated(model)
 
-        write_header(fd)
-        write_last_flags(fd, layers_allocated)
+        write_header(fd, layers_allocated)
 
         write_body(fd, model, emit_streams=True, write_blocks=False)
         write_body(fd, model, emit_streams=False, write_blocks=True)
