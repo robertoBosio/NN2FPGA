@@ -39,7 +39,7 @@ template <
 	const int c_stridew_shift = (c_str-1)*c_ich;
 	const int c_end_paddingh_shift = (c_fh - 1 - c_bypass)*c_iw_pad*c_ich;
 
-	while(1) {
+	/* while(1) { */
 
 		/* Shifting first lines through the fifo chain */
 		/* After this shift, all the useless computations with data at the borders are */
@@ -84,10 +84,10 @@ template <
 		}
 
 		ap_uint<1> s_last = i_last.read();
-		if (s_last)
-			break;
+		/* if (s_last) */
+		/* 	break; */
 
-	}
+	/* } */
 
 #ifndef __SYNTHESIS__
 	EmptyStream<t_input>(i_data);
@@ -113,7 +113,7 @@ template <
 
 	const uint8_t c_average_scale = (uint8_t)(log2(c_fh*c_fw));
 
-	while(1) {
+	/* while(1) { */
 
 		for (uint8_t s_oh = 0; s_oh < c_oh; s_oh++) {
 			for (uint8_t s_ow = 0; s_ow < c_ow; s_ow++) {
@@ -129,10 +129,10 @@ template <
 
 		ap_uint<1> s_last = i_last.read();
 		o_last.write(s_last);
-		if (s_last)
-			break;
+		/* if (s_last) */
+		/* 	break; */
 
-	}
+	/* } */
 }
 
 template <

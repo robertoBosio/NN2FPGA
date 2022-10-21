@@ -41,7 +41,7 @@ template <
 	const int c_end_paddingh_shift = (c_fh - 1 - c_bypass)*c_iw_pad*c_ich;
 	const int c_end_paddingw_shift = (c_fw - 1 - c_bypass_w)*c_ich;
 
-	while(1) {
+	/* while(1) { */
 #ifndef __SYNTHESIS__
 		while(i_data.empty());
 #endif
@@ -96,8 +96,8 @@ template <
 #endif
 
 		ap_uint<1> s_last = i_last.read();
-		if (s_last)
-			break;
+		/* if (s_last) */
+		/* 	break; */
 
 #ifndef __SYNTHESIS__
 
@@ -105,7 +105,7 @@ template <
 
 #endif
 
-	}
+	/* } */
 
 #ifndef __SYNTHESIS__
 	EmptyStream<t_input>(i_data);
@@ -150,7 +150,7 @@ template <
 	const int c_end_paddingh_shift = (c_fh - 1 - c_bypass)*c_iw_pad*c_ich;
 	const int c_end_paddingw_shift = (c_fw - 1 - c_bypass_w)*c_ich;
 
-	while(1) {
+	/* while(1) { */
 
 #ifndef __SYNTHESIS__
 		while(i_data.empty());
@@ -214,8 +214,8 @@ template <
 #endif
 
 		ap_uint<1> s_last = i_last.read();
-		if (s_last)
-			break;
+		/* if (s_last) */
+		/* 	break; */
 
 #ifndef __SYNTHESIS__
 
@@ -224,7 +224,7 @@ template <
 #endif
 
 
-	}
+	/* } */
 
 #ifndef __SYNTHESIS__
 	EmptyStream<t_input>(i_data);
@@ -262,7 +262,7 @@ template <
 	const int c_index = c_fh*c_fw;
 	const int c_o_index = c_oh*c_ow;
 
-	while(1) {
+	/* while(1) { */
 
 #ifndef __SYNTHESIS__
 		for (uint8_t s_index = 0; s_index < c_index; s_index++)
@@ -306,8 +306,8 @@ template <
 
 		ap_uint<1> s_last = i_last.read();
 		o_last.write(s_last);
-		if (s_last)
-			break;
+		/* if (s_last) */
+		/* 	break; */
 
 #ifndef __SYNTHESIS__
 
@@ -315,7 +315,7 @@ template <
 
 #endif
 
-	}
+	/* } */
 
 #ifndef __SYNTHESIS__
 	for (uint8_t s_index = 0; s_index < c_index; s_index++)
@@ -357,7 +357,7 @@ template <
 	const int c_index = c_fh*c_fw;
 	const int c_o_index = c_oh*c_ow;
 
-	while(1) {
+	/* while(1) { */
 #ifndef __SYNTHESIS__
 		for (uint8_t s_index = 0; s_index < c_index; s_index++)
 			while(i_data[s_index].empty());
@@ -397,8 +397,8 @@ template <
 
 		ap_uint<1> s_last = i_last.read();
 		o_last.write(s_last);
-		if (s_last)
-			break;
+		/* if (s_last) */
+		/* 	break; */
 
 #ifndef __SYNTHESIS__
 
@@ -406,7 +406,7 @@ template <
 
 #endif
 
-	}
+	/* } */
 
 #ifndef __SYNTHESIS__
 	for (uint8_t s_index = 0; s_index < c_index; s_index++)

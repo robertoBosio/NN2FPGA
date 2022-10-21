@@ -38,14 +38,14 @@ template <
 
 	const int c_index = c_ich*c_ih*c_iw;
 
-	while(1) {
+	/* while(1) { */
 		PRODSTR: for (int s_index = 0; s_index < c_index; s_index++) {
 			o_data.write((t_output)(i_data[s_index]));
 		}
 		ap_uint<1> s_last = i_last.read();
-		if (s_last)
-			break;
-	}
+		/* if (s_last) */
+		/* 	break; */
+	/* } */
 
 }
 
@@ -71,7 +71,7 @@ template <
 
 #endif
 
-	while(1) {
+	/* while(1) { */
 
 #ifndef __SYNTHESIS__
 		int s_dbg_count_bytes = 0;
@@ -100,10 +100,10 @@ template <
 
 #endif
 
-		if (tmp_r.last)
-			break;
+		/* if (tmp_r.last) */
+		/* 	break; */
 
-	}
+	/* } */
 
 #ifndef __SYNTHESIS__
 	EmptyStream<t_input>(i_data);
@@ -131,7 +131,7 @@ template <
 
 	const int c_index = c_och*c_ich*c_ih*c_iw;
 
-	while(1) {
+	/* while(1) { */
 		for (int s_oh = 0; s_oh < c_oh; s_oh++) {
 			for (int s_ow = 0; s_ow < c_ow; s_ow++) {
 				PRODSTR: for (int s_index = 0; s_index < c_index; s_index++) {
@@ -142,9 +142,9 @@ template <
 
 		ap_uint<1> s_last;
 		s_last = i_last.read();
-		if (s_last)
-			break;
-	}
+		/* if (s_last) */
+		/* 	break; */
+	/* } */
 
 }
 //
@@ -169,7 +169,7 @@ template <
 	const int c_ch = c_ich*c_och;
 #pragma HLS array_partition type=cyclic factor=c_stream_sel variable=i_data
 
-	while(1) {
+	/* while(1) { */
 
 		for (uint16_t s_index = 0; s_index < c_index; s_index++) {
 			uint16_t s_addr = 0;
@@ -182,10 +182,12 @@ template <
 			}
 		}
 
-		if (i_last.read())
-			break;
+		ap_uint<1> s_last;
+		s_last = i_last.read();
+		/* if (i_last.read()) */
+		/* 	break; */
 
-	}
+	/* } */
 }
 
 template <
@@ -204,15 +206,17 @@ template <
 	const int c_index = c_oh*c_ow;
 	const int c_ch = c_ich*c_och;
 
-	while(1) {
+	/* while(1) { */
 		for (uint16_t s_index = 0; s_index < c_index; s_index++) {
 			for (uint16_t s_ch = 0; s_ch < c_ch; s_ch++) {
 				o_data.write((t_output)(i_data[s_ch]));
 			}
 		}
-		if (i_last.read())
-			break;
-	}
+		ap_uint<1> s_last;
+		s_last = i_last.read();
+		/* if (i_last.read()) */
+		/* 	break; */
+	/* } */
 
 }
 
@@ -301,7 +305,7 @@ template <
 
 	const int c_index = c_och*c_oh*c_ow;
 
-	while(1) {
+	/* while(1) { */
 
 		for (int s_index = 0; s_index < c_index-1; s_index++) {
 
@@ -321,10 +325,10 @@ template <
 		tmp.keep = -1;
 		o_data.write(tmp);
 
-		if (tmp.last)
-			break;
+		/* if (tmp.last) */
+		/* 	break; */
 
-	}
+	/* } */
 
 }
 
@@ -437,7 +441,7 @@ template <
 	hls::stream<t_output> &o_data
 ) {
 
-	while(1) {
+	/* while(1) { */
 
 #ifndef __SYNTHESIS__
 
@@ -467,10 +471,10 @@ template <
 
 		ap_uint<1> s_last = i_last.read();
 		o_last.write(s_last);
-		if (s_last)
-			break;
+		/* if (s_last) */
+		/* 	break; */
 
-	}
+	/* } */
 
 }
 
@@ -576,7 +580,7 @@ template <
 	while(i_data.empty());
 #endif
 
-	while(1) {
+	/* while(1) { */
 
 		/* Top padding */
 		for (uint8_t s_pad = 0; s_pad < c_pad_index_h; s_pad++){
@@ -622,10 +626,10 @@ template <
 /* // TODO: Problem seems multiple reads */
 		ap_uint<1> s_last = i_last.read();
 		o_last.write(s_last);
-		if (s_last)
-			break;
+		/* if (s_last) */
+		/* 	break; */
 
-	}
+	/* } */
 
 #ifndef __SYNTHESIS__
 	EmptyStream<t_input>(i_data);
@@ -649,7 +653,7 @@ template <
 	hls::stream<t_input> &i_data
 ) {
 
-	while(1) {
+	/* while(1) { */
 
 #ifndef __SYNTHESIS__
 
@@ -670,7 +674,7 @@ template <
 			}
 		}
 
-	}
+	/* } */
 
 }
 
@@ -689,7 +693,7 @@ template <
 	hls::stream<t_input> &o_forward
 ) {
 
-	while(1) {
+	/* while(1) { */
 
 #ifndef __SYNTHESIS__
 
@@ -716,10 +720,10 @@ template <
 
 		ap_uint<1> s_last = i_last.read();
 		o_last.write(s_last);
-		if (s_last)
-			break;
+		/* if (s_last) */
+		/* 	break; */
 
-	}
+	/* } */
 
 }
 
@@ -730,17 +734,17 @@ template <
 	hls::stream<ap_uint<1>> o_data[c_split]
 ) {
 
-	while(1) {
+	/* while(1) { */
 
 		ap_uint<1> s_data = i_data.read();
 		for (uint8_t s_split = 0; s_split < c_split; s_split++) {
 #pragma HLS unroll
 			o_data[s_split].write(s_data);
 		}
-		if (s_data)
-			break;
+		/* if (s_data) */
+		/* 	break; */
 
-	}
+	/* } */
 
 }
 
@@ -763,7 +767,7 @@ template <
 
 #endif
 
-	while(1) {
+	/* while(1) { */
 		for (uint8_t s_oh = 0; s_oh < c_oh; s_oh++) {
 			for (uint8_t s_ow = 0; s_ow < c_ow; s_ow++) {
 				for (uint8_t s_och = 0; s_och < c_och; s_och++) {
@@ -778,9 +782,9 @@ template <
 
 		ap_uint<1> s_last = i_last.read();
 		o_last.write(s_last);
-		if (s_last)
-			break;
-	}
+		/* if (s_last) */
+		/* 	break; */
+	/* } */
 
 }
 

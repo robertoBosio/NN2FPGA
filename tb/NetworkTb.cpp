@@ -9,7 +9,7 @@ int main() {
 	#pragma HLS interface axis port=i_data
 	#pragma HLS interface axis port=o_data_sim
 
-	const int c_batch = 8;
+	const int c_batch = 1;
 	const int c_par = c_i_data/8;
 	const int c_index = (c_input_ich*c_input_ih*c_input_iw)/c_par;
 	// INIT DATA
@@ -25,7 +25,7 @@ int main() {
 			else
 				s_data.last = false;
 			i_data.write(s_data);
-			/* std::cout << i_data[s_index] << "\n"; */
+			std::cout << "SENDING DATA " << s_index << std::endl;
 		}
 	}
 

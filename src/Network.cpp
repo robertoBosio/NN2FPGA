@@ -352,7 +352,7 @@ void Network(
 
 
 	hls::stream<t_add_235> s_add_235("s_add_235");
-	#pragma HLS STREAM variable=s_add_235 depth=c_conv_20_ich*c_conv_20_och type=fifo
+	#pragma HLS STREAM variable=s_add_235 depth=9*c_conv_20_ich*c_conv_20_och type=fifo
 
 
 	hls::stream<ap_uint<1>> s_last_conv_20[c_conv_20_split];
@@ -600,7 +600,7 @@ void Network(
 
 
 	hls::stream<t_add_256> s_add_256("s_add_256");
-	#pragma HLS STREAM variable=s_add_256 depth=c_conv_36_ich*c_conv_36_och type=fifo
+	#pragma HLS STREAM variable=s_add_256 depth=9*c_conv_36_ich*c_conv_36_och type=fifo
 
 
 	hls::stream<ap_uint<1>> s_last_conv_36[c_conv_36_split];
