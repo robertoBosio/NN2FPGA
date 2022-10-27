@@ -19,14 +19,19 @@ def write(
         # Write header with network definitions
         fd.write("#ifndef __NETWORK__\n")
         fd.write("#define __NETWORK__\n")
+        fd.write("#include \"ap_axi_sdata.h\"\n")
         fd.write("#include \"hls_stream.h\"\n")
         fd.write("#include \"ap_int.h\"\n")
         fd.write("#include <stdint.h>\n")
 
         # Handle internal or external parameters
-        fd.write("typedef int8_t t_i_data;\n")
-        fd.write("typedef int8_t t_weight;\n")
-        fd.write("typedef int8_t t_o_data;\n")
+        fd.write("#define c_i_data 64\n")
+        fd.write("typedef ap_axiu<c_i_data, 0, 0, 0> t_i_data;\n")
+        # fd.write("typedef int8_t t_weight;\n")
+        fd.write("#define c_o_data 8\n")
+        fd.write("typedef ap_axiu<c_o_data, 0, 0, 0> t_o_data;\n")
+
+        fd.write("typedef ap_uint<1> t_last;\n")
 
         # Removing dots from input names
         for input in model.graph.input:
@@ -75,7 +80,7 @@ def write(
         c_ih     = getattr(weight_shape, 'dims')[2]
         c_iw     = getattr(weight_shape, 'dims')[3]
 
-        fd.write("typedef ap_uint<8> t_%s_st;\n" % (weight_name))
+        fd.write("typedef uint8_t t_%s_st;\n" % (weight_name))
         fd.write("typedef ap_uint<8> t_%s;\n" % (weight_name))
         fd.write("const int c_%s_och = %d;\n" % (weight_name, c_och))
         fd.write("const int c_%s_ich = %d;\n" % (weight_name, c_ich))
@@ -174,10 +179,10 @@ def write(
         c_och    = getattr(output_shape, 'dim')[1].dim_value
         c_oh     = getattr(output_shape, 'dim')[2].dim_value
         c_ow     = getattr(output_shape, 'dim')[3].dim_value
-        c_fh     = getattr(attributes[0], 'ints')[0]
-        c_fw     = getattr(attributes[0], 'ints')[1]
-        c_stride = getattr(attributes[2], 'ints')[0]
-        c_pad    = getattr(attributes[1], 'ints')[0]
+        c_fh     = getattr(attributes[1], 'ints')[0]
+        c_fw     = getattr(attributes[1], 'ints')[1]
+        c_stride = getattr(attributes[3], 'ints')[0]
+        c_pad    = getattr(attributes[2], 'ints')[0]
 
         fd.write("const int c_%s_ich    = %d;\n" % (node_name, c_ich))
         fd.write("const int c_%s_och    = %d;\n" % (node_name, c_och))
@@ -218,7 +223,7 @@ def write(
         c_och    = getattr(output_shape, 'dim')[1].dim_value
         c_oh     = getattr(output_shape, 'dim')[2].dim_value
         c_ow     = getattr(output_shape, 'dim')[3].dim_value
-        c_pad    = getattr(attributes[1], 'ints')[0]
+        # c_pad    = getattr(attributes[1], 'ints')[0]
 
         fd.write("const int c_%s_ich    = %d;\n" % (node_name, c_ich))
         fd.write("const int c_%s_och    = %d;\n" % (node_name, c_och))
@@ -226,7 +231,7 @@ def write(
         fd.write("const int c_%s_iw     = %d;\n" % (node_name, c_iw))
         fd.write("const int c_%s_oh     = %d;\n" % (node_name, c_oh))
         fd.write("const int c_%s_ow     = %d;\n" % (node_name, c_ow))
-        fd.write("const int c_%s_pad    = %d;\n" % (node_name, c_pad))
+        fd.write("const int c_%s_pad    = %d;\n" % (node_name, 0))
 
         fd.write("\n")
 
@@ -281,16 +286,17 @@ def write(
 
         attributes = getattr(node, "attribute" )
 
-        c_ich    = getattr(input_shape, 'dim')[1].dim_value
-        c_ih     = getattr(input_shape, 'dim')[2].dim_value
-        c_iw     = getattr(input_shape, 'dim')[3].dim_value
-        c_och    = getattr(output_shape, 'dim')[1].dim_value
-        c_oh     = getattr(output_shape, 'dim')[2].dim_value
-        c_ow     = getattr(output_shape, 'dim')[3].dim_value
-        c_fh     = getattr(attributes[2], 'ints')[0]
-        c_fw     = getattr(attributes[2], 'ints')[1]
-        c_stride = getattr(attributes[4], 'ints')[0]
-        c_pad    = getattr(attributes[3], 'ints')[0]
+        c_ich     = getattr(input_shape, 'dim')[1].dim_value
+        c_ih      = getattr(input_shape, 'dim')[2].dim_value
+        c_iw      = getattr(input_shape, 'dim')[3].dim_value
+        c_och     = getattr(output_shape, 'dim')[1].dim_value
+        c_oh      = getattr(output_shape, 'dim')[2].dim_value
+        c_ow      = getattr(output_shape, 'dim')[3].dim_value
+        c_fh      = getattr(attributes[2], 'ints')[0]
+        c_fw      = getattr(attributes[2], 'ints')[1]
+        c_stride  = getattr(attributes[4], 'ints')[0]
+        c_pad     = getattr(attributes[3], 'ints')[0]
+        c_l_split = c_fh*c_fw+1
         if node.name in conv_relu:
             c_relu = 1
         else:
@@ -310,6 +316,7 @@ def write(
         fd.write("const int c_%s_split  = %d;\n" % (output_name, c_split))
         fd.write("const int c_%s_stride = %d;\n" % (node_name, c_stride))
         fd.write("const int c_%s_pad    = %d;\n" % (node_name, c_pad))
+        fd.write("const int c_%s_split  = %d;\n" % (node_name, c_l_split))
 
         fd.write("\n")
 
@@ -344,9 +351,8 @@ def write(
 
         # Adding prototype declaration
         fd.write("void Network(\n")
-        fd.write("\tt_i_data* i_data,\n")
-        fd.write("\tt_weight* i_weight,\n")
-        fd.write("\tt_o_data* o_data\n")
+        fd.write("\thls::stream<t_i_data> &i_data,\n")
+        fd.write("\thls::stream<t_o_data> &o_data\n")
         fd.write(");\n")
 
         # End of main file

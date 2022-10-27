@@ -150,7 +150,6 @@ def write_network(model):
 
     relu_info = extracts_relu_info(model)
 
-    print(reordered_layers)
     conv_relu = main.write(
         inferred_model,
         weights_info,

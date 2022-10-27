@@ -5,6 +5,25 @@
 
 //////////////////////////// FROM POINTER TO STREAM /////////////////////////// 
 // For input activations
+/* template < */
+/* 	class t_input, */
+/* 	class t_output, */
+/* 	int c_ich, */
+/* 	int c_iw, */
+/* 	int c_ih */
+/* > void ProduceStream( */
+/* 	t_input *i_data, */
+/* 	hls::stream<t_output> &s_i_data */
+/* ) { */
+
+/* 	const int c_index = c_ich*c_ih*c_iw; */
+
+/* 	PRODSTR: for (int s_index = 0; s_index < c_index; s_index++) { */
+/* 		s_i_data.write((t_output)(i_data[s_index])); */
+/* 	} */
+
+/* } */
+
 template <
 	class t_input,
 	class t_output,
@@ -12,7 +31,7 @@ template <
 	int c_iw,
 	int c_ih
 > void ProduceStream(
-	t_input *i_data,
+	t_input i_data[c_ich*c_ih*c_iw],
 	hls::stream<t_output> &s_i_data
 ) {
 
@@ -21,6 +40,35 @@ template <
 	PRODSTR: for (int s_index = 0; s_index < c_index; s_index++) {
 		s_i_data.write((t_output)(i_data[s_index]));
 	}
+
+}
+
+template <
+	class t_input,
+	class t_output,
+	int c_ich,
+	int c_iw,
+	int c_ih,
+	int c_bits
+> void ProduceStream(
+	hls::stream<t_input> &i_data,
+	hls::stream<ap_uint<1>> &o_last,
+	hls::stream<t_output> &s_i_data
+) {
+
+	const int c_par = c_bits/8;
+	const int c_index = c_ich*c_ih*c_iw/c_par;
+
+	t_input tmp_r;
+	PRODSTR: for (int s_index = 0; s_index < c_index; s_index++) {
+		tmp_r = i_data.read();
+		for (int s_par = 0; s_par < c_par; s_par++) {
+			#pragma HLS pipeline
+			t_output tmp_w = (t_output)(tmp_r.data((s_par + 1)*8-1,s_par*8));
+			s_i_data.write(tmp_w);
+		}
+	}
+	o_last.write(tmp_r.last);
 
 }
 
@@ -70,7 +118,7 @@ template <
 	const int c_index = c_oh*c_ow;
 	const int c_stream_sel = c_ih*c_iw;
 	const int c_ch = c_ich*c_och;
-/* #pragma HLS array_partition type=cyclic factor=c_stream_sel variable=i_data */
+#pragma HLS array_partition type=cyclic factor=c_stream_sel variable=i_data
 
 	for (uint16_t s_index = 0; s_index < c_index; s_index++) {
 		uint16_t s_addr = 0;
@@ -85,7 +133,61 @@ template <
 
 }
 
+template <
+	class t_input,
+	class t_output,
+	int c_ich,
+	int c_och,
+	int c_ow,
+	int c_oh
+> void ProduceStream(
+	const t_input i_data[c_och*c_ich],
+	hls::stream<t_output> &o_data
+) {
+
+	const int c_index = c_oh*c_ow;
+	const int c_ch = c_ich*c_och;
+
+	for (uint16_t s_index = 0; s_index < c_index; s_index++) {
+		for (uint16_t s_ch = 0; s_ch < c_ch; s_ch++) {
+			o_data.write((t_output)(i_data[s_ch]));
+		}
+	}
+
+}
+
 ///////////////////////////// FROM STREAM TO POINTER ////////////////////////// 
+
+/* // For output activations */
+/* template < */
+/* 	class t_input, */
+/* 	class t_output, */
+/* 	int c_och, */
+/* 	int c_ow, */
+/* 	int c_oh */
+/* > void ConsumeStream( */
+/* 	hls::stream<t_input> &i_data, */
+/* 	t_output *o_data */
+/* ) { */
+
+/* #ifndef __SYNTHESIS__ */
+
+/* 	if (i_data.empty()) */
+/* 		return; */
+
+/* #endif */
+
+/* 	t_input s_read; */
+/* 	const int c_index = c_och*c_oh*c_ow; */
+
+/* 	for (int s_index = 0; s_index < c_index; s_index++) { */
+
+/* 		s_read = i_data.read(); */
+/* 		o_data[s_index] = (t_output)(s_read); */
+
+/* 	} */
+
+/* } */
 
 // For output activations
 template <
@@ -96,7 +198,7 @@ template <
 	int c_oh
 > void ConsumeStream(
 	hls::stream<t_input> &i_data,
-	t_output *o_data
+	t_output o_data[c_och*c_ow*c_oh]
 ) {
 
 #ifndef __SYNTHESIS__
@@ -115,6 +217,57 @@ template <
 		o_data[s_index] = (t_output)(s_read);
 
 	}
+
+}
+
+template <
+	class t_input,
+	class t_output,
+	int c_och,
+	int c_ow,
+	int c_oh,
+	int c_bits
+> void ConsumeStream(
+	hls::stream<t_input> &i_data,
+	hls::stream<ap_uint<1>> &i_last,
+	hls::stream<t_output> &o_data
+) {
+
+#ifndef __SYNTHESIS__
+
+	if (i_data.empty())
+		return;
+
+#endif
+
+	const int c_par = c_bits/8;
+	const int c_index = c_och*c_oh*c_ow/c_par;
+	const int c_out_pad = (c_och*c_oh*c_ow)%c_par;
+
+	for (int s_index = 0; s_index < c_index; s_index++) {
+
+		t_output tmp;
+		for (int s_par = 0; s_par < c_par; s_par++) {
+			#pragma HLS pipeline
+			t_input s_read = i_data.read();
+			tmp.data((s_par + 1)*8-1,s_par*8) = s_read;
+		}
+		tmp.last = false;
+		o_data.write(tmp);
+
+	}
+
+	t_output tmp;
+	tmp.data = 0;
+	for (int s_out_pad = 0; s_out_pad < c_out_pad; s_out_pad++) {
+		#pragma HLS pipeline
+		t_input s_read = i_data.read();
+		tmp.data((s_out_pad + 1)*8-1,s_out_pad*8) = s_read;
+	}
+	/* The input last stream doesn't count the number of activations streamed but the */
+	/* number of batches analyzed */
+	tmp.last = i_last.read();
+	o_data.write(tmp);
 
 }
 
