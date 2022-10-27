@@ -349,6 +349,102 @@ template <
 > void ConvOp(
 	hls::stream<t_input> i_data[c_fh*c_fw],
 	hls::stream<t_weight> i_weights[c_fh*c_fw],
+	hls::stream<t_weight> i_weights_1x1,
+	hls::stream<ap_uint<1>> &i_last,
+	hls::stream<ap_uint<1>> &o_last,
+	hls::stream<t_output> &o_data,
+	hls::stream<t_output> &o_data_1x1
+) {
+
+	const int c_index = c_fh*c_fw;
+	const int c_o_index = c_oh*c_ow;
+
+	/* while(1) { */
+#ifndef __SYNTHESIS__
+		for (uint8_t s_index = 0; s_index < c_index; s_index++)
+			while(i_data[s_index].empty());
+		for (uint8_t s_index = 0; s_index < c_index; s_index++)
+			while(i_weights[s_index].empty());
+#endif
+
+		for (uint16_t s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
+			t_acc s_acc_buff[c_och] = {0};
+			t_acc s_acc_buff_1x1[c_och] = {0};
+
+			for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
+				t_input s_input[c_index];
+				for (uint8_t s_index = 0; s_index < c_index; s_index++) {
+					s_input[s_index] = i_data[s_index].read();
+				}
+				for (uint8_t s_och = 0; s_och < c_och; s_och++) {
+					for (uint8_t s_index = 0; s_index < c_index; s_index++) {
+						t_weight s_weights = i_weights[s_index].read();
+						s_acc_buff[s_och] += s_input[s_index] * s_weights;
+					}
+					t_weight s_weights = i_weights_1x1.read();
+					s_acc_buff_1x1[s_och] += s_input[c_index-1] * s_weights;
+				}
+			}
+
+			for (uint8_t s_och = 0; s_och < c_och; s_och++) {
+				t_acc s_acc = s_acc_buff[s_och];
+				t_acc s_acc_1x1 = s_acc_buff_1x1[s_och];
+				if (c_relu == 1)
+					s_acc = ReluOp<t_acc>(s_acc);
+				o_data.write((t_output)(s_acc)); 
+				o_data_1x1.write((t_output)(s_acc_1x1)); 
+			}
+		}
+
+#ifndef __SYNTHESIS__
+
+		std::cout << "Waiting for last signal" << std::endl;
+
+#endif
+
+		ap_uint<1> s_last = i_last.read();
+		o_last.write(s_last);
+		/* if (s_last) */
+		/* 	break; */
+
+#ifndef __SYNTHESIS__
+
+		std::cout << "Starting new image" << std::endl;
+
+#endif
+
+	/* } */
+
+#ifndef __SYNTHESIS__
+	for (uint8_t s_index = 0; s_index < c_index; s_index++)
+		EmptyStream<t_input>(i_data[s_index]);
+	for (uint8_t s_index = 0; s_index < c_index; s_index++)
+		EmptyStream<t_weight>(i_weights[s_index]);
+	std::cout << "CONVOP: " << c_ih << " " << c_iw << " " << c_ich << " " << c_str << " " << c_pad << " " << std::endl;
+#endif
+
+}
+
+template <
+	class t_input,
+	class t_weight,
+	class t_acc,
+	class t_output,
+	int c_ich,
+	int c_och,
+	int c_ih,
+	int c_iw,
+	int c_oh,
+	int c_ow,
+	int c_fh,
+	int c_fw,
+	int c_relu,
+	int c_str,
+	int c_pad,
+	int c_bypass
+> void ConvOp(
+	hls::stream<t_input> i_data[c_fh*c_fw],
+	hls::stream<t_weight> i_weights[c_fh*c_fw],
 	hls::stream<ap_uint<1>> &i_last,
 	hls::stream<ap_uint<1>> &o_last,
 	hls::stream<t_output> &o_data
@@ -876,6 +972,292 @@ template <
 		s_last[9],
 		o_last,
 		o_data
+	);
+
+}
+
+template <
+	class t_input,
+	class t_weight,
+	class t_acc,
+	class t_output,
+	int c_ich,
+	int c_och,
+	int c_ih,
+	int c_iw,
+	int c_oh,
+	int c_ow,
+	int c_fh,
+	int c_fw,
+	int c_relu,
+	int c_str,
+	int c_pad
+> void ConvKernel3x3_1x1(
+	hls::stream<t_input> &i_data,
+	hls::stream<t_weight> i_weights[c_fh*c_fw],
+	hls::stream<t_weight> i_weights_1x1,
+	hls::stream<ap_uint<1>> &i_last,
+	hls::stream<ap_uint<1>> &o_last,
+	hls::stream<t_output> &o_data,
+	hls::stream<t_output> &o_data_1x1,
+) {
+
+	const int c_index = c_fh*c_fw;
+	hls::stream<t_input> s_data[c_index-1];
+	#pragma HLS STREAM variable=s_data[0] depth=c_ich
+	#pragma HLS STREAM variable=s_data[1] depth=c_ich
+	#pragma HLS STREAM variable=s_data[2] depth=c_ich*(c_iw)
+	#pragma HLS STREAM variable=s_data[3] depth=c_ich
+	#pragma HLS STREAM variable=s_data[4] depth=c_ich
+	#pragma HLS STREAM variable=s_data[5] depth=c_ich*(c_iw)
+	#pragma HLS STREAM variable=s_data[6] depth=c_ich
+	#pragma HLS STREAM variable=s_data[7] depth=c_ich
+
+	hls::stream<t_input> s_compute[c_index];
+	#pragma HLS STREAM variable=s_compute[0] depth=10
+	#pragma HLS STREAM variable=s_compute[1] depth=10
+	#pragma HLS STREAM variable=s_compute[2] depth=10
+	#pragma HLS STREAM variable=s_compute[3] depth=10
+	#pragma HLS STREAM variable=s_compute[4] depth=10
+	#pragma HLS STREAM variable=s_compute[5] depth=10
+	#pragma HLS STREAM variable=s_compute[6] depth=10
+	#pragma HLS STREAM variable=s_compute[7] depth=10
+	#pragma HLS STREAM variable=s_compute[8] depth=10
+
+#pragma HLS inline
+
+	hls::stream<ap_uint<1>> s_last[10];
+	#pragma HLS STREAM variable=s_last depth=11
+
+	SplitStream<
+		10
+	> (
+		i_last,
+		s_last
+	);
+
+	ShiftOp<
+		t_input,
+		c_ich,
+		c_och,
+		c_ih,
+		c_iw,
+		c_oh,
+		c_ow,
+		c_fh,
+		c_fw,
+		c_relu,
+		c_str,
+		c_pad,
+		(c_fh-1),
+		(c_fw-1)
+	> (
+		i_data,
+		s_last[0],
+		s_compute[0],
+		s_data[0]
+	);
+
+	ShiftOp<
+		t_input,
+		c_ich,
+		c_och,
+		c_ih,
+		c_iw,
+		c_oh,
+		c_ow,
+		c_fh,
+		c_fw,
+		c_relu,
+		c_str,
+		c_pad,
+		(c_fh-1),
+		(c_fw-2)
+	> (
+		s_data[0],
+		s_last[1],
+		s_compute[1],
+		s_data[1]
+	);
+
+	ShiftOp<
+		t_input,
+		c_ich,
+		c_och,
+		c_ih,
+		c_iw,
+		c_oh,
+		c_ow,
+		c_fh,
+		c_fw,
+		c_relu,
+		c_str,
+		c_pad,
+		(c_fh-1),
+		(c_fw-3)
+	> (
+		s_data[1],
+		s_last[2],
+		s_compute[2],
+		s_data[2]
+	);
+
+	ShiftOp<
+		t_input,
+		c_ich,
+		c_och,
+		c_ih,
+		c_iw,
+		c_oh,
+		c_ow,
+		c_fh,
+		c_fw,
+		c_relu,
+		c_str,
+		c_pad,
+		(c_fh-2),
+		(c_fw-1)
+	> (
+		s_data[2],
+		s_last[3],
+		s_compute[3],
+		s_data[3]
+	);
+
+	ShiftOp<
+		t_input,
+		c_ich,
+		c_och,
+		c_ih,
+		c_iw,
+		c_oh,
+		c_ow,
+		c_fh,
+		c_fw,
+		c_relu,
+		c_str,
+		c_pad,
+		(c_fh-2),
+		(c_fw-2)
+	> (
+		s_data[3],
+		s_last[4],
+		s_compute[4],
+		s_data[4]
+	);
+
+	ShiftOp<
+		t_input,
+		c_ich,
+		c_och,
+		c_ih,
+		c_iw,
+		c_oh,
+		c_ow,
+		c_fh,
+		c_fw,
+		c_relu,
+		c_str,
+		c_pad,
+		(c_fh-2),
+		(c_fw-3)
+	> (
+		s_data[4],
+		s_last[5],
+		s_compute[5],
+		s_data[5]
+	);
+
+	ShiftOp<
+		t_input,
+		c_ich,
+		c_och,
+		c_ih,
+		c_iw,
+		c_oh,
+		c_ow,
+		c_fh,
+		c_fw,
+		c_relu,
+		c_str,
+		c_pad,
+		(c_fh-3),
+		(c_fw-1)
+	> (
+		s_data[5],
+		s_last[6],
+		s_compute[6],
+		s_data[6]
+	);
+
+	ShiftOp<
+		t_input,
+		c_ich,
+		c_och,
+		c_ih,
+		c_iw,
+		c_oh,
+		c_ow,
+		c_fh,
+		c_fw,
+		c_relu,
+		c_str,
+		c_pad,
+		(c_fh-3),
+		(c_fw-2)
+	> (
+		s_data[6],
+		s_last[7],
+		s_compute[7],
+		s_data[7]
+	);
+
+	ShiftOp<
+		t_input,
+		c_ich,
+		c_och,
+		c_ih,
+		c_iw,
+		c_oh,
+		c_ow,
+		c_fh,
+		c_fw,
+		c_relu,
+		c_str,
+		c_pad,
+		(c_fh-3),
+		(c_fw-3)
+	> (
+		s_data[7],
+		s_last[8],
+		s_compute[8]
+	);
+
+	ConvOp<
+		t_input,
+		t_weight,
+		t_acc,
+		t_output,
+		c_ich,
+		c_och,
+		c_ih,
+		c_iw,
+		c_oh,
+		c_ow,
+		c_fh,
+		c_fw,
+		c_relu,
+		c_str,
+		c_pad,
+		0
+	> (
+		s_compute,
+		i_weights,
+		i_weights_1x1,
+		s_last[9],
+		o_last,
+		o_data,
+		o_data_1x1
 	);
 
 }
@@ -1734,6 +2116,114 @@ template <
 		s_last,
 		o_last,
 		o_forward
+	);
+
+}
+
+template <
+	class t_input,
+	class t_weight,
+	class t_output,
+	class t_acc,
+	int c_ich,
+	int c_och,
+	int c_iw,
+	int c_ih,
+	int c_ow,
+	int c_oh,
+	int c_fw,
+	int c_fh,
+	int c_relu,
+	int c_str,
+	int c_pad
+> void PackedConvBuffAcc(
+	hls::stream<t_input> &i_data,
+	hls::stream<t_weight> i_weights[c_fh*c_fw],
+	hls::stream<t_weight> i_weights_1x1,
+	hls::stream<ap_uint<1>> &i_last,
+	hls::stream<ap_uint<1>> &o_last,
+	hls::stream<t_output> &o_data,
+	hls::stream<t_input> &o_data_1x1
+) {
+
+
+	const int c_conv_index = c_fh*c_fw;
+	hls::stream<t_input> s_data_in_stream("data_in");
+	#pragma HLS STREAM variable=s_data_in_stream depth=3
+	hls::stream<t_output> s_data_out_stream;
+	#pragma HLS STREAM variable=s_data_out_stream depth=3
+
+#pragma HLS inline
+
+#ifndef __SYNTHESIS__
+
+	while(i_data.empty());
+
+	for (int s_index = 0; s_index < c_fh*c_fw; s_index++) {
+		if (i_weights[s_index].empty()) {
+			return;
+		}
+	}
+
+#endif
+
+	hls::stream<ap_uint<1>> s_last[2];
+	#pragma HLS STREAM variable=s_last depth=10
+
+	PadInput<
+		t_input,
+		c_ich,
+		c_ih,
+		c_iw,
+		c_fh,
+		c_fw,
+		c_pad
+	> (
+		i_data,
+		i_last,
+		s_last[0],
+		s_data_in_stream
+	);
+
+	ConvKernel3x3_1x1 <
+		t_input,
+		t_weight,
+		t_acc,
+		t_output,
+		c_ich,
+		c_och,
+		c_ih,
+		c_iw,
+		c_oh,
+		c_ow,
+		c_fh,
+		c_fw,
+		c_relu,
+		c_str,
+		c_pad
+	> (
+		s_data_in_stream,
+		i_weights,
+		i_weights_1x1,
+		s_last[0],
+		s_last[1],
+		o_data,
+		s_data_out_stream,
+	);
+
+	ForwardStream<
+		t_input,
+		c_ich,
+		c_iw,
+		c_ih,
+		c_fw,
+		c_fh,
+		c_pad
+	> (
+		s_data_out_stream,
+		s_last[1],
+		o_last,
+		o_data_1x1
 	);
 
 }
