@@ -11,6 +11,7 @@ def write(
     bias_info,
     relu_info,
     conv_relu,
+    flatten_info,
     split_info
 ):
 
@@ -64,8 +65,12 @@ def write(
             fd.write("\n")
 
             c_och    = getattr(output_shape, 'dim')[1].dim_value
-            c_oh     = getattr(output_shape, 'dim')[2].dim_value
-            c_ow     = getattr(output_shape, 'dim')[3].dim_value
+            if len(getattr(output_shape, 'dim')) > 2:
+                c_oh     = getattr(output_shape, 'dim')[2].dim_value
+                c_ow     = getattr(output_shape, 'dim')[3].dim_value
+            else:
+                c_oh     = 1
+                c_ow     = 1
 
             fd.write("const int c_%s_och = %d;\n" % (output_name, c_och))
             fd.write("const int c_%s_oh  = %d;\n" % (output_name, c_oh))
@@ -77,8 +82,12 @@ def write(
 
         c_och    = getattr(weight_shape, 'dims')[0]
         c_ich    = getattr(weight_shape, 'dims')[1]
-        c_ih     = getattr(weight_shape, 'dims')[2]
-        c_iw     = getattr(weight_shape, 'dims')[3]
+        if (len(getattr(weight_shape, 'dims')) > 2):
+            c_ih     = getattr(weight_shape, 'dims')[2]
+            c_iw     = getattr(weight_shape, 'dims')[3]
+        else:
+            c_ih     = 1
+            c_iw     = 1
 
         fd.write("typedef uint8_t t_%s_st;\n" % (weight_name))
         fd.write("typedef ap_uint<8> t_%s;\n" % (weight_name))
@@ -153,7 +162,11 @@ def write(
 
         fd.write("\n")
 
-    def write_average_pool(fd, node):
+    def write_pool(
+        fd,
+        node,
+        c_pool=0
+    ):
 
         node_name = node.name.replace(".", "_").lower()
 
@@ -163,6 +176,9 @@ def write(
         input_shape = tensors_info[node.input[0]].tensor_type.shape
 
         output_name = node.output[0].replace(".", "_")
+        if output_name in flatten_info.keys():
+            output_name = flatten_info[output_name][1]
+
         output_name = output_name.lower().replace("onnx::", "")
         output_shape = tensors_info[node.output[0]].tensor_type.shape
 
@@ -179,10 +195,16 @@ def write(
         c_och    = getattr(output_shape, 'dim')[1].dim_value
         c_oh     = getattr(output_shape, 'dim')[2].dim_value
         c_ow     = getattr(output_shape, 'dim')[3].dim_value
-        c_fh     = getattr(attributes[1], 'ints')[0]
-        c_fw     = getattr(attributes[1], 'ints')[1]
-        c_stride = getattr(attributes[3], 'ints')[0]
-        c_pad    = getattr(attributes[2], 'ints')[0]
+        if ('adaptive' in node_name):
+            c_fh     = getattr(attributes[1], 'ints')[0]
+            c_fw     = getattr(attributes[1], 'ints')[1]
+            c_stride = getattr(attributes[3], 'ints')[0]
+            c_pad    = getattr(attributes[2], 'ints')[0]
+        else:
+            c_fh     = c_oh
+            c_fw     = c_ow
+            c_stride = 1
+            c_pad    = 0
 
         fd.write("const int c_%s_ich    = %d;\n" % (node_name, c_ich))
         fd.write("const int c_%s_och    = %d;\n" % (node_name, c_och))
@@ -194,6 +216,7 @@ def write(
         fd.write("const int c_%s_fw     = %d;\n" % (node_name, c_fw))
         fd.write("const int c_%s_stride = %d;\n" % (node_name, c_stride))
         fd.write("const int c_%s_pad    = %d;\n" % (node_name, c_pad))
+        fd.write("const int c_%s_pool   = %d;\n" % (node_name, c_pool))
 
         fd.write("\n")
 
@@ -235,7 +258,7 @@ def write(
 
         fd.write("\n")
 
-    def write_conv(fd, node):
+    def write_conv(fd, node, gemm=None):
 
         node_name = node.name.replace(".", "_").lower()
 
@@ -271,6 +294,10 @@ def write(
         if output_name in relu_info.keys():
             output_name = relu_info[output_name][1]
 
+        # Bypassing flatten
+        if output_name in flatten_info.keys():
+            output_name = flatten_info[output_name][1]
+
         if output_name in split_info.keys():
             c_split = len(split_info[output_name])
         else:
@@ -287,15 +314,33 @@ def write(
         attributes = getattr(node, "attribute" )
 
         c_ich     = getattr(input_shape, 'dim')[1].dim_value
-        c_ih      = getattr(input_shape, 'dim')[2].dim_value
-        c_iw      = getattr(input_shape, 'dim')[3].dim_value
+        # TODO: Generalize the case to not 1, 1 input features w, h
+        if gemm is None:
+            c_ih      = getattr(input_shape, 'dim')[2].dim_value
+            c_iw      = getattr(input_shape, 'dim')[3].dim_value
+        else:
+            c_ih      = 1
+            c_iw      = 1
+
         c_och     = getattr(output_shape, 'dim')[1].dim_value
-        c_oh      = getattr(output_shape, 'dim')[2].dim_value
-        c_ow      = getattr(output_shape, 'dim')[3].dim_value
-        c_fh      = getattr(attributes[2], 'ints')[0]
-        c_fw      = getattr(attributes[2], 'ints')[1]
-        c_stride  = getattr(attributes[4], 'ints')[0]
-        c_pad     = getattr(attributes[3], 'ints')[0]
+        if gemm is None:
+            c_oh      = getattr(output_shape, 'dim')[2].dim_value
+            c_ow      = getattr(output_shape, 'dim')[3].dim_value
+        else:
+            c_oh      = 1
+            c_ow      = 1
+
+        if gemm is None:
+            c_fh      = getattr(attributes[2], 'ints')[0]
+            c_fw      = getattr(attributes[2], 'ints')[1]
+            c_stride  = getattr(attributes[4], 'ints')[0]
+            c_pad     = getattr(attributes[3], 'ints')[0]
+        else:
+            c_fh      = 1
+            c_fw      = 1
+            c_stride  = 1
+            c_pad     = 0
+
         c_l_split = c_fh*c_fw+1
         if node.name in conv_relu:
             c_relu = 1
@@ -324,6 +369,10 @@ def write(
 
         for node in model.graph.node:
 
+            if 'gemm' in node.op_type.lower():
+                write_conv(fd, node, gemm=True)
+                continue
+
             if 'conv' in node.op_type.lower():
                 write_conv(fd, node)
                 continue
@@ -340,8 +389,14 @@ def write(
                 continue
 
             if 'pool' in node.op_type.lower():
+                c_pool = 0
                 if 'average' in node.op_type.lower():
-                    write_average_pool(fd, node)
+                    c_pool = 0
+
+                if 'max' in node.op_type.lower():
+                    c_pool = 1
+
+                write_pool(fd, node, c_pool)
                 continue
 
             if 'pad' in node.op_type.lower():

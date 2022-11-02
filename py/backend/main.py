@@ -11,6 +11,7 @@ def write(
     bias_info,
     relu_info,
     split_info,
+    flatten_info,
     reordered_layers
 ):
 
@@ -175,8 +176,12 @@ def write(
             fd.write("\n")
 
         if write_blocks:
-            c_ih     = getattr(weight_shape, 'dims')[2]
-            c_iw     = getattr(weight_shape, 'dims')[3]
+            if (len(getattr(weight_shape, 'dims')) > 2):
+                c_ih     = getattr(weight_shape, 'dims')[2]
+                c_iw     = getattr(weight_shape, 'dims')[3]
+            else:
+                c_ih     = 1
+                c_iw     = 1
 
             for ih in range(c_ih):
                 for iw in range(c_iw):
@@ -276,12 +281,13 @@ def write(
 
             fd.write("\n")
 
-    def write_average_pool(
+    def write_pool(
         fd,
         node,
         emit_streams=True,
         write_blocks=True,
-        last_flag=0
+        last_flag=0,
+        c_pool=0
     ):
 
         node_name = node.name.replace(".", "_").lower()
@@ -291,6 +297,8 @@ def write(
         input_name = input_name.lower().replace("onnx::", "")
 
         output_name = node.output[0].replace(".", "_")
+        if output_name in flatten_info.keys():
+            output_name = flatten_info[output_name][1]
         output_name = output_name.lower().replace("onnx::", "")
 
         if emit_streams:
@@ -298,7 +306,7 @@ def write(
             fd.write("\n")
 
         if write_blocks:
-            fd.write("\tAveragePoolStreams<\n")
+            fd.write("\tPoolStreams<\n")
             fd.write("\t\tt_%s,\n" % (input_name))
             fd.write("\t\tt_%s,\n" % (output_name))
             fd.write("\t\tt_%s_acc,\n" % (node_name))
@@ -311,7 +319,8 @@ def write(
             fd.write("\t\tc_%s_fw,\n" % (node_name))
             fd.write("\t\tc_%s_fh,\n" % (node_name))
             fd.write("\t\tc_%s_stride,\n" % (node_name))
-            fd.write("\t\tc_%s_pad\n" % (node_name))
+            fd.write("\t\tc_%s_pad,\n" % (node_name))
+            fd.write("\t\tc_%s_pool\n" % (node_name))
             fd.write("\t> (\n")
             fd.write("\t\ts_%s,\n" % (input_name))
             fd.write("\t\ts_last_split[%0d],\n" % (last_flag))
@@ -366,8 +375,12 @@ def write(
 
         c_och    = getattr(weight_shape, 'dims')[0]
         c_ich    = getattr(weight_shape, 'dims')[1]
-        c_ih     = getattr(weight_shape, 'dims')[2]
-        c_iw     = getattr(weight_shape, 'dims')[3]
+        if (len(getattr(weight_shape, 'dims')) > 2):
+            c_ih     = getattr(weight_shape, 'dims')[2]
+            c_iw     = getattr(weight_shape, 'dims')[3]
+        else:
+            c_ih     = 1
+            c_iw     = 1
 
         # fd.write("\ttypedef ap_uint<8> t_%s_st;\n" % (weight_name))
         # fd.write("\ttypedef ap_uint<8> t_%s;\n" % (weight_name))
@@ -381,8 +394,8 @@ def write(
 
         # TODO: handle weights quantization
         last_weight = True
-        for ih in range(weights.shape[2]):
-            for iw in range(weights.shape[3]):
+        for ih in range(c_ih):
+            for iw in range(c_iw):
                 fd.write("\tconst uint8_t c_%s_st_%0d[] = {\n" % (weight_name, ih*c_iw+iw))
                 for och in range(weights.shape[0]):
                     for ich in range(weights.shape[1]):
@@ -401,7 +414,8 @@ def write(
         node,
         emit_streams=True,
         write_blocks=True,
-        last_flag=0
+        last_flag=0,
+        gemm=None
     ):
 
         node_name = node.name.replace(".", "_").lower()
@@ -447,10 +461,10 @@ def write(
                 # Declaring copied stream
                 if emit_streams:
                     write_stream(
-												fd,
-												skip_name,
-												"c_%s_ich*c_%s_och" % (node_name, node_name)
-										)
+						fd,
+						skip_name,
+						"c_%s_ich*c_%s_och" % (node_name, node_name)
+                    )
                 fd.write("\n")
 
         # Adding BIAS and merging to add layer
@@ -468,6 +482,10 @@ def write(
             replaced_relu.append(relu_info[output_name][0])
             conv_relu.append(node.name)
             output_name = relu_info[output_name][1]
+
+        # Bypassing flatten
+        if output_name in flatten_info.keys():
+            output_name = flatten_info[output_name][1]
 
         if output_name in split_info.keys():
             split = True
@@ -487,26 +505,32 @@ def write(
         if emit_streams:
             if (split):
                 write_array_stream(
-										fd,
-										output_name,
-										"c_%s_ich*c_%s_och" % (node_name, node_name),
-										2
-								)
+						fd,
+						output_name,
+						"c_%s_ich*c_%s_och" % (node_name, node_name),
+						2
+				)
             else:
                 write_stream(
-										fd,
-										output_name,
-										"c_%s_ich*c_%s_och" % (node_name, node_name),
-								)
+						fd,
+						output_name,
+						"c_%s_ich*c_%s_och" % (node_name, node_name),
+				)
             fd.write("\n")
 
         attributes = getattr(node, "attribute" )
         # Specializing by stride, only 1 and 2 are supported right now
-        c_fh     = int(getattr(attributes[2], 'ints')[0])
-        c_fw     = int(getattr(attributes[2], 'ints')[1])
+        if (gemm is None):
+            c_fh     = int(getattr(attributes[2], 'ints')[0])
+            c_fw     = int(getattr(attributes[2], 'ints')[1])
+            c_stride = getattr(attributes[4], 'ints')[0]
+        else:
+            c_fh = 1
+            c_fw = 1
+            c_stride = 1
+
         if (c_fh*c_fw) == 1:
         	pointwise = True 
-        c_stride = getattr(attributes[4], 'ints')[0]
 
         if emit_streams:
             fd.write("\n")
@@ -616,6 +640,10 @@ def write(
         for node_level in reordered_layers:
             for node in node_level:
 
+                if 'gemm' in node.op_type.lower():
+                    layers_n = layers_n + 1
+                    continue
+
                 if 'conv' in node.op_type.lower():
                     layers_n = layers_n + 1
                     continue
@@ -645,6 +673,12 @@ def write(
 
         for node_level in reordered_layers:
             for node in node_level:
+                print(node.op_type.lower())
+
+                if 'gemm' in node.op_type.lower():
+                    write_conv(fd, node, emit_streams, write_blocks, layers_n, gemm=True)
+                    layers_n = layers_n + 1
+                    continue
 
                 if 'conv' in node.op_type.lower():
                     write_conv(fd, node, emit_streams, write_blocks, layers_n)
@@ -665,9 +699,15 @@ def write(
                     continue
 
                 if 'pool' in node.op_type.lower():
+                    c_pool = 0
                     if 'average' in node.op_type.lower():
-                        write_average_pool(fd, node, emit_streams, write_blocks, layers_n)
-                        layers_n = layers_n + 1
+                        c_pool = 0
+
+                    if 'max' in node.op_type.lower():
+                        c_pool = 1
+
+                    write_pool(fd, node, emit_streams, write_blocks, layers_n)
+                    layers_n = layers_n + 1
                     continue
 
                 if 'pad' in node.op_type.lower():

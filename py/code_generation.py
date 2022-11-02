@@ -6,36 +6,44 @@ from backend.write_network import write_network
 import network_graph
 import models.resnet20 as resnet20
 import torchvision
+from torchvision.models import resnet50, ResNet50_Weights
 
-CIFAR10_DIRECTORY = './data'
-os.system('mkdir -p %s' % CIFAR10_DIRECTORY)
+DATASET = 'IMAGENET'
+MODEL = 'RESNET50'
 
-train_data = torchvision.datasets.CIFAR10(
-    CIFAR10_DIRECTORY,
-    train=True,
-    download=True,
-    transform=torchvision.transforms.Compose([
-        torchvision.transforms.ToTensor(),
-        lambda x: x.float()
-    ])
-)
+DIRECTORY = './data'
+os.system('mkdir -p %s' % DIRECTORY)
 
-test_data = torchvision.datasets.CIFAR10(
-    CIFAR10_DIRECTORY,
-    train=False,
-    download=True,
-    transform=torchvision.transforms.Compose([
-        torchvision.transforms.ToTensor(),
-        lambda x: x.float()
-    ])
-)
+if (DATASET == 'CIFAR10'):
+    test_data = torchvision.datasets.CIFAR10(
+        DIRECTORY,
+        train=False,
+        download=True,
+        transform=torchvision.transforms.Compose([
+            torchvision.transforms.ToTensor(),
+            lambda x: x.float()
+        ])
+    )
 
-train_loader = torch.utils.data.DataLoader(
-    train_data,
-    batch_size=1,
-    shuffle=True,
-    num_workers=2
-)
+if (DATASET == 'IMAGENET'):
+
+    test_data = torchvision.datasets.FakeData(
+        num_classes = 1000,
+        transform=torchvision.transforms.Compose([
+            torchvision.transforms.ToTensor(),
+            lambda x: x.float()
+        ])
+    )
+    # Imagenet is too large
+    # test_data = torchvision.datasets.ImageNet(
+    #     DIRECTORY,
+    #     train=False,
+    #     # download=True,
+    #     transform=torchvision.transforms.Compose([
+    #         torchvision.transforms.ToTensor(),
+    #         lambda x: x.float()
+    #     ])
+    # )
 
 test_loader = torch.utils.data.DataLoader(
     test_data,
@@ -44,21 +52,25 @@ test_loader = torch.utils.data.DataLoader(
     num_workers=2
 )
 
-model = resnet20.resnet20()
-state_dict = torch.load(
-    "./tmp/resnet20.weights",
-    map_location=torch.device('cpu')
-)
+if (MODEL == 'RESNET20'):
+    model = resnet20.resnet20()
+    state_dict = torch.load(
+        "./tmp/resnet20.weights",
+        map_location=torch.device('cpu')
+    )
+    model.load_state_dict(state_dict, strict=False)
 
-model.load_state_dict(state_dict, strict=False)
+if (MODEL == 'RESNET50'):
+    model = resnet50(weights=ResNet50_Weights.DEFAULT)
+
 model.eval()
 
 with torch.no_grad():
 
-    for _, (train_features, train_labels) in enumerate(train_loader):
+    for _, (test_features, test_labels) in enumerate(test_loader):
         break
 
-    onnx_model = network_graph.export_onnx(model, train_features)
+    onnx_model = network_graph.export_onnx(model, test_features)
     write_network(onnx_model)
 
     

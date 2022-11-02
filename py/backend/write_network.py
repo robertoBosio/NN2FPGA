@@ -112,6 +112,16 @@ def extracts_relu_info(model):
 
     return relu_info
 
+def extracts_flatten_info(model):
+
+    flatten_info = {}
+
+    for node in model.graph.node:
+        if 'flatten' in node.op_type.lower():
+            flatten_info[node.input[0]] = [node.name, node.output[0]]
+
+    return flatten_info
+
 
 def extracts_tensors_info(model):
 
@@ -150,6 +160,8 @@ def write_network(model):
 
     relu_info = extracts_relu_info(model)
 
+    flatten_info = extracts_flatten_info(model)
+
     conv_relu = main.write(
         inferred_model,
         weights_info,
@@ -157,6 +169,7 @@ def write_network(model):
         bias_info,
         relu_info,
         split_info,
+        flatten_info,
         reordered_layers
     )
 
@@ -174,5 +187,6 @@ def write_network(model):
         bias_info,
         relu_info,
         conv_relu,
+        flatten_info,
         split_info
     )
