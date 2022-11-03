@@ -8,8 +8,8 @@ import models.resnet20 as resnet20
 import torchvision
 from torchvision.models import resnet50, ResNet50_Weights
 
-DATASET = 'IMAGENET'
-MODEL = 'RESNET50'
+DATASET = 'CIFAR10'
+MODEL = 'RESNET20'
 
 DIRECTORY = './data'
 os.system('mkdir -p %s' % DIRECTORY)
