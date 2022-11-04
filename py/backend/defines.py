@@ -200,15 +200,15 @@ def write(
         c_oh     = getattr(output_shape, 'dim')[2].dim_value
         c_ow     = getattr(output_shape, 'dim')[3].dim_value
         if ('adaptive' in node_name):
-            c_fh     = getattr(attributes[1], 'ints')[0]
-            c_fw     = getattr(attributes[1], 'ints')[1]
-            c_stride = getattr(attributes[3], 'ints')[0]
-            c_pad    = getattr(attributes[2], 'ints')[0]
-        else:
             c_fh     = c_oh
             c_fw     = c_ow
             c_stride = 1
             c_pad    = 0
+        else:
+            c_fh     = getattr(attributes[1], 'ints')[0]
+            c_fw     = getattr(attributes[1], 'ints')[1]
+            c_stride = getattr(attributes[3], 'ints')[0]
+            c_pad    = getattr(attributes[2], 'ints')[0]
 
         layers_info.append([node_name, 1/(c_oh*c_ow*c_och*c_fh*c_fw)])
 
