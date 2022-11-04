@@ -21,23 +21,26 @@ template <
 ) {
 #pragma HLS inline
 
+	/* Assuming that the number of computations is a multiplier of the number */
+	/* of operations */
 	const int c_num_comp = c_och*c_index;
 	const int c_pipe_iter = c_num_comp/c_ops;
 
 	uint8_t s_index = 0;
 	uint16_t s_och = 0;
-	for (uint8_t s_pipe_iter = 0; s_pipe_iter < c_pipe_iter; s_pipe_iter++) {
-		for (uint8_t s_ops = 0; s_ops < c_ops; s_ops++) {
-#pragma HLS pipeline
-			o_acc_buff[s_och] += i_input[s_index] * i_weights[s_index].read();;
 
-			s_och++;
-			if (s_och == c_och)
-				s_och = 0;
+	for (uint16_t s_pipe_iter = 0; s_pipe_iter < c_pipe_iter; s_pipe_iter++) {
+		for (uint8_t s_ops = 0; s_ops < c_ops; s_ops++) {
+
+#pragma HLS pipeline
+			o_acc_buff[s_och] += i_input[s_index] * i_weights[s_index].read();
 
 			s_index++;
-			if (s_index == c_index)
+
+			if (s_index == c_index) {
 				s_index = 0;
+				s_och++;
+			}
 
 		}
 	}
@@ -60,6 +63,7 @@ template <
 	int c_relu,
 	int c_str,
 	int c_pad,
+	int c_ops,
 	int c_bypass
 > void ConvOp(
 	hls::stream<t_input> i_data[c_fh*c_fw],
@@ -100,7 +104,7 @@ template <
 					t_acc,
 					c_och,
 					c_index,
-					9
+					c_ops
 				> (
 					s_input,
 					i_weights,
@@ -164,6 +168,7 @@ template <
 	int c_relu,
 	int c_str,
 	int c_pad,
+	int c_ops,
 	int c_bypass
 > void ConvOp(
 	hls::stream<t_input> i_data[c_fh*c_fw],
@@ -199,7 +204,7 @@ template <
 					t_acc,
 					c_och,
 					c_index,
-					9
+					c_ops
 				> (
 					s_input,
 					i_weights,
@@ -260,7 +265,8 @@ template <
 	int c_fw,
 	int c_relu,
 	int c_str,
-	int c_pad
+	int c_pad,
+	int c_ops
 > void ConvKernel1x1(
 	hls::stream<t_input> &i_data,
 	hls::stream<t_weight> i_weights[c_fh*c_fw],
@@ -324,6 +330,7 @@ template <
 		c_relu,
 		c_str,
 		c_pad,
+		c_ops,
 		0
 	> (
 		s_compute,
@@ -350,7 +357,8 @@ template <
 	int c_fw,
 	int c_relu,
 	int c_str,
-	int c_pad
+	int c_pad,
+	int c_ops
 > void ConvKernel1x1(
 	hls::stream<t_input> &i_data,
 	hls::stream<t_weight> i_weights[c_fh*c_fw],
@@ -412,6 +420,7 @@ template <
 		c_relu,
 		c_str,
 		c_pad,
+		c_ops,
 		0
 	> (
 		s_compute,
@@ -438,7 +447,8 @@ template <
 	int c_fw,
 	int c_relu,
 	int c_str,
-	int c_pad
+	int c_pad,
+	int c_ops
 > void ConvKernel3x3(
 	hls::stream<t_input> &i_data,
 	hls::stream<t_weight> i_weights[c_fh*c_fw],
@@ -685,6 +695,7 @@ template <
 		c_relu,
 		c_str,
 		c_pad,
+		c_ops,
 		0
 	> (
 		s_compute,
@@ -711,7 +722,8 @@ template <
 	int c_fw,
 	int c_relu,
 	int c_str,
-	int c_pad
+	int c_pad,
+	int c_ops
 > void ConvKernel3x3(
 	hls::stream<t_input> &i_data,
 	hls::stream<t_weight> i_weights[c_fh*c_fw],
@@ -960,6 +972,7 @@ template <
 		c_relu,
 		c_str,
 		c_pad,
+		c_ops,
 		0
 	> (
 		s_compute,
@@ -987,6 +1000,7 @@ template <
 	int c_relu,
 	int c_str,
 	int c_pad,
+	int c_ops,
 	int c_bias
 > void ConvKernel3x3(
 	hls::stream<t_input> &i_data,
@@ -1234,6 +1248,7 @@ template <
 		c_relu,
 		c_str,
 		c_pad,
+		c_ops,
 		0
 	> (
 		s_compute,
@@ -1265,7 +1280,8 @@ template <
 	int c_fh,
 	int c_relu,
 	int c_str,
-	int c_pad
+	int c_pad,
+	int c_ops
 > void PackedConvBuffAcc(
 	hls::stream<t_input> &i_data,
 	hls::stream<t_weight> i_weights[c_fh*c_fw],
@@ -1330,6 +1346,7 @@ template <
 		c_relu,
 		c_str,
 		c_pad,
+		c_ops,
 		1
 	> (
 		s_data_in_stream,
@@ -1359,7 +1376,8 @@ template <
 	int c_relu,
 	int c_split,
 	int c_str,
-	int c_pad
+	int c_pad,
+	int c_ops
 > void PackedConvBuffAcc(
 	hls::stream<t_input> &i_data,
 	hls::stream<t_weight> i_weights[c_fh*c_fw],
@@ -1425,6 +1443,7 @@ template <
 		c_relu,
 		c_str,
 		c_pad,
+		c_ops,
 		1
 	> (
 		s_data_in_stream,
@@ -1463,7 +1482,8 @@ template <
 	int c_oh,
 	int c_relu,
 	int c_str,
-	int c_pad
+	int c_pad,
+	int c_ops
 > void PackedConvBuffAcc(
 	hls::stream<t_input> &i_data,
 	hls::stream<t_weight> i_weights[1],
@@ -1509,7 +1529,8 @@ template <
 		1,
 		c_relu,
 		c_str,
-		c_pad
+		c_pad,
+		c_ops
 	> (
 		i_data,
 		i_weights,
@@ -1551,7 +1572,8 @@ template <
 	int c_fh,
 	int c_relu,
 	int c_str,
-	int c_pad
+	int c_pad,
+	int c_ops
 > void PackedConvBuffAcc(
 	hls::stream<t_input> &i_data,
 	hls::stream<t_weight> i_weights[c_fh*c_fw],
@@ -1615,7 +1637,8 @@ template <
 		c_fw,
 		c_relu,
 		c_str,
-		c_pad
+		c_pad,
+		c_ops
 	> (
 		s_data_in_stream,
 		i_weights,
@@ -1658,7 +1681,8 @@ template <
 	int c_oh,
 	int c_relu,
 	int c_str,
-	int c_pad
+	int c_pad,
+	int c_ops
 > void PackedConvBuffAcc(
 	hls::stream<t_input> &i_data,
 	hls::stream<t_weight> i_weights[1],
@@ -1696,7 +1720,8 @@ template <
 		1,
 		c_relu,
 		c_str,
-		c_pad
+		c_pad,
+		c_ops
 	> (
 		i_data,
 		i_weights,
@@ -1722,7 +1747,8 @@ template <
 	int c_fh,
 	int c_relu,
 	int c_str,
-	int c_pad
+	int c_pad,
+	int c_ops
 > void PackedConvBuffAcc(
 	hls::stream<t_input> &i_data,
 	hls::stream<t_weight> i_weights[c_fh*c_fw],
@@ -1782,7 +1808,8 @@ template <
 		c_fw,
 		c_relu,
 		c_str,
-		c_pad
+		c_pad,
+		c_ops
 	> (
 		s_data_in_stream,
 		i_weights,
@@ -1812,7 +1839,8 @@ template <
 	int c_relu,
 	int c_split,
 	int c_str,
-	int c_pad
+	int c_pad,
+	int c_ops
 > void PackedConvBuffAcc(
 	hls::stream<t_input> &i_data,
 	hls::stream<t_weight> i_weights[c_fh*c_fw],
@@ -1876,7 +1904,8 @@ template <
 		c_fw,
 		c_relu,
 		c_str,
-		c_pad
+		c_pad,
+		c_ops
 	> (
 		s_data_in_stream,
 		i_weights,
