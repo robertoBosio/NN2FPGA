@@ -586,7 +586,8 @@ def write(
                 if (split):
                     fd.write("\t\tc_%s_split,\n" % (output_name))
                 fd.write("\t\tc_%s_stride,\n" % (node_name))
-                fd.write("\t\tc_%s_pad\n" % (node_name))
+                fd.write("\t\tc_%s_pad,\n" % (node_name))
+                fd.write("\t\tc_%s_ops\n" % (node_name))
                 fd.write("\t> (\n")
                 if indexed:
                     fd.write("\t\ts_%s[%d],\n" % (input_name, index))
@@ -618,7 +619,8 @@ def write(
                 if (split):
                     fd.write("\t\tc_%s_split,\n" % (output_name))
                 fd.write("\t\tc_%s_stride,\n" % (node_name))
-                fd.write("\t\tc_%s_pad\n" % (node_name))
+                fd.write("\t\tc_%s_pad,\n" % (node_name))
+                fd.write("\t\tc_%s_ops\n" % (node_name))
                 fd.write("\t> (\n")
                 if indexed:
                     fd.write("\t\ts_%s[%d],\n" % (input_name, index))
