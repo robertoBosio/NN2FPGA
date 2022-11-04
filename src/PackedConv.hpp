@@ -11,6 +11,43 @@ template <
 	class t_input,
 	class t_weight,
 	class t_acc,
+	int c_och,
+	int c_index,
+	int c_ops
+> void ConvComp(
+	t_input i_input[c_index],
+	hls::stream<t_weight> i_weights[c_index],
+	t_acc o_acc_buff[c_och]
+) {
+#pragma HLS inline
+
+	const int c_num_comp = c_och*c_index;
+	const int c_pipe_iter = c_num_comp/c_ops;
+
+	uint8_t s_index = 0;
+	uint16_t s_och = 0;
+	for (uint8_t s_pipe_iter = 0; s_pipe_iter < c_pipe_iter; s_pipe_iter++) {
+		for (uint8_t s_ops = 0; s_ops < c_ops; s_ops++) {
+#pragma HLS pipeline
+			o_acc_buff[s_och] += i_input[s_index] * i_weights[s_index].read();;
+
+			s_och++;
+			if (s_och == c_och)
+				s_och = 0;
+
+			s_index++;
+			if (s_index == c_index)
+				s_index = 0;
+
+		}
+	}
+
+}
+
+template <
+	class t_input,
+	class t_weight,
+	class t_acc,
 	class t_output,
 	int c_ich,
 	int c_och,
@@ -56,12 +93,20 @@ template <
 				for (uint8_t s_index = 0; s_index < c_index; s_index++) {
 					s_input[s_index] = i_data[s_index].read();
 				}
-				for (uint8_t s_och = 0; s_och < c_och; s_och++) {
-					for (uint8_t s_index = 0; s_index < c_index; s_index++) {
-						t_weight s_weights = i_weights[s_index].read();
-						s_acc_buff[s_och] += s_input[s_index] * s_weights;
-					}
-				}
+
+				ConvComp <
+					t_input,
+					t_weight,
+					t_acc,
+					c_och,
+					c_index,
+					9
+				> (
+					s_input,
+					i_weights,
+					s_acc_buff
+				);
+
 			}
 
 			for (uint8_t s_och = 0; s_och < c_och; s_och++) {
@@ -147,12 +192,20 @@ template <
 				for (uint8_t s_index = 0; s_index < c_index; s_index++) {
 					s_input[s_index] = i_data[s_index].read();
 				}
-				for (uint8_t s_och = 0; s_och < c_och; s_och++) {
-					for (uint8_t s_index = 0; s_index < c_index; s_index++) {
-						t_weight s_weights = i_weights[s_index].read();
-						s_acc_buff[s_och] += s_input[s_index] * s_weights;
-					}
-				}
+
+				ConvComp <
+					t_input,
+					t_weight,
+					t_acc,
+					c_och,
+					c_index,
+					9
+				> (
+					s_input,
+					i_weights,
+					s_acc_buff
+				);
+
 			}
 
 			for (uint8_t s_och = 0; s_och < c_och; s_och++) {
