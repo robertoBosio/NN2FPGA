@@ -21,7 +21,7 @@ def parallel_ops_number(layers_info):
         return best_one, best_index
 
     def happiness(choices, elem, layers_info):
-        return choices[elem] * layers_info[elem][1]
+        return choices[elem] * layers_info[elem][1] * layers_info[elem][2]
 
     num_layers = len(layers_info)
 
@@ -40,7 +40,7 @@ def parallel_ops_number(layers_info):
     for i in range(num_layers):
         prob += happiness(choices, i, layers_info) >= happiness(choices, best_index, layers_info)
 
-    prob += pulp.lpSum([choices[i] for i in range(num_layers)]) <= NUM_DSP
+    prob += pulp.lpSum([choices[i]*layers_info[i][2] for i in range(num_layers)]) <= NUM_DSP
 
     for i in range(num_layers):
         prob += pulp.lpSum([choices[i]]) >= MIN_OP

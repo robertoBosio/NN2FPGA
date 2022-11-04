@@ -210,7 +210,7 @@ def write(
             c_stride = getattr(attributes[3], 'ints')[0]
             c_pad    = getattr(attributes[2], 'ints')[0]
 
-        layers_info.append([node_name, 1/(c_oh*c_ow*c_och*c_fh*c_fw)])
+        layers_info.append([node_name, 1/(c_oh*c_ow*c_och*c_fh*c_fw), c_fh*c_fw])
 
         fd.write("const int c_%s_ich    = %d;\n" % (node_name, c_ich))
         fd.write("const int c_%s_och    = %d;\n" % (node_name, c_och))
@@ -353,7 +353,7 @@ def write(
         else:
             c_relu = 0
 
-        layers_info.append([node_name, 1/(c_oh*c_ow*c_och*c_ich*c_fh*c_fw)])
+        layers_info.append([node_name, 1/(c_oh*c_ow*c_och*c_ich*c_fh*c_fw), c_fh*c_fw])
 
         fd.write("typedef ap_uint<8> t_%s;\n" % (output_name))
         fd.write("typedef ap_uint<32> t_%s_acc;\n" % (node_name))
