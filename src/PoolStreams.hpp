@@ -30,33 +30,31 @@ template <
 
 	const int c_index = c_fh*c_fw;
 	const int c_o_index = c_oh*c_ow;
+	const uint8_t c_average_scale = (uint8_t)(log2(c_fh*c_fw));
 
 	/* while(1) { */
 #ifndef __SYNTHESIS__
 		for (uint8_t s_index = 0; s_index < c_index; s_index++)
 			while(i_data[s_index].empty());
-		for (uint8_t s_index = 0; s_index < c_index; s_index++)
-			while(i_weights[s_index].empty());
 #endif
 
 		for (uint16_t s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
 
 			for (uint8_t s_och = 0; s_och < c_och; s_och++) {
-				t_input s_input[c_index];
 				t_acc s_acc_buff = 0;
+
 				for (uint8_t s_index = 0; s_index < c_index; s_index++) {
-					s_input[s_index] = i_data[s_index].read();
-				}
-				for (uint8_t s_index = 0; s_index < c_index; s_index++) {
+					t_input s_input = i_data[s_index].read();
 					if (c_pool == 0) // Average Pool
-						s_acc_buff += s_input[s_index] * s_weights;
+						s_acc_buff += s_input;
 					if (c_pool == 1) { // Max Poool
-						if (s_input[s_index] > s_acc_buff)
-							s_acc_buff = s_input[s_index];
+						if (s_input > s_acc_buff)
+							s_acc_buff = s_input;
 					}
 				}
+
 				if (c_pool == 0) // Average Pool
-					s_acc_buff = s_acc_buff << (c_fh*c_fw);
+					s_acc_buff = s_acc_buff << c_average_scale;
 				o_data.write((t_output)(s_acc_buff)); 
 			}
 
@@ -73,19 +71,11 @@ template <
 		/* if (s_last) */
 		/* 	break; */
 
-#ifndef __SYNTHESIS__
-
-		std::cout << "Starting new image" << std::endl;
-
-#endif
-
 	/* } */
 
 #ifndef __SYNTHESIS__
 	for (uint8_t s_index = 0; s_index < c_index; s_index++)
 		EmptyStream<t_input>(i_data[s_index]);
-	for (uint8_t s_index = 0; s_index < c_index; s_index++)
-		EmptyStream<t_weight>(i_weights[s_index]);
 	std::cout << "POOLOP: " << c_ih << " " << c_iw << " " << c_ich << " " << c_str << " " << c_pad << " " << std::endl;
 #endif
 
@@ -113,8 +103,6 @@ template <
 	hls::stream<t_output> &o_data
 ) {
 
-	const int c_index = c_fh*c_fw;
-
 #pragma HLS inline
 
 	hls::stream<t_acc> s_acc("s_acc");
@@ -126,7 +114,10 @@ template <
 	// be the worst case
 	#pragma HLS STREAM variable=s_data depth=c_ich*c_iw
 
-	hls::stream<ap_uint<1>> s_last[c_fh*c_fw];
+	hls::stream<t_input> s_compute[c_fh*c_fw];
+	#pragma HLS STREAM variable=s_compute depth=10
+
+	hls::stream<ap_uint<1>> s_last[c_fh*c_fw+1];
 	#pragma HLS STREAM variable=s_last depth=10
 
 	SplitStream<
@@ -170,14 +161,14 @@ template <
 			c_fh,
 			c_fw,
 			c_str,
-			c_pad,
-			s_index/c_fh,
-			s_index%c_fw
+			c_pad
 		> (
 			s_data[s_index-1],
-			s_compute[s_index],
 			s_last[s_index],
-			s_data[s_index]
+			s_compute[s_index],
+			s_data[s_index],
+			c_fh - s_index/c_fh - 1,
+			c_fw - s_index%c_fw - 1
 		);
 	}
 
@@ -197,8 +188,8 @@ template <
 		0
 	> (
 		s_data[c_index-2],
-		s_compute[c_index-1],
-		s_last[c_index-1]
+		s_last[c_index-1],
+		s_compute[c_index-1]
 	);
 
 	PoolOp<
@@ -219,7 +210,7 @@ template <
 		c_pool
 	> (
 		s_compute,
-		s_last[1],
+		s_last[c_index],
 		o_last,
 		o_data
 	);
