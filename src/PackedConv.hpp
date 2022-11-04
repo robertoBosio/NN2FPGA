@@ -23,14 +23,14 @@ template <
 
 	/* Assuming that the number of computations is a multiplier of the number */
 	/* of operations */
-	const int c_num_comp = c_och*c_index;
+	const int c_num_comp = c_och;
 	const int c_pipe_iter = c_num_comp/c_ops;
 
 	uint8_t s_index = 0;
 	uint16_t s_och = 0;
 
 	for (uint16_t s_pipe_iter = 0; s_pipe_iter < c_pipe_iter; s_pipe_iter++) {
-		for (uint8_t s_ops = 0; s_ops < c_ops; s_ops++) {
+		for (uint8_t s_ops = 0; s_ops < c_ops*c_index; s_ops++) {
 
 #pragma HLS pipeline
 			o_acc_buff[s_och] += i_input[s_index] * i_weights[s_index].read();
