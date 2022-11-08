@@ -382,8 +382,8 @@ def write(
             c_ih     = 1
             c_iw     = 1
 
-        # fd.write("\ttypedef ap_uint<8> t_%s_st;\n" % (weight_name))
-        # fd.write("\ttypedef ap_uint<8> t_%s;\n" % (weight_name))
+        # fd.write("\ttypedef ap_int<8> t_%s_st;\n" % (weight_name))
+        # fd.write("\ttypedef ap_int<8> t_%s;\n" % (weight_name))
         # fd.write("\tconst int c_%s_och = %d;\n" % (weight_name, c_och))
         # fd.write("\tconst int c_%s_ich = %d;\n" % (weight_name, c_ich))
         # fd.write("\tconst int c_%s_ih  = %d;\n" % (weight_name, c_ih))
@@ -396,7 +396,7 @@ def write(
         last_weight = True
         for ih in range(c_ih):
             for iw in range(c_iw):
-                fd.write("\tconst uint8_t c_%s_st_%0d[] = {\n" % (weight_name, ih*c_iw+iw))
+                fd.write("\tconst int8_t c_%s_st_%0d[] = {\n" % (weight_name, ih*c_iw+iw))
                 for och in range(weights.shape[0]):
                     for ich in range(weights.shape[1]):
                         # fd.write("%.2f" % (weights[och][ich][ih][iw]))

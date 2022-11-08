@@ -44,7 +44,7 @@ def write(
             input_name = input_name.lower().replace("onnx::", "")
             input_shape = tensors_info[input.name].tensor_type.shape
 
-            fd.write("typedef uint8_t t_%s;\n" % (input_name))
+            fd.write("typedef int8_t t_%s;\n" % (input_name))
 
             fd.write("\n")
 
@@ -64,7 +64,7 @@ def write(
             output_shape = tensors_info[output.name].tensor_type.shape
 
             # TYPEDEF already performed during layer parsing
-            # fd.write("typedef uint8_t t_%s;\n" % (output_name))
+            # fd.write("typedef int8_t t_%s;\n" % (output_name))
 
             fd.write("\n")
 
@@ -93,13 +93,13 @@ def write(
             c_ih     = 1
             c_iw     = 1
 
-        fd.write("typedef uint8_t t_%s_st;\n" % (weight_name))
-        fd.write("typedef ap_uint<8> t_%s;\n" % (weight_name))
+        fd.write("typedef int8_t t_%s_st;\n" % (weight_name))
+        fd.write("typedef ap_int<8> t_%s;\n" % (weight_name))
         fd.write("const int c_%s_och = %d;\n" % (weight_name, c_och))
         fd.write("const int c_%s_ich = %d;\n" % (weight_name, c_ich))
         fd.write("const int c_%s_ih  = %d;\n" % (weight_name, c_ih))
         fd.write("const int c_%s_iw  = %d;\n" % (weight_name, c_iw))
-        # fd.write("const ap_uint<8> c_%s_st[] = {\n" % (weight_name))
+        # fd.write("const ap_int<8> c_%s_st[] = {\n" % (weight_name))
         
         # weights = numpy_helper.to_array(
         #     weight_shape
@@ -132,7 +132,7 @@ def write(
 
         fd.write("\n")
 
-        fd.write("typedef ap_uint<8> t_%s;\n" % (output_name))
+        fd.write("typedef ap_int<8> t_%s;\n" % (output_name))
 
         c_ich = getattr(output_shape, 'dim')[1].dim_value
         c_ih  = getattr(output_shape, 'dim')[2].dim_value
@@ -154,7 +154,7 @@ def write(
 
         fd.write("\n")
 
-        fd.write("typedef ap_uint<8> t_%s;\n" % (output_name))
+        fd.write("typedef ap_int<8> t_%s;\n" % (output_name))
 
         c_ich = getattr(output_shape, 'dim')[1].dim_value
         c_ih  = getattr(output_shape, 'dim')[2].dim_value
@@ -188,8 +188,8 @@ def write(
 
         fd.write("\n")
 
-        fd.write("typedef ap_uint<8> t_%s;\n" % (output_name))
-        fd.write("typedef ap_uint<8> t_%s_acc;\n" % (node_name))
+        fd.write("typedef ap_int<8> t_%s;\n" % (output_name))
+        fd.write("typedef ap_int<8> t_%s_acc;\n" % (node_name))
 
         attributes = getattr(node, "attribute" )
 
@@ -241,8 +241,8 @@ def write(
 
         fd.write("\n")
 
-        fd.write("typedef ap_uint<8> t_%s;\n" % (output_name))
-        fd.write("typedef ap_uint<8> t_%s_acc;\n" % (node_name))
+        fd.write("typedef ap_int<8> t_%s;\n" % (output_name))
+        fd.write("typedef ap_int<8> t_%s_acc;\n" % (node_name))
 
         attributes = getattr(node, "attribute" )
 
@@ -284,7 +284,7 @@ def write(
                 skip_name = skip_name.lower().replace("onnx::", "")
 
                 # Declaring copied stream
-                fd.write("typedef ap_uint<8> t_%s;\n" % (skip_name))
+                fd.write("typedef ap_int<8> t_%s;\n" % (skip_name))
                 fd.write("\n")
 
         output_name = node.output[0]
@@ -355,8 +355,8 @@ def write(
 
         layers_info.append([node_name, 1/(c_oh*c_ow*c_och*c_ich*c_fh*c_fw), c_fh*c_fw])
 
-        fd.write("typedef ap_uint<8> t_%s;\n" % (output_name))
-        fd.write("typedef ap_uint<32> t_%s_acc;\n" % (node_name))
+        fd.write("typedef ap_int<8> t_%s;\n" % (output_name))
+        fd.write("typedef ap_int<32> t_%s_acc;\n" % (node_name))
         fd.write("const int c_%s_ich    = %d;\n" % (node_name, c_ich))
         fd.write("const int c_%s_och    = %d;\n" % (node_name, c_och))
         fd.write("const int c_%s_ih     = %d;\n" % (node_name, c_ih))
