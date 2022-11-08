@@ -63,6 +63,7 @@ class PreActResNet(nn.Module):
     self.avgpool = nn.AvgPool2d(8, stride=1)
     self.bn = nn.BatchNorm2d(64)
     self.fc = nn.Conv2d(64, num_classes, 1, bias=False)
+    self.export = False
 
   def forward(self, x):
     out = self.conv0(x)
@@ -72,6 +73,8 @@ class PreActResNet(nn.Module):
     out = self.act_q(out)
     out = self.avgpool(out)
     out = self.fc(out)
+    if not self.export:
+      return out.view(out.size(0), -1)
     return out
 
 
