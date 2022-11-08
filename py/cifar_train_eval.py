@@ -33,7 +33,7 @@ parser.add_argument('--Abits', type=int, default=8)
 parser.add_argument('--lr', type=float, default=0.1)
 parser.add_argument('--wd', type=float, default=1e-4)
 
-parser.add_argument('--train_batch_size', type=int, default=128)
+parser.add_argument('--train_batch_size', type=int, default=256)
 parser.add_argument('--eval_batch_size', type=int, default=100)
 parser.add_argument('--max_epochs', type=int, default=200)
 

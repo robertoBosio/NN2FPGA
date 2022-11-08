@@ -13,10 +13,10 @@ class PreActBlock_conv_Q(nn.Module):
     Conv2d = conv2d_Q_fn(w_bit=wbit)
     self.act_q = act_q
 
-    self.bn0 = nn.BatchNorm2d(in_planes)
     self.conv0 = Conv2d(in_planes, out_planes, kernel_size=3, stride=stride, padding=1, bias=False)
-    self.bn1 = nn.BatchNorm2d(out_planes)
+    self.bn0 = nn.BatchNorm2d(out_planes)
     self.conv1 = Conv2d(out_planes, out_planes, kernel_size=3, stride=1, padding=1, bias=False)
+    self.bn1 = nn.BatchNorm2d(out_planes)
 
     self.skip_conv = None
     if stride != 1:
@@ -24,21 +24,24 @@ class PreActBlock_conv_Q(nn.Module):
       self.skip_bn = nn.BatchNorm2d(out_planes)
 
   def forward(self, x):
-    # out = self.act_q(F.relu(self.bn0(x)))
-    out = self.act_q(x)
+    # out = self.act_q(x)
 
     if self.skip_conv is not None:
-      shortcut = self.skip_conv(out)
-      # shortcut = self.skip_bn(shortcut)
+      shortcut = self.skip_conv(x)
+      shortcut = self.skip_bn(shortcut)
       shortcut = self.act_q(shortcut)
     else:
       shortcut = x
 
-    out = self.conv0(out)
-    # out = self.act_q(F.relu(self.bn1(out)))
-    out = self.act_q(out)
+    out = self.conv0(x)
+    out = self.act_q(F.relu(self.bn0(out)))
+    # out = self.act_q(out)
     out = self.conv1(out)
+    out = self.bn1(out)
+    out = self.act_q(out)
     out += shortcut
+    out = F.relu(out)
+    out = self.act_q(out)
     return out
 
 
@@ -49,6 +52,7 @@ class PreActResNet(nn.Module):
     Linear = linear_Q_fn(w_bit=wbit)
     self.conv0 = Conv2d(3, 16, kernel_size=3, stride=1, padding=1, bias=False)
     self.act_q = activation_quantize_fn(a_bit=abit)
+    self.bn = nn.BatchNorm2d(16)
 
     self.layers = nn.ModuleList()
     in_planes = 16
@@ -61,16 +65,16 @@ class PreActResNet(nn.Module):
       in_planes = channel
 
     self.avgpool = nn.AvgPool2d(8, stride=1)
-    self.bn = nn.BatchNorm2d(64)
     self.fc = nn.Conv2d(64, num_classes, 1, bias=False)
     self.export = False
 
   def forward(self, x):
     out = self.conv0(x)
+    out = self.bn(out)
+    out = self.act_q(out)
+    out = F.relu(out)
     for layer in self.layers:
       out = layer(out)
-    # out = self.bn(out)
-    out = self.act_q(out)
     out = self.avgpool(out)
     out = self.fc(out)
     if not self.export:

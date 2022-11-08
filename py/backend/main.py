@@ -3,6 +3,8 @@ import sys
 import onnx
 from onnx import numpy_helper
 import numpy as np
+from quant_dorefa import weight_quantize_fn
+import torch
 
 def write(
     model,
@@ -392,6 +394,15 @@ def write(
             weight_shape
         )
 
+        wact = weight_quantize_fn(w_bit=8)
+
+        # TODO: less dirty
+        max_w = torch.max(torch.abs(torch.tanh(torch.Tensor(weights)))).detach()
+        weights = np.asarray(wact(torch.Tensor(weights))) / max_w
+        weights = weights + 1
+        weights = weights / 2
+        weights = weights * 255
+        weights = weights - 128
         # TODO: handle weights quantization
         last_weight = True
         for ih in range(c_ih):
@@ -399,8 +410,8 @@ def write(
                 fd.write("\tconst uint8_t c_%s_st_%0d[] = {\n" % (weight_name, ih*c_iw+iw))
                 for och in range(weights.shape[0]):
                     for ich in range(weights.shape[1]):
-                        # fd.write("%.2f" % (weights[och][ich][ih][iw]))
-                        weight_value = np.random.randint(0, 256)
+                        # weight_value = np.random.randint(0, 256)
+                        weight_value = weights[och][ich][ih][iw]
                         fd.write("%0d" % (weight_value))
                         fd.write(", ")
 
