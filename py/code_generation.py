@@ -4,7 +4,8 @@ import sys
 import os
 from backend.write_network import write_network
 import network_graph
-import models.resnet20 as resnet20
+# import models.resnet20 as resnet20
+import models.cifar_resnet_dorefa as resnet20
 import torchvision
 from torchvision.models import resnet50, ResNet50_Weights
 
@@ -53,12 +54,22 @@ test_loader = torch.utils.data.DataLoader(
 )
 
 if (MODEL == 'RESNET20'):
-    model = resnet20.resnet20()
-    state_dict = torch.load(
-        "./tmp/resnet20.weights",
-        map_location=torch.device('cpu')
+    model = resnet20.resnet20(wbits=8, abits=8)
+    # state_dict = torch.load(
+    #     "./tmp/resnet20.weights",
+    #     map_location=torch.device('cpu')
+    # )
+    # model.load_state_dict(state_dict, strict=False)
+    model.load_state_dict(
+        torch.load(
+            "./tmp/resnet_w8a8_82/checkpoint.t7",
+            map_location=torch.device('cpu')
+        )
     )
-    model.load_state_dict(state_dict, strict=False)
+    model.act_q.export = True
+    for name, module in model.named_modules():
+      module.export = True
+      module.requires_grad_(False)
 
 if (MODEL == 'RESNET50'):
     model = resnet50(weights=ResNet50_Weights.DEFAULT)
