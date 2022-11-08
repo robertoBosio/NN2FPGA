@@ -19,29 +19,34 @@ template <
 	hls::stream<t_weight> i_weights[c_index],
 	t_acc o_acc_buff[c_och]
 ) {
-#pragma HLS inline
-
 	/* Assuming that the number of computations is a multiplier of the number */
 	/* of operations */
 	const int c_num_comp = c_och;
 	const int c_pipe_iter = c_num_comp/c_ops;
 
-	uint8_t s_index = 0;
 	uint16_t s_och = 0;
 
 	for (uint16_t s_pipe_iter = 0; s_pipe_iter < c_pipe_iter; s_pipe_iter++) {
-		for (uint8_t s_ops = 0; s_ops < c_ops*c_index; s_ops++) {
-
 #pragma HLS pipeline
-			o_acc_buff[s_och] += i_input[s_index] * i_weights[s_index].read();
 
-			s_index++;
+		/* Buffering to speed up computations */
+		t_weight s_weight[c_ops][c_index];
+#pragma HLS array_partition variable=s_weight type=complete
 
-			if (s_index == c_index) {
-				s_index = 0;
-				s_och++;
+		for (uint8_t s_ops = 0; s_ops < c_ops; s_ops++) {
+			for (uint8_t s_index = 0; s_index < c_index; s_index++) {
+				s_weight[s_ops][s_index] = i_weights[s_index].read();
 			}
+		}
 
+	/* TODO: try unroll and pipeline of the inner loop */
+		for (uint8_t s_ops = 0; s_ops < c_ops; s_ops++) {
+			t_acc s_acc_buff = o_acc_buff[s_och];
+			for (uint8_t s_index = 0; s_index < c_index; s_index++) {
+				s_acc_buff += i_input[s_index] * s_weight[s_ops][s_index];
+			}
+			o_acc_buff[s_och] = s_acc_buff;
+			s_och++;
 		}
 	}
 
@@ -94,6 +99,7 @@ template <
 
 			for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
 				t_input s_input[c_index];
+
 				for (uint8_t s_index = 0; s_index < c_index; s_index++) {
 					s_input[s_index] = i_data[s_index].read();
 				}
@@ -194,6 +200,7 @@ template <
 
 			for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
 				t_input s_input[c_index];
+
 				for (uint8_t s_index = 0; s_index < c_index; s_index++) {
 					s_input[s_index] = i_data[s_index].read();
 				}

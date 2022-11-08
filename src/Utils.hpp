@@ -174,8 +174,8 @@ template <
 		for (uint16_t s_index = 0; s_index < c_index; s_index++) {
 			uint16_t s_addr = 0;
 			for (uint16_t s_ch = 0; s_ch < c_ch; s_ch++) {
+				#pragma HLS pipeline
 				for (uint8_t s_stream_sel = 0; s_stream_sel < c_stream_sel; s_stream_sel++) {
-					#pragma HLS UNROLL
 					o_data[s_stream_sel].write((t_output)(i_data[s_addr]));
 					s_addr++;
 				}
@@ -195,6 +195,50 @@ template <
 	class t_output,
 	int c_ich,
 	int c_och,
+	int c_iw,
+	int c_ih,
+	int c_ow,
+	int c_oh,
+	int c_ops
+> void ProduceStream(
+	const t_input i_data[c_och*c_ich*c_iw*c_ih],
+	hls::stream<ap_uint<1>> &i_last,
+	hls::stream<t_output> o_data[c_ih*c_iw]
+) {
+
+	const int c_index = c_oh*c_ow;
+	const int c_stream_sel = c_ih*c_iw;
+	const int c_ch = c_ich*c_och/c_ops;
+#pragma HLS array_partition type=cyclic factor=c_stream_sel variable=i_data
+
+	/* while(1) { */
+
+		for (uint16_t s_index = 0; s_index < c_index; s_index++) {
+			uint16_t s_addr = 0;
+			for (uint16_t s_ch = 0; s_ch < c_ch; s_ch++) {
+				for (uint8_t s_stream_sel = 0; s_stream_sel < c_stream_sel; s_stream_sel++) {
+					#pragma HLS pipeline
+					for (uint16_t s_ops = 0; s_ops < c_ops; s_ops++) {
+						o_data[s_stream_sel].write((t_output)(i_data[s_addr]));
+						s_addr++;
+					}
+				}
+			}
+		}
+
+		ap_uint<1> s_last;
+		s_last = i_last.read();
+		/* if (i_last.read()) */
+		/* 	break; */
+
+	/* } */
+}
+
+	template <
+	class t_input,
+	class t_output,
+	int c_ich,
+	int c_och,
 	int c_ow,
 	int c_oh
 > void ProduceStream(
@@ -209,6 +253,7 @@ template <
 	/* while(1) { */
 		for (uint16_t s_index = 0; s_index < c_index; s_index++) {
 			for (uint16_t s_ch = 0; s_ch < c_ch; s_ch++) {
+#pragma HLS pipeline
 				o_data.write((t_output)(i_data[s_ch]));
 			}
 		}
@@ -534,6 +579,8 @@ template <
 	hls::stream<t_input> &o_data
 ) {
 
+/* #pragma HLS pipeline */
+
 	/* This handles padding aware inputs */
 
 	const int c_pad_index_h = c_pad * (c_fh - 1);
@@ -567,6 +614,8 @@ template <
 	hls::stream<ap_uint<1>> &o_last,
 	hls::stream<t_input> &o_data
 ) {
+
+/* #pragma HLS pipeline */
 
 	/* This handles padding aware inputs */
 
@@ -811,6 +860,8 @@ template <
 	hls::stream<t_input> &o_compute
 ) {
 
+/* #pragma HLS pipeline */
+
 	const int c_starth = (c_fh-1)*(1-c_pad);
 	const int c_startw = (c_fw-1)*(1-c_pad);
 	const int c_pad_index_h = c_pad * (c_fh - 1) / 2;
@@ -918,6 +969,8 @@ template <
 	hls::stream<t_input> &o_compute,
 	hls::stream<t_input> &o_data
 ) {
+
+/* #pragma HLS pipeline */
 
 	const int c_starth = (c_fh-1)*(1-c_pad);
 	const int c_startw = (c_fw-1)*(1-c_pad);
@@ -1035,6 +1088,8 @@ template <
 	const int c_bypass,
 	const int c_bypass_w
 ) {
+
+/* #pragma HLS pipeline */
 
 	const int c_starth = (c_fh-1)*(1-c_pad);
 	const int c_startw = (c_fw-1)*(1-c_pad);
