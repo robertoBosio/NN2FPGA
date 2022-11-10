@@ -126,6 +126,7 @@ def main():
     # pass
     model.eval()
     correct = 0
+    model.show = True
     with open("tmp/log.txt", "w+") as fd:
         for batch_idx, (inputs, targets) in enumerate(eval_loader):
           # inputs, targets = inputs.cuda(), targets.cuda()

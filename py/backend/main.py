@@ -399,12 +399,8 @@ def write(
         wact = weight_quantize_fn(w_bit=8)
 
         # TODO: less dirty
-        max_w = torch.max(torch.abs(torch.tanh(torch.Tensor(weights)))).detach()
-        weights = np.asarray(wact(torch.Tensor(weights))) / max_w
-        weights = weights + 1
-        weights = weights / 2
-        weights = weights * 255
-        weights = weights - 128
+        weights = np.asarray(wact(torch.Tensor(weights)))
+        weights = weights * 128
         # TODO: handle weights quantization
         last_weight = True
         for ih in range(c_ih):

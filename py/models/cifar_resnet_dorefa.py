@@ -70,9 +70,27 @@ class PreActResNet(nn.Module):
     self.avgpool = nn.AvgPool2d(8, stride=1)
     self.fc = nn.Conv2d(64, num_classes, 1, bias=False)
     self.export = False
+    self.show = False
 
   def forward(self, x):
     # out = x - 0.5;
+
+    if (self.show):
+        # show = torch.round(out*(2**self.abit))
+        show = x
+
+        for b in range(show.shape[0]):
+            for ih in range(show.shape[2]):
+                for iw in range(show.shape[3]):
+                    for ich in range(show.shape[1]):
+                        # weight_value = np.random.randint(0, 256)
+                        print(show[b][ich][ih][iw])
+                    print("----------------------")
+                    if (iw >= 2):
+                        break
+                if (ih >= 2):
+                    break
+            break
 
     out = self.conv0(x)
 
@@ -80,8 +98,17 @@ class PreActResNet(nn.Module):
     out = F.relu(out)
     out = self.act_q(out)
 
-    if (self.export):
-        print(torch.round(out*(2**self.abit)))
+    if (self.show):
+        # show = torch.round(out*(2**self.abit))
+        show = torch.round(out*(2**self.abit))
+
+        for b in range(show.shape[0]):
+            for ih in range(show.shape[2]):
+                for iw in range(show.shape[3]):
+                    for ich in range(show.shape[1]):
+                        # weight_value = np.random.randint(0, 256)
+                        print(show[b][ich][ih][iw])
+                    sys.exit(0)
 
     for layer in self.layers:
       out = layer(out)

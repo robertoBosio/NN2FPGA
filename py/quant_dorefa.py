@@ -42,19 +42,24 @@ class weight_quantize_fn(nn.Module):
     self.export = False
 
   def forward(self, x):
-    if not self.export:
-      if self.w_bit == 32:
-        weight_q = x
-      elif self.w_bit == 1:
-        E = torch.mean(torch.abs(x)).detach()
-        weight_q = self.uniform_q(x / E) * E
-      else:
-        weight = torch.tanh(x)
-        max_w = torch.max(torch.abs(weight)).detach()
-        weight = weight / 2 / max_w + 0.5
-        weight_q = max_w * (2 * self.uniform_q(weight, self.export) - 1)
-    else:
+    if self.w_bit == 32:
       weight_q = x
+    elif self.w_bit == 1:
+      E = torch.mean(torch.abs(x)).detach()
+      weight_q = self.uniform_q(x / E) * E
+    else:
+      weight = torch.tanh(x)
+      max_w = torch.max(torch.abs(weight)).detach()
+      # weight = weight / 2 / max_w + 0.5
+      # weight_q = max_w * (2 * self.uniform_q(weight, self.export) - 1)
+
+      weight = weight / 2 + 0.5
+      weight_q = (2 * self.uniform_q(weight, self.export) - 1)
+      print(weight_q.shape)
+      for och in range(weight_q.shape[0]):
+          for ich in range(weight_q.shape[1]):
+              print(weight_q[och][ich])
+
     return weight_q
 
 

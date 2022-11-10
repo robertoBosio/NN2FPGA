@@ -38,7 +38,7 @@ parser.add_argument('--eval_batch_size', type=int, default=100)
 parser.add_argument('--max_epochs', type=int, default=200)
 
 parser.add_argument('--log_interval', type=int, default=10)
-parser.add_argument('--use_gpu', type=str, default=False)
+parser.add_argument('--use_gpu', type=str, default=True)
 parser.add_argument('--num_workers', type=int, default=5)
 
 parser.add_argument('--cluster', action='store_true', default=False)
