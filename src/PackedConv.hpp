@@ -81,10 +81,17 @@ template <
 
 	const int c_index = c_fh*c_fw;
 	const int c_o_index = c_oh*c_ow;
+	/* TODO: handle different bit width with quantization */
+	const int c_quant = -1 * 256;
 
 	/* while(1) { */
 
 #ifndef __SYNTHESIS__
+		std::cout << "CONVOP_"; 
+		std::cout << c_ich << "_";
+		std::cout << c_och << "_";
+		std::cout << c_ih << "_";
+		std::cout << c_iw << std::endl; 
 		for (uint8_t s_index = 0; s_index < c_index; s_index++)
 			while(i_data[s_index].empty());
 		for (uint8_t s_index = 0; s_index < c_index; s_index++)
@@ -95,15 +102,21 @@ template <
 		for (uint16_t s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
 			t_acc s_acc_buff[c_och];
 			for (uint8_t s_och = 0; s_och < c_och; s_och++)
-				s_acc_buff[s_och] = i_bias.read();
+				/* 1 subtraction for quantization */
+				s_acc_buff[s_och] = (i_bias.read() << 8) - c_quant;
 
 			for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
 				t_input s_input[c_index];
 
 				for (uint8_t s_index = 0; s_index < c_index; s_index++) {
 					s_input[s_index] = i_data[s_index].read();
+#ifndef __SYNTHESIS__
+					std::cout << (ap_uint<8>)(s_input[s_index]) << " ";
+#endif
 				}
-
+#ifndef __SYNTHESIS__
+				std::cout << std::endl;
+#endif
 				ConvComp <
 					t_input,
 					t_weight,
@@ -123,12 +136,19 @@ template <
 				t_acc s_acc = s_acc_buff[s_och];
 				if (c_relu == 1)
 					s_acc = ReluOp<t_acc>(s_acc);
-				o_data.write((t_output)(s_acc)); 
+				// TODO: generic version for different bitwidths
+
+#ifndef __SYNTHESIS__
+				/* std::cout << s_acc(15,8) << " "; */
+#endif
+
+				o_data.write((t_output)(s_acc(15,8))); 
 			}
 		}
 
 #ifndef __SYNTHESIS__
 
+		std::cout << std::endl;
 		std::cout << "Waiting for last signal" << std::endl;
 
 #endif
@@ -186,9 +206,16 @@ template <
 
 	const int c_index = c_fh*c_fw;
 	const int c_o_index = c_oh*c_ow;
+	/* TODO: handle different bit width with quantization */
+	const int c_quant = -1 * 256;
 
 	/* while(1) { */
 #ifndef __SYNTHESIS__
+		std::cout << "CONVOP_"; 
+		std::cout << c_ich << "_";
+		std::cout << c_och << "_";
+		std::cout << c_ih << "_";
+		std::cout << c_iw << std::endl; 
 		for (uint8_t s_index = 0; s_index < c_index; s_index++)
 			while(i_data[s_index].empty());
 		for (uint8_t s_index = 0; s_index < c_index; s_index++)
@@ -196,14 +223,23 @@ template <
 #endif
 
 		for (uint16_t s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
-			t_acc s_acc_buff[c_och] = {0};
+			/* 1 subtraction for quantization */
+			t_acc s_acc_buff[c_och];
+			for (uint8_t s_och = 0; s_och < c_och; s_och++)
+				s_acc_buff[s_och] = c_quant;
 
 			for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
 				t_input s_input[c_index];
 
 				for (uint8_t s_index = 0; s_index < c_index; s_index++) {
 					s_input[s_index] = i_data[s_index].read();
+#ifndef __SYNTHESIS__
+					std::cout << (ap_uint<8>)(s_input[s_index]) << " ";
+#endif
 				}
+#ifndef __SYNTHESIS__
+				std::cout << std::endl;
+#endif
 
 				ConvComp <
 					t_input,
@@ -224,12 +260,20 @@ template <
 				t_acc s_acc = s_acc_buff[s_och];
 				if (c_relu == 1)
 					s_acc = ReluOp<t_acc>(s_acc);
-				o_data.write((t_output)(s_acc)); 
+
+#ifndef __SYNTHESIS__
+				std::cout << s_acc(15,8) << " ";
+#endif
+
+				// TODO: generic version for different bitwidths
+				o_data.write((t_output)(s_acc(15,8))); 
+				/* o_data.write((t_output)(s_acc)); */ 
 			}
 		}
 
 #ifndef __SYNTHESIS__
 
+		std::cout << std::endl;
 		std::cout << "Waiting for last signal" << std::endl;
 
 #endif

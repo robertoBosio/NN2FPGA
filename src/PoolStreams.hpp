@@ -32,13 +32,17 @@ template <
 	const int c_index = c_fh*c_fw;
 	const int c_o_index = c_oh*c_ow;
 	const uint8_t c_average_scale = (uint8_t)(log2(c_fh*c_fw));
+	const int c_quant = -1;
 
 	/* while(1) { */
 #ifndef __SYNTHESIS__
 		while(i_data.empty());
 #endif
 
-		t_acc s_acc_buff[c_och] = {0};
+		t_acc s_acc_buff[c_och];
+		for (uint8_t s_och = 0; s_och < c_och; s_och++)
+			s_acc_buff[s_och] = c_quant;
+
 		for (uint16_t s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
 			for (uint8_t s_index = 0; s_index < c_index; s_index++) {
 				for (uint8_t s_och = 0; s_och < c_och; s_och++) {
@@ -106,6 +110,7 @@ template <
 	const int c_index = c_fh*c_fw;
 	const int c_o_index = c_oh*c_ow;
 	const uint8_t c_average_scale = (uint8_t)(log2(c_fh*c_fw));
+	const int c_quant = -1;
 
 	/* while(1) { */
 #ifndef __SYNTHESIS__
@@ -116,7 +121,7 @@ template <
 		for (uint16_t s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
 
 			for (uint8_t s_och = 0; s_och < c_och; s_och++) {
-				t_acc s_acc_buff = 0;
+				t_acc s_acc_buff = c_quant;
 
 				for (uint8_t s_index = 0; s_index < c_index; s_index++) {
 					t_input s_input = i_data[s_index].read();

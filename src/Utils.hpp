@@ -1,6 +1,7 @@
 #ifndef __UTILS__
 #define __UTILS__
 
+#include "hls_math.h"
 #include "Debug.hpp"
 
 //////////////////////////// FROM POINTER TO STREAM /////////////////////////// 
@@ -83,6 +84,9 @@ template <
 			for (int s_par = 0; s_par < c_par; s_par++) {
 #pragma HLS pipeline
 				t_output tmp_w = (t_output)(tmp_r.data(8*(s_par+1)-1,8*s_par));
+#ifndef __SYNTHESIS__
+					std::cout << (ap_uint<8>)(tmp_w) << " ";
+#endif
 				o_data.write(tmp_w);
 			}
 
@@ -91,6 +95,11 @@ template <
 #endif
 			
 		}
+
+#ifndef __SYNTHESIS__
+		std::cout << std::endl;
+#endif
+
 		o_last.write(tmp_r.last);
 
 #ifndef __SYNTHESIS__
@@ -234,7 +243,7 @@ template <
 	/* } */
 }
 
-	template <
+template <
 	class t_input,
 	class t_output,
 	int c_ich,
@@ -255,6 +264,43 @@ template <
 			for (uint16_t s_ch = 0; s_ch < c_ch; s_ch++) {
 #pragma HLS pipeline
 				o_data.write((t_output)(i_data[s_ch]));
+			}
+		}
+		ap_uint<1> s_last;
+		s_last = i_last.read();
+		/* if (i_last.read()) */
+		/* 	break; */
+	/* } */
+
+}
+
+template <
+	class t_input,
+	class t_output,
+	int c_ich,
+	int c_och,
+	int c_ow,
+	int c_oh,
+	int c_ops
+> void ProduceStream(
+	const t_input i_data[c_och*c_ich],
+	hls::stream<ap_uint<1>> &i_last,
+	hls::stream<t_output> &o_data
+) {
+
+	const int c_index = c_oh*c_ow;
+	const int c_ch = c_ich*c_och/c_ops;
+	const uint8_t c_log_ops = (uint8_t)(log2(c_ops));
+
+	/* while(1) { */
+		for (uint16_t s_index = 0; s_index < c_index; s_index++) {
+			for (uint16_t s_ch = 0; s_ch < c_ch; s_ch++) {
+#pragma HLS pipeline
+				t_output s_data;
+				for (uint8_t s_ops = 0; s_ops < c_ops; s_ops++) {
+					s_data(8*(s_ops + 1) - 1, 8*s_ops) = i_data[(s_ch << c_log_ops) + s_ops];
+				}
+				o_data.write((t_output)(s_data));
 			}
 		}
 		ap_uint<1> s_last;
@@ -636,6 +682,9 @@ template <
 			for (uint8_t s_iw = 0; s_iw < c_iw_pad; s_iw++) {
 				for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
 					o_data.write(0);
+#ifndef __SYNTHESIS__
+					std::cout << (ap_uint<8>)(0) << " ";
+#endif
 				}
 			}
 		}
@@ -646,12 +695,19 @@ template <
 			for (uint8_t s_pad = 0; s_pad < c_pad_index_w; s_pad++){
 				for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
 					o_data.write(0);
+#ifndef __SYNTHESIS__
+					std::cout << (ap_uint<8>)(0) << " ";
+#endif
 				}
 			}
 
 			for (uint8_t s_iw = 0; s_iw < c_iw; s_iw++) {
 				for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
-					o_data.write(i_data.read());
+					t_input s_input = i_data.read();
+					o_data.write(s_input);
+#ifndef __SYNTHESIS__
+					std::cout << (ap_uint<8>)(s_input) << " ";
+#endif
 				}
 			}
 
@@ -659,6 +715,9 @@ template <
 			for (uint8_t s_pad = 0; s_pad < c_pad_index_w; s_pad++){
 				for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
 					o_data.write(0);
+#ifndef __SYNTHESIS__
+					std::cout << (ap_uint<8>)(0) << " ";
+#endif
 				}
 			}
 
@@ -668,10 +727,16 @@ template <
 			for (uint8_t s_iw = 0; s_iw < c_iw_pad; s_iw++) {
 				for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
 					o_data.write(0);
+#ifndef __SYNTHESIS__
+					std::cout << (ap_uint<8>)(0) << " ";
+#endif
 				}
 			}
 		}
 
+#ifndef __SYNTHESIS__
+					std::cout << std::endl;
+#endif
 /* // TODO: Problem seems multiple reads */
 		ap_uint<1> s_last = i_last.read();
 		o_last.write(s_last);
@@ -880,12 +945,23 @@ template <
 		while(i_data.empty());
 #endif
 
+#ifndef __SYNTHESIS__
+		std::cout << "START SHIFTOP" << std::endl;
+#endif
 		/* Shifting first lines through the fifo chain */
 		/* After this shift, all the useless computations with data at the borders are */
 		/* skipped */
 		for (uint16_t s_index = 0; s_index < c_paddingh_shift; s_index++) {
 			t_input s_input = i_data.read();
+#ifndef __SYNTHESIS__
+			std::cout << (ap_uint<8>)(s_input) << " ";
+#endif
 		}
+
+#ifndef __SYNTHESIS__
+		std::cout << std::endl;
+		std::cout << "DISCARDER FIRST " << c_paddingh_shift << "LINES" << std::endl;
+#endif
 
 		for (uint8_t s_ih = c_starth; s_ih < c_ih; s_ih+=c_str) {
 
@@ -895,10 +971,16 @@ template <
 				t_input s_input = i_data.read();
 			}
 
+#ifndef __SYNTHESIS__
+			std::cout << "DISCARDER FIRST " << c_paddingw_shift << "PIXELS" << std::endl;
+#endif
+
 			for (uint8_t s_iw = c_startw; s_iw < c_iw; s_iw+=c_str) {
 
 				for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
+					// TODO: put prints here to check dataflowing
 					t_input s_input = i_data.read();
+					
 					o_compute.write(s_input);
 				}
 
@@ -991,13 +1073,24 @@ template <
 		while(i_data.empty());
 #endif
 
+#ifndef __SYNTHESIS__
+		std::cout << "START SHIFTOP" << std::endl;
+#endif
 		/* Shifting first lines through the fifo chain */
 		/* After this shift, all the useless computations with data at the borders are */
 		/* skipped */
 		for (uint16_t s_index = 0; s_index < c_paddingh_shift; s_index++) {
 			t_input s_input = i_data.read();
+#ifndef __SYNTHESIS__
+			std::cout << (ap_uint<8>)(s_input) << " ";
+#endif
 			o_data.write(s_input);
 		}
+
+#ifndef __SYNTHESIS__
+		std::cout << std::endl;
+		std::cout << "DISCARDER FIRST " << c_paddingh_shift << "LINES" << std::endl;
+#endif
 
 		for (uint8_t s_ih = c_starth; s_ih < c_ih; s_ih+=c_str) {
 
@@ -1005,9 +1098,15 @@ template <
 			/* After this shift, the first row data are shifted forward */
 			for (uint16_t s_index = 0; s_index < c_paddingw_shift; s_index++) {
 				t_input s_input = i_data.read();
+#ifndef __SYNTHESIS__
+				std::cout << (ap_uint<8>)(s_input) << " ";
+#endif
 				o_data.write(s_input);
 			}
 
+#ifndef __SYNTHESIS__
+			std::cout << "DISCARDER FIRST " << c_paddingw_shift << "PIXELS" << std::endl;
+#endif
 			for (uint8_t s_iw = c_startw; s_iw < c_iw; s_iw+=c_str) {
 
 				for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
@@ -1110,6 +1209,9 @@ template <
 		while(i_data.empty());
 #endif
 
+#ifndef __SYNTHESIS__
+		std::cout << "START SHIFTOP" << std::endl;
+#endif
 		/* Shifting first lines through the fifo chain */
 		/* After this shift, all the useless computations with data at the borders are */
 		/* skipped */
