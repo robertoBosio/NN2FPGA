@@ -79,7 +79,9 @@ class PreActResNet(nn.Module):
     # out = self.bn(out)
     out = F.relu(out)
     out = self.act_q(out)
-    print(torch.round(out*(2**self.abit)))
+
+    if (self.export):
+        print(torch.round(out*(2**self.abit)))
 
     for layer in self.layers:
       out = layer(out)

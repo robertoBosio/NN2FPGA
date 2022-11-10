@@ -87,7 +87,12 @@ def main():
   summary_writer = SummaryWriter(cfg.log_dir)
 
   if cfg.pretrain:
-    model.load_state_dict(torch.load(cfg.pretrain_dir))
+    model.load_state_dict(
+        torch.load(
+            cfg.pretrain_dir,
+            map_location=torch.device('cpu')
+        )
+    )
 
   # Training
   def train(epoch):
