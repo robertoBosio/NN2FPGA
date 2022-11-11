@@ -55,10 +55,6 @@ class weight_quantize_fn(nn.Module):
 
       weight = weight / 2 + 0.5
       weight_q = (2 * self.uniform_q(weight, self.export) - 1)
-      print(weight_q.shape)
-      for och in range(weight_q.shape[0]):
-          for ich in range(weight_q.shape[1]):
-              print(weight_q[och][ich])
 
     return weight_q
 

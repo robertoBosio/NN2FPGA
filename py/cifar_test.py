@@ -139,9 +139,9 @@ def main():
           fd.write("%d %d\n" % (predicted[0], targets[0]))
 
           correct += predicted.eq(targets.data).cpu().sum().item()
-          sys.exit(0)
 
         acc = 100. * correct / len(eval_dataset)
+
     print('%s------------------------------------------------------ '
           'Precision@1: %.2f%% \n' % (datetime.now(), acc))
     summary_writer.add_scalar('Precision@1', acc, global_step=epoch)

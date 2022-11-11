@@ -33,7 +33,7 @@ def write(
         fd.write("#define c_i_data 64\n")
         fd.write("typedef ap_axiu<c_i_data, 0, 0, 0> t_i_data;\n")
         # fd.write("typedef int8_t t_weight;\n")
-        fd.write("#define c_o_data 8\n")
+        fd.write("#define c_o_data 32\n")
         fd.write("typedef ap_axis<c_o_data, 0, 0, 0> t_o_data;\n")
 
         fd.write("typedef ap_uint<1> t_last;\n")
@@ -309,6 +309,11 @@ def write(
         else:
             c_split = 0
 
+        if output_name == model.graph.output[0]:
+            output_type = "int32_t"
+        else:
+            output_type = "uint8_t"
+
         output_name = output_name.replace(".", "_")
         output_name = output_name.lower().replace("onnx::", "")
         output_shape = tensors_info[node.output[0]].tensor_type.shape
@@ -355,7 +360,7 @@ def write(
 
         layers_info.append([node_name, 1/(c_oh*c_ow*c_och*c_ich*c_fh*c_fw), c_fh*c_fw])
 
-        fd.write("typedef uint8_t t_%s;\n" % (output_name))
+        fd.write("typedef %s t_%s;\n" % (output_type, output_name))
         fd.write("typedef int32_t t_%s_acc;\n" % (node_name))
         fd.write("const int c_%s_ich    = %d;\n" % (node_name, c_ich))
         fd.write("const int c_%s_och    = %d;\n" % (node_name, c_och))
