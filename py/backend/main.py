@@ -194,6 +194,8 @@ def write(
                     fd.write("\t\tc_%s_och,\n" % (name))
                     fd.write("\t\tc_%s_ow,\n" % (node_name))
                     fd.write("\t\tc_%s_oh\n" % (node_name))
+                    # fd.write("\t\tc_%s_oh,\n" % (node_name))
+                    # fd.write("\t\tc_%s_ops\n" % (node_name))
                     fd.write("\t>(\n")
                     fd.write("\t\tc_%s_st_%0d,\n" % (name, ih*c_iw+iw))
                     fd.write("\t\ts_last_%s[%0d],\n" % (
@@ -397,19 +399,16 @@ def write(
         wact = weight_quantize_fn(w_bit=8)
 
         # TODO: less dirty
-        max_w = torch.max(torch.abs(torch.tanh(torch.Tensor(weights)))).detach()
-        weights = np.asarray(wact(torch.Tensor(weights))) / max_w
-        weights = weights + 1
-        weights = weights / 2
-        weights = weights * 255
-        weights = weights - 128
+        weights = np.asarray(wact(torch.Tensor(weights)))
+
+        weights = weights * 128
         # TODO: handle weights quantization
         last_weight = True
         for ih in range(c_ih):
             for iw in range(c_iw):
                 fd.write("\tconst int8_t c_%s_st_%0d[] = {\n" % (weight_name, ih*c_iw+iw))
-                for och in range(weights.shape[0]):
-                    for ich in range(weights.shape[1]):
+                for ich in range(weights.shape[1]):
+                    for och in range(weights.shape[0]):
                         # weight_value = np.random.randint(0, 256)
                         weight_value = weights[och][ich][ih][iw]
                         fd.write("%0d" % (weight_value))
@@ -472,9 +471,9 @@ def write(
                 # Declaring copied stream
                 if emit_streams:
                     write_stream(
-						fd,
-						skip_name,
-						"c_%s_ich*c_%s_och" % (node_name, node_name)
+		        fd,
+		        skip_name,
+		        "c_%s_ich*c_%s_och" % (node_name, node_name)
                     )
                 fd.write("\n")
 
@@ -516,17 +515,17 @@ def write(
         if emit_streams:
             if (split):
                 write_array_stream(
-						fd,
-						output_name,
-						"c_%s_ich*c_%s_och" % (node_name, node_name),
-						2
-				)
+                    fd,
+                    output_name,
+                    "c_%s_ich*c_%s_och" % (node_name, node_name),
+                    2
+                )
             else:
                 write_stream(
-						fd,
-						output_name,
-						"c_%s_ich*c_%s_och" % (node_name, node_name),
-				)
+                    fd,
+                    output_name,
+                    "c_%s_ich*c_%s_och" % (node_name, node_name),
+                )
             fd.write("\n")
 
         attributes = getattr(node, "attribute" )

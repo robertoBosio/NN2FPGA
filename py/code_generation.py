@@ -62,7 +62,7 @@ if (MODEL == 'RESNET20'):
     # model.load_state_dict(state_dict, strict=False)
     model.load_state_dict(
         torch.load(
-            "./ckpt/resnet_w8a8/checkpoint.t7",
+            "./tmp/resnet_w8a8/checkpoint.t7",
             map_location=torch.device('cpu')
         )
     )

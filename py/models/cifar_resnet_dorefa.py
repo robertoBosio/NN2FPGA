@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import sys
 
 from quant_dorefa import *
 
@@ -28,17 +29,19 @@ class PreActBlock_conv_Q(nn.Module):
 
     if self.skip_conv is not None:
       shortcut = self.skip_conv(x)
-      shortcut = self.skip_bn(shortcut)
+      shortcut = F.relu(shortcut)
+      # shortcut = self.skip_bn(shortcut)
       shortcut = self.act_q(shortcut)
     else:
       shortcut = x
 
     out = self.conv0(x)
-    out = self.act_q(F.relu(self.bn0(out)))
-    # out = self.act_q(out)
-    out = self.conv1(out)
-    out = self.bn1(out)
+    # out = self.bn0(out)
+    out = F.relu(out)
     out = self.act_q(out)
+    out = self.conv1(out)
+    # out = self.bn1(out)
+    # out = self.act_q(out)
     out += shortcut
     out = F.relu(out)
     out = self.act_q(out)
@@ -50,6 +53,7 @@ class PreActResNet(nn.Module):
     super(PreActResNet, self).__init__()
     Conv2d = conv2d_Q_fn(w_bit=wbit)
     Linear = linear_Q_fn(w_bit=wbit)
+    self.abit = abit
     self.conv0 = Conv2d(3, 16, kernel_size=3, stride=1, padding=1, bias=False)
     self.act_q = activation_quantize_fn(a_bit=abit)
     self.bn = nn.BatchNorm2d(16)
@@ -67,15 +71,20 @@ class PreActResNet(nn.Module):
     self.avgpool = nn.AvgPool2d(8, stride=1)
     self.fc = nn.Conv2d(64, num_classes, 1, bias=False)
     self.export = False
+    self.show = False
 
   def forward(self, x):
+    # out = x - 0.5;
+
     out = self.conv0(x)
-    out = self.bn(out)
-    out = self.act_q(out)
+    # out = self.bn(out)
     out = F.relu(out)
+    out = self.act_q(out)
+
     for layer in self.layers:
       out = layer(out)
     out = self.avgpool(out)
+    out = self.act_q(out)
     out = self.fc(out)
     if not self.export:
       return out.view(out.size(0), -1)

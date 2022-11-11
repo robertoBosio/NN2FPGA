@@ -38,7 +38,7 @@ parser.add_argument('--eval_batch_size', type=int, default=100)
 parser.add_argument('--max_epochs', type=int, default=200)
 
 parser.add_argument('--log_interval', type=int, default=10)
-parser.add_argument('--use_gpu', type=str, default='0')
+parser.add_argument('--use_gpu', type=str, default=True)
 parser.add_argument('--num_workers', type=int, default=5)
 
 parser.add_argument('--cluster', action='store_true', default=False)
@@ -52,7 +52,6 @@ os.makedirs(cfg.log_dir, exist_ok=True)
 os.makedirs(cfg.ckpt_dir, exist_ok=True)
 
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"  # see issue #152
-os.environ["CUDA_VISIBLE_DEVICES"] = cfg.use_gpu
 
 
 def main():
@@ -77,11 +76,17 @@ def main():
                                             num_workers=cfg.num_workers)
 
   print('==> Building ResNet..')
-  model = resnet20(wbits=cfg.Wbits, abits=cfg.Abits).cuda()
+  if cfg.use_gpu:
+    model = resnet20(wbits=cfg.Wbits, abits=cfg.Abits).cuda()
+  else:
+    model = resnet20(wbits=cfg.Wbits, abits=cfg.Abits)
 
   optimizer = torch.optim.SGD(model.parameters(), lr=cfg.lr, momentum=0.9, weight_decay=cfg.wd)
   lr_schedu = optim.lr_scheduler.MultiStepLR(optimizer, [100, 150, 180], gamma=0.1)
-  criterion = torch.nn.CrossEntropyLoss().cuda()
+  if cfg.use_gpu:
+    criterion = torch.nn.CrossEntropyLoss().cuda()
+  else:
+    criterion = torch.nn.CrossEntropyLoss()
   summary_writer = SummaryWriter(cfg.log_dir)
 
   if cfg.pretrain:
@@ -94,8 +99,12 @@ def main():
 
     start_time = time.time()
     for batch_idx, (inputs, targets) in enumerate(train_loader):
-      outputs = model(inputs.cuda())
-      loss = criterion(outputs, targets.cuda())
+      if cfg.use_gpu:
+        outputs = model(inputs.cuda())
+        loss = criterion(outputs, targets.cuda())
+      else:
+        outputs = model(inputs)
+        loss = criterion(outputs, targets)
 
       optimizer.zero_grad()
       loss.backward()
@@ -118,7 +127,10 @@ def main():
     model.eval()
     correct = 0
     for batch_idx, (inputs, targets) in enumerate(eval_loader):
-      inputs, targets = inputs.cuda(), targets.cuda()
+      if cfg.use_gpu:
+        inputs, targets = inputs.cuda(), targets.cuda()
+      else:
+        inputs, targets = inputs, targets
 
       outputs = model(inputs)
       _, predicted = torch.max(outputs.data, 1)

@@ -15,8 +15,12 @@ def uniform_quantize(k):
         elif k == 1:
           out = torch.sign(input)
         else:
-          n = float(2 ** k - 1)
-          out = torch.round(input * n) / n
+          # TODO: Modified with respect to original DOREFA
+          # More hardware friendly
+          n = float(2 ** k)
+          out = (torch.round(input * n) - 1) / n
+          # One is the new 0
+          out = torch.clamp(out, 0, 1)
       else:
         out = input
       return out
@@ -38,19 +42,20 @@ class weight_quantize_fn(nn.Module):
     self.export = False
 
   def forward(self, x):
-    if not self.export:
-      if self.w_bit == 32:
-        weight_q = x
-      elif self.w_bit == 1:
-        E = torch.mean(torch.abs(x)).detach()
-        weight_q = self.uniform_q(x / E) * E
-      else:
-        weight = torch.tanh(x)
-        max_w = torch.max(torch.abs(weight)).detach()
-        weight = weight / 2 / max_w + 0.5
-        weight_q = max_w * (2 * self.uniform_q(weight, self.export) - 1)
-    else:
+    if self.w_bit == 32:
       weight_q = x
+    elif self.w_bit == 1:
+      E = torch.mean(torch.abs(x)).detach()
+      weight_q = self.uniform_q(x / E) * E
+    else:
+      weight = torch.tanh(x)
+      max_w = torch.max(torch.abs(weight)).detach()
+      # weight = weight / 2 / max_w + 0.5
+      # weight_q = max_w * (2 * self.uniform_q(weight, self.export) - 1)
+
+      weight = weight / 2 + 0.5
+      weight_q = (2 * self.uniform_q(weight, self.export) - 1)
+
     return weight_q
 
 
@@ -67,7 +72,9 @@ class activation_quantize_fn(nn.Module):
       if self.a_bit == 32:
         activation_q = x
       else:
+        # TODO: Modified with respect to original DOREFA
         activation_q = self.uniform_q(torch.clamp(x, 0, 1), self.export)
+        # activation_q = activation_q - 0.5
         # print(np.unique(activation_q.detach().numpy()))
     else:
       activation_q = x
