@@ -4,6 +4,7 @@
 #include "hls_math.h"
 #include "ap_int.h"
 #include "hls_stream.h"
+#include "Debug.hpp"
 
 /* For global case to save line buffer logic */
 template <
@@ -32,7 +33,7 @@ template <
 	const int c_index = c_fh*c_fw;
 	const int c_o_index = c_oh*c_ow;
 	const uint8_t c_average_scale = (uint8_t)(log2(c_fh*c_fw));
-	const int c_quant = -1;
+	const int c_quant = 0;
 
 	/* while(1) { */
 #ifndef __SYNTHESIS__
@@ -60,13 +61,29 @@ template <
 		}
 
 		for (uint8_t s_och = 0; s_och < c_och; s_och++) {
+			t_acc s_acc = s_acc_buff[s_och];
 			if (c_pool == 0) // Average Pool
-				s_acc_buff[s_och] = s_acc_buff[s_och] << c_average_scale;
-			o_data.write((t_output)(s_acc_buff[s_och])); 
+				s_acc = s_acc >> c_average_scale;
+
+			/* TODO: Write generic version for multiple bits quantization */
+
+#ifndef __SYNTHESIS__
+#ifdef DEBUG_POOL
+			std::cout << (ap_int<32>)(s_acc) << " ";
+			std::cout << std::endl;
+#endif
+#endif
+
+			if (s_acc >= 256)
+				s_acc = 255;
+
+			o_data.write((t_output)(s_acc)); 
 		}
 #ifndef __SYNTHESIS__
 
+#ifdef DEBUG_POOL
 		std::cout << "Waiting for last signal" << std::endl;
+#endif
 
 #endif
 
@@ -79,7 +96,9 @@ template <
 
 #ifndef __SYNTHESIS__
 	EmptyStream<t_input>(i_data);
+#ifdef DEBUG_POOL
 	std::cout << "POOLOP: " << c_ih << " " << c_iw << " " << c_ich << " " << c_str << " " << c_pad << " " << std::endl;
+#endif
 #endif
 
 }
@@ -110,7 +129,7 @@ template <
 	const int c_index = c_fh*c_fw;
 	const int c_o_index = c_oh*c_ow;
 	const uint8_t c_average_scale = (uint8_t)(log2(c_fh*c_fw));
-	const int c_quant = -1;
+	const int c_quant = 0;
 
 	/* while(1) { */
 #ifndef __SYNTHESIS__
@@ -135,6 +154,12 @@ template <
 
 				if (c_pool == 0) // Average Pool
 					s_acc_buff = s_acc_buff << c_average_scale;
+#ifndef __SYNTHESIS__
+#ifdef DEBUG_POOL
+				std::cout << (t_output)(s_acc_buff) << " ";
+				std::cout << std::endl;
+#endif
+#endif
 				o_data.write((t_output)(s_acc_buff)); 
 			}
 
@@ -142,7 +167,9 @@ template <
 
 #ifndef __SYNTHESIS__
 
+#ifdef DEBUG_POOL
 		std::cout << "Waiting for last signal" << std::endl;
+#endif
 
 #endif
 
@@ -156,7 +183,9 @@ template <
 #ifndef __SYNTHESIS__
 	for (uint8_t s_index = 0; s_index < c_index; s_index++)
 		EmptyStream<t_input>(i_data[s_index]);
+#ifdef DEBUG_POOL
 	std::cout << "POOLOP: " << c_ih << " " << c_iw << " " << c_ich << " " << c_str << " " << c_pad << " " << std::endl;
+#endif
 #endif
 
 }

@@ -2,6 +2,7 @@
 #include "../cifar-10/include/cifar/cifar10_reader.hpp"
 #include "hls_stream.h"
 #include <unistd.h>
+#include "../src/Debug.hpp"
 char *getcwd(char *buf, size_t size);
 
 int main() {
@@ -14,7 +15,7 @@ int main() {
 
 	const int c_par = c_i_data/8;
 	const int c_index = (c_input_ich*c_input_ih*c_input_iw)/c_par;
-	const int c_labels = 10;
+	const int c_labels = 1;
 
 	char cwd[100];
 	std::cout << "CURRENT WORKING DIRECTORY" << std::endl;
@@ -25,57 +26,91 @@ int main() {
 	/* 	std::cout << dataset.test_images.at(i) << ' '; */
 	/* } */
 	/* const int c_batch = dataset.test_images.size(); */
-	const int c_batch = 1;
-	const int n_bytes = c_batch*c_index*c_par;
+	const int c_batch = 10;
+	const int n_bytes =c_index*c_par;
 	std::cout << "SENDING " << c_batch << " IMAGES" << std::endl;
 	std::cout << "SENDING " << n_bytes << " BYTES" << std::endl;
-	int s_index = 0; 
+
+	int s_batch = 0;
+	int results[c_batch];
 
 	for (auto it = dataset.test_images.begin(); it != dataset.test_images.end(); ++it) {
+
+		int s_bytes = 0; 
+
 		for (auto itt = it->begin(); itt != it->end(); ++itt) {
 			t_i_data s_data;
-			int s_par = (s_index % c_par);
+			int s_par = (s_bytes % c_par);
 			s_data.data(8*(s_par+1)-1,8*s_par) = (ap_uint<8>)(*itt);
 
+#ifdef DEBUG
 			std::cout << (ap_uint<8>)(*itt) << " ";
+#endif
 
-			if (s_index == (n_bytes-1))
+			if (s_bytes == (n_bytes-1))
 				s_data.last = true;
 			else
 				s_data.last = false;
 			if (s_par == (c_par-1))
 				i_data.write(s_data);
-			if (s_index == (n_bytes-1))
+			s_bytes++;
+			if (s_bytes == n_bytes)
 				break;
-			s_index++;
 		}
-		if (s_index == (n_bytes-1))
+
+#ifdef DEBUG
+		std::cout << std::endl;
+#endif
+		// INIT DATA
+
+		///////////////////////// KERNEL EXECUTION ON IMAGE ///////////////////////
+		std::cout << "--------------------- KERNEL -----------------------" << "\n";
+		Network(
+			i_data,
+			o_data_sim
+		);
+
+		t_o_data s_o_data;
+		int32_t max_value = o_data_sim.read().data;
+		int max_index = 0;
+		int s_index = 1;
+
+		do {
+			s_o_data = o_data_sim.read();
+			std::cout << (int32_t)(s_o_data.data) << std::endl;
+			if (max_value <= s_o_data.data) {
+				max_value = s_o_data.data;
+				max_index = s_index;
+			}
+			s_index++;
+		} while(!s_o_data.last);
+		std::cout << "COMPUTED LABEL " << max_index << std::endl;
+		std::cout << "EXPECTED LABEL " << (ap_int<8>)(dataset.test_labels[s_batch]) << std::endl;
+		results[s_batch] = max_index;
+
+		s_batch++;
+		if (s_batch == c_batch)
 			break;
 	}
-
-	std::cout << std::endl;
-	// INIT DATA
-
-	std::cout << "--------------------- KERNEL -----------------------" << "\n";
-	Network(
-		i_data,
-		o_data_sim
-	);
-
-	t_o_data s_o_data;
-	do {
-		s_o_data = o_data_sim.read();
-		std::cout << "COMPUTED LABEL " << s_o_data.data << std::endl;
-	} while(!s_o_data.last);
 
 	const int n_bytes_labels = c_batch;
-	s_index = 0;
+
+	int s_labels = 0;
+	float correct = 0;
 	for (auto it = dataset.test_labels.begin(); it != dataset.test_labels.end(); ++it) {
 		std::cout << "EXPECTED LABEL " << (int)*it << std::endl;
-		if (s_index == (n_bytes_labels-1))
+
+		if ((int)(*it) == results[s_labels])
+			correct++;
+
+		s_labels++;
+
+		if (s_labels == (n_bytes_labels))
 			break;
-		s_index++;
 	}
+
+	std::cout << "ACCURACY " << correct/(float)(c_batch) << std::endl;
+
 	/* while(o_last == 0); */
 	/* while(o_last == 1); */
 	

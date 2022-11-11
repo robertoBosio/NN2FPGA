@@ -85,7 +85,9 @@ template <
 #pragma HLS pipeline
 				t_output tmp_w = (t_output)(tmp_r.data(8*(s_par+1)-1,8*s_par));
 #ifndef __SYNTHESIS__
+#ifdef DEBUG
 					std::cout << (ap_uint<8>)(tmp_w) << " ";
+#endif
 #endif
 				o_data.write(tmp_w);
 			}
@@ -97,15 +99,19 @@ template <
 		}
 
 #ifndef __SYNTHESIS__
+#ifdef DEBUG
 		std::cout << std::endl;
+#endif
 #endif
 
 		o_last.write(tmp_r.last);
 
 #ifndef __SYNTHESIS__
 
+#ifdef DEBUG
 		std::cout << "Read " << s_dbg_count_bytes << " bytes" << std::endl;
 		std::cout << "Producing last signal" << std::endl;
+#endif
 
 #endif
 
@@ -116,7 +122,9 @@ template <
 
 #ifndef __SYNTHESIS__
 	EmptyStream<t_input>(i_data);
+#ifdef DEBUG
 	std::cout << "PRODUCESTREAM: " << c_ih << " " << c_iw << " " << c_ich << std::endl;
+#endif
 #endif
 
 }
@@ -683,7 +691,9 @@ template <
 				for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
 					o_data.write(0);
 #ifndef __SYNTHESIS__
+#ifdef DEBUG
 					std::cout << (ap_uint<8>)(0) << " ";
+#endif
 #endif
 				}
 			}
@@ -696,7 +706,9 @@ template <
 				for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
 					o_data.write(0);
 #ifndef __SYNTHESIS__
+#ifdef DEBUG
 					std::cout << (ap_uint<8>)(0) << " ";
+#endif
 #endif
 				}
 			}
@@ -706,7 +718,9 @@ template <
 					t_input s_input = i_data.read();
 					o_data.write(s_input);
 #ifndef __SYNTHESIS__
+#ifdef DEBUG
 					std::cout << (ap_uint<8>)(s_input) << " ";
+#endif
 #endif
 				}
 			}
@@ -716,7 +730,9 @@ template <
 				for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
 					o_data.write(0);
 #ifndef __SYNTHESIS__
+#ifdef DEBUG
 					std::cout << (ap_uint<8>)(0) << " ";
+#endif
 #endif
 				}
 			}
@@ -728,14 +744,18 @@ template <
 				for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
 					o_data.write(0);
 #ifndef __SYNTHESIS__
+#ifdef DEBUG
 					std::cout << (ap_uint<8>)(0) << " ";
+#endif
 #endif
 				}
 			}
 		}
 
 #ifndef __SYNTHESIS__
+#ifdef DEBUG
 					std::cout << std::endl;
+#endif
 #endif
 /* // TODO: Problem seems multiple reads */
 		ap_uint<1> s_last = i_last.read();
@@ -750,7 +770,9 @@ template <
 #endif
 
 #ifndef __SYNTHESIS__
+#ifdef DEBUG
 	std::cout << "PADINPUT: " << c_ih << " " << c_iw << " " << c_ich << std::endl;
+#endif
 #endif
 
 }
@@ -946,7 +968,9 @@ template <
 #endif
 
 #ifndef __SYNTHESIS__
+#ifdef DEBUG
 		std::cout << "START SHIFTOP" << std::endl;
+#endif
 #endif
 		/* Shifting first lines through the fifo chain */
 		/* After this shift, all the useless computations with data at the borders are */
@@ -954,13 +978,17 @@ template <
 		for (uint16_t s_index = 0; s_index < c_paddingh_shift; s_index++) {
 			t_input s_input = i_data.read();
 #ifndef __SYNTHESIS__
+#ifdef DEBUG
 			std::cout << (ap_uint<8>)(s_input) << " ";
+#endif
 #endif
 		}
 
 #ifndef __SYNTHESIS__
+#ifdef DEBUG
 		std::cout << std::endl;
 		std::cout << "DISCARDER FIRST " << c_paddingh_shift << "LINES" << std::endl;
+#endif
 #endif
 
 		for (uint8_t s_ih = c_starth; s_ih < c_ih; s_ih+=c_str) {
@@ -972,7 +1000,9 @@ template <
 			}
 
 #ifndef __SYNTHESIS__
+#ifdef DEBUG
 			std::cout << "DISCARDER FIRST " << c_paddingw_shift << "PIXELS" << std::endl;
+#endif
 #endif
 
 			for (uint8_t s_iw = c_startw; s_iw < c_iw; s_iw+=c_str) {
@@ -1007,7 +1037,9 @@ template <
 
 #ifndef __SYNTHESIS__
 
+#ifdef DEBUG
 		std::cout << "Waiting for last signal" << std::endl;
+#endif
 
 #endif
 
@@ -1017,7 +1049,9 @@ template <
 
 #ifndef __SYNTHESIS__
 
+#ifdef DEBUG
 		std::cout << "Starting new image" << std::endl;
+#endif
 
 #endif
 
@@ -1025,7 +1059,9 @@ template <
 
 #ifndef __SYNTHESIS__
 	EmptyStream<t_input>(i_data);
+#ifdef DEBUG
 	std::cout << "SHIFTOP: " << c_ih << " " << c_iw << " " << c_ich << " " << c_str << " " << c_pad << " " << std::endl;
+#endif
 #endif
 
 }
@@ -1074,7 +1110,9 @@ template <
 #endif
 
 #ifndef __SYNTHESIS__
+#ifdef DEBUG
 		std::cout << "START SHIFTOP" << std::endl;
+#endif
 #endif
 		/* Shifting first lines through the fifo chain */
 		/* After this shift, all the useless computations with data at the borders are */
@@ -1082,14 +1120,18 @@ template <
 		for (uint16_t s_index = 0; s_index < c_paddingh_shift; s_index++) {
 			t_input s_input = i_data.read();
 #ifndef __SYNTHESIS__
+#ifdef DEBUG
 			std::cout << (ap_uint<8>)(s_input) << " ";
+#endif
 #endif
 			o_data.write(s_input);
 		}
 
 #ifndef __SYNTHESIS__
+#ifdef DEBUG
 		std::cout << std::endl;
 		std::cout << "DISCARDER FIRST " << c_paddingh_shift << "LINES" << std::endl;
+#endif
 #endif
 
 		for (uint8_t s_ih = c_starth; s_ih < c_ih; s_ih+=c_str) {
@@ -1099,13 +1141,17 @@ template <
 			for (uint16_t s_index = 0; s_index < c_paddingw_shift; s_index++) {
 				t_input s_input = i_data.read();
 #ifndef __SYNTHESIS__
+#ifdef DEBUG
 				std::cout << (ap_uint<8>)(s_input) << " ";
+#endif
 #endif
 				o_data.write(s_input);
 			}
 
 #ifndef __SYNTHESIS__
+#ifdef DEBUG
 			std::cout << "DISCARDER FIRST " << c_paddingw_shift << "PIXELS" << std::endl;
+#endif
 #endif
 			for (uint8_t s_iw = c_startw; s_iw < c_iw; s_iw+=c_str) {
 
@@ -1143,7 +1189,9 @@ template <
 
 #ifndef __SYNTHESIS__
 
+#ifdef DEBUG
 		std::cout << "Waiting for last signal" << std::endl;
+#endif
 
 #endif
 
@@ -1153,7 +1201,9 @@ template <
 
 #ifndef __SYNTHESIS__
 
+#ifdef DEBUG
 		std::cout << "Starting new image" << std::endl;
+#endif
 
 #endif
 
@@ -1162,7 +1212,9 @@ template <
 
 #ifndef __SYNTHESIS__
 	EmptyStream<t_input>(i_data);
+#ifdef DEBUG
 	std::cout << "SHIFTOP: " << c_ih << " " << c_iw << " " << c_ich << " " << c_str << " " << c_pad << " " << std::endl;
+#endif
 #endif
 
 }
@@ -1210,7 +1262,9 @@ template <
 #endif
 
 #ifndef __SYNTHESIS__
+#ifdef DEBUG
 		std::cout << "START SHIFTOP" << std::endl;
+#endif
 #endif
 		/* Shifting first lines through the fifo chain */
 		/* After this shift, all the useless computations with data at the borders are */
@@ -1265,7 +1319,9 @@ template <
 
 #ifndef __SYNTHESIS__
 
+#ifdef DEBUG
 		std::cout << "Waiting for last signal" << std::endl;
+#endif
 
 #endif
 
@@ -1275,7 +1331,9 @@ template <
 
 #ifndef __SYNTHESIS__
 
+#ifdef DEBUG
 		std::cout << "Starting new image" << std::endl;
+#endif
 
 #endif
 
@@ -1284,7 +1342,9 @@ template <
 
 #ifndef __SYNTHESIS__
 	EmptyStream<t_input>(i_data);
+#ifdef DEBUG
 	std::cout << "SHIFTOP: " << c_ih << " " << c_iw << " " << c_ich << " " << c_str << " " << c_pad << " " << std::endl;
+#endif
 #endif
 
 }

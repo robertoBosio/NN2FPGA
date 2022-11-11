@@ -1,6 +1,11 @@
 #ifndef __DEBUG__
 #define __DEBUG__
 
+#ifndef __SYNTHESIS__
+	/* #define DEBUG */
+	#define DEBUG_POOL
+#endif
+
 template <
 	class t_input
 > void EmptyStream(
@@ -16,7 +21,9 @@ template <
 		i_data.read();
 		s_left++;
 	}
+	#ifdef DEBUG
 	std::cout << "LEFT: " << s_left << std::endl;
+	#endif
 #endif
 
 }
