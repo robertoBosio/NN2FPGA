@@ -82,7 +82,7 @@ def write(
 
             fd.write("\n")
 
-    def write_weights(weight_shape, weight_name):
+    def write_weights(weight_shape, weight_name, node_name, write_file=False):
 
         c_och    = getattr(weight_shape, 'dims')[0]
         c_ich    = getattr(weight_shape, 'dims')[1]
@@ -93,33 +93,18 @@ def write(
             c_ih     = 1
             c_iw     = 1
 
-        fd.write("typedef int8_t t_%s_st;\n" % (weight_name))
-        fd.write("typedef int8_t t_%s;\n" % (weight_name))
-        fd.write("const int c_%s_och = %d;\n" % (weight_name, c_och))
-        fd.write("const int c_%s_ich = %d;\n" % (weight_name, c_ich))
-        fd.write("const int c_%s_ih  = %d;\n" % (weight_name, c_ih))
-        fd.write("const int c_%s_iw  = %d;\n" % (weight_name, c_iw))
-        # fd.write("const int8_t c_%s_st[] = {\n" % (weight_name))
-        
-        # weights = numpy_helper.to_array(
-        #     weight_shape
-        # )
+        if (write_file):
+            
+            weight_parallelism = 8*parallel_ops[node_name]
+            fd.write("typedef int8_t t_%s_st;\n" % (weight_name))
+            fd.write("typedef int%0d_t t_%s;\n" % (weight_parallelism, weight_name))
+            fd.write("const int c_%s_och = %d;\n" % (weight_name, c_och))
+            fd.write("const int c_%s_ich = %d;\n" % (weight_name, c_ich))
+            fd.write("const int c_%s_ih  = %d;\n" % (weight_name, c_ih))
+            fd.write("const int c_%s_iw  = %d;\n" % (weight_name, c_iw))
+            fd.write("\n")
 
-        # # TODO: handle weights quantization
-        # last_weight = True
-        # for och in range(weights.shape[0]):
-        #     for ich in range(weights.shape[1]):
-        #         for ih in range(weights.shape[2]):
-        #             for iw in range(weights.shape[3]):
-        #                 fd.write("%0.3f" % (weights[och][ich][ih][iw]))
-        #                 fd.write(", ")
-
-        # fd.write("0")
-
-        # fd.write("};\n")
-        fd.write("\n")
-
-    def write_relu(fd, node):
+    def write_relu(fd, node, write_file=False):
 
         node_name = node.name.replace(".", "_").lower()
 
@@ -130,21 +115,22 @@ def write(
         output_name = output_name.lower().replace("onnx::", "")
         output_shape = tensors_info[node.output[0]].tensor_type.shape
 
-        fd.write("\n")
-
-        fd.write("typedef uint8_t t_%s;\n" % (output_name))
-
         c_ich = getattr(output_shape, 'dim')[1].dim_value
         c_ih  = getattr(output_shape, 'dim')[2].dim_value
         c_iw  = getattr(output_shape, 'dim')[3].dim_value
 
-        fd.write("const int c_%s_ich    = %d;\n" % (node_name, c_ich))
-        fd.write("const int c_%s_ih     = %d;\n" % (node_name, c_ih))
-        fd.write("const int c_%s_iw     = %d;\n" % (node_name, c_iw))
+        if (write_file):
+            fd.write("\n")
 
-        fd.write("\n")
+            fd.write("typedef uint8_t t_%s;\n" % (output_name))
 
-    def write_add(fd, node):
+            fd.write("const int c_%s_ich    = %d;\n" % (node_name, c_ich))
+            fd.write("const int c_%s_ih     = %d;\n" % (node_name, c_ih))
+            fd.write("const int c_%s_iw     = %d;\n" % (node_name, c_iw))
+
+            fd.write("\n")
+
+    def write_add(fd, node, write_file=False):
 
         node_name = node.name.replace(".", "_").lower()
 
@@ -152,24 +138,26 @@ def write(
         output_name = output_name.lower().replace("onnx::", "")
         output_shape = tensors_info[node.output[0]].tensor_type.shape
 
-        fd.write("\n")
-
-        fd.write("typedef uint8_t t_%s;\n" % (output_name))
-
         c_ich = getattr(output_shape, 'dim')[1].dim_value
         c_ih  = getattr(output_shape, 'dim')[2].dim_value
         c_iw  = getattr(output_shape, 'dim')[3].dim_value
 
-        fd.write("const int c_%s_ich    = %d;\n" % (node_name, c_ich))
-        fd.write("const int c_%s_ih     = %d;\n" % (node_name, c_ih))
-        fd.write("const int c_%s_iw     = %d;\n" % (node_name, c_iw))
+        if (write_file):
+            fd.write("\n")
 
-        fd.write("\n")
+            fd.write("typedef uint8_t t_%s;\n" % (output_name))
+
+            fd.write("const int c_%s_ich    = %d;\n" % (node_name, c_ich))
+            fd.write("const int c_%s_ih     = %d;\n" % (node_name, c_ih))
+            fd.write("const int c_%s_iw     = %d;\n" % (node_name, c_iw))
+
+            fd.write("\n")
 
     def write_pool(
         fd,
         node,
-        c_pool=0
+        c_pool=0,
+        write_file=False
     ):
 
         node_name = node.name.replace(".", "_").lower()
@@ -185,11 +173,6 @@ def write(
 
         output_name = output_name.lower().replace("onnx::", "")
         output_shape = tensors_info[node.output[0]].tensor_type.shape
-
-        fd.write("\n")
-
-        fd.write("typedef uint8_t t_%s;\n" % (output_name))
-        fd.write("typedef int32_t t_%s_acc;\n" % (node_name))
 
         attributes = getattr(node, "attribute" )
 
@@ -210,23 +193,36 @@ def write(
             c_stride = getattr(attributes[3], 'ints')[0]
             c_pad    = getattr(attributes[2], 'ints')[0]
 
-        layers_info.append([node_name, 1/(c_oh*c_ow*c_och*c_fh*c_fw), c_fh*c_fw])
+        if not write_file:
+            layers_info.append(
+                [
+                    node_name,
+                    1/(c_oh*c_ow*c_och*c_fh*c_fw),
+                    c_fh*c_fw
+                ]
+            )
 
-        fd.write("const int c_%s_ich    = %d;\n" % (node_name, c_ich))
-        fd.write("const int c_%s_och    = %d;\n" % (node_name, c_och))
-        fd.write("const int c_%s_ih     = %d;\n" % (node_name, c_ih))
-        fd.write("const int c_%s_iw     = %d;\n" % (node_name, c_iw))
-        fd.write("const int c_%s_oh     = %d;\n" % (node_name, c_oh))
-        fd.write("const int c_%s_ow     = %d;\n" % (node_name, c_ow))
-        fd.write("const int c_%s_fh     = %d;\n" % (node_name, c_fh))
-        fd.write("const int c_%s_fw     = %d;\n" % (node_name, c_fw))
-        fd.write("const int c_%s_stride = %d;\n" % (node_name, c_stride))
-        fd.write("const int c_%s_pad    = %d;\n" % (node_name, c_pad))
-        fd.write("const int c_%s_pool   = %d;\n" % (node_name, c_pool))
+        if (write_file):
+            fd.write("\n")
 
-        fd.write("\n")
+            fd.write("typedef uint8_t t_%s;\n" % (output_name))
+            fd.write("typedef int32_t t_%s_acc;\n" % (node_name))
 
-    def write_pad(fd, node):
+            fd.write("const int c_%s_ich    = %d;\n" % (node_name, c_ich))
+            fd.write("const int c_%s_och    = %d;\n" % (node_name, c_och))
+            fd.write("const int c_%s_ih     = %d;\n" % (node_name, c_ih))
+            fd.write("const int c_%s_iw     = %d;\n" % (node_name, c_iw))
+            fd.write("const int c_%s_oh     = %d;\n" % (node_name, c_oh))
+            fd.write("const int c_%s_ow     = %d;\n" % (node_name, c_ow))
+            fd.write("const int c_%s_fh     = %d;\n" % (node_name, c_fh))
+            fd.write("const int c_%s_fw     = %d;\n" % (node_name, c_fw))
+            fd.write("const int c_%s_stride = %d;\n" % (node_name, c_stride))
+            fd.write("const int c_%s_pad    = %d;\n" % (node_name, c_pad))
+            fd.write("const int c_%s_pool   = %d;\n" % (node_name, c_pool))
+
+            fd.write("\n")
+
+    def write_pad(fd, node, write_file=False):
 
         node_name = node.name.replace(".", "_").lower()
 
@@ -239,11 +235,6 @@ def write(
         output_name = output_name.lower().replace("onnx::", "")
         output_shape = tensors_info[node.output[0]].tensor_type.shape
 
-        fd.write("\n")
-
-        fd.write("typedef uint8_t t_%s;\n" % (output_name))
-        fd.write("typedef int8_t t_%s_acc;\n" % (node_name))
-
         attributes = getattr(node, "attribute" )
 
         c_ich    = getattr(input_shape, 'dim')[1].dim_value
@@ -254,17 +245,23 @@ def write(
         c_ow     = getattr(output_shape, 'dim')[3].dim_value
         # c_pad    = getattr(attributes[1], 'ints')[0]
 
-        fd.write("const int c_%s_ich    = %d;\n" % (node_name, c_ich))
-        fd.write("const int c_%s_och    = %d;\n" % (node_name, c_och))
-        fd.write("const int c_%s_ih     = %d;\n" % (node_name, c_ih))
-        fd.write("const int c_%s_iw     = %d;\n" % (node_name, c_iw))
-        fd.write("const int c_%s_oh     = %d;\n" % (node_name, c_oh))
-        fd.write("const int c_%s_ow     = %d;\n" % (node_name, c_ow))
-        fd.write("const int c_%s_pad    = %d;\n" % (node_name, 0))
+        if (write_file):
+            fd.write("\n")
 
-        fd.write("\n")
+            fd.write("typedef uint8_t t_%s;\n" % (output_name))
+            fd.write("typedef int8_t t_%s_acc;\n" % (node_name))
 
-    def write_conv(fd, node, gemm=None):
+            fd.write("const int c_%s_ich    = %d;\n" % (node_name, c_ich))
+            fd.write("const int c_%s_och    = %d;\n" % (node_name, c_och))
+            fd.write("const int c_%s_ih     = %d;\n" % (node_name, c_ih))
+            fd.write("const int c_%s_iw     = %d;\n" % (node_name, c_iw))
+            fd.write("const int c_%s_oh     = %d;\n" % (node_name, c_oh))
+            fd.write("const int c_%s_ow     = %d;\n" % (node_name, c_ow))
+            fd.write("const int c_%s_pad    = %d;\n" % (node_name, 0))
+
+            fd.write("\n")
+
+    def write_conv(fd, node, gemm=None, write_file=False):
 
         node_name = node.name.replace(".", "_").lower()
 
@@ -283,9 +280,10 @@ def write(
                 skip_name = skip_connections_info[node.name][1].replace(".", "_")
                 skip_name = skip_name.lower().replace("onnx::", "")
 
-                # Declaring copied stream
-                fd.write("typedef uint8_t t_%s;\n" % (skip_name))
-                fd.write("\n")
+                if (write_file):
+                    # Declaring copied stream
+                    fd.write("typedef uint8_t t_%s;\n" % (skip_name))
+                    fd.write("\n")
 
         output_name = node.output[0]
         if output_name in bias_info.keys():
@@ -318,9 +316,10 @@ def write(
         output_name = output_name.lower().replace("onnx::", "")
         output_shape = tensors_info[node.output[0]].tensor_type.shape
 
-        fd.write("\n")
+        if (write_file):
+            fd.write("\n")
 
-        write_weights(weight_shape, weight_name)
+        write_weights(weight_shape, weight_name, node_name, write_file)
 
         attributes = getattr(node, "attribute" )
 
@@ -358,47 +357,55 @@ def write(
         else:
             c_relu = 0
 
-        layers_info.append([node_name, 1/(c_oh*c_ow*c_och*c_ich*c_fh*c_fw), c_fh*c_fw])
+        if not write_file:
+            layers_info.append(
+                [
+                    node_name,
+                    1/(c_oh*c_ow*c_och*c_ich*c_fh*c_fw),
+                    c_fh*c_fw
+                ]
+            )
 
-        fd.write("typedef %s t_%s;\n" % (output_type, output_name))
-        fd.write("typedef int32_t t_%s_acc;\n" % (node_name))
-        fd.write("const int c_%s_ich    = %d;\n" % (node_name, c_ich))
-        fd.write("const int c_%s_och    = %d;\n" % (node_name, c_och))
-        fd.write("const int c_%s_ih     = %d;\n" % (node_name, c_ih))
-        fd.write("const int c_%s_iw     = %d;\n" % (node_name, c_iw))
-        fd.write("const int c_%s_ow     = %d;\n" % (node_name, c_ow))
-        fd.write("const int c_%s_oh     = %d;\n" % (node_name, c_oh))
-        fd.write("const int c_%s_fw     = %d;\n" % (node_name, c_fw))
-        fd.write("const int c_%s_fh     = %d;\n" % (node_name, c_fh))
-        fd.write("const int c_%s_relu   = %d;\n" % (node_name, c_relu))
-        fd.write("const int c_%s_split  = %d;\n" % (output_name, c_split))
-        fd.write("const int c_%s_stride = %d;\n" % (node_name, c_stride))
-        fd.write("const int c_%s_pad    = %d;\n" % (node_name, c_pad))
-        fd.write("const int c_%s_split  = %d;\n" % (node_name, c_l_split))
+        if (write_file):
+            fd.write("typedef %s t_%s;\n" % (output_type, output_name))
+            fd.write("typedef int32_t t_%s_acc;\n" % (node_name))
+            fd.write("const int c_%s_ich    = %d;\n" % (node_name, c_ich))
+            fd.write("const int c_%s_och    = %d;\n" % (node_name, c_och))
+            fd.write("const int c_%s_ih     = %d;\n" % (node_name, c_ih))
+            fd.write("const int c_%s_iw     = %d;\n" % (node_name, c_iw))
+            fd.write("const int c_%s_ow     = %d;\n" % (node_name, c_ow))
+            fd.write("const int c_%s_oh     = %d;\n" % (node_name, c_oh))
+            fd.write("const int c_%s_fw     = %d;\n" % (node_name, c_fw))
+            fd.write("const int c_%s_fh     = %d;\n" % (node_name, c_fh))
+            fd.write("const int c_%s_relu   = %d;\n" % (node_name, c_relu))
+            fd.write("const int c_%s_split  = %d;\n" % (output_name, c_split))
+            fd.write("const int c_%s_stride = %d;\n" % (node_name, c_stride))
+            fd.write("const int c_%s_pad    = %d;\n" % (node_name, c_pad))
+            fd.write("const int c_%s_split  = %d;\n" % (node_name, c_l_split))
 
-        fd.write("\n")
+            fd.write("\n")
 
-    def write_body(fd, model):
+    def write_body(fd, model, write_file=False):
 
         for node in model.graph.node:
 
             if 'gemm' in node.op_type.lower():
-                write_conv(fd, node, gemm=True)
+                write_conv(fd, node, gemm=True, write_file=write_file)
                 continue
 
             if 'conv' in node.op_type.lower():
-                write_conv(fd, node)
+                write_conv(fd, node, write_file=write_file)
                 continue
 
             if 'add' == node.op_type.lower():
-                write_add(fd, node)
+                write_add(fd, node, write_file=write_file)
                 continue
 
             # TODO: Write Relu and thinks about folding, if the buffer is small
             # then there is a good chance the overhead is negligible
 
             if 'relu' == node.op_type.lower():
-                write_relu(fd, node)
+                write_relu(fd, node, write_file=write_file)
                 continue
 
             if 'pool' in node.op_type.lower():
@@ -409,15 +416,15 @@ def write(
                 if 'max' in node.op_type.lower():
                     c_pool = 1
 
-                write_pool(fd, node, c_pool)
+                write_pool(fd, node, c_pool, write_file=write_file)
                 continue
 
             if 'pad' in node.op_type.lower():
-                write_pad(fd, node)
+                write_pad(fd, node, write_file=write_file)
 
     def write_footer(fd, parallel_ops):
 
-        for node_name, c_parallel_op in parallel_ops:
+        for node_name, c_parallel_op in parallel_ops.items():
             fd.write("const int c_%s_ops  = %d;\n" % (node_name, c_parallel_op))
 
         fd.write("\n")
@@ -435,9 +442,11 @@ def write(
 
         write_header(fd)
 
-        write_body(fd, model)
+        write_body(fd, model, write_file=False)
 
         parallel_ops = opt(layers_info)
+
+        write_body(fd, model, write_file=True)
 
         write_footer(fd, parallel_ops)
 

@@ -193,9 +193,9 @@ def write(
                     fd.write("\t\tc_%s_ich,\n" % (name))
                     fd.write("\t\tc_%s_och,\n" % (name))
                     fd.write("\t\tc_%s_ow,\n" % (node_name))
-                    fd.write("\t\tc_%s_oh\n" % (node_name))
-                    # fd.write("\t\tc_%s_oh,\n" % (node_name))
-                    # fd.write("\t\tc_%s_ops\n" % (node_name))
+                    # fd.write("\t\tc_%s_oh\n" % (node_name))
+                    fd.write("\t\tc_%s_oh,\n" % (node_name))
+                    fd.write("\t\tc_%s_ops\n" % (node_name))
                     fd.write("\t>(\n")
                     fd.write("\t\tc_%s_st_%0d,\n" % (name, ih*c_iw+iw))
                     fd.write("\t\ts_last_%s[%0d],\n" % (

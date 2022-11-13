@@ -50,11 +50,12 @@ class weight_quantize_fn(nn.Module):
     else:
       weight = torch.tanh(x)
       max_w = torch.max(torch.abs(weight)).detach()
-      # weight = weight / 2 / max_w + 0.5
-      # weight_q = max_w * (2 * self.uniform_q(weight, self.export) - 1)
+      weight = weight / 2 / max_w + 0.5
+      weight_q = max_w * (2 * self.uniform_q(weight, self.export) - 1)
 
-      weight = weight / 2 + 0.5
-      weight_q = (2 * self.uniform_q(weight, self.export) - 1)
+      # VERSION WORKING IN HARDWARE
+      # weight = weight / 2 + 0.5
+      # weight_q = (2 * self.uniform_q(weight, self.export) - 1)
 
     return weight_q
 

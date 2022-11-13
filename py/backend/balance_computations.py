@@ -51,11 +51,11 @@ def parallel_ops_number(layers_info):
 
     print("Status:", pulp.LpStatus[prob.status])
 
-    parallel_op = []
+    parallel_op = {}
     for i in range(num_layers):
         # Returning the layers name together with the computed number of 
         # operations that should be executed in parallel
-        parallel_op.append([layers_info[i][0], choices[i].value()])
+        parallel_op[layers_info[i][0]] = choices[i].value()
     
     return parallel_op
 
