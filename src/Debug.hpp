@@ -3,7 +3,8 @@
 
 #ifndef __SYNTHESIS__
 	/* #define DEBUG */
-	#define DEBUG_POOL
+	/* #define DEBUG_LINE */
+	/* #define DEBUG_POOL */
 #endif
 
 template <

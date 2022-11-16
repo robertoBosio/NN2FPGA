@@ -26,7 +26,7 @@ int main() {
 	/* 	std::cout << dataset.test_images.at(i) << ' '; */
 	/* } */
 	/* const int c_batch = dataset.test_images.size(); */
-	const int c_batch = 10;
+	const int c_batch = 30;
 	const int n_bytes =c_index*c_par;
 	std::cout << "SENDING " << c_batch << " IMAGES" << std::endl;
 	std::cout << "SENDING " << n_bytes << " BYTES" << std::endl;
@@ -71,15 +71,20 @@ int main() {
 		);
 
 		t_o_data s_o_data;
-		int32_t max_value = o_data_sim.read().data;
+		s_o_data = o_data_sim.read();
+		int32_t max_value = -1;
+		max_value = (int32_t)(s_o_data.data);
+		std::cout << (int32_t)(s_o_data.data) << std::endl;
 		int max_index = 0;
 		int s_index = 1;
 
 		do {
 			s_o_data = o_data_sim.read();
 			std::cout << (int32_t)(s_o_data.data) << std::endl;
-			if (max_value <= s_o_data.data) {
-				max_value = s_o_data.data;
+			if ((int32_t)(s_o_data.data) > max_value) {
+				max_value = (int32_t)(s_o_data.data);
+				std::cout << "INDEX " << s_index << std::endl;
+				std::cout << "MAX VALUE " << (int32_t)(max_value) << std::endl;
 				max_index = s_index;
 			}
 			s_index++;
@@ -98,7 +103,6 @@ int main() {
 	int s_labels = 0;
 	float correct = 0;
 	for (auto it = dataset.test_labels.begin(); it != dataset.test_labels.end(); ++it) {
-		std::cout << "EXPECTED LABEL " << (int)*it << std::endl;
 
 		if ((int)(*it) == results[s_labels])
 			correct++;

@@ -49,6 +49,16 @@ template <
 				for (uint8_t s_och = 0; s_och < c_och; s_och++) {
 
 					t_input s_input = i_data.read();
+
+#ifndef __SYNTHESIS__
+#ifdef DEBUG_POOL
+			if (s_och == 0) {
+				std::cout << (ap_uint<8>)(s_input) << " ";
+				std::cout << std::endl;
+			}
+#endif
+#endif
+
 					if (c_pool == 0) // Average Pool
 						s_acc_buff[s_och] += s_input;
 					if (c_pool == 1) { // Max Poool

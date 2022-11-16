@@ -303,10 +303,11 @@ template <
 	/* while(1) { */
 		for (uint16_t s_index = 0; s_index < c_index; s_index++) {
 			for (uint16_t s_ch = 0; s_ch < c_ch; s_ch++) {
+/* #pragma HLS loop_merge */
 #pragma HLS pipeline
-				t_output s_data;
+				t_output s_data = 0;
 				for (uint8_t s_ops = 0; s_ops < c_ops; s_ops++) {
-					s_data(8*(s_ops + 1) - 1, 8*s_ops) = i_data[(s_ch << c_log_ops) + s_ops];
+					s_data(8*(s_ops+1)-1, 8*s_ops) = i_data[(s_ch << c_log_ops) + s_ops];
 				}
 				o_data.write((t_output)(s_data));
 			}
@@ -995,7 +996,7 @@ template <
 
 			/* Start shifting for padding */
 			/* After this shift, the first row data are shifted forward */
-			for (uint16_t s_index = 0; s_index < c_paddingw_shift; s_index++) {
+			for (uint8_t s_index = 0; s_index < c_paddingw_shift; s_index++) {
 				t_input s_input = i_data.read();
 			}
 
@@ -1008,7 +1009,6 @@ template <
 			for (uint8_t s_iw = c_startw; s_iw < c_iw; s_iw+=c_str) {
 
 				for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
-					// TODO: put prints here to check dataflowing
 					t_input s_input = i_data.read();
 					
 					o_compute.write(s_input);
@@ -1138,7 +1138,7 @@ template <
 
 			/* Start shifting for padding */
 			/* After this shift, the first row data are shifted forward */
-			for (uint16_t s_index = 0; s_index < c_paddingw_shift; s_index++) {
+			for (uint8_t s_index = 0; s_index < c_paddingw_shift; s_index++) {
 				t_input s_input = i_data.read();
 #ifndef __SYNTHESIS__
 #ifdef DEBUG
