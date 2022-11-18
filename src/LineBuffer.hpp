@@ -7,13 +7,12 @@
 
 template <class t_stream, int c_depth>
 class LineStream {
-	private:
+	public:
 #ifndef __SYNTHESIS__
 		int n_elems;
 #endif
 		hls::stream<t_stream, c_depth> s_stream;
 
-	public:
 		LineStream() { 
 #ifndef __SYNTHESIS__
 			n_elems = 0;
@@ -63,17 +62,9 @@ template <
 		const int c_index = c_fh*c_fw;
 		LineStream<t_stream, c_ich> s_stream_c[c_fh][c_fw-1];
 		LineStream<t_stream, c_ich*c_iw> s_stream_r[c_fh-1];
-		ap_int<4> s_fh_w;
-		ap_int<4> s_fw_w;
-		ap_int<4> s_fh_r;
-		ap_int<4> s_fw_r;
+		const ap_uint<8> c_addr[c_fh*c_fw-1] = {0xff, 0x10, 0x21, 0x42, 0x54, 0x65, 0x86, 0x98};
 
-		LineBuffer() { 
-			s_fh_w = c_fh-1;
-			s_fw_w = c_fw-2;
-			s_fh_r = c_fh-1;
-			s_fw_r = c_fw-2;
-		}
+		LineBuffer() {}
 
 		/* Fill the buffer for init */
 		void ShiftIn(t_stream i_write) {
@@ -100,51 +91,54 @@ template <
 
 		/* Fill and retrieve */
 		t_stream PopFirst() {
-			s_fh_r = c_fh-1;
-			s_fw_r = c_fw-3;
-			s_fh_w = c_fh-1;
-			s_fw_w = c_fw-2;
 			return s_stream_c[c_fh-1][c_fw-2].read();
 		}
 
 		void PushFirst(t_stream i_write) {
-			s_fh_r = c_fh-1;
-			s_fw_r = c_fw-2;
-			s_fh_w = c_fh-1;
-			s_fw_w = c_fw-2;
 			s_stream_c[0][0].write(i_write);
 		}
 
 		/* Fill and retrieve */
-		t_stream ShiftLineBuffer() {
-			t_stream s_stream = 0;
+		t_stream GetLineBuffer(
+			ap_uint<2> i_fh,
+			ap_uint<2> i_fw
+		) {
 
-			if (s_fw_r > -1) {
-				s_stream = s_stream_c[s_fh_r][s_fw_r].read();
-				s_fw_r--;
-			} else {
-				s_fw_r = c_fw-2;
-				if (s_fh_r > 0) {
-					s_stream = s_stream_r[s_fh_r-1].read();
-					s_fh_r--;
-				} else {
-					s_fh_r = c_fh-1;
-				}
-			}
+#pragma HLS inline
+			if (i_fh == 3)
+				return 0;
+
+			if (i_fw(1,1)==1)
+				return s_stream_r[i_fh].read();
+			else
+				return s_stream_c[i_fh][i_fw].read();
 			
-			if (s_fw_w > 0 || ((s_fw_w > -1) && (s_fh_w > 0))) {
-				s_stream_c[s_fh_w][s_fw_w].write(s_stream);
-				s_fw_w--;
-			} else {
-				s_fw_w = c_fw-2;
-				if (s_fh_w > 0) {
-					s_stream_r[s_fh_w-1].write(s_stream);
-					s_fh_w--;
-				} else {
-					s_fh_w = c_fh-1;
-				}
-			}
+		}
+
+		void SetLineBuffer(
+			ap_uint<2> i_fh,
+			ap_uint<2> i_fw,
+			t_stream i_write
+		) {
+
+#pragma HLS inline
+			if (i_fh == 3)
+				return;
+
+			if (i_fw(1,1)==1)
+				s_stream_r[i_fh].write(i_write);
+			else
+				s_stream_c[i_fh][i_fw].write(i_write);
 			
+		}
+
+		t_stream ShiftLineBuffer(uint8_t i_index) {
+
+#pragma HLS inline
+			ap_uint<8> s_addr = c_addr[i_index-1];
+			t_stream s_stream = GetLineBuffer(s_addr(3,2), s_addr(1,0));
+			SetLineBuffer(s_addr(7,6), s_addr(5,4), s_stream);
+
 			return s_stream;
 		}
 

@@ -1127,9 +1127,9 @@ template <
 				for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
 					t_input s_input = s_data.PopFirst();
 					for (uint8_t s_index = c_index-1; s_index > 0; s_index--) {
-#pragma HLS unroll
+#pragma HLS pipeline
 						o_compute[s_index].write(s_input);
-						s_input = s_data.ShiftLineBuffer();
+						s_input = s_data.ShiftLineBuffer(s_index);
 					}
 					s_input = i_data.read();
 					o_compute[0].write(s_input);
@@ -1139,8 +1139,8 @@ template <
 				for (uint8_t s_stride = 0; s_stride < c_stridew_shift; s_stride++) {
 					t_input s_input = s_data.PopFirst();
 					for (uint8_t s_index = c_index-1; s_index > 0; s_index--) {
-#pragma HLS unroll
-						s_input = s_data.ShiftLineBuffer();
+#pragma HLS pipeline
+						s_input = s_data.ShiftLineBuffer(s_index);
 					}
 					s_input = i_data.read();
 					s_data.PushFirst(s_input);
@@ -1152,8 +1152,8 @@ template <
 				for (uint16_t s_pad = 0; s_pad < (c_paddingw_shift + c_strideh_shift); s_pad++) {
 					t_input s_input = s_data.PopFirst();
 					for (uint8_t s_index = c_index-1; s_index > 0; s_index--) {
-#pragma HLS unroll
-						s_input = s_data.ShiftLineBuffer();
+#pragma HLS pipeline
+						s_input = s_data.ShiftLineBuffer(s_index);
 					}
 					s_input = i_data.read();
 					s_data.PushFirst(s_input);
@@ -1261,9 +1261,9 @@ template <
 					t_input s_input = s_data.PopFirst();
 					o_data.write(s_input);
 					for (uint8_t s_index = c_index-1; s_index > 0; s_index--) {
-#pragma HLS unroll
+#pragma HLS pipeline
 						o_compute[s_index].write(s_input);
-						s_input = s_data.ShiftLineBuffer();
+						s_input = s_data.ShiftLineBuffer(s_index);
 					}
 					s_input = i_data.read();
 					o_compute[0].write(s_input);
@@ -1274,8 +1274,8 @@ template <
 					t_input s_input = s_data.PopFirst();
 					o_data.write(s_input);
 					for (uint8_t s_index = c_index-1; s_index > 0; s_index--) {
-#pragma HLS unroll
-						s_input = s_data.ShiftLineBuffer();
+#pragma HLS pipeline
+						s_input = s_data.ShiftLineBuffer(s_index);
 					}
 					s_input = i_data.read();
 					s_data.PushFirst(s_input);
@@ -1287,8 +1287,8 @@ template <
 				t_input s_input = s_data.PopFirst();
 				o_data.write(s_input);
 				for (uint8_t s_index = c_index-1; s_index > 0; s_index--) {
-#pragma HLS unroll
-					s_input = s_data.ShiftLineBuffer();
+#pragma HLS pipeline
+					s_input = s_data.ShiftLineBuffer(s_index);
 				}
 				s_input = i_data.read();
 				s_data.PushFirst(s_input);
@@ -1299,7 +1299,7 @@ template <
 					t_input s_input = s_data.PopFirst();
 					o_data.write(s_input);
 					for (uint8_t s_index = c_index-1; s_index > 0; s_index--) {
-						s_input = s_data.ShiftLineBuffer();
+						s_input = s_data.ShiftLineBuffer(s_index);
 					}
 					s_input = i_data.read();
 					s_data.PushFirst(s_input);

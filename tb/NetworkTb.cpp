@@ -26,7 +26,7 @@ int main() {
 	/* 	std::cout << dataset.test_images.at(i) << ' '; */
 	/* } */
 	/* const int c_batch = dataset.test_images.size(); */
-	const int c_batch = 30;
+	const int c_batch = 1;
 	const int n_bytes =c_index*c_par;
 	std::cout << "SENDING " << c_batch << " IMAGES" << std::endl;
 	std::cout << "SENDING " << n_bytes << " BYTES" << std::endl;
