@@ -3,6 +3,7 @@
 
 #include "hls_math.h"
 #include "Debug.hpp"
+#include "LineBuffer.hpp"
 
 //////////////////////////// FROM POINTER TO STREAM /////////////////////////// 
 // For input activations
@@ -1066,6 +1067,284 @@ template <
 
 }
 
+template <
+	class t_input,
+	int c_ich,
+	int c_och,
+	int c_ih,
+	int c_iw,
+	int c_oh,
+	int c_ow,
+	int c_fh,
+	int c_fw,
+	int c_str,
+	int c_pad
+> void ShiftOp(
+	hls::stream<t_input> &i_data,
+	hls::stream<ap_uint<1>> &i_last,
+	hls::stream<t_input> o_compute[c_fh*c_fw]
+) {
+
+/* #pragma HLS pipeline */
+
+	const int c_starth = (c_fh-1)*(1-c_pad);
+	const int c_startw = (c_fw-1)*(1-c_pad);
+	const int c_pad_index_h = c_pad * (c_fh - 1) / 2;
+	const int c_pad_index_w = c_pad * (c_fw - 1) / 2;
+	const int c_ih_pad = c_ih + c_pad_index_h*2;
+	const int c_iw_pad = c_iw + c_pad_index_w*2;
+	const int c_paddingh_shift = (c_fh - 1)*c_iw_pad*c_ich;
+	const int c_paddingw_shift = (c_fw - 1)*c_ich;
+	const int c_strideh_shift = (c_str-1)*c_iw_pad*c_ich;
+	const int c_stridew_shift = (c_str-1)*c_ich;
+	const int c_end_paddingh_shift = (c_fh - 1)*c_iw_pad*c_ich;
+	const int c_end_paddingw_shift = (c_fw - 1)*c_ich;
+	const int c_index = c_fh*c_fw;
+
+	LineBuffer<t_input, c_fh, c_fw, c_ich, c_iw> s_data;
+	
+#ifndef __SYNTHESIS__
+		while(i_data.empty());
+#endif
+
+#ifndef __SYNTHESIS__
+#ifdef DEBUG
+		std::cout << "START SHIFTOP" << std::endl;
+#endif
+#endif
+		/* Shifting first lines through the fifo chain */
+		/* After this shift, all the useless computations with data at the borders are */
+		/* skipped */
+
+		for (uint16_t s_pad = 0; s_pad < (c_paddingh_shift + c_paddingw_shift); s_pad++) {
+			s_data.ShiftIn(i_data.read());
+		}
+
+		for (uint8_t s_ih = c_starth; s_ih < c_ih; s_ih+=c_str) {
+
+			for (uint8_t s_iw = c_startw; s_iw < c_iw; s_iw+=c_str) {
+
+				for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
+					t_input s_input = s_data.PopFirst();
+					for (uint8_t s_index = c_index-1; s_index > 0; s_index--) {
+#pragma HLS unroll
+						o_compute[s_index].write(s_input);
+						s_input = s_data.ShiftLineBuffer();
+					}
+					s_input = i_data.read();
+					o_compute[0].write(s_input);
+					s_data.PushFirst(s_input);
+				}
+
+				for (uint8_t s_stride = 0; s_stride < c_stridew_shift; s_stride++) {
+					t_input s_input = s_data.PopFirst();
+					for (uint8_t s_index = c_index-1; s_index > 0; s_index--) {
+#pragma HLS unroll
+						s_input = s_data.ShiftLineBuffer();
+					}
+					s_input = i_data.read();
+					s_data.PushFirst(s_input);
+				}
+
+			}
+
+			if (s_ih < (c_ih-1-c_str+1)) {
+				for (uint16_t s_pad = 0; s_pad < (c_paddingw_shift + c_strideh_shift); s_pad++) {
+					t_input s_input = s_data.PopFirst();
+					for (uint8_t s_index = c_index-1; s_index > 0; s_index--) {
+#pragma HLS unroll
+						s_input = s_data.ShiftLineBuffer();
+					}
+					s_input = i_data.read();
+					s_data.PushFirst(s_input);
+				}
+			}
+
+		}
+
+		for (uint16_t s_pad = 0; s_pad < (c_end_paddingh_shift + c_paddingw_shift); s_pad++) {
+			s_data.ShiftOut();
+		}
+
+
+#ifndef __SYNTHESIS__
+
+#ifdef DEBUG
+		std::cout << "Waiting for last signal" << std::endl;
+#endif
+
+#endif
+
+		ap_uint<1> s_last = i_last.read();
+		/* if (s_last) */
+		/* 	break; */
+
+#ifndef __SYNTHESIS__
+
+#ifdef DEBUG
+		std::cout << "Starting new image" << std::endl;
+#endif
+
+#endif
+
+
+	/* } */
+
+#ifndef __SYNTHESIS__
+	EmptyStream<t_input>(i_data);
+#ifdef DEBUG
+	std::cout << "SHIFTOP: " << c_ih << " " << c_iw << " " << c_ich << " " << c_str << " " << c_pad << " " << std::endl;
+#endif
+#endif
+
+}
+
+template <
+	class t_input,
+	int c_ich,
+	int c_och,
+	int c_ih,
+	int c_iw,
+	int c_oh,
+	int c_ow,
+	int c_fh,
+	int c_fw,
+	int c_str,
+	int c_pad
+> void ShiftOp(
+	hls::stream<t_input> &i_data,
+	hls::stream<ap_uint<1>> &i_last,
+	hls::stream<t_input> o_compute[c_fh*c_fw],
+	hls::stream<t_input> &o_data
+) {
+
+/* #pragma HLS pipeline */
+
+	const int c_starth = (c_fh-1)*(1-c_pad);
+	const int c_startw = (c_fw-1)*(1-c_pad);
+	const int c_pad_index_h = c_pad * (c_fh - 1) / 2;
+	const int c_pad_index_w = c_pad * (c_fw - 1) / 2;
+	const int c_ih_pad = c_ih + c_pad_index_h*2;
+	const int c_iw_pad = c_iw + c_pad_index_w*2;
+	const int c_paddingh_shift = (c_fh - 1)*c_iw_pad*c_ich;
+	const int c_paddingw_shift = (c_fw - 1)*c_ich;
+	const int c_strideh_shift = (c_str-1)*c_iw_pad*c_ich;
+	const int c_stridew_shift = (c_str-1)*c_ich;
+	const int c_end_paddingh_shift = (c_fh - 1)*c_iw_pad*c_ich;
+	const int c_end_paddingw_shift = (c_fw - 1)*c_ich;
+	const int c_index = c_fh*c_fw;
+
+	LineBuffer<t_input, c_fh, c_fw, c_ich, c_iw> s_data;
+	
+#ifndef __SYNTHESIS__
+		while(i_data.empty());
+#endif
+
+#ifndef __SYNTHESIS__
+#ifdef DEBUG
+		std::cout << "START SHIFTOP" << std::endl;
+#endif
+#endif
+		/* Shifting first lines through the fifo chain */
+		/* After this shift, all the useless computations with data at the borders are */
+		/* skipped */
+
+		for (uint16_t s_pad = 0; s_pad < (c_paddingh_shift + c_paddingw_shift); s_pad++) {
+			s_data.ShiftIn(i_data.read());
+		}
+
+		for (uint8_t s_ih = c_starth; s_ih < c_ih; s_ih+=c_str) {
+
+			for (uint8_t s_iw = c_startw; s_iw < c_iw; s_iw+=c_str) {
+
+				for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
+					t_input s_input = s_data.PopFirst();
+					o_data.write(s_input);
+					for (uint8_t s_index = c_index-1; s_index > 0; s_index--) {
+#pragma HLS unroll
+						o_compute[s_index].write(s_input);
+						s_input = s_data.ShiftLineBuffer();
+					}
+					s_input = i_data.read();
+					o_compute[0].write(s_input);
+					s_data.PushFirst(s_input);
+				}
+
+				for (uint8_t s_stride = 0; s_stride < c_stridew_shift; s_stride++) {
+					t_input s_input = s_data.PopFirst();
+					o_data.write(s_input);
+					for (uint8_t s_index = c_index-1; s_index > 0; s_index--) {
+#pragma HLS unroll
+						s_input = s_data.ShiftLineBuffer();
+					}
+					s_input = i_data.read();
+					s_data.PushFirst(s_input);
+				}
+
+			}
+
+			for (uint16_t s_pad = 0; s_pad < c_strideh_shift; s_pad++) {
+				t_input s_input = s_data.PopFirst();
+				o_data.write(s_input);
+				for (uint8_t s_index = c_index-1; s_index > 0; s_index--) {
+#pragma HLS unroll
+					s_input = s_data.ShiftLineBuffer();
+				}
+				s_input = i_data.read();
+				s_data.PushFirst(s_input);
+			}
+
+			if (s_ih < (c_ih-1-c_str+1)) {
+				for (uint16_t s_pad = 0; s_pad < c_paddingw_shift; s_pad++) {
+					t_input s_input = s_data.PopFirst();
+					o_data.write(s_input);
+					for (uint8_t s_index = c_index-1; s_index > 0; s_index--) {
+						s_input = s_data.ShiftLineBuffer();
+					}
+					s_input = i_data.read();
+					s_data.PushFirst(s_input);
+				}
+			}
+
+		}
+
+		for (uint16_t s_pad = 0; s_pad < (c_end_paddingh_shift + c_paddingw_shift); s_pad++) {
+			t_input s_input = s_data.ShiftOut();
+			o_data.write(s_input);
+		}
+
+
+#ifndef __SYNTHESIS__
+
+#ifdef DEBUG
+		std::cout << "Waiting for last signal" << std::endl;
+#endif
+
+#endif
+
+		ap_uint<1> s_last = i_last.read();
+		/* if (s_last) */
+		/* 	break; */
+
+#ifndef __SYNTHESIS__
+
+#ifdef DEBUG
+		std::cout << "Starting new image" << std::endl;
+#endif
+
+#endif
+
+
+	/* } */
+
+#ifndef __SYNTHESIS__
+	EmptyStream<t_input>(i_data);
+#ifdef DEBUG
+	std::cout << "SHIFTOP: " << c_ih << " " << c_iw << " " << c_ich << " " << c_str << " " << c_pad << " " << std::endl;
+#endif
+#endif
+
+}
 
 template <
 	class t_input,
