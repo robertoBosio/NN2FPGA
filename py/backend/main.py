@@ -5,6 +5,8 @@ from onnx import numpy_helper
 import numpy as np
 from quant_dorefa import weight_quantize_fn
 import torch
+from math import log2
+from math import ceil
 
 def write(
     model,
@@ -169,7 +171,8 @@ def write(
         c_stride,
         emit_streams=True,
         write_blocks=True,
-        weight_shape=None
+        weight_shape=None,
+        pack_weights=True
     ):
 
         if emit_streams:
@@ -185,27 +188,50 @@ def write(
                 c_ih     = 1
                 c_iw     = 1
 
-            for ih in range(c_ih):
-                for iw in range(c_iw):
-                    fd.write("\tProduceStream<\n")
-                    fd.write("\t\tt_%s_st,\n" % (name))
-                    fd.write("\t\tt_%s,\n" % (name))
-                    fd.write("\t\tc_%s_ich,\n" % (name))
-                    fd.write("\t\tc_%s_och,\n" % (name))
-                    fd.write("\t\tc_%s_ow,\n" % (node_name))
-                    # fd.write("\t\tc_%s_oh\n" % (node_name))
-                    fd.write("\t\tc_%s_oh,\n" % (node_name))
-                    fd.write("\t\tc_%s_ops\n" % (node_name))
-                    fd.write("\t>(\n")
-                    fd.write("\t\tc_%s_st_%0d,\n" % (name, ih*c_iw+iw))
-                    fd.write("\t\ts_last_%s[%0d],\n" % (
-                            node_name, ih*c_iw+iw
-                        )
+            if pack_weights:
+                fd.write("\tProduceStream<\n")
+                fd.write("\t\tt_%s_st,\n" % (name))
+                fd.write("\t\tt_%s,\n" % (name))
+                fd.write("\t\tc_%s_ich,\n" % (name))
+                fd.write("\t\tc_%s_och,\n" % (name))
+                fd.write("\t\tc_%s_ow,\n" % (node_name))
+                # fd.write("\t\tc_%s_oh\n" % (node_name))
+                fd.write("\t\tc_%s_oh,\n" % (node_name))
+                fd.write("\t\tc_%s_fw,\n" % (node_name))
+                fd.write("\t\tc_%s_fh,\n" % (node_name))
+                fd.write("\t\tc_%s_ops\n" % (node_name))
+                fd.write("\t>(\n")
+                fd.write("\t\tc_%s_st,\n" % (name))
+                fd.write("\t\ts_last_%s[0],\n" % (
+                        node_name
                     )
-                    fd.write("\t\ts_%s[%0d]\n" % (name, ih*c_iw+iw))
-                    fd.write("\t);\n")
+                )
+                fd.write("\t\ts_%s\n" % (name))
+                fd.write("\t);\n")
 
-                    fd.write("\n")
+                fd.write("\n")
+            else:
+                for ih in range(c_ih):
+                    for iw in range(c_iw):
+                        fd.write("\tProduceStream<\n")
+                        fd.write("\t\tt_%s_st,\n" % (name))
+                        fd.write("\t\tt_%s,\n" % (name))
+                        fd.write("\t\tc_%s_ich,\n" % (name))
+                        fd.write("\t\tc_%s_och,\n" % (name))
+                        fd.write("\t\tc_%s_ow,\n" % (node_name))
+                        # fd.write("\t\tc_%s_oh\n" % (node_name))
+                        fd.write("\t\tc_%s_oh,\n" % (node_name))
+                        fd.write("\t\tc_%s_ops\n" % (node_name))
+                        fd.write("\t>(\n")
+                        fd.write("\t\tc_%s_st_%0d,\n" % (name, ih*c_iw+iw))
+                        fd.write("\t\ts_last_%s[%0d],\n" % (
+                                node_name, ih*c_iw+iw
+                            )
+                        )
+                        fd.write("\t\ts_%s[%0d]\n" % (name, ih*c_iw+iw))
+                        fd.write("\t);\n")
+
+                        fd.write("\n")
 
     def write_relu(
         fd,
@@ -375,7 +401,12 @@ def write(
 
             fd.write("\n")
 
-    def write_weights(weight_shape, weight_name):
+    def write_weights(
+        weight_shape,
+        weight_name,
+        node_name,
+        pack_weights=True
+    ):
 
         c_och    = getattr(weight_shape, 'dims')[0]
         c_ich    = getattr(weight_shape, 'dims')[1]
@@ -397,27 +428,103 @@ def write(
         )
 
         wact = weight_quantize_fn(w_bit=8)
+        wact.export = False
 
         # TODO: less dirty
-        weights = np.asarray(wact(torch.Tensor(weights)))
+        # weights, max_w = wact(torch.Tensor(weights))
+        weights = wact(torch.Tensor(weights))
+        weights = np.asarray(weights)
 
         weights = weights * 128
-        # TODO: handle weights quantization
+
+        # Rescaled to have more precision in hardware, the comma position is
+        # taken into account when the output data is extracted from s_acc
+        sw = 7 - ceil(log2(np.amax(np.abs(weights))))
+
+        weights = weights * (2**sw)
+        weights = np.round(weights)
+        fd.write("\tconst int c_%s_scale = %0d;\n" % (node_name, sw))
+
+        # TODO: Specialized for DAC2023 submission, must be automated
+
+        parallel_ops = {}
+        parallel_ops['conv_0']  = 1                                                    
+        parallel_ops['conv_2']  = 2                                                    
+        parallel_ops['conv_4']  = 2                                                    
+        parallel_ops['conv_7']  = 2                                                    
+        parallel_ops['conv_9']  = 2                                                    
+        parallel_ops['conv_12']  = 2                                                   
+        parallel_ops['conv_14']  = 2                                                   
+        parallel_ops['conv_17']  = 1                                                   
+        parallel_ops['conv_19']  = 1                                                   
+        parallel_ops['conv_21']  = 1                                                   
+        parallel_ops['conv_24']  = 1                                                   
+        parallel_ops['conv_26']  = 1                                                   
+        parallel_ops['conv_29']  = 1                                                   
+        parallel_ops['conv_31']  = 1                                                   
+        parallel_ops['conv_34']  = 1                                                   
+        parallel_ops['conv_36']  = 1                                                   
+        parallel_ops['conv_38']  = 1                                                   
+        parallel_ops['conv_41']  = 1                                                   
+        parallel_ops['conv_43']  = 1                                                   
+        parallel_ops['conv_46']  = 1                                                   
+        parallel_ops['conv_48']  = 1                                                   
+        parallel_ops['conv_54']  = 1  
+        #################################################################
+
         last_weight = True
-        for ih in range(c_ih):
-            for iw in range(c_iw):
-                fd.write("\tconst int8_t c_%s_st_%0d[] = {\n" % (weight_name, ih*c_iw+iw))
-                for ich in range(weights.shape[1]):
-                    for och in range(weights.shape[0]):
-                        # weight_value = np.random.randint(0, 256)
-                        weight_value = weights[och][ich][ih][iw]
-                        fd.write("%0d" % (weight_value))
-                        fd.write(", ")
+        if (pack_weights):
+            fd.write("\tconst int%0d_t c_%s_st[c_%s_fh*c_%s_fw][c_%s_och*c_%s_ich/%0d+1] = {\n" % (
+                    8*parallel_ops[node_name],
+                    weight_name,
+                    node_name,
+                    node_name,
+                    node_name,
+                    node_name,
+                    parallel_ops[node_name]
+                )
+            )
 
-                fd.write("0")
 
-                fd.write("};\n")
-                fd.write("\n")
+            for ih in range(c_ih):
+                for iw in range(c_iw):
+                    fd.write("{")
+                    for ich in range(weights.shape[1]):
+                        for och in range(int(weights.shape[0]/parallel_ops[node_name])):
+                            weight_value = 0
+                            for op in range(parallel_ops[node_name]):
+                                # weight_value = np.random.randint(0, 256)
+                                weight_value |= int(weights[och+op][ich][ih][iw]) << (8*op)
+                            fd.write("%0d" % (weight_value))
+                            fd.write(", ")
+                    fd.write("0")
+                    if (ih==(c_ih-1)) and (iw==(c_iw-1)):
+                        fd.write("}\n")
+                    else:
+                        fd.write("},\n")
+
+            fd.write("};\n")
+            fd.write("\n")
+            fd.write(
+                "\t#pragma HLS ARRAY_PARTITION variable=c_%s_st type=block factor=1 dim=1\n" % (
+                    weight_name
+                )
+            )
+        else:
+            for ih in range(c_ih):
+                for iw in range(c_iw):
+                    fd.write("\tconst int8_t c_%s_st_%0d[] = {\n" % (weight_name, ih*c_iw+iw))
+                    for ich in range(weights.shape[1]):
+                        for och in range(weights.shape[0]):
+                            # weight_value = np.random.randint(0, 256)
+                            weight_value = weights[och][ich][ih][iw]
+                            fd.write("%0d" % (weight_value))
+                            fd.write(", ")
+
+                    fd.write("0")
+
+                    fd.write("};\n")
+                    fd.write("\n")
 
     def write_conv(
         fd,
@@ -470,10 +577,12 @@ def write(
 
                 # Declaring copied stream
                 if emit_streams:
+                    depth = "c_%s_och*(c_%s_fh-1)*(c_%s_iw+c_%s_fw-1)" % (node_name, node_name, node_name, node_name)
                     write_stream(
 		        fd,
 		        skip_name,
 		        "c_%s_ich*c_%s_och" % (node_name, node_name)
+		        # depth
                     )
                 fd.write("\n")
 
@@ -518,6 +627,7 @@ def write(
                     fd,
                     output_name,
                     "c_%s_ich*c_%s_och" % (node_name, node_name),
+                    # 20,
                     2
                 )
             else:
@@ -525,6 +635,7 @@ def write(
                     fd,
                     output_name,
                     "c_%s_ich*c_%s_och" % (node_name, node_name),
+                    # 20,
                 )
             fd.write("\n")
 
@@ -559,7 +670,7 @@ def write(
 
             fd.write("\n")
 
-            write_weights(weight_shape, weight_name)
+            write_weights(weight_shape, weight_name, node_name)
         # Given stride a different weight stream is selected
         write_internal_weight(
             fd,
@@ -597,6 +708,7 @@ def write(
                     fd.write("\t\tc_%s_split,\n" % (output_name))
                 fd.write("\t\tc_%s_stride,\n" % (node_name))
                 fd.write("\t\tc_%s_pad,\n" % (node_name))
+                fd.write("\t\tc_%s_scale,\n" % (node_name))
                 fd.write("\t\tc_%s_ops\n" % (node_name))
                 fd.write("\t> (\n")
                 if indexed:
@@ -606,7 +718,7 @@ def write(
                 fd.write("\t\ts_%s,\n" % (weight_name))
                 if (bias):
                     fd.write("\t\ts_%s,\n" % (bias_name))
-                fd.write("\t\ts_last_%s[c_%s_fh*c_%s_fw],\n" % (node_name, node_name, node_name))
+                fd.write("\t\ts_last_%s[1],\n" % (node_name))
                 fd.write("\t\ts_last_split[%0d],\n" % (last_flag + 1))
                 fd.write("\t\ts_%s\n" % (output_name))
                 fd.write("\t);\n")
@@ -630,6 +742,7 @@ def write(
                     fd.write("\t\tc_%s_split,\n" % (output_name))
                 fd.write("\t\tc_%s_stride,\n" % (node_name))
                 fd.write("\t\tc_%s_pad,\n" % (node_name))
+                fd.write("\t\tc_%s_scale,\n" % (node_name))
                 fd.write("\t\tc_%s_ops\n" % (node_name))
                 fd.write("\t> (\n")
                 if indexed:
@@ -637,7 +750,7 @@ def write(
                 else:
                     fd.write("\t\ts_%s,\n" % (input_name))
                 fd.write("\t\ts_%s,\n" % (weight_name))
-                fd.write("\t\ts_last_%s[c_%s_fh*c_%s_fw],\n" % (node_name, node_name, node_name))
+                fd.write("\t\ts_last_%s[1],\n" % (node_name))
                 fd.write("\t\ts_last_split[%0d],\n" % (last_flag + 1))
                 fd.write("\t\ts_%s,\n" % (output_name))
                 fd.write("\t\ts_%s\n" % (skip_name))

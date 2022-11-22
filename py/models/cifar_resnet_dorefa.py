@@ -13,6 +13,7 @@ class PreActBlock_conv_Q(nn.Module):
     super(PreActBlock_conv_Q, self).__init__()
     Conv2d = conv2d_Q_fn(w_bit=wbit)
     self.act_q = act_q
+    self.act_q_big = activation_quantize_fn(a_bit=abit+7, clamp=False)
 
     self.conv0 = Conv2d(in_planes, out_planes, kernel_size=3, stride=stride, padding=1, bias=False)
     self.bn0 = nn.BatchNorm2d(out_planes)
@@ -29,22 +30,55 @@ class PreActBlock_conv_Q(nn.Module):
 
     if self.skip_conv is not None:
       shortcut = self.skip_conv(x)
-      shortcut = F.relu(shortcut)
       # shortcut = self.skip_bn(shortcut)
+      shortcut = F.relu(shortcut)
       shortcut = self.act_q(shortcut)
+      # print("\n----------------DOWNSAMPLE--------------------------------")
+      # for b in range(1):
+      #   for ih in range(1):
+      #     for iw in range(1):
+      #       for ich in range(shortcut.shape[1]):
+      #         print(shortcut[b][ich][ih][iw].detach().cpu().numpy()*256, end=" ")
     else:
       shortcut = x
+
+    # if self.skip_conv is not None:
+    #   print("\n-----------------------------------------------------------")
+    #   for b in range(1):
+    #     for ich in range(x.shape[1]):
+    #       for ih in range(3):
+    #         for iw in range(3):
+    #           print(x[b][ich][ih][iw].detach().cpu().numpy()*256, end=" ")
+    #       print("\n")
 
     out = self.conv0(x)
     # out = self.bn0(out)
     out = F.relu(out)
     out = self.act_q(out)
+
+    # if self.skip_conv is not None:
+    #   print("\n-----------------------------------------------------------")
+    #   for b in range(1):
+    #     for ih in range(1):
+    #       for iw in range(1):
+    #         for ich in range(out.shape[1]):
+    #           print(out[b][ich][ih][iw].detach().cpu().numpy()*256, end=" ")
+
     out = self.conv1(out)
     # out = self.bn1(out)
+    # out = self.act_q_big(out)
     # out = self.act_q(out)
     out += shortcut
     out = F.relu(out)
     out = self.act_q(out)
+
+    # print("\n-----------------------------------------------------------")
+    # for b in range(1):
+    #   for ih in range(1):
+    #     for iw in range(1):
+    #       for ich in range(out.shape[1]):
+    #         print(out[b][ich][ih][iw].detach().cpu().numpy()*256, end=" ")
+
     return out
 
 
@@ -76,13 +110,24 @@ class PreActResNet(nn.Module):
   def forward(self, x):
     # out = x - 0.5;
 
-    out = self.conv0(x)
+    # for b in range(x.shape[0]):
+    #   for ich in range(x.shape[1]):
+    #     for ih in range(3):
+    #       for iw in range(3):
+    #         print(x[b][ich][ih][iw]*256)
+
+    out = x
+    # out = self.act_q(out)
+    out = self.conv0(out)
     # out = self.bn(out)
     out = F.relu(out)
     out = self.act_q(out)
 
     for layer in self.layers:
       out = layer(out)
+
+    # sys.exit(0)
+
     out = self.avgpool(out)
     out = self.act_q(out)
     out = self.fc(out)

@@ -95,9 +95,12 @@ def write(
 
         if (write_file):
             
-            weight_parallelism = 8*parallel_ops[node_name]
-            fd.write("typedef int8_t t_%s_st;\n" % (weight_name))
-            fd.write("typedef int%0d_t t_%s;\n" % (weight_parallelism, weight_name))
+            fd.write("const int c_%s_ops  = %d;\n" % (node_name, parallel_ops[node_name]))
+
+            fd.write("\n")
+
+            fd.write("typedef int%0d_t t_%s_st;\n" % (8*parallel_ops[node_name], weight_name))
+            fd.write("typedef ap_int<8*c_%s_ops> t_%s;\n" % (node_name, weight_name))
             fd.write("const int c_%s_och = %d;\n" % (weight_name, c_och))
             fd.write("const int c_%s_ich = %d;\n" % (weight_name, c_ich))
             fd.write("const int c_%s_ih  = %d;\n" % (weight_name, c_ih))
@@ -307,7 +310,7 @@ def write(
         else:
             c_split = 0
 
-        if output_name == model.graph.output[0]:
+        if output_name == model.graph.output[0].name:
             output_type = "int32_t"
         else:
             output_type = "uint8_t"
@@ -351,7 +354,7 @@ def write(
             c_stride  = 1
             c_pad     = 0
 
-        c_l_split = c_fh*c_fw+1
+        c_l_split = 2
         if node.name in conv_relu:
             c_relu = 1
         else:
@@ -368,7 +371,7 @@ def write(
 
         if (write_file):
             fd.write("typedef %s t_%s;\n" % (output_type, output_name))
-            fd.write("typedef int32_t t_%s_acc;\n" % (node_name))
+            fd.write("typedef ap_int<32> t_%s_acc;\n" % (node_name))
             fd.write("const int c_%s_ich    = %d;\n" % (node_name, c_ich))
             fd.write("const int c_%s_och    = %d;\n" % (node_name, c_och))
             fd.write("const int c_%s_ih     = %d;\n" % (node_name, c_ih))
@@ -424,11 +427,6 @@ def write(
 
     def write_footer(fd, parallel_ops):
 
-        for node_name, c_parallel_op in parallel_ops.items():
-            fd.write("const int c_%s_ops  = %d;\n" % (node_name, c_parallel_op))
-
-        fd.write("\n")
-
         # Adding prototype declaration
         fd.write("void Network(\n")
         fd.write("\thls::stream<t_i_data> &i_data,\n")
@@ -445,6 +443,33 @@ def write(
         write_body(fd, model, write_file=False)
 
         parallel_ops = opt(layers_info)
+
+        # TODO: Specialized for DAC2023 submission, must be automated
+
+        parallel_ops = {}
+        parallel_ops['conv_0']  = 1                                                    
+        parallel_ops['conv_2']  = 2                                                    
+        parallel_ops['conv_4']  = 2                                                    
+        parallel_ops['conv_7']  = 2                                                    
+        parallel_ops['conv_9']  = 2                                                    
+        parallel_ops['conv_12']  = 2                                                   
+        parallel_ops['conv_14']  = 2                                                   
+        parallel_ops['conv_17']  = 1                                                   
+        parallel_ops['conv_19']  = 1                                                   
+        parallel_ops['conv_21']  = 1                                                   
+        parallel_ops['conv_24']  = 1                                                   
+        parallel_ops['conv_26']  = 1                                                   
+        parallel_ops['conv_29']  = 1                                                   
+        parallel_ops['conv_31']  = 1                                                   
+        parallel_ops['conv_34']  = 1                                                   
+        parallel_ops['conv_36']  = 1                                                   
+        parallel_ops['conv_38']  = 1                                                   
+        parallel_ops['conv_41']  = 1                                                   
+        parallel_ops['conv_43']  = 1                                                   
+        parallel_ops['conv_46']  = 1                                                   
+        parallel_ops['conv_48']  = 1                                                   
+        parallel_ops['conv_54']  = 1  
+        #################################################################
 
         write_body(fd, model, write_file=True)
 

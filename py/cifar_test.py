@@ -42,6 +42,7 @@ parser.add_argument('--use_gpu', type=str, default='0')
 parser.add_argument('--num_workers', type=int, default=5)
 
 parser.add_argument('--cluster', action='store_true', default=False)
+CUDA = False
 
 cfg = parser.parse_args()
 
@@ -77,13 +78,18 @@ def main():
                                             num_workers=cfg.num_workers)
 
   print('==> Building ResNet..')
-  # model = resnet20(wbits=cfg.Wbits, abits=cfg.Abits).cuda()
-  model = resnet20(wbits=cfg.Wbits, abits=cfg.Abits)
+  if (CUDA):
+    model = resnet20(wbits=cfg.Wbits, abits=cfg.Abits).cuda()
+  else:
+    model = resnet20(wbits=cfg.Wbits, abits=cfg.Abits)
 
   optimizer = torch.optim.SGD(model.parameters(), lr=cfg.lr, momentum=0.9, weight_decay=cfg.wd)
   lr_schedu = optim.lr_scheduler.MultiStepLR(optimizer, [100, 150, 180], gamma=0.1)
-  # criterion = torch.nn.CrossEntropyLoss().cuda()
-  criterion = torch.nn.CrossEntropyLoss()
+  if (CUDA):
+    criterion = torch.nn.CrossEntropyLoss().cuda()
+  else:
+    criterion = torch.nn.CrossEntropyLoss()
+
   summary_writer = SummaryWriter(cfg.log_dir)
 
   if cfg.pretrain:
@@ -129,8 +135,10 @@ def main():
     model.show = True
     with open("tmp/log.txt", "w+") as fd:
         for batch_idx, (inputs, targets) in enumerate(eval_loader):
-          # inputs, targets = inputs.cuda(), targets.cuda()
-          inputs, targets = inputs, targets
+          if (CUDA):
+            inputs, targets = inputs.cuda(), targets.cuda()
+          else:
+            inputs, targets = inputs, targets
 
           outputs = model(inputs)
 
@@ -139,6 +147,7 @@ def main():
           fd.write("%d %d\n" % (predicted[0], targets[0]))
 
           correct += predicted.eq(targets.data).cpu().sum().item()
+          # break
 
         acc = 100. * correct / len(eval_dataset)
 
