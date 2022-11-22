@@ -82,15 +82,19 @@ template <
 		t_input tmp_r;
 		PRODSTR: for (int s_index = 0; s_index < c_index; s_index++) {
 			tmp_r = i_data.read();
-			for (int s_par = 0; s_par < c_par; s_par++) {
-#pragma HLS pipeline
-				t_output tmp_w = (t_output)(tmp_r.data(8*(s_par+1)-1,8*s_par));
+			ap_uint<64> tmp_r_par = tmp_r.data;
+			
+			for (uint8_t s_par = 0; s_par < c_par; s_par++) {
+#pragma HLS pipeline off
+				/* t_output tmp_w = (t_output)(tmp_r.data(8*(s_par+1)-1,8*s_par)); */
+				t_output tmp_w = (t_output)(tmp_r_par & 0xff);
 #ifndef __SYNTHESIS__
 #ifdef DEBUG
 					std::cout << (ap_uint<8>)(tmp_w) << " ";
 #endif
 #endif
 				o_data.write(tmp_w);
+				tmp_r_par = tmp_r_par >> 8;
 			}
 
 #ifndef __SYNTHESIS__
@@ -332,7 +336,7 @@ template <
 	int c_fh,
 	int c_ops
 > void ProduceStream(
-	const t_input i_data[c_fh*c_fw][c_och*c_ich+1],
+	const t_input i_data[c_fh*c_fw][c_och*c_ich/c_ops+1],
 	hls::stream<ap_uint<1>> &i_last,
 	hls::stream<t_output> o_data[c_fh*c_fw]
 ) {
@@ -340,20 +344,18 @@ template <
 	const int c_o_index = c_oh*c_ow;
 	const int c_index = c_fh*c_fw;
 	const int c_ch = c_ich*c_och/c_ops;
-	const uint8_t c_log_ops = (uint8_t)(log2(c_ops));
-
 	/* while(1) { */
 	for (uint16_t s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
-		for (uint16_t s_ch = 0; s_ch < c_ch; s_ch++) {
-/* #pragma HLS loop_merge */
+		uint16_t s_ch = 0;
+		for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
+			for (uint8_t s_och = 0; s_och < c_och/c_ops; s_och++) {
+	/* #pragma HLS loop_merge */
 #pragma HLS pipeline
-			for (uint8_t s_index = 0; s_index < c_index; s_index++) {
-#pragma HLS unroll
-				t_output s_data = 0;
-				for (uint8_t s_ops = 0; s_ops < c_ops; s_ops++) {
-					s_data(8*(s_ops+1)-1, 8*s_ops) = i_data[s_index][(s_ch << c_log_ops) + s_ops];
+				for (uint8_t s_index = 0; s_index < c_index; s_index++) {
+#pragma HLS pipeline
+					o_data[s_index].write((t_output)(i_data[s_index][s_ch]));
 				}
-				o_data[s_index].write((t_output)(s_data));
+				s_ch++;
 			}
 		}
 	}
@@ -1160,18 +1162,16 @@ template <
 		/* After this shift, all the useless computations with data at the borders are */
 		/* skipped */
 
-		for (uint16_t s_pad = 0; s_pad < (c_paddingh_shift + c_paddingw_shift); s_pad++) {
-			s_data.ShiftIn(i_data.read());
-		}
+		s_data.FillLineBuffer(i_data);
 
 		for (uint8_t s_ih = c_starth; s_ih < c_ih; s_ih+=c_str) {
 
 			for (uint8_t s_iw = c_startw; s_iw < c_iw; s_iw+=c_str) {
 
 				for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
+#pragma HLS pipeline
 					t_input s_input = s_data.PopFirst();
 					for (uint8_t s_index = c_index-1; s_index > 0; s_index--) {
-#pragma HLS pipeline
 						o_compute[s_index].write(s_input);
 						s_input = s_data.ShiftLineBuffer(s_index);
 					}
@@ -1181,9 +1181,9 @@ template <
 				}
 
 				for (uint8_t s_stride = 0; s_stride < c_stridew_shift; s_stride++) {
+#pragma HLS pipeline
 					t_input s_input = s_data.PopFirst();
 					for (uint8_t s_index = c_index-1; s_index > 0; s_index--) {
-#pragma HLS pipeline
 						s_input = s_data.ShiftLineBuffer(s_index);
 					}
 					s_input = i_data.read();
@@ -1193,10 +1193,10 @@ template <
 			}
 
 			if (s_ih < (c_ih-1-c_str+1)) {
+#pragma HLS pipeline
 				for (uint16_t s_pad = 0; s_pad < (c_paddingw_shift + c_strideh_shift); s_pad++) {
 					t_input s_input = s_data.PopFirst();
 					for (uint8_t s_index = c_index-1; s_index > 0; s_index--) {
-#pragma HLS pipeline
 						s_input = s_data.ShiftLineBuffer(s_index);
 					}
 					s_input = i_data.read();
@@ -1206,10 +1206,7 @@ template <
 
 		}
 
-		for (uint16_t s_pad = 0; s_pad < (c_end_paddingh_shift + c_paddingw_shift); s_pad++) {
-			s_data.ShiftOut();
-		}
-
+		s_data.EmptyLineBuffer();
 
 #ifndef __SYNTHESIS__
 
@@ -1293,19 +1290,17 @@ template <
 		/* After this shift, all the useless computations with data at the borders are */
 		/* skipped */
 
-		for (uint16_t s_pad = 0; s_pad < (c_paddingh_shift + c_paddingw_shift); s_pad++) {
-			s_data.ShiftIn(i_data.read());
-		}
+		s_data.FillLineBuffer(i_data);
 
 		for (uint8_t s_ih = c_starth; s_ih < c_ih; s_ih+=c_str) {
 
 			for (uint8_t s_iw = c_startw; s_iw < c_iw; s_iw+=c_str) {
 
 				for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
+#pragma HLS pipeline
 					t_input s_input = s_data.PopFirst();
 					o_data.write(s_input);
 					for (uint8_t s_index = c_index-1; s_index > 0; s_index--) {
-#pragma HLS pipeline
 						o_compute[s_index].write(s_input);
 						s_input = s_data.ShiftLineBuffer(s_index);
 					}
@@ -1315,10 +1310,10 @@ template <
 				}
 
 				for (uint8_t s_stride = 0; s_stride < c_stridew_shift; s_stride++) {
+#pragma HLS pipeline
 					t_input s_input = s_data.PopFirst();
 					o_data.write(s_input);
 					for (uint8_t s_index = c_index-1; s_index > 0; s_index--) {
-#pragma HLS pipeline
 						s_input = s_data.ShiftLineBuffer(s_index);
 					}
 					s_input = i_data.read();
@@ -1328,10 +1323,10 @@ template <
 			}
 
 			for (uint16_t s_pad = 0; s_pad < c_strideh_shift; s_pad++) {
+#pragma HLS pipeline
 				t_input s_input = s_data.PopFirst();
 				o_data.write(s_input);
 				for (uint8_t s_index = c_index-1; s_index > 0; s_index--) {
-#pragma HLS pipeline
 					s_input = s_data.ShiftLineBuffer(s_index);
 				}
 				s_input = i_data.read();
@@ -1352,11 +1347,7 @@ template <
 
 		}
 
-		for (uint16_t s_pad = 0; s_pad < (c_end_paddingh_shift + c_paddingw_shift); s_pad++) {
-			t_input s_input = s_data.ShiftOut();
-			o_data.write(s_input);
-		}
-
+		s_data.EmptyLineBuffer(o_data);
 
 #ifndef __SYNTHESIS__
 

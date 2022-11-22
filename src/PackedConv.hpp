@@ -669,6 +669,15 @@ template <
 ) {
 
 	const int c_index = c_fh*c_fw;
+	hls::stream<t_input> s_data[c_index-1];
+	#pragma HLS STREAM variable=s_data[0] depth=c_ich
+	#pragma HLS STREAM variable=s_data[1] depth=c_ich
+	#pragma HLS STREAM variable=s_data[2] depth=c_ich*(c_iw)
+	#pragma HLS STREAM variable=s_data[3] depth=c_ich
+	#pragma HLS STREAM variable=s_data[4] depth=c_ich
+	#pragma HLS STREAM variable=s_data[5] depth=c_ich*(c_iw)
+	#pragma HLS STREAM variable=s_data[6] depth=c_ich
+	#pragma HLS STREAM variable=s_data[7] depth=c_ich
 
 	hls::stream<t_input> s_compute[c_index];
 	#pragma HLS STREAM variable=s_compute[0] depth=10
@@ -683,11 +692,11 @@ template <
 
 #pragma HLS inline
 
-	hls::stream<ap_uint<1>> s_last[2];
+	hls::stream<ap_uint<1>> s_last[10];
 	#pragma HLS STREAM variable=s_last depth=11
 
 	SplitStream<
-		2
+		10
 	> (
 		i_last,
 		s_last
@@ -704,11 +713,181 @@ template <
 		c_fh,
 		c_fw,
 		c_str,
-		c_pad
+		c_pad,
+		(c_fh-1),
+		(c_fw-1)
 	> (
 		i_data,
 		s_last[0],
-		s_compute
+		s_compute[0],
+		s_data[0]
+	);
+
+	ShiftOp<
+		t_input,
+		c_ich,
+		c_och,
+		c_ih,
+		c_iw,
+		c_oh,
+		c_ow,
+		c_fh,
+		c_fw,
+		c_str,
+		c_pad,
+		(c_fh-1),
+		(c_fw-2)
+	> (
+		s_data[0],
+		s_last[1],
+		s_compute[1],
+		s_data[1]
+	);
+
+	ShiftOp<
+		t_input,
+		c_ich,
+		c_och,
+		c_ih,
+		c_iw,
+		c_oh,
+		c_ow,
+		c_fh,
+		c_fw,
+		c_str,
+		c_pad,
+		(c_fh-1),
+		(c_fw-3)
+	> (
+		s_data[1],
+		s_last[2],
+		s_compute[2],
+		s_data[2]
+	);
+
+	ShiftOp<
+		t_input,
+		c_ich,
+		c_och,
+		c_ih,
+		c_iw,
+		c_oh,
+		c_ow,
+		c_fh,
+		c_fw,
+		c_str,
+		c_pad,
+		(c_fh-2),
+		(c_fw-1)
+	> (
+		s_data[2],
+		s_last[3],
+		s_compute[3],
+		s_data[3]
+	);
+
+	ShiftOp<
+		t_input,
+		c_ich,
+		c_och,
+		c_ih,
+		c_iw,
+		c_oh,
+		c_ow,
+		c_fh,
+		c_fw,
+		c_str,
+		c_pad,
+		(c_fh-2),
+		(c_fw-2)
+	> (
+		s_data[3],
+		s_last[4],
+		s_compute[4],
+		s_data[4]
+	);
+
+	ShiftOp<
+		t_input,
+		c_ich,
+		c_och,
+		c_ih,
+		c_iw,
+		c_oh,
+		c_ow,
+		c_fh,
+		c_fw,
+		c_str,
+		c_pad,
+		(c_fh-2),
+		(c_fw-3)
+	> (
+		s_data[4],
+		s_last[5],
+		s_compute[5],
+		s_data[5]
+	);
+
+	ShiftOp<
+		t_input,
+		c_ich,
+		c_och,
+		c_ih,
+		c_iw,
+		c_oh,
+		c_ow,
+		c_fh,
+		c_fw,
+		c_str,
+		c_pad,
+		(c_fh-3),
+		(c_fw-1)
+	> (
+		s_data[5],
+		s_last[6],
+		s_compute[6],
+		s_data[6]
+	);
+
+	ShiftOp<
+		t_input,
+		c_ich,
+		c_och,
+		c_ih,
+		c_iw,
+		c_oh,
+		c_ow,
+		c_fh,
+		c_fw,
+		c_str,
+		c_pad,
+		(c_fh-3),
+		(c_fw-2)
+	> (
+		s_data[6],
+		s_last[7],
+		s_compute[7],
+		s_data[7]
+	);
+
+	ShiftOp<
+		t_input,
+		c_ich,
+		c_och,
+		c_ih,
+		c_iw,
+		c_oh,
+		c_ow,
+		c_fh,
+		c_fw,
+		c_str,
+		c_pad,
+		(c_fh-3),
+		(c_fw-3)
+	> (
+		s_data[7],
+		s_last[8],
+		s_compute[8]
 	);
 
 	ConvOp<
@@ -733,7 +912,7 @@ template <
 	> (
 		s_compute,
 		i_weights,
-		s_last[1],
+		s_last[9],
 		o_last,
 		o_data
 	);
@@ -1097,6 +1276,15 @@ template <
 ) {
 
 	const int c_index = c_fh*c_fw;
+	hls::stream<t_input> s_data[c_index-1];
+	#pragma HLS STREAM variable=s_data[0] depth=c_ich
+	#pragma HLS STREAM variable=s_data[1] depth=c_ich
+	#pragma HLS STREAM variable=s_data[2] depth=c_ich*(c_iw)
+	#pragma HLS STREAM variable=s_data[3] depth=c_ich
+	#pragma HLS STREAM variable=s_data[4] depth=c_ich
+	#pragma HLS STREAM variable=s_data[5] depth=c_ich*(c_iw)
+	#pragma HLS STREAM variable=s_data[6] depth=c_ich
+	#pragma HLS STREAM variable=s_data[7] depth=c_ich
 
 	hls::stream<t_input> s_compute[c_index];
 	#pragma HLS STREAM variable=s_compute[0] depth=10
@@ -1111,11 +1299,11 @@ template <
 
 #pragma HLS inline
 
-	hls::stream<ap_uint<1>> s_last[2];
+	hls::stream<ap_uint<1>> s_last[10];
 	#pragma HLS STREAM variable=s_last depth=11
 
 	SplitStream<
-		2
+		10
 	> (
 		i_last,
 		s_last
@@ -1132,11 +1320,181 @@ template <
 		c_fh,
 		c_fw,
 		c_str,
-		c_pad
+		c_pad,
+		(c_fh-1),
+		(c_fw-1)
 	> (
 		i_data,
 		s_last[0],
-		s_compute,
+		s_compute[0],
+		s_data[0]
+	);
+
+	ShiftOp<
+		t_input,
+		c_ich,
+		c_och,
+		c_ih,
+		c_iw,
+		c_oh,
+		c_ow,
+		c_fh,
+		c_fw,
+		c_str,
+		c_pad,
+		(c_fh-1),
+		(c_fw-2)
+	> (
+		s_data[0],
+		s_last[1],
+		s_compute[1],
+		s_data[1]
+	);
+
+	ShiftOp<
+		t_input,
+		c_ich,
+		c_och,
+		c_ih,
+		c_iw,
+		c_oh,
+		c_ow,
+		c_fh,
+		c_fw,
+		c_str,
+		c_pad,
+		(c_fh-1),
+		(c_fw-3)
+	> (
+		s_data[1],
+		s_last[2],
+		s_compute[2],
+		s_data[2]
+	);
+
+	ShiftOp<
+		t_input,
+		c_ich,
+		c_och,
+		c_ih,
+		c_iw,
+		c_oh,
+		c_ow,
+		c_fh,
+		c_fw,
+		c_str,
+		c_pad,
+		(c_fh-2),
+		(c_fw-1)
+	> (
+		s_data[2],
+		s_last[3],
+		s_compute[3],
+		s_data[3]
+	);
+
+	ShiftOp<
+		t_input,
+		c_ich,
+		c_och,
+		c_ih,
+		c_iw,
+		c_oh,
+		c_ow,
+		c_fh,
+		c_fw,
+		c_str,
+		c_pad,
+		(c_fh-2),
+		(c_fw-2)
+	> (
+		s_data[3],
+		s_last[4],
+		s_compute[4],
+		s_data[4]
+	);
+
+	ShiftOp<
+		t_input,
+		c_ich,
+		c_och,
+		c_ih,
+		c_iw,
+		c_oh,
+		c_ow,
+		c_fh,
+		c_fw,
+		c_str,
+		c_pad,
+		(c_fh-2),
+		(c_fw-3)
+	> (
+		s_data[4],
+		s_last[5],
+		s_compute[5],
+		s_data[5]
+	);
+
+	ShiftOp<
+		t_input,
+		c_ich,
+		c_och,
+		c_ih,
+		c_iw,
+		c_oh,
+		c_ow,
+		c_fh,
+		c_fw,
+		c_str,
+		c_pad,
+		(c_fh-3),
+		(c_fw-1)
+	> (
+		s_data[5],
+		s_last[6],
+		s_compute[6],
+		s_data[6]
+	);
+
+	ShiftOp<
+		t_input,
+		c_ich,
+		c_och,
+		c_ih,
+		c_iw,
+		c_oh,
+		c_ow,
+		c_fh,
+		c_fw,
+		c_str,
+		c_pad,
+		(c_fh-3),
+		(c_fw-2)
+	> (
+		s_data[6],
+		s_last[7],
+		s_compute[7],
+		s_data[7]
+	);
+
+	ShiftOp<
+		t_input,
+		c_ich,
+		c_och,
+		c_ih,
+		c_iw,
+		c_oh,
+		c_ow,
+		c_fh,
+		c_fw,
+		c_str,
+		c_pad,
+		(c_fh-3),
+		(c_fw-3)
+	> (
+		s_data[7],
+		s_last[8],
+		s_compute[8],
 		o_forward
 	);
 
@@ -1162,7 +1520,7 @@ template <
 	> (
 		s_compute,
 		i_weights,
-		s_last[1],
+		s_last[9],
 		o_last,
 		o_data
 	);
@@ -1198,7 +1556,15 @@ template <
 ) {
 
 	const int c_index = c_fh*c_fw;
-
+	hls::stream<t_input> s_data[c_index-1];
+	#pragma HLS STREAM variable=s_data[0] depth=c_ich
+	#pragma HLS STREAM variable=s_data[1] depth=c_ich
+	#pragma HLS STREAM variable=s_data[2] depth=c_ich*(c_iw)
+	#pragma HLS STREAM variable=s_data[3] depth=c_ich
+	#pragma HLS STREAM variable=s_data[4] depth=c_ich
+	#pragma HLS STREAM variable=s_data[5] depth=c_ich*(c_iw)
+	#pragma HLS STREAM variable=s_data[6] depth=c_ich
+	#pragma HLS STREAM variable=s_data[7] depth=c_ich
 	hls::stream<t_input> s_compute[c_index];
 	#pragma HLS STREAM variable=s_compute[0] depth=10
 	#pragma HLS STREAM variable=s_compute[1] depth=10
@@ -1212,11 +1578,11 @@ template <
 
 #pragma HLS inline
 
-	hls::stream<ap_uint<1>> s_last[2];
+	hls::stream<ap_uint<1>> s_last[10];
 	#pragma HLS STREAM variable=s_last depth=11
 
 	SplitStream<
-		2
+		10
 	> (
 		i_last,
 		s_last
@@ -1233,11 +1599,181 @@ template <
 		c_fh,
 		c_fw,
 		c_str,
-		c_pad
+		c_pad,
+		(c_fh-1),
+		(c_fw-1)
 	> (
 		i_data,
 		s_last[0],
-		s_compute
+		s_compute[0],
+		s_data[0]
+	);
+
+	ShiftOp<
+		t_input,
+		c_ich,
+		c_och,
+		c_ih,
+		c_iw,
+		c_oh,
+		c_ow,
+		c_fh,
+		c_fw,
+		c_str,
+		c_pad,
+		(c_fh-1),
+		(c_fw-2)
+	> (
+		s_data[0],
+		s_last[1],
+		s_compute[1],
+		s_data[1]
+	);
+
+	ShiftOp<
+		t_input,
+		c_ich,
+		c_och,
+		c_ih,
+		c_iw,
+		c_oh,
+		c_ow,
+		c_fh,
+		c_fw,
+		c_str,
+		c_pad,
+		(c_fh-1),
+		(c_fw-3)
+	> (
+		s_data[1],
+		s_last[2],
+		s_compute[2],
+		s_data[2]
+	);
+
+	ShiftOp<
+		t_input,
+		c_ich,
+		c_och,
+		c_ih,
+		c_iw,
+		c_oh,
+		c_ow,
+		c_fh,
+		c_fw,
+		c_str,
+		c_pad,
+		(c_fh-2),
+		(c_fw-1)
+	> (
+		s_data[2],
+		s_last[3],
+		s_compute[3],
+		s_data[3]
+	);
+
+	ShiftOp<
+		t_input,
+		c_ich,
+		c_och,
+		c_ih,
+		c_iw,
+		c_oh,
+		c_ow,
+		c_fh,
+		c_fw,
+		c_str,
+		c_pad,
+		(c_fh-2),
+		(c_fw-2)
+	> (
+		s_data[3],
+		s_last[4],
+		s_compute[4],
+		s_data[4]
+	);
+
+	ShiftOp<
+		t_input,
+		c_ich,
+		c_och,
+		c_ih,
+		c_iw,
+		c_oh,
+		c_ow,
+		c_fh,
+		c_fw,
+		c_str,
+		c_pad,
+		(c_fh-2),
+		(c_fw-3)
+	> (
+		s_data[4],
+		s_last[5],
+		s_compute[5],
+		s_data[5]
+	);
+
+	ShiftOp<
+		t_input,
+		c_ich,
+		c_och,
+		c_ih,
+		c_iw,
+		c_oh,
+		c_ow,
+		c_fh,
+		c_fw,
+		c_str,
+		c_pad,
+		(c_fh-3),
+		(c_fw-1)
+	> (
+		s_data[5],
+		s_last[6],
+		s_compute[6],
+		s_data[6]
+	);
+
+	ShiftOp<
+		t_input,
+		c_ich,
+		c_och,
+		c_ih,
+		c_iw,
+		c_oh,
+		c_ow,
+		c_fh,
+		c_fw,
+		c_str,
+		c_pad,
+		(c_fh-3),
+		(c_fw-2)
+	> (
+		s_data[6],
+		s_last[7],
+		s_compute[7],
+		s_data[7]
+	);
+
+	ShiftOp<
+		t_input,
+		c_ich,
+		c_och,
+		c_ih,
+		c_iw,
+		c_oh,
+		c_ow,
+		c_fh,
+		c_fw,
+		c_str,
+		c_pad,
+		(c_fh-3),
+		(c_fw-3)
+	> (
+		s_data[7],
+		s_last[8],
+		s_compute[8]
 	);
 
 	ConvOp<
@@ -1263,7 +1799,7 @@ template <
 		s_compute,
 		i_weights,
 		i_bias,
-		s_last[1],
+		s_last[9],
 		o_last,
 		o_data
 	);

@@ -62,29 +62,33 @@ template <
 		const int c_index = c_fh*c_fw;
 		LineStream<t_stream, c_ich> s_stream_c[c_fh][c_fw-1];
 		LineStream<t_stream, c_ich*c_iw> s_stream_r[c_fh-1];
-		const ap_uint<8> c_addr[c_fh*c_fw-1] = {0xff, 0x10, 0x21, 0x42, 0x54, 0x65, 0x86, 0x98};
+		const ap_uint<8> c_addr[c_fh*c_fw] = {0xff, 0x10, 0x21, 0x42, 0x54, 0x65, 0x86, 0x98, 0xf9};
 
 		LineBuffer() {}
 
+		bool FullLineBuffer(
+			ap_uint<2> i_fh,
+			ap_uint<2> i_fw
+		) {
+
+			if (i_fh == 3)
+				return 0;
+
+			if (i_fw(1,1)==1)
+				return s_stream_r[i_fh].full();
+			else
+				return s_stream_c[i_fh][i_fw].full();
+			
+		}
+
 		/* Fill the buffer for init */
-		void ShiftIn(t_stream i_write) {
+		void FillLineBuffer(hls::stream<t_stream> &i_data) {
 
-			for (ap_int<4> s_fh = c_fh-1; s_fh > -1; s_fh--) {
-
-				for (ap_int<4> s_fw = c_fw-2; s_fw > -1; s_fw--) {
-					if (!s_stream_c[s_fh][s_fw].full()){
-						s_stream_c[s_fh][s_fw].write(i_write);
-						return;
-					}
-				}
-
-				if (s_fh > 0) {
-					if (!s_stream_r[s_fh-1].full()){
-						s_stream_r[s_fh-1].write(i_write);
-						return;
-					}
-				}
-
+			for (uint8_t s_index = c_index - 1; s_index > 0; s_index--) {
+				ap_uint<4> s_addr = c_addr[s_index](3,0);
+				do {
+					SetLineBuffer(s_addr(3,2), s_addr(1,0), i_data.read());
+				} while (!FullLineBuffer(s_addr(3,2), s_addr(1,0)));
 			}
 			
 		}
@@ -112,6 +116,21 @@ template <
 				return s_stream_r[i_fh].read();
 			else
 				return s_stream_c[i_fh][i_fw].read();
+			
+		}
+
+		bool EmptyLineBuffer(
+			ap_uint<2> i_fh,
+			ap_uint<2> i_fw
+		) {
+
+			if (i_fh == 3)
+				return 0;
+
+			if (i_fw(1,1)==1)
+				return s_stream_r[i_fh].empty();
+			else
+				return s_stream_c[i_fh][i_fw].empty();
 			
 		}
 
@@ -143,29 +162,25 @@ template <
 		}
 
 		/* Empty the buffer */
-		t_stream ShiftOut() {
+		void EmptyLineBuffer(hls::stream<t_stream> &o_data) {
 
-			t_stream s_stream = 0;
-			bool s_shift = true;
-			for (ap_int<4> s_fh = c_fh-1; s_fh > -1; s_fh--) {
-
-				for (ap_int<4> s_fw = c_fw-2; s_fw > -1; s_fw--) {
-					if (!s_stream_c[s_fh][s_fw].empty() && s_shift){
-						s_stream = s_stream_c[s_fh][s_fw].read();
-						s_shift = false;
-					}
-				}
-
-				if (s_fh > 0) {
-					if (!s_stream_r[s_fh-1].empty() && s_shift){
-						return s_stream_r[s_fh-1].read();
-						s_shift = false;
-					}
-				}
-
+			for (uint8_t s_index = c_index - 1; s_index > 0; s_index--) {
+				ap_uint<4> s_addr = c_addr[s_index](3,0);
+				do {
+					o_data.write(GetLineBuffer(s_addr(3,2), s_addr(1,0)));
+				} while (!EmptyLineBuffer(s_addr(3,2), s_addr(1,0)));
 			}
 			
-			return s_stream;
+		}
+
+		void EmptyLineBuffer() {
+
+			for (uint8_t s_index = c_index - 1; s_index > 0; s_index--) {
+				ap_uint<4> s_addr = c_addr[s_index](3,0);
+				do {
+					GetLineBuffer(s_addr(3,2), s_addr(1,0));
+				} while (!EmptyLineBuffer(s_addr(3,2), s_addr(1,0)));
+			}
 			
 		}
 

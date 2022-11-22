@@ -21,8 +21,10 @@ const int c_output_oh  = 1;
 const int c_output_ow  = 1;
 
 
+const int c_conv_0_ops  = 1;
+
 typedef int8_t t_conv0_weight_st;
-typedef ap_int<8> t_conv0_weight;
+typedef ap_int<8*c_conv_0_ops> t_conv0_weight;
 const int c_conv0_weight_och = 16;
 const int c_conv0_weight_ich = 3;
 const int c_conv0_weight_ih  = 3;
@@ -53,8 +55,10 @@ const int c_relu_1_iw     = 32;
 typedef uint8_t t_conv_129_skip;
 
 
-typedef int8_t t_layers_0_conv0_weight_st;
-typedef ap_int<16> t_layers_0_conv0_weight;
+const int c_conv_2_ops  = 2;
+
+typedef int16_t t_layers_0_conv0_weight_st;
+typedef ap_int<8*c_conv_2_ops> t_layers_0_conv0_weight;
 const int c_layers_0_conv0_weight_och = 16;
 const int c_layers_0_conv0_weight_ich = 16;
 const int c_layers_0_conv0_weight_ih  = 3;
@@ -83,8 +87,10 @@ const int c_relu_3_ih     = 32;
 const int c_relu_3_iw     = 32;
 
 
-typedef int8_t t_layers_0_conv1_weight_st;
-typedef ap_int<16> t_layers_0_conv1_weight;
+const int c_conv_4_ops  = 2;
+
+typedef int16_t t_layers_0_conv1_weight_st;
+typedef ap_int<8*c_conv_4_ops> t_layers_0_conv1_weight;
 const int c_layers_0_conv1_weight_och = 16;
 const int c_layers_0_conv1_weight_ich = 16;
 const int c_layers_0_conv1_weight_ih  = 3;
@@ -121,8 +127,10 @@ const int c_relu_6_iw     = 32;
 typedef uint8_t t_conv_134_skip;
 
 
-typedef int8_t t_layers_1_conv0_weight_st;
-typedef ap_int<16> t_layers_1_conv0_weight;
+const int c_conv_7_ops  = 2;
+
+typedef int16_t t_layers_1_conv0_weight_st;
+typedef ap_int<8*c_conv_7_ops> t_layers_1_conv0_weight;
 const int c_layers_1_conv0_weight_och = 16;
 const int c_layers_1_conv0_weight_ich = 16;
 const int c_layers_1_conv0_weight_ih  = 3;
@@ -151,8 +159,10 @@ const int c_relu_8_ih     = 32;
 const int c_relu_8_iw     = 32;
 
 
-typedef int8_t t_layers_1_conv1_weight_st;
-typedef ap_int<16> t_layers_1_conv1_weight;
+const int c_conv_9_ops  = 2;
+
+typedef int16_t t_layers_1_conv1_weight_st;
+typedef ap_int<8*c_conv_9_ops> t_layers_1_conv1_weight;
 const int c_layers_1_conv1_weight_och = 16;
 const int c_layers_1_conv1_weight_ich = 16;
 const int c_layers_1_conv1_weight_ih  = 3;
@@ -189,8 +199,10 @@ const int c_relu_11_iw     = 32;
 typedef uint8_t t_conv_139_skip;
 
 
-typedef int8_t t_layers_2_conv0_weight_st;
-typedef ap_int<16> t_layers_2_conv0_weight;
+const int c_conv_12_ops  = 2;
+
+typedef int16_t t_layers_2_conv0_weight_st;
+typedef ap_int<8*c_conv_12_ops> t_layers_2_conv0_weight;
 const int c_layers_2_conv0_weight_och = 16;
 const int c_layers_2_conv0_weight_ich = 16;
 const int c_layers_2_conv0_weight_ih  = 3;
@@ -219,8 +231,10 @@ const int c_relu_13_ih     = 32;
 const int c_relu_13_iw     = 32;
 
 
-typedef int8_t t_layers_2_conv1_weight_st;
-typedef ap_int<16> t_layers_2_conv1_weight;
+const int c_conv_14_ops  = 2;
+
+typedef int16_t t_layers_2_conv1_weight_st;
+typedef ap_int<8*c_conv_14_ops> t_layers_2_conv1_weight;
 const int c_layers_2_conv1_weight_och = 16;
 const int c_layers_2_conv1_weight_ich = 16;
 const int c_layers_2_conv1_weight_ih  = 3;
@@ -255,8 +269,10 @@ const int c_relu_16_ih     = 32;
 const int c_relu_16_iw     = 32;
 
 
+const int c_conv_17_ops  = 1;
+
 typedef int8_t t_layers_3_skip_conv_weight_st;
-typedef ap_int<8> t_layers_3_skip_conv_weight;
+typedef ap_int<8*c_conv_17_ops> t_layers_3_skip_conv_weight;
 const int c_layers_3_skip_conv_weight_och = 32;
 const int c_layers_3_skip_conv_weight_ich = 16;
 const int c_layers_3_skip_conv_weight_ih  = 1;
@@ -285,8 +301,10 @@ const int c_relu_18_ih     = 16;
 const int c_relu_18_iw     = 16;
 
 
+const int c_conv_19_ops  = 1;
+
 typedef int8_t t_layers_3_conv0_weight_st;
-typedef ap_int<8> t_layers_3_conv0_weight;
+typedef ap_int<8*c_conv_19_ops> t_layers_3_conv0_weight;
 const int c_layers_3_conv0_weight_och = 32;
 const int c_layers_3_conv0_weight_ich = 16;
 const int c_layers_3_conv0_weight_ih  = 3;
@@ -315,8 +333,10 @@ const int c_relu_20_ih     = 16;
 const int c_relu_20_iw     = 16;
 
 
+const int c_conv_21_ops  = 1;
+
 typedef int8_t t_layers_3_conv1_weight_st;
-typedef ap_int<16> t_layers_3_conv1_weight;
+typedef ap_int<8*c_conv_21_ops> t_layers_3_conv1_weight;
 const int c_layers_3_conv1_weight_och = 32;
 const int c_layers_3_conv1_weight_ich = 32;
 const int c_layers_3_conv1_weight_ih  = 3;
@@ -353,8 +373,10 @@ const int c_relu_23_iw     = 16;
 typedef uint8_t t_conv_151_skip;
 
 
+const int c_conv_24_ops  = 1;
+
 typedef int8_t t_layers_4_conv0_weight_st;
-typedef ap_int<16> t_layers_4_conv0_weight;
+typedef ap_int<8*c_conv_24_ops> t_layers_4_conv0_weight;
 const int c_layers_4_conv0_weight_och = 32;
 const int c_layers_4_conv0_weight_ich = 32;
 const int c_layers_4_conv0_weight_ih  = 3;
@@ -383,8 +405,10 @@ const int c_relu_25_ih     = 16;
 const int c_relu_25_iw     = 16;
 
 
+const int c_conv_26_ops  = 1;
+
 typedef int8_t t_layers_4_conv1_weight_st;
-typedef ap_int<32> t_layers_4_conv1_weight;
+typedef ap_int<8*c_conv_26_ops> t_layers_4_conv1_weight;
 const int c_layers_4_conv1_weight_och = 32;
 const int c_layers_4_conv1_weight_ich = 32;
 const int c_layers_4_conv1_weight_ih  = 3;
@@ -421,8 +445,10 @@ const int c_relu_28_iw     = 16;
 typedef uint8_t t_conv_156_skip;
 
 
+const int c_conv_29_ops  = 1;
+
 typedef int8_t t_layers_5_conv0_weight_st;
-typedef ap_int<16> t_layers_5_conv0_weight;
+typedef ap_int<8*c_conv_29_ops> t_layers_5_conv0_weight;
 const int c_layers_5_conv0_weight_och = 32;
 const int c_layers_5_conv0_weight_ich = 32;
 const int c_layers_5_conv0_weight_ih  = 3;
@@ -451,8 +477,10 @@ const int c_relu_30_ih     = 16;
 const int c_relu_30_iw     = 16;
 
 
+const int c_conv_31_ops  = 1;
+
 typedef int8_t t_layers_5_conv1_weight_st;
-typedef ap_int<16> t_layers_5_conv1_weight;
+typedef ap_int<8*c_conv_31_ops> t_layers_5_conv1_weight;
 const int c_layers_5_conv1_weight_och = 32;
 const int c_layers_5_conv1_weight_ich = 32;
 const int c_layers_5_conv1_weight_ih  = 3;
@@ -487,8 +515,10 @@ const int c_relu_33_ih     = 16;
 const int c_relu_33_iw     = 16;
 
 
+const int c_conv_34_ops  = 1;
+
 typedef int8_t t_layers_6_skip_conv_weight_st;
-typedef ap_int<8> t_layers_6_skip_conv_weight;
+typedef ap_int<8*c_conv_34_ops> t_layers_6_skip_conv_weight;
 const int c_layers_6_skip_conv_weight_och = 64;
 const int c_layers_6_skip_conv_weight_ich = 32;
 const int c_layers_6_skip_conv_weight_ih  = 1;
@@ -517,8 +547,10 @@ const int c_relu_35_ih     = 8;
 const int c_relu_35_iw     = 8;
 
 
+const int c_conv_36_ops  = 1;
+
 typedef int8_t t_layers_6_conv0_weight_st;
-typedef ap_int<8> t_layers_6_conv0_weight;
+typedef ap_int<8*c_conv_36_ops> t_layers_6_conv0_weight;
 const int c_layers_6_conv0_weight_och = 64;
 const int c_layers_6_conv0_weight_ich = 32;
 const int c_layers_6_conv0_weight_ih  = 3;
@@ -547,8 +579,10 @@ const int c_relu_37_ih     = 8;
 const int c_relu_37_iw     = 8;
 
 
+const int c_conv_38_ops  = 1;
+
 typedef int8_t t_layers_6_conv1_weight_st;
-typedef ap_int<16> t_layers_6_conv1_weight;
+typedef ap_int<8*c_conv_38_ops> t_layers_6_conv1_weight;
 const int c_layers_6_conv1_weight_och = 64;
 const int c_layers_6_conv1_weight_ich = 64;
 const int c_layers_6_conv1_weight_ih  = 3;
@@ -585,8 +619,10 @@ const int c_relu_40_iw     = 8;
 typedef uint8_t t_conv_168_skip;
 
 
+const int c_conv_41_ops  = 1;
+
 typedef int8_t t_layers_7_conv0_weight_st;
-typedef ap_int<16> t_layers_7_conv0_weight;
+typedef ap_int<8*c_conv_41_ops> t_layers_7_conv0_weight;
 const int c_layers_7_conv0_weight_och = 64;
 const int c_layers_7_conv0_weight_ich = 64;
 const int c_layers_7_conv0_weight_ih  = 3;
@@ -615,8 +651,10 @@ const int c_relu_42_ih     = 8;
 const int c_relu_42_iw     = 8;
 
 
+const int c_conv_43_ops  = 1;
+
 typedef int8_t t_layers_7_conv1_weight_st;
-typedef ap_int<16> t_layers_7_conv1_weight;
+typedef ap_int<8*c_conv_43_ops> t_layers_7_conv1_weight;
 const int c_layers_7_conv1_weight_och = 64;
 const int c_layers_7_conv1_weight_ich = 64;
 const int c_layers_7_conv1_weight_ih  = 3;
@@ -653,8 +691,10 @@ const int c_relu_45_iw     = 8;
 typedef uint8_t t_conv_173_skip;
 
 
+const int c_conv_46_ops  = 1;
+
 typedef int8_t t_layers_8_conv0_weight_st;
-typedef ap_int<16> t_layers_8_conv0_weight;
+typedef ap_int<8*c_conv_46_ops> t_layers_8_conv0_weight;
 const int c_layers_8_conv0_weight_och = 64;
 const int c_layers_8_conv0_weight_ich = 64;
 const int c_layers_8_conv0_weight_ih  = 3;
@@ -683,8 +723,10 @@ const int c_relu_47_ih     = 8;
 const int c_relu_47_iw     = 8;
 
 
+const int c_conv_48_ops  = 1;
+
 typedef int8_t t_layers_8_conv1_weight_st;
-typedef ap_int<16> t_layers_8_conv1_weight;
+typedef ap_int<8*c_conv_48_ops> t_layers_8_conv1_weight;
 const int c_layers_8_conv1_weight_och = 64;
 const int c_layers_8_conv1_weight_ich = 64;
 const int c_layers_8_conv1_weight_ih  = 3;
@@ -745,8 +787,10 @@ const int c_averagepool_53_pad    = 0;
 const int c_averagepool_53_pool   = 0;
 
 
+const int c_conv_54_ops  = 1;
+
 typedef int8_t t_fc_weight_st;
-typedef ap_int<8> t_fc_weight;
+typedef ap_int<8*c_conv_54_ops> t_fc_weight;
 const int c_fc_weight_och = 10;
 const int c_fc_weight_ich = 64;
 const int c_fc_weight_ih  = 1;
@@ -767,30 +811,6 @@ const int c_output_split  = 0;
 const int c_conv_54_stride = 1;
 const int c_conv_54_pad    = 0;
 const int c_conv_54_split  = 2;
-
-const int c_conv_0_ops  = 1;
-const int c_conv_2_ops  = 2;
-const int c_conv_4_ops  = 2;
-const int c_conv_7_ops  = 2;
-const int c_conv_9_ops  = 2;
-const int c_conv_12_ops  = 2;
-const int c_conv_14_ops  = 2;
-const int c_conv_17_ops  = 1;
-const int c_conv_19_ops  = 1;
-const int c_conv_21_ops  = 2;
-const int c_conv_24_ops  = 2;
-const int c_conv_26_ops  = 4;
-const int c_conv_29_ops  = 2;
-const int c_conv_31_ops  = 2;
-const int c_conv_34_ops  = 1;
-const int c_conv_36_ops  = 1;
-const int c_conv_38_ops  = 2;
-const int c_conv_41_ops  = 2;
-const int c_conv_43_ops  = 2;
-const int c_conv_46_ops  = 2;
-const int c_conv_48_ops  = 2;
-const int c_averagepool_53_ops  = 1;
-const int c_conv_54_ops  = 1;
 
 void Network(
 	hls::stream<t_i_data> &i_data,

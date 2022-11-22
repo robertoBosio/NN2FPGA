@@ -1,16 +1,27 @@
 set impl_sel "solution_0"
 
-set PRJ_NAME Network
+set board "ULTRA"
+
+set TOP_NAME Network
+if {$board == "PYNQ"} {
+	set PRJ_NAME ${TOP_NAME}PYNQ2
+} else {
+	set PRJ_NAME ${TOP_NAME}ULTRA
+}
 
 delete_project ${PRJ_NAME}_ip
 open_project ${PRJ_NAME}_ip
-set_top ${PRJ_NAME}
+set_top ${TOP_NAME}
 
 open_solution solution_1
-set_part {xczu3eg-sbva484-1-i}
+if {$board == "PYNQ"} {
+	set_part {xc7z020clg400-1}
+} else {
+	set_part {xczu3eg-sbva484-1-i}
+}
 
-add_files src/${PRJ_NAME}.cpp
-add_files -tb tb/${PRJ_NAME}Tb.cpp
+add_files src/${TOP_NAME}.cpp
+add_files -tb tb/${TOP_NAME}Tb.cpp
 
 create_clock -period 5
 
