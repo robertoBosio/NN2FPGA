@@ -39,7 +39,7 @@ void Network(
 	);
 
 	hls::stream<t_conv_129> s_conv_129("s_conv_129");
-	#pragma HLS STREAM variable=s_conv_129 depth=c_conv_0_ich*c_conv_0_och type=fifo
+	#pragma HLS STREAM variable=s_conv_129 depth=c_conv_0_och*(c_conv_0_fh-1)*(c_conv_0_iw+c_conv_0_fw-1) type=fifo
 
 
 	hls::stream<ap_uint<1>> s_last_conv_0[c_conv_0_split];
@@ -67,7 +67,7 @@ void Network(
 	#pragma HLS STREAM variable=s_conv_129_skip depth=c_conv_2_ich*c_conv_2_och type=fifo
 
 	hls::stream<t_conv_131> s_conv_131("s_conv_131");
-	#pragma HLS STREAM variable=s_conv_131 depth=c_conv_2_ich*c_conv_2_och type=fifo
+	#pragma HLS STREAM variable=s_conv_131 depth=c_conv_2_och*(c_conv_2_fh-1)*(c_conv_2_iw+c_conv_2_fw-1) type=fifo
 
 
 	hls::stream<ap_uint<1>> s_last_conv_2[c_conv_2_split];
@@ -92,7 +92,7 @@ void Network(
 
 
 	hls::stream<t_conv_134> s_conv_134("s_conv_134");
-	#pragma HLS STREAM variable=s_conv_134 depth=c_conv_4_ich*c_conv_4_och type=fifo
+	#pragma HLS STREAM variable=s_conv_134 depth=c_conv_4_och*(c_conv_4_fh-1)*(c_conv_4_iw+c_conv_4_fw-1) type=fifo
 
 
 	hls::stream<ap_uint<1>> s_last_conv_4[c_conv_4_split];
@@ -120,7 +120,7 @@ void Network(
 	#pragma HLS STREAM variable=s_conv_134_skip depth=c_conv_7_ich*c_conv_7_och type=fifo
 
 	hls::stream<t_conv_136> s_conv_136("s_conv_136");
-	#pragma HLS STREAM variable=s_conv_136 depth=c_conv_7_ich*c_conv_7_och type=fifo
+	#pragma HLS STREAM variable=s_conv_136 depth=c_conv_7_och*(c_conv_7_fh-1)*(c_conv_7_iw+c_conv_7_fw-1) type=fifo
 
 
 	hls::stream<ap_uint<1>> s_last_conv_7[c_conv_7_split];
@@ -145,7 +145,7 @@ void Network(
 
 
 	hls::stream<t_conv_139> s_conv_139("s_conv_139");
-	#pragma HLS STREAM variable=s_conv_139 depth=c_conv_9_ich*c_conv_9_och type=fifo
+	#pragma HLS STREAM variable=s_conv_139 depth=c_conv_9_och*(c_conv_9_fh-1)*(c_conv_9_iw+c_conv_9_fw-1) type=fifo
 
 
 	hls::stream<ap_uint<1>> s_last_conv_9[c_conv_9_split];
@@ -173,7 +173,7 @@ void Network(
 	#pragma HLS STREAM variable=s_conv_139_skip depth=c_conv_12_ich*c_conv_12_och type=fifo
 
 	hls::stream<t_conv_141> s_conv_141("s_conv_141");
-	#pragma HLS STREAM variable=s_conv_141 depth=c_conv_12_ich*c_conv_12_och type=fifo
+	#pragma HLS STREAM variable=s_conv_141 depth=c_conv_12_och*(c_conv_12_fh-1)*(c_conv_12_iw+c_conv_12_fw-1) type=fifo
 
 
 	hls::stream<ap_uint<1>> s_last_conv_12[c_conv_12_split];
@@ -198,7 +198,7 @@ void Network(
 
 
 	hls::stream<t_conv_144> s_conv_144[c_conv_144_split];
-	#pragma HLS STREAM variable=s_conv_144 depth=c_conv_14_ich*c_conv_14_och type=fifo
+	#pragma HLS STREAM variable=s_conv_144 depth=c_conv_14_och*(c_conv_14_fh-1)*(c_conv_14_iw+c_conv_14_fw-1) type=fifo
 
 
 	hls::stream<ap_uint<1>> s_last_conv_14[c_conv_14_split];
@@ -223,7 +223,7 @@ void Network(
 
 
 	hls::stream<t_add_146> s_add_146("s_add_146");
-	#pragma HLS STREAM variable=s_add_146 depth=9*c_conv_17_ich*c_conv_17_och type=fifo
+	#pragma HLS STREAM variable=s_add_146 depth=c_conv_17_och*(c_conv_17_fh-1)*(c_conv_17_iw+c_conv_17_fw-1) type=fifo
 
 
 	hls::stream<ap_uint<1>> s_last_conv_17[c_conv_17_split];
@@ -240,7 +240,7 @@ void Network(
 
 
 	hls::stream<t_conv_148> s_conv_148("s_conv_148");
-	#pragma HLS STREAM variable=s_conv_148 depth=c_conv_19_ich*c_conv_19_och type=fifo
+	#pragma HLS STREAM variable=s_conv_148 depth=c_conv_19_och*(c_conv_19_fh-1)*(c_conv_19_iw+c_conv_19_fw-1) type=fifo
 
 
 	hls::stream<ap_uint<1>> s_last_conv_19[c_conv_19_split];
@@ -265,7 +265,7 @@ void Network(
 
 
 	hls::stream<t_conv_151> s_conv_151("s_conv_151");
-	#pragma HLS STREAM variable=s_conv_151 depth=c_conv_21_ich*c_conv_21_och type=fifo
+	#pragma HLS STREAM variable=s_conv_151 depth=c_conv_21_och*(c_conv_21_fh-1)*(c_conv_21_iw+c_conv_21_fw-1) type=fifo
 
 
 	hls::stream<ap_uint<1>> s_last_conv_21[c_conv_21_split];
@@ -293,7 +293,7 @@ void Network(
 	#pragma HLS STREAM variable=s_conv_151_skip depth=c_conv_24_ich*c_conv_24_och type=fifo
 
 	hls::stream<t_conv_153> s_conv_153("s_conv_153");
-	#pragma HLS STREAM variable=s_conv_153 depth=c_conv_24_ich*c_conv_24_och type=fifo
+	#pragma HLS STREAM variable=s_conv_153 depth=c_conv_24_och*(c_conv_24_fh-1)*(c_conv_24_iw+c_conv_24_fw-1) type=fifo
 
 
 	hls::stream<ap_uint<1>> s_last_conv_24[c_conv_24_split];
@@ -318,7 +318,7 @@ void Network(
 
 
 	hls::stream<t_conv_156> s_conv_156("s_conv_156");
-	#pragma HLS STREAM variable=s_conv_156 depth=c_conv_26_ich*c_conv_26_och type=fifo
+	#pragma HLS STREAM variable=s_conv_156 depth=c_conv_26_och*(c_conv_26_fh-1)*(c_conv_26_iw+c_conv_26_fw-1) type=fifo
 
 
 	hls::stream<ap_uint<1>> s_last_conv_26[c_conv_26_split];
@@ -346,7 +346,7 @@ void Network(
 	#pragma HLS STREAM variable=s_conv_156_skip depth=c_conv_29_ich*c_conv_29_och type=fifo
 
 	hls::stream<t_conv_158> s_conv_158("s_conv_158");
-	#pragma HLS STREAM variable=s_conv_158 depth=c_conv_29_ich*c_conv_29_och type=fifo
+	#pragma HLS STREAM variable=s_conv_158 depth=c_conv_29_och*(c_conv_29_fh-1)*(c_conv_29_iw+c_conv_29_fw-1) type=fifo
 
 
 	hls::stream<ap_uint<1>> s_last_conv_29[c_conv_29_split];
@@ -371,7 +371,7 @@ void Network(
 
 
 	hls::stream<t_conv_161> s_conv_161[c_conv_161_split];
-	#pragma HLS STREAM variable=s_conv_161 depth=c_conv_31_ich*c_conv_31_och type=fifo
+	#pragma HLS STREAM variable=s_conv_161 depth=c_conv_31_och*(c_conv_31_fh-1)*(c_conv_31_iw+c_conv_31_fw-1) type=fifo
 
 
 	hls::stream<ap_uint<1>> s_last_conv_31[c_conv_31_split];
@@ -396,7 +396,7 @@ void Network(
 
 
 	hls::stream<t_add_163> s_add_163("s_add_163");
-	#pragma HLS STREAM variable=s_add_163 depth=9*c_conv_34_ich*c_conv_34_och type=fifo
+	#pragma HLS STREAM variable=s_add_163 depth=c_conv_34_och*(c_conv_34_fh-1)*(c_conv_34_iw+c_conv_34_fw-1) type=fifo
 
 
 	hls::stream<ap_uint<1>> s_last_conv_34[c_conv_34_split];
@@ -413,7 +413,7 @@ void Network(
 
 
 	hls::stream<t_conv_165> s_conv_165("s_conv_165");
-	#pragma HLS STREAM variable=s_conv_165 depth=c_conv_36_ich*c_conv_36_och type=fifo
+	#pragma HLS STREAM variable=s_conv_165 depth=c_conv_36_och*(c_conv_36_fh-1)*(c_conv_36_iw+c_conv_36_fw-1) type=fifo
 
 
 	hls::stream<ap_uint<1>> s_last_conv_36[c_conv_36_split];
@@ -438,7 +438,7 @@ void Network(
 
 
 	hls::stream<t_conv_168> s_conv_168("s_conv_168");
-	#pragma HLS STREAM variable=s_conv_168 depth=c_conv_38_ich*c_conv_38_och type=fifo
+	#pragma HLS STREAM variable=s_conv_168 depth=c_conv_38_och*(c_conv_38_fh-1)*(c_conv_38_iw+c_conv_38_fw-1) type=fifo
 
 
 	hls::stream<ap_uint<1>> s_last_conv_38[c_conv_38_split];
@@ -466,7 +466,7 @@ void Network(
 	#pragma HLS STREAM variable=s_conv_168_skip depth=c_conv_41_ich*c_conv_41_och type=fifo
 
 	hls::stream<t_conv_170> s_conv_170("s_conv_170");
-	#pragma HLS STREAM variable=s_conv_170 depth=c_conv_41_ich*c_conv_41_och type=fifo
+	#pragma HLS STREAM variable=s_conv_170 depth=c_conv_41_och*(c_conv_41_fh-1)*(c_conv_41_iw+c_conv_41_fw-1) type=fifo
 
 
 	hls::stream<ap_uint<1>> s_last_conv_41[c_conv_41_split];
@@ -491,7 +491,7 @@ void Network(
 
 
 	hls::stream<t_conv_173> s_conv_173("s_conv_173");
-	#pragma HLS STREAM variable=s_conv_173 depth=c_conv_43_ich*c_conv_43_och type=fifo
+	#pragma HLS STREAM variable=s_conv_173 depth=c_conv_43_och*(c_conv_43_fh-1)*(c_conv_43_iw+c_conv_43_fw-1) type=fifo
 
 
 	hls::stream<ap_uint<1>> s_last_conv_43[c_conv_43_split];
@@ -519,7 +519,7 @@ void Network(
 	#pragma HLS STREAM variable=s_conv_173_skip depth=c_conv_46_ich*c_conv_46_och type=fifo
 
 	hls::stream<t_conv_175> s_conv_175("s_conv_175");
-	#pragma HLS STREAM variable=s_conv_175 depth=c_conv_46_ich*c_conv_46_och type=fifo
+	#pragma HLS STREAM variable=s_conv_175 depth=c_conv_46_och*(c_conv_46_fh-1)*(c_conv_46_iw+c_conv_46_fw-1) type=fifo
 
 
 	hls::stream<ap_uint<1>> s_last_conv_46[c_conv_46_split];
@@ -544,7 +544,7 @@ void Network(
 
 
 	hls::stream<t_pad_178> s_pad_178("s_pad_178");
-	#pragma HLS STREAM variable=s_pad_178 depth=c_conv_48_ich*c_conv_48_och type=fifo
+	#pragma HLS STREAM variable=s_pad_178 depth=c_conv_48_och*(c_conv_48_fh-1)*(c_conv_48_iw+c_conv_48_fw-1) type=fifo
 
 
 	hls::stream<ap_uint<1>> s_last_conv_48[c_conv_48_split];
@@ -575,7 +575,7 @@ void Network(
 	#pragma HLS STREAM variable=s_input_1 depth=c_averagepool_53_och type=fifo
 
 	hls::stream<t_output> s_output("s_output");
-	#pragma HLS STREAM variable=s_output depth=c_conv_54_ich*c_conv_54_och type=fifo
+	#pragma HLS STREAM variable=s_output depth=c_conv_54_och*(c_conv_54_fh-1)*(c_conv_54_iw+c_conv_54_fw-1) type=fifo
 
 
 	hls::stream<ap_uint<1>> s_last_conv_54[c_conv_54_split];
