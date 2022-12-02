@@ -367,6 +367,49 @@ template <
 
 }
 
+template <
+	class t_input,
+	class t_output,
+	int c_ich,
+	int c_och,
+	int c_ow,
+	int c_oh,
+	int c_fw,
+	int c_fh,
+	int c_ops,
+	int c_maxi
+> void ProduceStream(
+	t_input i_data[c_fh*c_fw][c_och*c_ich/c_ops+1],
+	hls::stream<ap_uint<1>> &i_last,
+	hls::stream<t_output> o_data[c_fh*c_fw]
+) {
+
+	const int c_o_index = c_oh*c_ow;
+	const int c_index = c_fh*c_fw;
+	const int c_ch = c_ich*c_och/c_ops;
+	/* while(1) { */
+	for (uint16_t s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
+		uint16_t s_ch = 0;
+		for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
+			for (uint8_t s_och = 0; s_och < c_och/c_ops; s_och++) {
+	/* #pragma HLS loop_merge */
+#pragma HLS pipeline
+				for (uint8_t s_index = 0; s_index < c_index; s_index++) {
+#pragma HLS pipeline
+					o_data[s_index].write((t_output)(i_data[s_index][s_ch]));
+				}
+				s_ch++;
+			}
+		}
+	}
+	ap_uint<1> s_last;
+	s_last = i_last.read();
+		/* if (i_last.read()) */
+		/* 	break; */
+	/* } */
+
+}
+
 ///////////////////////////// FROM STREAM TO POINTER ////////////////////////// 
 
 /* // For output activations */
