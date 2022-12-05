@@ -82,6 +82,9 @@ with torch.no_grad():
         break
 
     onnx_model = network_graph.export_onnx(model, test_features)
-    write_network(onnx_model)
+    write_network(
+        onnx_model,
+        off_chip_storage=True
+    )
 
     

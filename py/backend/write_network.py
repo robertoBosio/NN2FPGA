@@ -3,6 +3,7 @@ import sys
 import onnx
 import backend.main as main
 import backend.defines as defines
+import backend.memory as memory
 
 def evaluate_connection_level(model):
     connection_level = {}
@@ -150,7 +151,10 @@ def extracts_weights_info(model):
     return weights_info
 
 # Expects an ONNX model
-def write_network(model):
+def write_network(
+    model,
+    off_chip_storage=False
+):
 
     inferred_model = onnx.shape_inference.infer_shapes(model)
 
@@ -162,7 +166,7 @@ def write_network(model):
 
     flatten_info = extracts_flatten_info(model)
 
-    conv_relu = main.write(
+    conv_relu, additional_ports = main.write(
         inferred_model,
         weights_info,
         skip_connections_info,
@@ -170,7 +174,8 @@ def write_network(model):
         relu_info,
         split_info,
         flatten_info,
-        reordered_layers
+        reordered_layers,
+        off_chip_storage
     )
 
     # TODO: export tensors and weight info
@@ -188,5 +193,12 @@ def write_network(model):
         relu_info,
         conv_relu,
         flatten_info,
-        split_info
+        split_info,
+        off_chip_storage,
+        additional_ports
     )
+
+    if off_chip_storage:
+        memory.write(
+            additional_ports
+        )

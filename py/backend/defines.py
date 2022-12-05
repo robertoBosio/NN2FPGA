@@ -14,7 +14,9 @@ def write(
     relu_info,
     conv_relu,
     flatten_info,
-    split_info
+    split_info,
+    off_chip_storage,
+    additional_ports
 ):
 
     layers_info = []
@@ -105,6 +107,9 @@ def write(
             fd.write("const int c_%s_ich = %d;\n" % (weight_name, c_ich))
             fd.write("const int c_%s_ih  = %d;\n" % (weight_name, c_ih))
             fd.write("const int c_%s_iw  = %d;\n" % (weight_name, c_iw))
+            fd.write("const int c_%s_ops = %0d;\n" % (weight_name, parallel_ops[node_name]))
+            fd.write("const int c_%s_index = %0d;\n" % (weight_name, c_ih*c_iw)) 
+            fd.write("const int c_%s_iter  = %0d;\n" % (weight_name, c_och*c_ich/parallel_ops[node_name] + 1))
             fd.write("\n")
 
     def write_relu(fd, node, write_file=False):
@@ -430,6 +435,8 @@ def write(
         # Adding prototype declaration
         fd.write("void Network(\n")
         fd.write("\thls::stream<t_i_data> &i_data,\n")
+        for name in additional_ports:
+            fd.write("\thls::stream<t_%s> s_%s[c_%s_index],\n" % (name, name, name))
         fd.write("\thls::stream<t_o_data> &o_data\n")
         fd.write(");\n")
 
