@@ -4,6 +4,7 @@ import onnx
 import backend.main as main
 import backend.defines as defines
 import backend.memory as memory
+import backend.block_design as block_design
 
 def evaluate_connection_level(model):
     connection_level = {}
@@ -166,8 +167,11 @@ def write_network(
 
     flatten_info = extracts_flatten_info(model)
 
-    conv_relu, additional_ports = main.write(
+    tensors_info = extracts_tensors_info(inferred_model)
+
+    conv_relu, additional_ports, additional_ports_info, parallel_ops = main.write(
         inferred_model,
+        tensors_info,
         weights_info,
         skip_connections_info,
         bias_info,
@@ -182,8 +186,6 @@ def write_network(
     # TODO: assign correct values on tensors to defines
     # TODO: weights define
     
-    tensors_info = extracts_tensors_info(inferred_model)
-
     defines.write(
         inferred_model,
         tensors_info,
@@ -195,10 +197,17 @@ def write_network(
         flatten_info,
         split_info,
         off_chip_storage,
-        additional_ports
+        additional_ports,
+        parallel_ops
     )
 
     if off_chip_storage:
         memory.write(
-            additional_ports
+            additional_ports,
+            additional_ports_info
+        )
+
+        block_design.write(
+            additional_ports,
+            additional_ports_info
         )

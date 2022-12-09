@@ -1,6 +1,7 @@
 import os
 import sys
 import pulp
+import math
 
 def parallel_ops_number(layers_info):
 
@@ -55,7 +56,9 @@ def parallel_ops_number(layers_info):
     for i in range(num_layers):
         # Returning the layers name together with the computed number of 
         # operations that should be executed in parallel
-        parallel_op[layers_info[i][0]] = choices[i].value()
+        exp = int(math.log2(choices[i].value()))
+        data = 2**exp
+        parallel_op[layers_info[i][0]] = int(data)
     
     return parallel_op
 

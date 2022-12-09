@@ -7,9 +7,11 @@ from quant_dorefa import weight_quantize_fn
 import torch
 from math import log2
 from math import ceil
+from backend.balance_computations import opt
 
 def write(
     model,
+    tensors_info,
     weights_info,
     skip_connections_info,
     bias_info,
@@ -24,6 +26,10 @@ def write(
     replaced_relu = []
     conv_relu = []
     additional_ports = []
+    additional_ports_info = {}
+    layers_info = []
+    parallel_ops = {}
+    weights_export = []
 
     def write_header(
         fd,
@@ -71,7 +77,8 @@ def write(
             fd.write("\t#pragma HLS DATAFLOW\n")
 
             for name in additional_ports:
-                channels = "c_%s_och" % name
+                # channels = "c_%s_och" % name
+                channels = 3
                 fd.write(
                     "\t#pragma HLS STREAM variable=s_%s depth=%s type=fifo\n" % (
                         name,
@@ -365,6 +372,37 @@ def write(
             write_stream(fd, output_name, "c_%s_och" % node_name)
             fd.write("\n")
 
+        input_shape = tensors_info[node.input[0]].tensor_type.shape
+        output_shape = tensors_info[node.output[0]].tensor_type.shape
+
+        attributes = getattr(node, "attribute" )
+
+        c_ich    = getattr(input_shape, 'dim')[1].dim_value
+        c_ih     = getattr(input_shape, 'dim')[2].dim_value
+        c_iw     = getattr(input_shape, 'dim')[3].dim_value
+        c_och    = getattr(output_shape, 'dim')[1].dim_value
+        c_oh     = getattr(output_shape, 'dim')[2].dim_value
+        c_ow     = getattr(output_shape, 'dim')[3].dim_value
+        if ('adaptive' in node_name):
+            c_fh     = c_oh
+            c_fw     = c_ow
+            c_stride = 1
+            c_pad    = 0
+        else:
+            c_fh     = getattr(attributes[1], 'ints')[0]
+            c_fw     = getattr(attributes[1], 'ints')[1]
+            c_stride = getattr(attributes[3], 'ints')[0]
+            c_pad    = getattr(attributes[2], 'ints')[0]
+
+        if (not emit_streams) and (not write_blocks):
+            layers_info.append(
+                [
+                    node_name,
+                    1/(c_oh*c_ow*c_och*c_fh*c_fw),
+                    c_fh*c_fw
+                ]
+            )
+
         if write_blocks:
             fd.write("\tPoolStreams<\n")
             fd.write("\t\tt_%s,\n" % (input_name))
@@ -436,7 +474,7 @@ def write(
         weight_name,
         node_name,
         pack_weights=True,
-        off_chip_storage=False
+        off_chip_storage=False,
     ):
 
         c_och    = getattr(weight_shape, 'dims')[0]
@@ -478,30 +516,42 @@ def write(
 
         # TODO: Specialized for DAC2023 submission, must be automated
 
-        parallel_ops = {}
-        parallel_ops['conv_0']  = 1                                                    
-        parallel_ops['conv_2']  = 2                                                    
-        parallel_ops['conv_4']  = 2                                                    
-        parallel_ops['conv_7']  = 2                                                    
-        parallel_ops['conv_9']  = 2                                                    
-        parallel_ops['conv_12']  = 2                                                   
-        parallel_ops['conv_14']  = 2                                                   
-        parallel_ops['conv_17']  = 1                                                   
-        parallel_ops['conv_19']  = 1                                                   
-        parallel_ops['conv_21']  = 1                                                   
-        parallel_ops['conv_24']  = 1                                                   
-        parallel_ops['conv_26']  = 1                                                   
-        parallel_ops['conv_29']  = 1                                                   
-        parallel_ops['conv_31']  = 1                                                   
-        parallel_ops['conv_34']  = 1                                                   
-        parallel_ops['conv_36']  = 1                                                   
-        parallel_ops['conv_38']  = 1                                                   
-        parallel_ops['conv_41']  = 1                                                   
-        parallel_ops['conv_43']  = 1                                                   
-        parallel_ops['conv_46']  = 1                                                   
-        parallel_ops['conv_48']  = 1                                                   
-        parallel_ops['conv_54']  = 1  
+        # parallel_ops = {}
+        # parallel_ops['conv_0']  = 1                                                    
+        # parallel_ops['conv_2']  = 2                                                    
+        # parallel_ops['conv_4']  = 2                                                    
+        # parallel_ops['conv_7']  = 2                                                    
+        # parallel_ops['conv_9']  = 2                                                    
+        # parallel_ops['conv_12']  = 2                                                   
+        # parallel_ops['conv_14']  = 2                                                   
+        # parallel_ops['conv_17']  = 1                                                   
+        # parallel_ops['conv_19']  = 1                                                   
+        # parallel_ops['conv_21']  = 1                                                   
+        # parallel_ops['conv_24']  = 1                                                   
+        # parallel_ops['conv_26']  = 1                                                   
+        # parallel_ops['conv_29']  = 1                                                   
+        # parallel_ops['conv_31']  = 1                                                   
+        # parallel_ops['conv_34']  = 1                                                   
+        # parallel_ops['conv_36']  = 1                                                   
+        # parallel_ops['conv_38']  = 1                                                   
+        # parallel_ops['conv_41']  = 1                                                   
+        # parallel_ops['conv_43']  = 1                                                   
+        # parallel_ops['conv_46']  = 1                                                   
+        # parallel_ops['conv_48']  = 1                                                   
+        # parallel_ops['conv_54']  = 1  
         #################################################################
+
+        if off_chip_storage:
+            new_offset = sum([info[3] for name, info in additional_ports_info.items()])
+            additional_ports_info[weight_name] = []
+            additional_ports_info[weight_name].append(c_ih*c_iw)
+            additional_ports_info[weight_name].append(parallel_ops[node_name]*8)
+            additional_ports_info[weight_name].append(
+                new_offset
+            )
+            additional_ports_info[weight_name].append(
+                new_offset+c_ich*c_och*c_iw*c_ih
+            )
 
         last_weight = True
         if (pack_weights):
@@ -543,25 +593,26 @@ def write(
                     )
                 )
             else:
-                weights_export = np.zeros(
+                weight_export = np.zeros(
                     [
-                        c_ih,
-                        c_iw,
-                        weights.shape[1],
-                        int(weights.shape[0]/parallel_ops[node_name])
+                        weights.shape[1]*
+                        weights.shape[0]*
+                        c_ih*
+                        c_iw
                     ]
                 )
-                for ih in range(c_ih):
-                    for iw in range(c_iw):
-                        for ich in range(weights.shape[1]):
-                            for och in range(int(weights.shape[0]/parallel_ops[node_name])):
-                                weight_value = 0
+                addr = 0
+                for ich in range(weights.shape[1]):
+                    for och in range(int(weights.shape[0]/parallel_ops[node_name])):
+                        for ih in range(c_ih):
+                            for iw in range(c_iw):
                                 for op in range(parallel_ops[node_name]):
                                     # weight_value = np.random.randint(0, 256)
-                                    weight_value |= int(weights[och+op][ich][ih][iw]) << (8*op)
-                                weights_export[ih][iw][ich][och] = weight_value
-                np.save("backup/%s" % node_name, weights_export)
-
+                                    # weight_value |= int(weights[och+op][ich][ih][iw]) << (8*op)
+                                    weight_value = int(weights[och+op][ich][ih][iw])
+                                    weight_export[addr] = weight_value
+                                    addr = addr + 1
+                weights_export.append(weight_export)
                 
         else:
             for ih in range(c_ih):
@@ -596,6 +647,39 @@ def write(
         split = False
         pointwise = False
 
+        attributes = getattr(node, "attribute" )
+
+        input_shape = tensors_info[node.input[0]].tensor_type.shape
+        output_shape = tensors_info[node.output[0]].tensor_type.shape
+
+        c_ich     = getattr(input_shape, 'dim')[1].dim_value
+        # TODO: Generalize the case to not 1, 1 input features w, h
+        if gemm is None:
+            c_ih      = getattr(input_shape, 'dim')[2].dim_value
+            c_iw      = getattr(input_shape, 'dim')[3].dim_value
+        else:
+            c_ih      = 1
+            c_iw      = 1
+
+        c_och     = getattr(output_shape, 'dim')[1].dim_value
+        if gemm is None:
+            c_oh      = getattr(output_shape, 'dim')[2].dim_value
+            c_ow      = getattr(output_shape, 'dim')[3].dim_value
+        else:
+            c_oh      = 1
+            c_ow      = 1
+
+        if gemm is None:
+            c_fh      = int(getattr(attributes[2], 'ints')[0])
+            c_fw      = int(getattr(attributes[2], 'ints')[1])
+            c_stride  = getattr(attributes[4], 'ints')[0]
+            c_pad     = getattr(attributes[3], 'ints')[0]
+        else:
+            c_fh      = 1
+            c_fw      = 1
+            c_stride  = 1
+            c_pad     = 0
+
         # Removing dots from input names
         input_name = node.input[0]
 
@@ -622,6 +706,14 @@ def write(
         weight_shape = weights_info[node.input[1]]
 
         if (not emit_streams) and (not write_blocks):
+            layers_info.append(
+                [
+                    node_name,
+                    1/(c_oh*c_ow*c_och*c_ich*c_fh*c_fw),
+                    c_fh*c_fw
+                ]
+            )
+
             additional_ports.append(weight_name)
             return
 
@@ -696,17 +788,6 @@ def write(
                     # 20,
                 )
             fd.write("\n")
-
-        attributes = getattr(node, "attribute" )
-        # Specializing by stride, only 1 and 2 are supported right now
-        if (gemm is None):
-            c_fh     = int(getattr(attributes[2], 'ints')[0])
-            c_fw     = int(getattr(attributes[2], 'ints')[1])
-            c_stride = getattr(attributes[4], 'ints')[0]
-        else:
-            c_fh = 1
-            c_fw = 1
-            c_stride = 1
 
         if (c_fh*c_fw) == 1:
         	pointwise = True 
@@ -940,11 +1021,21 @@ def write(
         if off_chip_storage:
             write_body(fd, model, emit_streams=False, write_blocks=False)
 
+        parallel_ops = opt(layers_info)
+        print(parallel_ops)
+
         write_header(fd, layers_allocated)
 
         write_body(fd, model, emit_streams=True, write_blocks=False)
+
         write_body(fd, model, emit_streams=False, write_blocks=True)
 
         write_footer(fd, layers_allocated)
 
-    return conv_relu, additional_ports
+        if (off_chip_storage):
+            np.save(
+                "backup/weights",
+                np.concatenate([weight.flatten() for weight in weights_export])
+            )
+
+    return conv_relu, additional_ports, additional_ports_info, parallel_ops
