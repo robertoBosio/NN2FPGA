@@ -135,6 +135,62 @@ class PreActResNet(nn.Module):
       return out.view(out.size(0), -1)
     return out
 
+class TestModel(nn.Module):
+  def __init__(self, wbit, abit, num_classes):
+    super(TestModel, self).__init__()
+    Conv2d = conv2d_Q_fn(w_bit=wbit)
+    Linear = linear_Q_fn(w_bit=wbit)
+    self.abit = abit
+    self.act_q = activation_quantize_fn(a_bit=abit)
+
+    self.conv0 = Conv2d(3, 16, kernel_size=3, stride=1, padding=1, bias=False)
+    self.conv1 = Conv2d(16, 32, kernel_size=3, stride=1, padding=1, bias=False)
+    self.conv2 = Conv2d(32, 64, kernel_size=3, stride=1, padding=1, bias=False)
+    self.conv3 = Conv2d(64, 32, kernel_size=3, stride=2, padding=1, bias=False)
+    self.conv4 = Conv2d(32, 16, kernel_size=3, stride=2, padding=1, bias=False)
+    self.avgpool = nn.AvgPool2d(8, stride=1)
+    self.fc = nn.Conv2d(16, num_classes, 1, bias=False)
+
+    self.export = False
+    self.show = False
+
+  def forward(self, x):
+    # out = x - 0.5;
+
+    # for b in range(x.shape[0]):
+    #   for ich in range(x.shape[1]):
+    #     for ih in range(3):
+    #       for iw in range(3):
+    #         print(x[b][ich][ih][iw]*256)
+
+    out = x
+    # out = self.act_q(out)
+    out = self.conv0(out)
+    out = F.relu(out)
+    out = self.act_q(out)
+    out = self.conv1(out)
+    out = F.relu(out)
+    out = self.act_q(out)
+    out = self.conv2(out)
+    out = F.relu(out)
+    out = self.act_q(out)
+    out = self.conv3(out)
+    out = F.relu(out)
+    out = self.act_q(out)
+    out = self.conv4(out)
+    out = F.relu(out)
+    out = self.act_q(out)
+
+    out = self.avgpool(out)
+    out = self.act_q(out)
+    out = self.fc(out)
+    if not self.export:
+      return out.view(out.size(0), -1)
+    return out
+
+
+def testmodel(wbits, abits, num_classes=10):
+  return TestModel(wbits, abits, num_classes=num_classes)
 
 def resnet20(wbits, abits, num_classes=10):
   return PreActResNet(PreActBlock_conv_Q, [3, 3, 3], wbits, abits, num_classes=num_classes)

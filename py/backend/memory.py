@@ -5,7 +5,8 @@ from onnx import numpy_helper
 import backend.mem_algo as mem_algo
 
 def write(
-    additional_ports
+    additional_ports,
+    additional_ports_info
 ):
 
     read_width = 128
@@ -22,6 +23,7 @@ def write(
 
         mem_algo.write(
             additional_ports,
+            additional_ports_info,
             read_width,
             fd
         )
@@ -30,7 +32,7 @@ def write(
         fd.write("void MemoryManagement(\n")
         for name in additional_ports:
             fd.write(
-                "\thls::stream<t_%s> o_%s[c_%s_index],\n" % (
+                "\thls::stream<t_%s> s_%s[c_%s_index],\n" % (
                     name, 
                     name, 
                     name
@@ -45,18 +47,18 @@ def write(
         fd.write("\n")
 
         for name in additional_ports:
-            fd.write("\thls::stream<ap_uint<READ_WIDTH>> s_%s(\"%s\");\n" % (name, name))
-            depth = 4096/(read_width/8)
             fd.write(
                 "\t#pragma HLS INTERFACE mode=ap_fifo port=s_%s\n" % (
                     name
                 )
             )
-
+            fd.write("\thls::stream<ap_uint<READ_WIDTH>> s_o_%s(\"%s\");\n" % (name, name))
+            depth = 4096/(read_width/8)
             fd.write(
-                "\t#pragma HLS STREAM variable=s_%s depth=%0d type=fifo\n" % (
+                "\t#pragma HLS STREAM variable=s_o_%s depth=%0d type=fifo\n" % (
                     name,
-                    depth
+                    3
+                    # depth
                 )
             )
 
@@ -66,7 +68,7 @@ def write(
         fd.write("\n")
         fd.write("\tMemAlgo(\n")
         for name in additional_ports:
-            fd.write("\t\ts_%s,\n" % (name))
+            fd.write("\t\ts_o_%s,\n" % (name))
         fd.write("\t\ti_data\n")
         fd.write("\t);\n")
         fd.write("\n")
@@ -79,8 +81,8 @@ def write(
             fd.write("\t\tc_%s_ops,\n" % (name))
             fd.write("\t\t%0d\n" % (read_width))
             fd.write("\t>(\n")
-            fd.write("\t\ts_%s,\n" % (name))
-            fd.write("\t\to_%s\n" % (name))
+            fd.write("\t\ts_o_%s,\n" % (name))
+            fd.write("\t\ts_%s\n" % (name))
             fd.write("\t);\n")
 
             fd.write("\n")

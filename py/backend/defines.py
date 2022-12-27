@@ -3,8 +3,6 @@ import sys
 import onnx
 from onnx import numpy_helper
 
-from backend.balance_computations import opt
-
 def write(
     model,
     tensors_info,
@@ -16,10 +14,9 @@ def write(
     flatten_info,
     split_info,
     off_chip_storage,
-    additional_ports
+    additional_ports,
+    parallel_ops
 ):
-
-    layers_info = []
 
     def write_header(fd):
 
@@ -101,7 +98,10 @@ def write(
 
             fd.write("\n")
 
-            fd.write("typedef int%0d_t t_%s_st;\n" % (8*parallel_ops[node_name], weight_name))
+            if (off_chip_storage):
+                fd.write("typedef ap_int<%0d> t_%s_st;\n" % (8*parallel_ops[node_name], weight_name))
+            else:
+                fd.write("typedef int%0d_t t_%s_st;\n" % (8*parallel_ops[node_name], weight_name))
             fd.write("typedef ap_int<8*c_%s_ops> t_%s;\n" % (node_name, weight_name))
             fd.write("const int c_%s_och = %d;\n" % (weight_name, c_och))
             fd.write("const int c_%s_ich = %d;\n" % (weight_name, c_ich))
@@ -200,15 +200,6 @@ def write(
             c_fw     = getattr(attributes[1], 'ints')[1]
             c_stride = getattr(attributes[3], 'ints')[0]
             c_pad    = getattr(attributes[2], 'ints')[0]
-
-        if not write_file:
-            layers_info.append(
-                [
-                    node_name,
-                    1/(c_oh*c_ow*c_och*c_fh*c_fw),
-                    c_fh*c_fw
-                ]
-            )
 
         if (write_file):
             fd.write("\n")
@@ -365,15 +356,6 @@ def write(
         else:
             c_relu = 0
 
-        if not write_file:
-            layers_info.append(
-                [
-                    node_name,
-                    1/(c_oh*c_ow*c_och*c_ich*c_fh*c_fw),
-                    c_fh*c_fw
-                ]
-            )
-
         if (write_file):
             fd.write("typedef %s t_%s;\n" % (output_type, output_name))
             fd.write("typedef ap_int<32> t_%s_acc;\n" % (node_name))
@@ -389,7 +371,7 @@ def write(
             fd.write("const int c_%s_split  = %d;\n" % (output_name, c_split))
             fd.write("const int c_%s_stride = %d;\n" % (node_name, c_stride))
             fd.write("const int c_%s_pad    = %d;\n" % (node_name, c_pad))
-            fd.write("const int c_%s_split  = %d;\n" % (node_name, c_l_split))
+            # fd.write("const int c_%s_split  = %d;\n" % (node_name, c_l_split))
 
             fd.write("\n")
 
@@ -430,7 +412,7 @@ def write(
             if 'pad' in node.op_type.lower():
                 write_pad(fd, node, write_file=write_file)
 
-    def write_footer(fd, parallel_ops):
+    def write_footer(fd):
 
         # Adding prototype declaration
         fd.write("void Network(\n")
@@ -449,36 +431,34 @@ def write(
 
         write_body(fd, model, write_file=False)
 
-        parallel_ops = opt(layers_info)
-
         # TODO: Specialized for DAC2023 submission, must be automated
 
-        parallel_ops = {}
-        parallel_ops['conv_0']  = 1                                                    
-        parallel_ops['conv_2']  = 2                                                    
-        parallel_ops['conv_4']  = 2                                                    
-        parallel_ops['conv_7']  = 2                                                    
-        parallel_ops['conv_9']  = 2                                                    
-        parallel_ops['conv_12']  = 2                                                   
-        parallel_ops['conv_14']  = 2                                                   
-        parallel_ops['conv_17']  = 1                                                   
-        parallel_ops['conv_19']  = 1                                                   
-        parallel_ops['conv_21']  = 1                                                   
-        parallel_ops['conv_24']  = 1                                                   
-        parallel_ops['conv_26']  = 1                                                   
-        parallel_ops['conv_29']  = 1                                                   
-        parallel_ops['conv_31']  = 1                                                   
-        parallel_ops['conv_34']  = 1                                                   
-        parallel_ops['conv_36']  = 1                                                   
-        parallel_ops['conv_38']  = 1                                                   
-        parallel_ops['conv_41']  = 1                                                   
-        parallel_ops['conv_43']  = 1                                                   
-        parallel_ops['conv_46']  = 1                                                   
-        parallel_ops['conv_48']  = 1                                                   
-        parallel_ops['conv_54']  = 1  
+        # parallel_ops = {}
+        # parallel_ops['conv_0']  = 1                                                    
+        # parallel_ops['conv_2']  = 2                                                    
+        # parallel_ops['conv_4']  = 2                                                    
+        # parallel_ops['conv_7']  = 2                                                    
+        # parallel_ops['conv_9']  = 2                                                    
+        # parallel_ops['conv_12']  = 2                                                   
+        # parallel_ops['conv_14']  = 2                                                   
+        # parallel_ops['conv_17']  = 1                                                   
+        # parallel_ops['conv_19']  = 1                                                   
+        # parallel_ops['conv_21']  = 1                                                   
+        # parallel_ops['conv_24']  = 1                                                   
+        # parallel_ops['conv_26']  = 1                                                   
+        # parallel_ops['conv_29']  = 1                                                   
+        # parallel_ops['conv_31']  = 1                                                   
+        # parallel_ops['conv_34']  = 1                                                   
+        # parallel_ops['conv_36']  = 1                                                   
+        # parallel_ops['conv_38']  = 1                                                   
+        # parallel_ops['conv_41']  = 1                                                   
+        # parallel_ops['conv_43']  = 1                                                   
+        # parallel_ops['conv_46']  = 1                                                   
+        # parallel_ops['conv_48']  = 1                                                   
+        # parallel_ops['conv_54']  = 1  
         #################################################################
 
         write_body(fd, model, write_file=True)
 
-        write_footer(fd, parallel_ops)
+        write_footer(fd)
 

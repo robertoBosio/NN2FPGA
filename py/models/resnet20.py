@@ -1,6 +1,3 @@
-# 2020.01.10-Replaced conv with adder
-#         Haoran & Xiaohan
-
 # from models import adder
 import torch.nn as nn
 import torch.nn.functional as F
@@ -201,7 +198,6 @@ class LeNet_vis(nn.Module):
         ip2 = self.ip2(ip1)
         # return ip1, F.log_softmax(ip2, dim=1)
         return ip1, ip2
-
 
 def resnet20(num_classes=10, quantize=False, weight_bits=8, sparsity=0, quantize_v='sbm', **kwargs):
     print(quantize, sparsity)

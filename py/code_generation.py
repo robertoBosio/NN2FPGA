@@ -10,7 +10,7 @@ import torchvision
 from torchvision.models import resnet50, ResNet50_Weights
 
 DATASET = 'CIFAR10'
-MODEL = 'RESNET20'
+MODEL = 'TESTMODEL'
 
 DIRECTORY = './data'
 os.system('mkdir -p %s' % DIRECTORY)
@@ -63,6 +63,24 @@ if (MODEL == 'RESNET20'):
     model.load_state_dict(
         torch.load(
             "./tmp/resnet_w8a8/checkpoint.t7",
+            map_location=torch.device('cpu')
+        )
+    )
+    model.act_q.export = True
+    for name, module in model.named_modules():
+      module.export = True
+      module.requires_grad_(False)
+
+if (MODEL == 'TESTMODEL'):
+    model = resnet20.testmodel(wbits=8, abits=8)
+    # state_dict = torch.load(
+    #     "./tmp/resnet20.weights",
+    #     map_location=torch.device('cpu')
+    # )
+    # model.load_state_dict(state_dict, strict=False)
+    model.load_state_dict(
+        torch.load(
+            "./tmp/testmodel_w8a8/checkpoint.t7",
             map_location=torch.device('cpu')
         )
     )

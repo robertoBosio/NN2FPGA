@@ -6,6 +6,7 @@ from onnx import numpy_helper
 def round_robin(
     fd,
     ports,
+    ports_info,
     read_width
 ):
     for name in ports:
@@ -18,6 +19,7 @@ def round_robin(
         )
         fd.write("\t\tFillStream <\n")
         fd.write("\t\t\t%0d,\n" % read_width)
+        fd.write("\t\t\t%0d,\n" % ports_info[name][2])
         fd.write("\t\t%s\n" % n_read)
         fd.write("\t\t> (\n")
         fd.write("\t\t\ti_data,\n")
@@ -28,6 +30,7 @@ def round_robin(
 
 def write(
     additional_ports,
+    additional_ports_info,
     read_width,
     fd
 ):
@@ -58,6 +61,7 @@ def write(
         round_robin(
             fd,
             additional_ports,
+            additional_ports_info,
             read_width
         )
 
