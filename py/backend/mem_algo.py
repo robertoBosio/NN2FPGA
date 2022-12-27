@@ -20,7 +20,7 @@ def round_robin(
         fd.write("\t\tFillStream <\n")
         fd.write("\t\t\t%0d,\n" % read_width)
         fd.write("\t\t\t%0d,\n" % ports_info[name][2])
-        fd.write("\t\t%s\n" % n_read)
+        fd.write("\t\t\t%0d\n" % ports_info[name][3])
         fd.write("\t\t> (\n")
         fd.write("\t\t\ti_data,\n")
         fd.write("\t\t\ts_%s_address,\n" % name)
@@ -49,7 +49,12 @@ def write(
         fd.write("\n")
 
         for name in additional_ports:
-            fd.write("\tuint32_t s_%s_address = 0;\n" % (name))
+            fd.write(
+                "\tuint32_t s_%s_address = %0d;\n" % (
+                    name,
+                    additional_ports_info[name][2]
+                )
+            )
 
         fd.write("\n")
         fd.write("\tdo{\n")

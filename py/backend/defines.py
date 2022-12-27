@@ -98,10 +98,12 @@ def write(
 
             fd.write("\n")
 
-            if (off_chip_storage):
-                fd.write("typedef ap_int<%0d> t_%s_st;\n" % (8*parallel_ops[node_name], weight_name))
+            n_bits = 8*parallel_ops[node_name]
+
+            if (off_chip_storage or (n_bits > 64)):
+                fd.write("typedef ap_int<%0d> t_%s_st;\n" % (n_bits, weight_name))
             else:
-                fd.write("typedef int%0d_t t_%s_st;\n" % (8*parallel_ops[node_name], weight_name))
+                fd.write("typedef int%0d_t t_%s_st;\n" % (n_bits, weight_name))
             fd.write("typedef ap_int<8*c_%s_ops> t_%s;\n" % (node_name, weight_name))
             fd.write("const int c_%s_och = %d;\n" % (weight_name, c_och))
             fd.write("const int c_%s_ich = %d;\n" % (weight_name, c_ich))
@@ -368,10 +370,11 @@ def write(
             fd.write("const int c_%s_fw     = %d;\n" % (node_name, c_fw))
             fd.write("const int c_%s_fh     = %d;\n" % (node_name, c_fh))
             fd.write("const int c_%s_relu   = %d;\n" % (node_name, c_relu))
-            fd.write("const int c_%s_split  = %d;\n" % (output_name, c_split))
+            fd.write("const int c_%s_a_split  = %d;\n" % (output_name, c_split))
             fd.write("const int c_%s_stride = %d;\n" % (node_name, c_stride))
             fd.write("const int c_%s_pad    = %d;\n" % (node_name, c_pad))
-            # fd.write("const int c_%s_split  = %d;\n" % (node_name, c_l_split))
+            if (not off_chip_storage):
+                fd.write("const int c_%s_split  = %d;\n" % (node_name, c_l_split))
 
             fd.write("\n")
 
