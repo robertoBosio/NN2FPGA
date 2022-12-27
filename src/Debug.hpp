@@ -3,6 +3,7 @@
 
 #ifndef __SYNTHESIS__
 	/* #define DEBUG */
+	/* #define DEBUG_ACC */
 	/* #define DEBUG_LINE */
 	/* #define DEBUG_POOL */
 #endif

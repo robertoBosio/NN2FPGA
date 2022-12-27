@@ -52,7 +52,8 @@ template <
 
 #ifndef __SYNTHESIS__
 #ifdef DEBUG_POOL
-			if (s_och == 0) {
+			/* if (s_och == 0) { */
+			if ((s_o_index == 0) && (s_index == 0)) {
 				std::cout << (ap_uint<8>)(s_input) << " ";
 				std::cout << std::endl;
 			}
@@ -79,7 +80,8 @@ template <
 
 #ifndef __SYNTHESIS__
 #ifdef DEBUG_POOL
-			std::cout << (ap_int<32>)(s_acc) << " ";
+
+			std::cout << "OUTPUT VALUE: " << (ap_int<32>)(s_acc) << " ";
 			std::cout << std::endl;
 #endif
 #endif
