@@ -25,8 +25,6 @@ template <
 	int c_pool
 > void PoolOp(
 	hls::stream<t_input> &i_data,
-	hls::stream<ap_uint<1>> &i_last,
-	hls::stream<ap_uint<1>> &o_last,
 	hls::stream<t_output> &o_data
 ) {
 
@@ -52,7 +50,8 @@ template <
 
 #ifndef __SYNTHESIS__
 #ifdef DEBUG_POOL
-			if (s_och == 0) {
+			/* if (s_och == 0) { */
+			if ((s_o_index == 0) && (s_index == 0)) {
 				std::cout << (ap_uint<8>)(s_input) << " ";
 				std::cout << std::endl;
 			}
@@ -79,7 +78,8 @@ template <
 
 #ifndef __SYNTHESIS__
 #ifdef DEBUG_POOL
-			std::cout << (ap_int<32>)(s_acc) << " ";
+
+			std::cout << "OUTPUT VALUE: " << (ap_int<32>)(s_acc) << " ";
 			std::cout << std::endl;
 #endif
 #endif
@@ -92,14 +92,10 @@ template <
 #ifndef __SYNTHESIS__
 
 #ifdef DEBUG_POOL
-		std::cout << "Waiting for last signal" << std::endl;
 #endif
 
 #endif
 
-		ap_uint<1> s_last = i_last.read();
-		o_last.write(s_last);
-		/* if (s_last) */
 		/* 	break; */
 
 	/* } */
@@ -131,8 +127,6 @@ template <
 	int c_pool
 > void PoolOp(
 	hls::stream<t_input> i_data[c_fh*c_fw],
-	hls::stream<ap_uint<1>> &i_last,
-	hls::stream<ap_uint<1>> &o_last,
 	hls::stream<t_output> &o_data
 ) {
 
@@ -178,14 +172,10 @@ template <
 #ifndef __SYNTHESIS__
 
 #ifdef DEBUG_POOL
-		std::cout << "Waiting for last signal" << std::endl;
 #endif
 
 #endif
 
-		ap_uint<1> s_last = i_last.read();
-		o_last.write(s_last);
-		/* if (s_last) */
 		/* 	break; */
 
 	/* } */
@@ -217,8 +207,6 @@ template <
 	int c_pool
 > void PoolKernel(
 	hls::stream<t_input> &i_data,
-	hls::stream<ap_uint<1>> &i_last,
-	hls::stream<ap_uint<1>> &o_last,
 	hls::stream<t_output> &o_data
 ) {
 
@@ -239,15 +227,6 @@ template <
 		hls::stream<t_input> s_compute[c_fh*c_fw];
 		#pragma HLS STREAM variable=s_compute depth=10
 
-		hls::stream<ap_uint<1>> s_last[c_fh*c_fw+1];
-		#pragma HLS STREAM variable=s_last depth=10
-
-		SplitStream<
-			c_fh*c_fw + 1
-		> (
-			i_last,
-			s_last
-		);
 
 	/* Generic case implements the line buffer */
 		ShiftOp<
@@ -266,7 +245,6 @@ template <
 			(c_fw-1)
 		> (
 			i_data,
-			s_last[0],
 			s_compute[0],
 			s_data[0]
 		);
@@ -287,7 +265,6 @@ template <
 				c_pad
 			> (
 				s_data[s_index-1],
-				s_last[s_index],
 				s_compute[s_index],
 				s_data[s_index],
 				c_fh - s_index/c_fh - 1,
@@ -311,7 +288,6 @@ template <
 			0
 		> (
 			s_data[c_index-2],
-			s_last[c_index-1],
 			s_compute[c_index-1]
 		);
 
@@ -333,8 +309,6 @@ template <
 			c_pool
 		> (
 			s_compute,
-			s_last[c_index],
-			o_last,
 			o_data
 		);
 
@@ -359,8 +333,6 @@ template <
 			c_pool
 		> (
 			i_data,
-			i_last,
-			o_last,
 			o_data
 		);
 
@@ -385,8 +357,6 @@ template <
 	int c_pool // 0 average, 1 max
 > void PoolStreams(
 	hls::stream<t_input> &i_data,
-	hls::stream<ap_uint<1>> &i_last,
-	hls::stream<ap_uint<1>> &o_last,
 	hls::stream<t_output> &o_data
 ) {
 
@@ -415,8 +385,6 @@ template <
 		c_pool
 	> (
 		i_data,
-		i_last,
-		o_last,
 		o_data
 	);
 

@@ -134,282 +134,6 @@ template <
 
 }
 
-// For input weights
-template <
-	class t_input,
-	class t_output,
-	int c_ich,
-	int c_och,
-	int c_iw,
-	int c_ih,
-	int c_ow,
-	int c_oh,
-	int c_str
-> void ProduceStream(
-	t_input *i_data,
-	hls::stream<ap_uint<1>> &i_last,
-	hls::stream<t_output> &s_i_data
-) {
-
-	const int c_index = c_och*c_ich*c_ih*c_iw;
-
-	/* while(1) { */
-		for (int s_oh = 0; s_oh < c_oh; s_oh++) {
-			for (int s_ow = 0; s_ow < c_ow; s_ow++) {
-				PRODSTR: for (int s_index = 0; s_index < c_index; s_index++) {
-					s_i_data.write((t_output)(i_data[s_index]));
-				}
-			}
-		}
-
-		ap_uint<1> s_last;
-		s_last = i_last.read();
-		/* if (s_last) */
-		/* 	break; */
-	/* } */
-
-}
-//
-// For input weights
-template <
-	class t_input,
-	class t_output,
-	int c_ich,
-	int c_och,
-	int c_iw,
-	int c_ih,
-	int c_ow,
-	int c_oh
-> void ProduceStream(
-	const t_input i_data[c_och*c_ich*c_iw*c_ih],
-	hls::stream<ap_uint<1>> &i_last,
-	hls::stream<t_output> o_data[c_ih*c_iw]
-) {
-
-	const int c_index = c_oh*c_ow;
-	const int c_stream_sel = c_ih*c_iw;
-	const int c_ch = c_ich*c_och;
-#pragma HLS array_partition type=cyclic factor=c_stream_sel variable=i_data
-
-	/* while(1) { */
-
-		for (uint16_t s_index = 0; s_index < c_index; s_index++) {
-			uint16_t s_addr = 0;
-			for (uint16_t s_ch = 0; s_ch < c_ch; s_ch++) {
-				#pragma HLS pipeline
-				for (uint8_t s_stream_sel = 0; s_stream_sel < c_stream_sel; s_stream_sel++) {
-					o_data[s_stream_sel].write((t_output)(i_data[s_addr]));
-					s_addr++;
-				}
-			}
-		}
-
-		ap_uint<1> s_last;
-		s_last = i_last.read();
-		/* if (i_last.read()) */
-		/* 	break; */
-
-	/* } */
-}
-
-template <
-	class t_input,
-	class t_output,
-	int c_ich,
-	int c_och,
-	int c_iw,
-	int c_ih,
-	int c_ow,
-	int c_oh,
-	int c_ops
-> void ProduceStream(
-	const t_input i_data[c_och*c_ich*c_iw*c_ih],
-	hls::stream<ap_uint<1>> &i_last,
-	hls::stream<t_output> o_data[c_ih*c_iw]
-) {
-
-	const int c_index = c_oh*c_ow;
-	const int c_stream_sel = c_ih*c_iw;
-	const int c_ch = c_ich*c_och/c_ops;
-#pragma HLS array_partition type=cyclic factor=c_stream_sel variable=i_data
-
-	/* while(1) { */
-
-		for (uint16_t s_index = 0; s_index < c_index; s_index++) {
-			uint16_t s_addr = 0;
-			for (uint16_t s_ch = 0; s_ch < c_ch; s_ch++) {
-				for (uint8_t s_stream_sel = 0; s_stream_sel < c_stream_sel; s_stream_sel++) {
-					#pragma HLS pipeline
-					for (uint16_t s_ops = 0; s_ops < c_ops; s_ops++) {
-						o_data[s_stream_sel].write((t_output)(i_data[s_addr]));
-						s_addr++;
-					}
-				}
-			}
-		}
-
-		ap_uint<1> s_last;
-		s_last = i_last.read();
-		/* if (i_last.read()) */
-		/* 	break; */
-
-	/* } */
-}
-
-template <
-	class t_input,
-	class t_output,
-	int c_ich,
-	int c_och,
-	int c_ow,
-	int c_oh
-> void ProduceStream(
-	const t_input i_data[c_och*c_ich],
-	hls::stream<ap_uint<1>> &i_last,
-	hls::stream<t_output> &o_data
-) {
-
-	const int c_index = c_oh*c_ow;
-	const int c_ch = c_ich*c_och;
-
-	/* while(1) { */
-		for (uint16_t s_index = 0; s_index < c_index; s_index++) {
-			for (uint16_t s_ch = 0; s_ch < c_ch; s_ch++) {
-#pragma HLS pipeline
-				o_data.write((t_output)(i_data[s_ch]));
-			}
-		}
-		ap_uint<1> s_last;
-		s_last = i_last.read();
-		/* if (i_last.read()) */
-		/* 	break; */
-	/* } */
-
-}
-
-template <
-	class t_input,
-	class t_output,
-	int c_ich,
-	int c_och,
-	int c_ow,
-	int c_oh,
-	int c_ops
-> void ProduceStream(
-	const t_input i_data[c_och*c_ich],
-	hls::stream<ap_uint<1>> &i_last,
-	hls::stream<t_output> &o_data
-) {
-
-	const int c_index = c_oh*c_ow;
-	const int c_ch = c_ich*c_och/c_ops;
-	const uint8_t c_log_ops = (uint8_t)(log2(c_ops));
-
-	/* while(1) { */
-		for (uint16_t s_index = 0; s_index < c_index; s_index++) {
-			for (uint16_t s_ch = 0; s_ch < c_ch; s_ch++) {
-/* #pragma HLS loop_merge */
-#pragma HLS pipeline
-				t_output s_data = 0;
-				for (uint8_t s_ops = 0; s_ops < c_ops; s_ops++) {
-					s_data(8*(s_ops+1)-1, 8*s_ops) = i_data[(s_ch << c_log_ops) + s_ops];
-				}
-				o_data.write((t_output)(s_data));
-			}
-		}
-		ap_uint<1> s_last;
-		s_last = i_last.read();
-		/* if (i_last.read()) */
-		/* 	break; */
-	/* } */
-
-}
-
-template <
-	class t_input,
-	class t_output,
-	int c_ich,
-	int c_och,
-	int c_ow,
-	int c_oh,
-	int c_fw,
-	int c_fh,
-	int c_ops
-> void ProduceStream(
-	const t_input i_data[c_fh*c_fw][c_och*c_ich/c_ops+1],
-	hls::stream<ap_uint<1>> &i_last,
-	hls::stream<t_output> o_data[c_fh*c_fw]
-) {
-
-	const int c_o_index = c_oh*c_ow;
-	const int c_index = c_fh*c_fw;
-	const int c_ch = c_ich*c_och/c_ops;
-	/* while(1) { */
-	for (uint16_t s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
-		uint16_t s_ch = 0;
-		for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
-			for (uint8_t s_och = 0; s_och < c_och/c_ops; s_och++) {
-	/* #pragma HLS loop_merge */
-#pragma HLS pipeline
-				for (uint8_t s_index = 0; s_index < c_index; s_index++) {
-#pragma HLS pipeline
-					o_data[s_index].write((t_output)(i_data[s_index][s_ch]));
-				}
-				s_ch++;
-			}
-		}
-	}
-	ap_uint<1> s_last;
-	s_last = i_last.read();
-		/* if (i_last.read()) */
-		/* 	break; */
-	/* } */
-
-}
-
-template <
-	class t_input,
-	class t_output,
-	int c_ich,
-	int c_och,
-	int c_ow,
-	int c_oh,
-	int c_fw,
-	int c_fh,
-	int c_ops,
-	int c_maxi
-> void ProduceStream(
-	t_input i_data[c_fh*c_fw][c_och*c_ich/c_ops+1],
-	hls::stream<ap_uint<1>> &i_last,
-	hls::stream<t_output> o_data[c_fh*c_fw]
-) {
-
-	const int c_o_index = c_oh*c_ow;
-	const int c_index = c_fh*c_fw;
-	const int c_ch = c_ich*c_och/c_ops;
-	/* while(1) { */
-	for (uint16_t s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
-		uint16_t s_ch = 0;
-		for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
-			for (uint8_t s_och = 0; s_och < c_och/c_ops; s_och++) {
-	/* #pragma HLS loop_merge */
-#pragma HLS pipeline
-				for (uint8_t s_index = 0; s_index < c_index; s_index++) {
-#pragma HLS pipeline
-					o_data[s_index].write((t_output)(i_data[s_index][s_ch]));
-				}
-				s_ch++;
-			}
-		}
-	}
-	ap_uint<1> s_last;
-	s_last = i_last.read();
-		/* if (i_last.read()) */
-		/* 	break; */
-	/* } */
-
-}
-
 ///////////////////////////// FROM STREAM TO POINTER ////////////////////////// 
 
 /* // For output activations */
@@ -612,6 +336,255 @@ template <
 
 }
 
+///////////////////////////// FOR INPUT WEIGHTS ////////////////////////// 
+// For input weights
+template <
+	class t_input,
+	class t_output,
+	int c_ich,
+	int c_och,
+	int c_iw,
+	int c_ih,
+	int c_ow,
+	int c_oh,
+	int c_str
+> void ProduceStream(
+	t_input *i_data,
+	hls::stream<t_output> &s_i_data
+) {
+
+	const int c_index = c_och*c_ich*c_ih*c_iw;
+
+	/* while(1) { */
+		for (int s_oh = 0; s_oh < c_oh; s_oh++) {
+			for (int s_ow = 0; s_ow < c_ow; s_ow++) {
+				PRODSTR: for (int s_index = 0; s_index < c_index; s_index++) {
+					s_i_data.write((t_output)(i_data[s_index]));
+				}
+			}
+		}
+
+		/* 	break; */
+	/* } */
+
+}
+//
+// For input weights
+template <
+	class t_input,
+	class t_output,
+	int c_ich,
+	int c_och,
+	int c_iw,
+	int c_ih,
+	int c_ow,
+	int c_oh
+> void ProduceStream(
+	const t_input i_data[c_och*c_ich*c_iw*c_ih],
+	hls::stream<t_output> o_data[c_ih*c_iw]
+) {
+
+	const int c_index = c_oh*c_ow;
+	const int c_stream_sel = c_ih*c_iw;
+	const int c_ch = c_ich*c_och;
+#pragma HLS array_partition type=cyclic factor=c_stream_sel variable=i_data
+
+	/* while(1) { */
+
+		for (uint16_t s_index = 0; s_index < c_index; s_index++) {
+			uint16_t s_addr = 0;
+			for (uint16_t s_ch = 0; s_ch < c_ch; s_ch++) {
+				#pragma HLS pipeline
+				for (uint8_t s_stream_sel = 0; s_stream_sel < c_stream_sel; s_stream_sel++) {
+					o_data[s_stream_sel].write((t_output)(i_data[s_addr]));
+					s_addr++;
+				}
+			}
+		}
+
+		/* 	break; */
+
+	/* } */
+}
+
+template <
+	class t_input,
+	class t_output,
+	int c_ich,
+	int c_och,
+	int c_iw,
+	int c_ih,
+	int c_ow,
+	int c_oh,
+	int c_ops
+> void ProduceStream(
+	const t_input i_data[c_och*c_ich*c_iw*c_ih],
+	hls::stream<t_output> o_data[c_ih*c_iw]
+) {
+
+	const int c_index = c_oh*c_ow;
+	const int c_stream_sel = c_ih*c_iw;
+	const int c_ch = c_ich*c_och/c_ops;
+#pragma HLS array_partition type=cyclic factor=c_stream_sel variable=i_data
+
+	/* while(1) { */
+
+		for (uint16_t s_index = 0; s_index < c_index; s_index++) {
+			uint16_t s_addr = 0;
+			for (uint16_t s_ch = 0; s_ch < c_ch; s_ch++) {
+				for (uint8_t s_stream_sel = 0; s_stream_sel < c_stream_sel; s_stream_sel++) {
+					#pragma HLS pipeline
+					for (uint16_t s_ops = 0; s_ops < c_ops; s_ops++) {
+						o_data[s_stream_sel].write((t_output)(i_data[s_addr]));
+						s_addr++;
+					}
+				}
+			}
+		}
+
+		/* 	break; */
+
+	/* } */
+}
+
+template <
+	class t_input,
+	class t_output,
+	int c_ich,
+	int c_och,
+	int c_ow,
+	int c_oh
+> void ProduceStream(
+	const t_input i_data[c_och*c_ich],
+	hls::stream<t_output> &o_data
+) {
+
+	const int c_index = c_oh*c_ow;
+	const int c_ch = c_ich*c_och;
+
+	/* while(1) { */
+		for (uint16_t s_index = 0; s_index < c_index; s_index++) {
+			for (uint16_t s_ch = 0; s_ch < c_ch; s_ch++) {
+#pragma HLS pipeline
+				o_data.write((t_output)(i_data[s_ch]));
+			}
+		}
+		/* 	break; */
+	/* } */
+
+}
+
+template <
+	class t_input,
+	class t_output,
+	int c_ich,
+	int c_och,
+	int c_ow,
+	int c_oh,
+	int c_ops
+> void ProduceStream(
+	const t_input i_data[c_och*c_ich],
+	hls::stream<t_output> &o_data
+) {
+
+	const int c_index = c_oh*c_ow;
+	const int c_ch = c_ich*c_och/c_ops;
+	const uint8_t c_log_ops = (uint8_t)(log2(c_ops));
+
+	/* while(1) { */
+		for (uint16_t s_index = 0; s_index < c_index; s_index++) {
+			for (uint16_t s_ch = 0; s_ch < c_ch; s_ch++) {
+/* #pragma HLS loop_merge */
+#pragma HLS pipeline
+				t_output s_data = 0;
+				for (uint8_t s_ops = 0; s_ops < c_ops; s_ops++) {
+					s_data(8*(s_ops+1)-1, 8*s_ops) = i_data[(s_ch << c_log_ops) + s_ops];
+				}
+				o_data.write((t_output)(s_data));
+			}
+		}
+		/* 	break; */
+	/* } */
+
+}
+
+template <
+	class t_input,
+	class t_output,
+	int c_ich,
+	int c_och,
+	int c_ow,
+	int c_oh,
+	int c_fw,
+	int c_fh,
+	int c_ops
+> void ProduceStream(
+	const t_input i_data[c_fh*c_fw][c_och*c_ich/c_ops+1],
+	hls::stream<t_output> o_data[c_fh*c_fw]
+) {
+
+	const int c_o_index = c_oh*c_ow;
+	const int c_index = c_fh*c_fw;
+	const int c_ch = c_ich*c_och/c_ops;
+	/* while(1) { */
+	for (uint16_t s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
+		uint16_t s_ch = 0;
+		for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
+			for (uint8_t s_och = 0; s_och < c_och/c_ops; s_och++) {
+	/* #pragma HLS loop_merge */
+#pragma HLS pipeline
+				for (uint8_t s_index = 0; s_index < c_index; s_index++) {
+#pragma HLS pipeline
+					o_data[s_index].write((t_output)(i_data[s_index][s_ch]));
+				}
+				s_ch++;
+			}
+		}
+	}
+		/* 	break; */
+	/* } */
+
+}
+
+template <
+	class t_input,
+	class t_output,
+	int c_ich,
+	int c_och,
+	int c_ow,
+	int c_oh,
+	int c_fw,
+	int c_fh,
+	int c_ops,
+	int c_maxi
+> void ProduceStream(
+	t_input i_data[c_fh*c_fw][c_och*c_ich/c_ops+1],
+	hls::stream<t_output> o_data[c_fh*c_fw]
+) {
+
+	const int c_o_index = c_oh*c_ow;
+	const int c_index = c_fh*c_fw;
+	const int c_ch = c_ich*c_och/c_ops;
+	/* while(1) { */
+	for (uint16_t s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
+		uint16_t s_ch = 0;
+		for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
+			for (uint8_t s_och = 0; s_och < c_och/c_ops; s_och++) {
+	/* #pragma HLS loop_merge */
+#pragma HLS pipeline
+				for (uint8_t s_index = 0; s_index < c_index; s_index++) {
+#pragma HLS pipeline
+					o_data[s_index].write((t_output)(i_data[s_index][s_ch]));
+				}
+				s_ch++;
+			}
+		}
+	}
+		/* 	break; */
+	/* } */
+
+}
+
 ///////////////////////////// FROM STREAM TO STREAM ///////////////////////////
 
 template <
@@ -626,8 +599,6 @@ template <
 	int c_pad
 > void PadStream(
 	hls::stream<t_input> &i_data,
-	hls::stream<ap_uint<1>> &i_last,
-	hls::stream<ap_uint<1>> &o_last,
 	hls::stream<t_output> &o_data
 ) {
 
@@ -659,9 +630,6 @@ template <
 			}
 		}
 
-		ap_uint<1> s_last = i_last.read();
-		o_last.write(s_last);
-		/* if (s_last) */
 		/* 	break; */
 
 	/* } */
@@ -755,8 +723,6 @@ template <
 	int c_pad
 > void PadInput(
 	hls::stream<t_input> &i_data,
-	hls::stream<ap_uint<1>> &i_last,
-	hls::stream<ap_uint<1>> &o_last,
 	hls::stream<t_input> &o_data
 ) {
 
@@ -849,9 +815,6 @@ template <
 #endif
 #endif
 /* // TODO: Problem seems multiple reads */
-		ap_uint<1> s_last = i_last.read();
-		o_last.write(s_last);
-		/* if (s_last) */
 		/* 	break; */
 
 	/* } */
@@ -915,8 +878,6 @@ template <
 	int c_pad
 > void ForwardStream(
 	hls::stream<t_input> &i_data,
-	hls::stream<ap_uint<1>> &i_last,
-	hls::stream<ap_uint<1>> &o_last,
 	hls::stream<t_input> &o_forward
 ) {
 
@@ -945,9 +906,6 @@ template <
 			}
 		}
 
-		ap_uint<1> s_last = i_last.read();
-		o_last.write(s_last);
-		/* if (s_last) */
 		/* 	break; */
 
 	/* } */
@@ -983,8 +941,6 @@ template <
 	int c_split
 > void SplitStream(
 	hls::stream<t_output> &i_data,
-	hls::stream<ap_uint<1>> &i_last,
-	hls::stream<ap_uint<1>> &o_last,
 	hls::stream<t_output> o_data[c_split]
 ) {
 
@@ -1007,9 +963,6 @@ template <
 			}
 		}
 
-		ap_uint<1> s_last = i_last.read();
-		o_last.write(s_last);
-		/* if (s_last) */
 		/* 	break; */
 	/* } */
 
@@ -1034,7 +987,6 @@ template <
 	int c_bypass_w
 > void ShiftOp(
 	hls::stream<t_input> &i_data,
-	hls::stream<ap_uint<1>> &i_last,
 	hls::stream<t_input> &o_compute
 ) {
 
@@ -1128,13 +1080,10 @@ template <
 #ifndef __SYNTHESIS__
 
 #ifdef DEBUG
-		std::cout << "Waiting for last signal" << std::endl;
 #endif
 
 #endif
 
-		ap_uint<1> s_last = i_last.read();
-		/* if (s_last) */
 		/* 	break; */
 
 #ifndef __SYNTHESIS__
@@ -1170,7 +1119,6 @@ template <
 	int c_pad
 > void ShiftOp(
 	hls::stream<t_input> &i_data,
-	hls::stream<ap_uint<1>> &i_last,
 	hls::stream<t_input> o_compute[c_fh*c_fw]
 ) {
 
@@ -1254,13 +1202,10 @@ template <
 #ifndef __SYNTHESIS__
 
 #ifdef DEBUG
-		std::cout << "Waiting for last signal" << std::endl;
 #endif
 
 #endif
 
-		ap_uint<1> s_last = i_last.read();
-		/* if (s_last) */
 		/* 	break; */
 
 #ifndef __SYNTHESIS__
@@ -1297,7 +1242,6 @@ template <
 	int c_pad
 > void ShiftOp(
 	hls::stream<t_input> &i_data,
-	hls::stream<ap_uint<1>> &i_last,
 	hls::stream<t_input> o_compute[c_fh*c_fw],
 	hls::stream<t_input> &o_data
 ) {
@@ -1395,13 +1339,10 @@ template <
 #ifndef __SYNTHESIS__
 
 #ifdef DEBUG
-		std::cout << "Waiting for last signal" << std::endl;
 #endif
 
 #endif
 
-		ap_uint<1> s_last = i_last.read();
-		/* if (s_last) */
 		/* 	break; */
 
 #ifndef __SYNTHESIS__
@@ -1440,7 +1381,6 @@ template <
 	int c_bypass_w
 > void ShiftOp(
 	hls::stream<t_input> &i_data,
-	hls::stream<ap_uint<1>> &i_last,
 	hls::stream<t_input> &o_compute,
 	hls::stream<t_input> &o_data
 ) {
@@ -1547,13 +1487,10 @@ template <
 #ifndef __SYNTHESIS__
 
 #ifdef DEBUG
-		std::cout << "Waiting for last signal" << std::endl;
 #endif
 
 #endif
 
-		ap_uint<1> s_last = i_last.read();
-		/* if (s_last) */
 		/* 	break; */
 
 #ifndef __SYNTHESIS__
@@ -1590,7 +1527,6 @@ template <
 	int c_pad
 > void ShiftOp(
 	hls::stream<t_input> &i_data,
-	hls::stream<ap_uint<1>> &i_last,
 	hls::stream<t_input> &o_compute,
 	hls::stream<t_input> &o_data,
 	const int c_bypass,
@@ -1677,13 +1613,10 @@ template <
 #ifndef __SYNTHESIS__
 
 #ifdef DEBUG
-		std::cout << "Waiting for last signal" << std::endl;
 #endif
 
 #endif
 
-		ap_uint<1> s_last = i_last.read();
-		/* if (s_last) */
 		/* 	break; */
 
 #ifndef __SYNTHESIS__
