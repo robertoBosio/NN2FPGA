@@ -38,7 +38,7 @@ template <
 
 	for (uint16_t s_pipe_iter = 0; s_pipe_iter < c_pipe_iter; s_pipe_iter++) {
 
-#pragma HLS pipeline off
+#pragma HLS pipeline
 
 		if (s_och == 0) {
 			for (uint8_t s_index = 0; s_index < c_index; s_index++) {
@@ -274,8 +274,6 @@ template <
 	hls::stream<t_input> i_data[c_fh*c_fw],
 	hls::stream<t_weight> i_weights[c_fh*c_fw],
 	hls::stream<t_input> &i_bias,
-	hls::stream<ap_uint<1>> &i_last,
-	hls::stream<ap_uint<1>> &o_last,
 	hls::stream<t_output> &o_data
 ) {
 
@@ -307,7 +305,7 @@ template <
 		for (uint16_t s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
 #pragma HLS dataflow
 			hls::stream<t_acc> s_acc_stream[c_ops];
-#pragma HLS STREAM variable=s_acc_stream
+#pragma HLS STREAM variable=s_acc_stream depth=c_och
 
 			ConvComp <
 				t_input,
@@ -369,14 +367,10 @@ template <
 
 #ifdef DEBUG
 		std::cout << std::endl;
-		std::cout << "Waiting for last signal" << std::endl;
 #endif
 
 #endif
 
-		ap_uint<1> s_last = i_last.read();
-		o_last.write(s_last);
-		/* if (s_last) */
 		/* 	break; */
 
 #ifndef __SYNTHESIS__
@@ -430,8 +424,6 @@ template <
 > void ConvOp(
 	hls::stream<t_input> i_data[c_fh*c_fw],
 	hls::stream<t_weight> i_weights[c_fh*c_fw],
-	hls::stream<ap_uint<1>> &i_last,
-	hls::stream<ap_uint<1>> &o_last,
 	hls::stream<t_output> &o_data
 ) {
 
@@ -461,7 +453,7 @@ template <
 		for (uint16_t s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
 #pragma HLS dataflow
 			hls::stream<t_acc> s_acc_stream[c_ops];
-#pragma HLS STREAM variable=s_acc_stream
+#pragma HLS STREAM variable=s_acc_stream depth=c_och
 
 			ConvComp <
 				t_input,
@@ -519,14 +511,10 @@ template <
 
 #ifdef DEBUG
 		std::cout << std::endl;
-		std::cout << "Waiting for last signal" << std::endl;
 #endif
 
 #endif
 
-		ap_uint<1> s_last = i_last.read();
-		o_last.write(s_last);
-		/* if (s_last) */
 		/* 	break; */
 
 #ifndef __SYNTHESIS__
@@ -572,8 +560,6 @@ template <
 > void ConvKernel1x1(
 	hls::stream<t_input> &i_data,
 	hls::stream<t_weight> i_weights[c_fh*c_fw],
-	hls::stream<ap_uint<1>> &i_last,
-	hls::stream<ap_uint<1>> &o_last,
 	hls::stream<t_input> &o_forward,
 	hls::stream<t_output> &o_data
 ) {
@@ -585,15 +571,6 @@ template <
 	hls::stream<t_input> s_compute[c_fh*c_fw];
 	#pragma HLS STREAM variable=s_compute depth=10
 
-	hls::stream<ap_uint<1>> s_last[2];
-	#pragma HLS STREAM variable=s_last depth=10
-
-	SplitStream<
-		2
-	> (
-		i_last,
-		s_last
-	);
 
 	ShiftOp<
 		t_input,
@@ -612,7 +589,6 @@ template <
 	> (
 		i_data,
 		s_compute[0],
-		s_last[0],
 		o_forward
 	);
 
@@ -638,8 +614,6 @@ template <
 	> (
 		s_compute,
 		i_weights,
-		s_last[1],
-		o_last,
 		o_data
 	);
 
@@ -666,8 +640,6 @@ template <
 > void ConvKernel1x1(
 	hls::stream<t_input> &i_data,
 	hls::stream<t_weight> i_weights[c_fh*c_fw],
-	hls::stream<ap_uint<1>> &i_last,
-	hls::stream<ap_uint<1>> &o_last,
 	hls::stream<t_output> &o_data
 ) {
 
@@ -678,15 +650,6 @@ template <
 	hls::stream<t_input> s_compute[c_fh*c_fw];
 	#pragma HLS STREAM variable=s_compute depth=10
 
-	hls::stream<ap_uint<1>> s_last[2];
-	#pragma HLS STREAM variable=s_last depth=10
-
-	SplitStream<
-		2
-	> (
-		i_last,
-		s_last
-	);
 
 	ShiftOp<
 		t_input,
@@ -704,7 +667,6 @@ template <
 		0
 	> (
 		i_data,
-		s_last[0],
 		s_compute[0]
 	);
 
@@ -730,8 +692,6 @@ template <
 	> (
 		s_compute,
 		i_weights,
-		s_last[1],
-		o_last,
 		o_data
 	);
 
@@ -758,8 +718,6 @@ template <
 > void ConvKernel3x3(
 	hls::stream<t_input> &i_data,
 	hls::stream<t_weight> i_weights[c_fh*c_fw],
-	hls::stream<ap_uint<1>> &i_last,
-	hls::stream<ap_uint<1>> &o_last,
 	hls::stream<t_output> &o_data
 ) {
 
@@ -787,15 +745,6 @@ template <
 
 #pragma HLS inline
 
-	hls::stream<ap_uint<1>> s_last[10];
-	#pragma HLS STREAM variable=s_last depth=11
-
-	SplitStream<
-		10
-	> (
-		i_last,
-		s_last
-	);
 
 	ShiftOp<
 		t_input,
@@ -813,7 +762,6 @@ template <
 		(c_fw-1)
 	> (
 		i_data,
-		s_last[0],
 		s_compute[0],
 		s_data[0]
 	);
@@ -834,7 +782,6 @@ template <
 		(c_fw-2)
 	> (
 		s_data[0],
-		s_last[1],
 		s_compute[1],
 		s_data[1]
 	);
@@ -855,7 +802,6 @@ template <
 		(c_fw-3)
 	> (
 		s_data[1],
-		s_last[2],
 		s_compute[2],
 		s_data[2]
 	);
@@ -876,7 +822,6 @@ template <
 		(c_fw-1)
 	> (
 		s_data[2],
-		s_last[3],
 		s_compute[3],
 		s_data[3]
 	);
@@ -897,7 +842,6 @@ template <
 		(c_fw-2)
 	> (
 		s_data[3],
-		s_last[4],
 		s_compute[4],
 		s_data[4]
 	);
@@ -918,7 +862,6 @@ template <
 		(c_fw-3)
 	> (
 		s_data[4],
-		s_last[5],
 		s_compute[5],
 		s_data[5]
 	);
@@ -939,7 +882,6 @@ template <
 		(c_fw-1)
 	> (
 		s_data[5],
-		s_last[6],
 		s_compute[6],
 		s_data[6]
 	);
@@ -960,7 +902,6 @@ template <
 		(c_fw-2)
 	> (
 		s_data[6],
-		s_last[7],
 		s_compute[7],
 		s_data[7]
 	);
@@ -981,7 +922,6 @@ template <
 		(c_fw-3)
 	> (
 		s_data[7],
-		s_last[8],
 		s_compute[8]
 	);
 
@@ -1007,8 +947,6 @@ template <
 	> (
 		s_compute,
 		i_weights,
-		s_last[9],
-		o_last,
 		o_data
 	);
 
@@ -1036,8 +974,6 @@ template <
 	hls::stream<t_input> &i_data,
 	hls::stream<t_weight> i_weights3x3[c_fh*c_fw],
 	hls::stream<t_weight> i_weights1x1[1],
-	hls::stream<ap_uint<1>> &i_last,
-	hls::stream<ap_uint<1>> &o_last,
 	hls::stream<t_output> &o_data3x3,
 	hls::stream<t_output> &o_data1x1
 ) {
@@ -1073,15 +1009,6 @@ template <
 
 #pragma HLS inline
 
-	hls::stream<ap_uint<1>> s_last[12];
-	#pragma HLS STREAM variable=s_last depth=13
-
-	SplitStream<
-		10
-	> (
-		i_last,
-		s_last
-	);
 
 	ShiftOp<
 		t_input,
@@ -1099,7 +1026,6 @@ template <
 		(c_fw-1)
 	> (
 		i_data,
-		s_last[0],
 		s_compute[0],
 		s_data[0]
 	);
@@ -1120,7 +1046,6 @@ template <
 		(c_fw-2)
 	> (
 		s_data[0],
-		s_last[1],
 		s_compute[1],
 		s_data[1]
 	);
@@ -1141,7 +1066,6 @@ template <
 		(c_fw-3)
 	> (
 		s_data[1],
-		s_last[2],
 		s_compute[2],
 		s_data[2]
 	);
@@ -1162,7 +1086,6 @@ template <
 		(c_fw-1)
 	> (
 		s_data[2],
-		s_last[3],
 		s_compute[3],
 		s_data[3]
 	);
@@ -1183,7 +1106,6 @@ template <
 		(c_fw-2)
 	> (
 		s_data[3],
-		s_last[4],
 		s_compute[4],
 		s_data[4]
 	);
@@ -1204,7 +1126,6 @@ template <
 		(c_fw-3)
 	> (
 		s_data[4],
-		s_last[5],
 		s_compute[5],
 		s_data[5]
 	);
@@ -1225,7 +1146,6 @@ template <
 		(c_fw-1)
 	> (
 		s_data[5],
-		s_last[6],
 		s_compute[6],
 		s_data[6]
 	);
@@ -1246,7 +1166,6 @@ template <
 		(c_fw-2)
 	> (
 		s_data[6],
-		s_last[7],
 		s_compute[7],
 		s_data[7]
 	);
@@ -1267,7 +1186,6 @@ template <
 		(c_fw-3)
 	> (
 		s_data[7],
-		s_last[8],
 		s_compute[8],
 		s_data1x1[0]
 	);
@@ -1294,8 +1212,6 @@ template <
 	> (
 		s_compute,
 		i_weights3x3,
-		s_last[9],
-		s_last[10],
 		o_data3x3
 	);
 
@@ -1309,8 +1225,6 @@ template <
 		c_pad
 	> (
 		s_data1x1[0],
-		s_last[10],
-		s_last[11],
 		s_data1x1[1]
 	);
 
@@ -1336,8 +1250,6 @@ template <
 	> (
 		s_compute1x1,
 		i_weights1x1,
-		s_last[11],
-		o_last,
 		o_data1x1
 	);
 
@@ -1364,8 +1276,6 @@ template <
 > void ConvKernel3x3(
 	hls::stream<t_input> &i_data,
 	hls::stream<t_weight> i_weights[c_fh*c_fw],
-	hls::stream<ap_uint<1>> &i_last,
-	hls::stream<ap_uint<1>> &o_last,
 	hls::stream<t_input> &o_forward,
 	hls::stream<t_output> &o_data
 ) {
@@ -1394,15 +1304,6 @@ template <
 
 #pragma HLS inline
 
-	hls::stream<ap_uint<1>> s_last[10];
-	#pragma HLS STREAM variable=s_last depth=11
-
-	SplitStream<
-		10
-	> (
-		i_last,
-		s_last
-	);
 
 	ShiftOp<
 		t_input,
@@ -1420,7 +1321,6 @@ template <
 		(c_fw-1)
 	> (
 		i_data,
-		s_last[0],
 		s_compute[0],
 		s_data[0]
 	);
@@ -1441,7 +1341,6 @@ template <
 		(c_fw-2)
 	> (
 		s_data[0],
-		s_last[1],
 		s_compute[1],
 		s_data[1]
 	);
@@ -1462,7 +1361,6 @@ template <
 		(c_fw-3)
 	> (
 		s_data[1],
-		s_last[2],
 		s_compute[2],
 		s_data[2]
 	);
@@ -1483,7 +1381,6 @@ template <
 		(c_fw-1)
 	> (
 		s_data[2],
-		s_last[3],
 		s_compute[3],
 		s_data[3]
 	);
@@ -1504,7 +1401,6 @@ template <
 		(c_fw-2)
 	> (
 		s_data[3],
-		s_last[4],
 		s_compute[4],
 		s_data[4]
 	);
@@ -1525,7 +1421,6 @@ template <
 		(c_fw-3)
 	> (
 		s_data[4],
-		s_last[5],
 		s_compute[5],
 		s_data[5]
 	);
@@ -1546,7 +1441,6 @@ template <
 		(c_fw-1)
 	> (
 		s_data[5],
-		s_last[6],
 		s_compute[6],
 		s_data[6]
 	);
@@ -1567,7 +1461,6 @@ template <
 		(c_fw-2)
 	> (
 		s_data[6],
-		s_last[7],
 		s_compute[7],
 		s_data[7]
 	);
@@ -1588,7 +1481,6 @@ template <
 		(c_fw-3)
 	> (
 		s_data[7],
-		s_last[8],
 		s_compute[8],
 		o_forward
 	);
@@ -1615,8 +1507,6 @@ template <
 	> (
 		s_compute,
 		i_weights,
-		s_last[9],
-		o_last,
 		o_data
 	);
 
@@ -1645,8 +1535,6 @@ template <
 	hls::stream<t_input> &i_data,
 	hls::stream<t_input> &i_bias,
 	hls::stream<t_weight> i_weights[c_fh*c_fw],
-	hls::stream<ap_uint<1>> &i_last,
-	hls::stream<ap_uint<1>> &o_last,
 	hls::stream<t_output> &o_data
 ) {
 
@@ -1673,15 +1561,6 @@ template <
 
 #pragma HLS inline
 
-	hls::stream<ap_uint<1>> s_last[10];
-	#pragma HLS STREAM variable=s_last depth=11
-
-	SplitStream<
-		10
-	> (
-		i_last,
-		s_last
-	);
 
 	ShiftOp<
 		t_input,
@@ -1699,7 +1578,6 @@ template <
 		(c_fw-1)
 	> (
 		i_data,
-		s_last[0],
 		s_compute[0],
 		s_data[0]
 	);
@@ -1720,7 +1598,6 @@ template <
 		(c_fw-2)
 	> (
 		s_data[0],
-		s_last[1],
 		s_compute[1],
 		s_data[1]
 	);
@@ -1741,7 +1618,6 @@ template <
 		(c_fw-3)
 	> (
 		s_data[1],
-		s_last[2],
 		s_compute[2],
 		s_data[2]
 	);
@@ -1762,7 +1638,6 @@ template <
 		(c_fw-1)
 	> (
 		s_data[2],
-		s_last[3],
 		s_compute[3],
 		s_data[3]
 	);
@@ -1783,7 +1658,6 @@ template <
 		(c_fw-2)
 	> (
 		s_data[3],
-		s_last[4],
 		s_compute[4],
 		s_data[4]
 	);
@@ -1804,7 +1678,6 @@ template <
 		(c_fw-3)
 	> (
 		s_data[4],
-		s_last[5],
 		s_compute[5],
 		s_data[5]
 	);
@@ -1825,7 +1698,6 @@ template <
 		(c_fw-1)
 	> (
 		s_data[5],
-		s_last[6],
 		s_compute[6],
 		s_data[6]
 	);
@@ -1846,7 +1718,6 @@ template <
 		(c_fw-2)
 	> (
 		s_data[6],
-		s_last[7],
 		s_compute[7],
 		s_data[7]
 	);
@@ -1867,7 +1738,6 @@ template <
 		(c_fw-3)
 	> (
 		s_data[7],
-		s_last[8],
 		s_compute[8]
 	);
 
@@ -1894,8 +1764,6 @@ template <
 		s_compute,
 		i_weights,
 		i_bias,
-		s_last[9],
-		o_last,
 		o_data
 	);
 
@@ -1927,8 +1795,6 @@ template <
 	hls::stream<t_input> &i_data,
 	hls::stream<t_weight> i_weights[c_fh*c_fw],
 	hls::stream<t_input> &i_bias,
-	hls::stream<ap_uint<1>> &i_last,
-	hls::stream<ap_uint<1>> &o_last,
 	hls::stream<t_output> &o_data
 ) {
 
@@ -1953,8 +1819,6 @@ template <
 
 #endif
 
-	hls::stream<ap_uint<1>> s_last;
-	#pragma HLS STREAM variable=s_last depth=10
 
 	PadInput<
 		t_input,
@@ -1966,8 +1830,6 @@ template <
 		c_pad
 	> (
 		i_data,
-		i_last,
-		s_last,
 		s_data_in_stream
 	);
 
@@ -1994,8 +1856,6 @@ template <
 		s_data_in_stream,
 		i_bias,
 		i_weights,
-		s_last,
-		o_last,
 		o_data
 	);
 
@@ -2025,8 +1885,6 @@ template <
 	hls::stream<t_input> &i_data,
 	hls::stream<t_weight> i_weights[c_fh*c_fw],
 	hls::stream<t_input> &i_bias,
-	hls::stream<ap_uint<1>> &i_last,
-	hls::stream<ap_uint<1>> &o_last,
 	hls::stream<t_output> o_data[c_split]
 ) {
 
@@ -2052,8 +1910,6 @@ template <
 
 #endif
 
-	hls::stream<ap_uint<1>> s_last[2];
-	#pragma HLS STREAM variable=s_last depth=10
 
 	PadInput<
 		t_input,
@@ -2065,8 +1921,6 @@ template <
 		c_pad
 	> (
 		i_data,
-		i_last,
-		s_last[0],
 		s_data_in_stream
 	);
 
@@ -2093,8 +1947,6 @@ template <
 		s_data_in_stream,
 		i_bias,
 		i_weights,
-		s_last[0],
-		s_last[1],
 		s_out_stream
 	);
 
@@ -2106,8 +1958,6 @@ template <
 		c_split
 	> (
 		s_out_stream,
-		s_last[1],
-		o_last,
 		o_data
 	);
 
@@ -2132,8 +1982,6 @@ template <
 > void PackedConvBuffAcc(
 	hls::stream<t_input> &i_data,
 	hls::stream<t_weight> i_weights[1],
-	hls::stream<ap_uint<1>> &i_last,
-	hls::stream<ap_uint<1>> &o_last,
 	hls::stream<t_output> &o_data,
 	hls::stream<t_input> &o_forward
 ) {
@@ -2156,8 +2004,6 @@ template <
 
 #endif
 
-	hls::stream<ap_uint<1>> s_last;
-	#pragma HLS STREAM variable=s_last depth=10
 
 	ConvKernel1x1 <
 		t_input,
@@ -2181,8 +2027,6 @@ template <
 		i_data,
 		i_weights,
 		s_data_stream,
-		i_last,
-		s_last,
 		o_data
 	);
 
@@ -2196,8 +2040,6 @@ template <
 		c_pad
 	> (
 		s_data_stream,
-		s_last,
-		o_last,
 		o_forward
 	);
 
@@ -2224,8 +2066,6 @@ template <
 > void PackedConvBuffAcc(
 	hls::stream<t_input> &i_data,
 	hls::stream<t_weight> i_weights[c_fh*c_fw],
-	hls::stream<ap_uint<1>> &i_last,
-	hls::stream<ap_uint<1>> &o_last,
 	hls::stream<t_output> &o_data,
 	hls::stream<t_input> &o_forward
 ) {
@@ -2251,8 +2091,6 @@ template <
 
 #endif
 
-	hls::stream<ap_uint<1>> s_last[2];
-	#pragma HLS STREAM variable=s_last depth=10
 
 	PadInput<
 		t_input,
@@ -2264,8 +2102,6 @@ template <
 		c_pad
 	> (
 		i_data,
-		i_last,
-		s_last[0],
 		s_data_in_stream
 	);
 
@@ -2290,8 +2126,6 @@ template <
 	> (
 		s_data_in_stream,
 		i_weights,
-		s_last[0],
-		s_last[1],
 		s_data_out_stream,
 		o_data
 	);
@@ -2306,8 +2140,6 @@ template <
 		c_pad
 	> (
 		s_data_out_stream,
-		s_last[1],
-		o_last,
 		o_forward
 	);
 
@@ -2335,8 +2167,6 @@ template <
 > void PackedConvBuffAcc(
 	hls::stream<t_input> &i_data,
 	hls::stream<t_weight> i_weights[1],
-	hls::stream<ap_uint<1>> &i_last,
-	hls::stream<ap_uint<1>> &o_last,
 	hls::stream<t_output> &o_data
 ) {
 
@@ -2375,8 +2205,6 @@ template <
 	> (
 		i_data,
 		i_weights,
-		i_last,
-		o_last,
 		o_data
 	);
 
@@ -2403,8 +2231,6 @@ template <
 > void PackedConvBuffAcc(
 	hls::stream<t_input> &i_data,
 	hls::stream<t_weight> i_weights[c_fh*c_fw],
-	hls::stream<ap_uint<1>> &i_last,
-	hls::stream<ap_uint<1>> &o_last,
 	hls::stream<t_output> &o_data
 ) {
 
@@ -2426,8 +2252,6 @@ template <
 
 #endif
 
-	hls::stream<ap_uint<1>> s_last;
-	#pragma HLS STREAM variable=s_last depth=10
 
 	PadInput<
 		t_input,
@@ -2439,8 +2263,6 @@ template <
 		c_pad
 	> (
 		i_data,
-		i_last,
-		s_last,
 		s_data_in_stream
 	);
 
@@ -2465,8 +2287,6 @@ template <
 	> (
 		s_data_in_stream,
 		i_weights,
-		s_last,
-		o_last,
 		o_data
 	);
 
@@ -2495,8 +2315,6 @@ template <
 	hls::stream<t_input> &i_data,
 	hls::stream<t_weight> i_weights3x3[c_fh*c_fw],
 	hls::stream<t_weight> i_weights1x1[1],
-	hls::stream<ap_uint<1>> &i_last,
-	hls::stream<ap_uint<1>> &o_last,
 	hls::stream<t_output> &o_data3x3,
 	hls::stream<t_output> &o_data1x1
 ) {
@@ -2527,8 +2345,6 @@ template <
 
 #endif
 
-	hls::stream<ap_uint<1>> s_last;
-	#pragma HLS STREAM variable=s_last depth=10
 
 	PadInput<
 		t_input,
@@ -2540,8 +2356,6 @@ template <
 		c_pad
 	> (
 		i_data,
-		i_last,
-		s_last,
 		s_data_in_stream
 	);
 
@@ -2567,8 +2381,6 @@ template <
 		s_data_in_stream,
 		i_weights3x3,
 		i_weights1x1,
-		s_last,
-		o_last,
 		o_data3x3,
 		o_data1x1
 	);
@@ -2600,8 +2412,6 @@ template <
 > void PackedConvBuffAcc(
 	hls::stream<t_input> &i_data,
 	hls::stream<t_weight> i_weights[c_fh*c_fw],
-	hls::stream<ap_uint<1>> &i_last,
-	hls::stream<ap_uint<1>> &o_last,
 	hls::stream<t_output> o_data[c_split]
 ) {
 
@@ -2627,8 +2437,6 @@ template <
 
 #endif
 
-	hls::stream<ap_uint<1>> s_last[2];
-	#pragma HLS STREAM variable=s_last depth=10
 
 	PadInput<
 		t_input,
@@ -2640,8 +2448,6 @@ template <
 		c_pad
 	> (
 		i_data,
-		i_last,
-		s_last[0],
 		s_data_in_stream
 	);
 
@@ -2666,8 +2472,6 @@ template <
 	> (
 		s_data_in_stream,
 		i_weights,
-		s_last[0],
-		s_last[1],
 		s_out_stream	
 	);
 
@@ -2679,8 +2483,6 @@ template <
 		c_split
 	> (
 		s_out_stream,
-		s_last[1],
-		o_last,
 		o_data
 	);
 
