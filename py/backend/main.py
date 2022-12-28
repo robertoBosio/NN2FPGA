@@ -102,11 +102,11 @@ def write(
 
             write_stream(fd, "input", "2*c_%s_ich" % input_name)
             fd.write("\t#define c_last_depth 256\n")
-            # write_stream(fd, "last", "256")
+            write_stream(fd, "last", "c_last_depth")
 
         fd.write("\n")
 
-        write_last_flags(fd, layers_allocated)
+        # write_last_flags(fd, layers_allocated)
 
         if write_blocks:
             fd.write("\tProduceStream<\n")
@@ -118,7 +118,7 @@ def write(
             fd.write("\t\tc_i_data\n")
             fd.write("\t>(\n")
             fd.write("\t\ti_data,\n")
-            fd.write("\t\ts_last_split[0],\n")
+            fd.write("\t\ts_last,\n")
             fd.write("\t\ts_%s\n" % (input_name))
             fd.write("\t);\n")
 
@@ -239,10 +239,6 @@ def write(
                     fd.write("\t\tc_%s_ops\n" % (node_name))
                     fd.write("\t>(\n")
                     fd.write("\t\tc_%s_st,\n" % (name))
-                    fd.write("\t\ts_last_%s[0],\n" % (
-                            node_name
-                        )
-                    )
                     fd.write("\t\ts_%s\n" % (name))
                     fd.write("\t);\n")
 
@@ -261,10 +257,6 @@ def write(
                         fd.write("\t\tc_%s_ops\n" % (node_name))
                         fd.write("\t>(\n")
                         fd.write("\t\tc_%s_st_%0d,\n" % (name, ih*c_iw+iw))
-                        fd.write("\t\ts_last_%s[%0d],\n" % (
-                                node_name, ih*c_iw+iw
-                            )
-                        )
                         fd.write("\t\ts_%s[%0d]\n" % (name, ih*c_iw+iw))
                         fd.write("\t);\n")
 
@@ -298,8 +290,6 @@ def write(
             fd.write("\t\tc_%s_ih\n" % (node_name))
             fd.write("\t> (\n")
             fd.write("\t\ts_%s,\n" % (input_name))
-            fd.write("\t\ts_last_split[%0d],\n" % (last_flag))
-            fd.write("\t\ts_last_split[%0d],\n" % (last_flag+1))
             fd.write("\t\ts_%s\n" % (output_name))
             fd.write("\t);\n")
 
@@ -421,8 +411,6 @@ def write(
             fd.write("\t\tc_%s_pool\n" % (node_name))
             fd.write("\t> (\n")
             fd.write("\t\ts_%s,\n" % (input_name))
-            fd.write("\t\ts_last_split[%0d],\n" % (last_flag))
-            fd.write("\t\ts_last_split[%0d],\n" % (last_flag+1))
             fd.write("\t\ts_%s\n" % (output_name))
             fd.write("\t);\n")
 
@@ -462,8 +450,6 @@ def write(
             fd.write("\t\tc_%s_pad\n" % (node_name))
             fd.write("\t> (\n")
             fd.write("\t\ts_%s,\n" % (input_name))
-            fd.write("\t\ts_last_split[%0d],\n" % (last_flag))
-            fd.write("\t\ts_last_split[%0d],\n" % (last_flag+1))
             fd.write("\t\ts_%s\n" % (output_name))
             fd.write("\t);\n")
 
@@ -496,22 +482,8 @@ def write(
             weight_shape
         )
 
-        wact = weight_quantize_fn(w_bit=8)
-        wact.export = False
-
-        # TODO: less dirty
-        # weights, max_w = wact(torch.Tensor(weights))
-        weights = wact(torch.Tensor(weights))
-        weights = np.asarray(weights)
-
-        weights = weights * 128
-
-        # Rescaled to have more precision in hardware, the comma position is
-        # taken into account when the output data is extracted from s_acc
-        sw = 7 - ceil(log2(np.amax(np.abs(weights))))
-
-        weights = weights * (2**sw)
-        weights = np.round(weights)
+        from backend.dequant import dequant
+        weights, sw = dequant(weights)
         fd.write("\tconst int c_%s_scale = %0d;\n" % (node_name, sw))
 
         # TODO: Specialized for DAC2023 submission, must be automated
@@ -556,8 +528,9 @@ def write(
         last_weight = True
         if (pack_weights):
             if (not off_chip_storage):
-                fd.write("\tconst int%0d_t c_%s_st[c_%s_fh*c_%s_fw][c_%s_och*c_%s_ich/%0d+1] = {\n" % (
-                        8*parallel_ops[node_name],
+                fd.write("\tconst t_%s_st c_%s_st[c_%s_fh*c_%s_fw][c_%s_och*c_%s_ich/%0d+1] = {\n" % (
+                        weight_name,
+                        # 8*parallel_ops[node_name],
                         weight_name,
                         node_name,
                         node_name,
@@ -714,7 +687,8 @@ def write(
                 ]
             )
 
-            additional_ports.append(weight_name)
+            if (off_chip_storage):
+                additional_ports.append(weight_name)
             return
 
         if (node.name in skip_connections_info.keys()):
@@ -761,15 +735,15 @@ def write(
         output_name = output_name.replace(".", "_")
         output_name = output_name.lower().replace("onnx::", "")
 
-        if write_blocks:
-            if (not off_chip_storage):
-                fd.write("\tSplitStream<\n")
-                fd.write("\t\tc_%s_split\n" % (node_name))
-                fd.write("\t>(\n")
-                fd.write("\t\ts_last_split[%0d],\n" % (last_flag))
-                fd.write("\t\ts_last_%s\n" % (node_name))
-                fd.write("\t);\n")
-                fd.write("\n")
+        # if write_blocks:
+        #     if (not off_chip_storage):
+        #         fd.write("\tSplitStream<\n")
+        #         fd.write("\t\tc_%s_split\n" % (node_name))
+        #         fd.write("\t>(\n")
+        #         fd.write("\t\ts_last_split[%0d],\n" % (last_flag))
+        #         fd.write("\t\ts_last_%s\n" % (node_name))
+        #         fd.write("\t);\n")
+        #         fd.write("\n")
 
         if emit_streams:
             if (split):
@@ -795,20 +769,20 @@ def write(
         if emit_streams:
             fd.write("\n")
 
-            if (not off_chip_storage):
-                fd.write(
-                    "\thls::stream<ap_uint<1>> s_last_%s[c_%s_split];\n" % (
-                        node_name,
-                        node_name
-                    )
-                )
-                fd.write(
-                    "\t#pragma HLS STREAM variable=s_last_%s depth=10 type=fifo\n" % (
-                        node_name
-                    )
-                )
+            # if (not off_chip_storage):
+            #     fd.write(
+            #         "\thls::stream<ap_uint<1>> s_last_%s[c_%s_split];\n" % (
+            #             node_name,
+            #             node_name
+            #         )
+            #     )
+            #     fd.write(
+            #         "\t#pragma HLS STREAM variable=s_last_%s depth=10 type=fifo\n" % (
+            #             node_name
+            #         )
+            #     )
 
-                fd.write("\n")
+            #     fd.write("\n")
 
             write_weights(
                 weight_shape,
@@ -852,7 +826,7 @@ def write(
                   fd.write("\t\tc_%s_fh,\n" % (node_name))
                 fd.write("\t\tc_%s_relu,\n" % (node_name))
                 if (split):
-                    fd.write("\t\tc_%s_split,\n" % (output_name))
+                    fd.write("\t\tc_%s_a_split,\n" % (output_name))
                 fd.write("\t\tc_%s_stride,\n" % (node_name))
                 fd.write("\t\tc_%s_pad,\n" % (node_name))
                 fd.write("\t\tc_%s_scale,\n" % (node_name))
@@ -865,11 +839,6 @@ def write(
                 fd.write("\t\ts_%s,\n" % (weight_name))
                 if (bias):
                     fd.write("\t\ts_%s,\n" % (bias_name))
-                if (not off_chip_storage):
-                    fd.write("\t\ts_last_%s[1],\n" % (node_name))
-                else:
-                    fd.write("\t\ts_last_split[%0d],\n" % (last_flag))
-                fd.write("\t\ts_last_split[%0d],\n" % (last_flag + 1))
                 fd.write("\t\ts_%s\n" % (output_name))
                 fd.write("\t);\n")
             else:
@@ -889,7 +858,7 @@ def write(
                   fd.write("\t\tc_%s_fh,\n" % (node_name))
                 fd.write("\t\tc_%s_relu,\n" % (node_name))
                 if (split):
-                    fd.write("\t\tc_%s_split,\n" % (output_name))
+                    fd.write("\t\tc_%s_a_split,\n" % (output_name))
                 fd.write("\t\tc_%s_stride,\n" % (node_name))
                 fd.write("\t\tc_%s_pad,\n" % (node_name))
                 fd.write("\t\tc_%s_scale,\n" % (node_name))
@@ -900,11 +869,6 @@ def write(
                 else:
                     fd.write("\t\ts_%s,\n" % (input_name))
                 fd.write("\t\ts_%s,\n" % (weight_name))
-                if (not off_chip_storage):
-                    fd.write("\t\ts_last_%s[1],\n" % (node_name))
-                else:
-                    fd.write("\t\ts_last_split[%0d],\n" % (last_flag))
-                fd.write("\t\ts_last_split[%0d],\n" % (last_flag + 1))
                 fd.write("\t\ts_%s,\n" % (output_name))
                 fd.write("\t\ts_%s\n" % (skip_name))
                 fd.write("\t);\n")
@@ -1006,7 +970,7 @@ def write(
             fd.write("\t\tc_%s_oh\n" % (output_name))
             fd.write("\t> (\n")
             fd.write("\t\ts_%s,\n" % (output_name))
-            fd.write("\t\ts_last_split[%0d],\n" % layers_allocated)
+            fd.write("\t\ts_last,\n")
             fd.write("\t\to_data\n")
             fd.write("\t);\n")
 
@@ -1018,8 +982,7 @@ def write(
         layers_allocated = count_allocated(model)
 
         # parse additional ports for off-chip parameters storage
-        if off_chip_storage:
-            write_body(fd, model, emit_streams=False, write_blocks=False)
+        write_body(fd, model, emit_streams=False, write_blocks=False)
 
         parallel_ops = opt(layers_info)
         print(parallel_ops)
