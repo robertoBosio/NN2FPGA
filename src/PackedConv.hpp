@@ -24,6 +24,7 @@ template <
 	/* Assuming that the number of computations is a multiplier of the number */
 	/* of operations */
 	const int c_num_comp = c_ich*c_och;
+	const int c_num_och = c_och/c_ops;
 	const int c_pipe_iter = c_num_comp/c_ops;
 
 	t_acc s_acc_buff[c_och];
@@ -31,8 +32,6 @@ template <
 	for (uint8_t s_och = 0; s_och < c_och; s_och++)
 		s_acc_buff[s_och] = 0;
 
-	uint8_t s_och = 0;
-	uint8_t s_ich = 0;
 	t_input s_input[c_index];
 #pragma HLS array_partition variable=s_input type=complete
 
@@ -40,7 +39,10 @@ template <
 
 #pragma HLS pipeline
 
-		if (s_och == 0) {
+		uint8_t s_num_och = s_pipe_iter % c_num_och;
+		uint8_t s_ich = s_pipe_iter / c_num_och;
+
+		if (s_num_och == 0) {
 			for (uint8_t s_index = 0; s_index < c_index; s_index++) {
 				s_input[s_index] = i_input[s_index].read();
 			}
@@ -70,6 +72,7 @@ template <
 
 	/* TODO: try unroll and pipeline of the inner loop */
 		COMPUTE: for (uint8_t s_ops = 0; s_ops < c_ops; s_ops++) {
+			uint8_t s_och = s_num_och*c_ops + s_ops;
 			t_acc s_acc = 0;
 			for (uint8_t s_index = 0; s_index < c_index; s_index++) {
 #ifndef __SYNTHESIS__
@@ -93,12 +96,6 @@ template <
 				o_acc_stream[s_ops].write(s_acc);
 			} else
 				s_acc_buff[s_och] += s_acc;
-			s_och++;
-		}
-
-		if (s_och == (c_och)) {
-			s_och = 0;
-			s_ich++;
 		}
 
 	}

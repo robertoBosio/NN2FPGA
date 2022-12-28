@@ -567,16 +567,12 @@ template <
 	const int c_ch = c_ich*c_och/c_ops;
 	/* while(1) { */
 	for (uint16_t s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
-		uint16_t s_ch = 0;
-		for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
-			for (uint8_t s_och = 0; s_och < c_och/c_ops; s_och++) {
+		for (uint16_t s_ch = 0; s_ch < c_ch; s_ch++) {
 	/* #pragma HLS loop_merge */
 #pragma HLS pipeline
-				for (uint8_t s_index = 0; s_index < c_index; s_index++) {
-#pragma HLS pipeline
-					o_data[s_index].write((t_output)(i_data[s_index][s_ch]));
-				}
-				s_ch++;
+			for (uint8_t s_index = 0; s_index < c_index; s_index++) {
+/* #pragma HLS pipeline */
+				o_data[s_index].write((t_output)(i_data[s_index][s_ch]));
 			}
 		}
 	}
