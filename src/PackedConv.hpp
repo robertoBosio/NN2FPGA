@@ -29,15 +29,18 @@ template <
 
 	t_acc s_acc_buff[c_och];
 #pragma HLS array_partition variable=s_acc_buff type=complete
-	for (uint8_t s_och = 0; s_och < c_och; s_och++)
-		s_acc_buff[s_och] = 0;
-
 	t_input s_input[c_index];
 #pragma HLS array_partition variable=s_input type=complete
 
 	for (uint16_t s_pipe_iter = 0; s_pipe_iter < c_pipe_iter; s_pipe_iter++) {
 
 #pragma HLS pipeline
+
+		if (s_pipe_iter == 0) {
+			for (uint8_t s_och = 0; s_och < c_och; s_och++)
+				s_acc_buff[s_och] = 0;
+		}
+
 
 		uint8_t s_num_och = s_pipe_iter % c_num_och;
 		uint8_t s_ich = s_pipe_iter / c_num_och;
@@ -47,15 +50,6 @@ template <
 				s_input[s_index] = i_input[s_index].read();
 			}
 		}
-
-#ifndef __SYNTHESIS__
-#ifdef DEBUG_LINE
-		for (uint8_t s_index = 0; s_index < c_index; s_index++) {
-			std::cout << (ap_uint<8>)(s_input[s_index]) << " ";
-		}
-			/* if (s_o_index == 0) */
-#endif
-#endif
 
 		/* Buffering to speed up computations */
 		/* TODO: Adjust for generic bit quantizations */
@@ -75,22 +69,8 @@ template <
 			uint8_t s_och = s_num_och*c_ops + s_ops;
 			t_acc s_acc = 0;
 			for (uint8_t s_index = 0; s_index < c_index; s_index++) {
-#ifndef __SYNTHESIS__
-#ifdef DEBUG_ACC
-				/* if(s_och==0) */
-				/* 	std::cout << (ap_uint<8>)(s_input[s_index]) << " " << (ap_int<8>)(s_weight[s_ops][s_index]) << " "; */
-				/* if (s_o_index == 0) */
-#endif
-#endif
 				s_acc += s_input[s_index] * s_weight[s_ops][s_index];
 			}
-#ifndef __SYNTHESIS__
-#ifdef DEBUG_ACC
-				/* if(s_och==0) */
-				/* 	std::cout << std::endl; */
-				/* if (s_o_index == 0) */
-#endif
-#endif
 			if (s_ich == (c_ich - 1)) {
 				s_acc += s_acc_buff[s_och];
 				o_acc_stream[s_ops].write(s_acc);
@@ -103,10 +83,94 @@ template <
 }
 
 template <
+	class t_input,
+	class t_weight,
+	class t_acc,
+	int c_ich,
+	int c_och,
+	int c_oh,
+	int c_ow,
+	int c_index,
+	int c_str,
+	int c_ops
+> void ConvComp(
+	hls::stream<t_input> i_input[c_index],
+	hls::stream<t_weight> i_weights[c_index],
+	hls::stream<t_acc> o_acc_stream[c_ops]
+) {
+
+	const int c_num_comp = c_ich*c_och;
+	const int c_pipe_iter = c_num_comp/c_ops;
+	const int c_o_index = c_oh*c_ow*c_pipe_iter;
+	const int c_num_och = c_och/c_ops;
+
+	t_acc s_acc_buff[c_och];
+#pragma HLS array_partition variable=s_acc_buff type=complete
+	t_input s_input[c_index];
+#pragma HLS array_partition variable=s_input type=complete
+
+	for (uint32_t s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
+#pragma HLS pipeline
+
+		uint16_t s_pipe_iter = s_o_index % c_pipe_iter; 
+		uint8_t s_num_och = s_pipe_iter % c_num_och;
+		uint8_t s_ich = s_pipe_iter / c_num_och;
+
+		if (s_pipe_iter == 0) {
+			for (uint8_t s_och = 0; s_och < c_och; s_och++)
+				s_acc_buff[s_och] = 0;
+		}
+
+		if (s_num_och == 0) {
+			for (uint8_t s_index = 0; s_index < c_index; s_index++) {
+				s_input[s_index] = i_input[s_index].read();
+			}
+		}
+
+		/* Buffering to speed up computations */
+		/* TODO: Adjust for generic bit quantizations */
+		int8_t s_weight[c_ops][c_index];
+#pragma HLS array_partition variable=s_weight type=complete
+
+		for (uint8_t s_index = 0; s_index < c_index; s_index++) {
+			t_weight s_tmp_weight = i_weights[s_index].read();
+			for (uint8_t s_ops = 0; s_ops < c_ops; s_ops++) {
+				/* Input weights are reversed with respect to original order */
+				s_weight[s_ops][c_index - 1 - s_index] = s_tmp_weight(8*(s_ops+1)-1, 8*s_ops);
+			}
+		}
+
+	/* TODO: try unroll and pipeline of the inner loop */
+		COMPUTE: for (uint8_t s_ops = 0; s_ops < c_ops; s_ops++) {
+			uint8_t s_och = s_num_och*c_ops + s_ops;
+			t_acc s_acc = 0;
+			for (uint8_t s_index = 0; s_index < c_index; s_index++) {
+				s_acc += s_input[s_index] * s_weight[s_ops][s_index];
+			}
+			if (s_ich == (c_ich - 1)) {
+				s_acc += s_acc_buff[s_och];
+				o_acc_stream[s_ops].write(s_acc);
+			} else
+				s_acc_buff[s_och] += s_acc;
+		}
+
+#ifndef __SYNTHESIS__
+#ifdef DEBUG
+				std::cout << "OUTPUT VALUES" << std::endl;
+#endif
+#endif
+
+	}
+
+}
+
+template <
 	class t_output,
 	class t_acc,
 	int c_ich,
 	int c_och,
+	int c_oh,
+	int c_ow,
 	int c_index,
 	int c_ops,
 	int c_relu,
@@ -118,16 +182,10 @@ template <
 	hls::stream<t_output> &o_data
 ) {
 
-	const int c_num_comp = c_och;
+	const int c_num_comp = c_oh*c_ow*c_och;
 	const int c_pipe_iter = c_num_comp/c_ops;
 
-#ifndef __SYNTHESIS__
-#ifdef DEBUG_ACC
-	int s_och = 0;
-#endif
-#endif
-
-	for (uint8_t s_pipe_iter = 0; s_pipe_iter < c_pipe_iter; s_pipe_iter++) {
+	for (uint32_t s_pipe_iter = 0; s_pipe_iter < c_pipe_iter; s_pipe_iter++) {
 #pragma HLS pipeline
 		for (uint8_t s_ops = 0; s_ops < c_ops; s_ops++) {
 			t_acc s_acc = c_quant;
@@ -152,28 +210,6 @@ template <
 				s_output = s_acc;
 			}
 
-#ifndef __SYNTHESIS__
-#ifdef DEBUG_ACC
-				/* if(s_och==2) */
-					std::cout << (ap_int<32>)(s_output) << " ";
-				/* if (s_o_index == 0) */
-				if(s_och == (c_och-1))
-					s_och = 0;
-				else
-					s_och++;
-#endif
-#endif
-
-#ifndef __SYNTHESIS__
-#ifdef DEBUG
-			std::cout << (ap_int<32>)(s_acc) << " ";
-			std::cout << (ap_uint<8>)(s_output) << " ";
-#endif
-#ifdef DEBUG_LINE
-			/* if (s_o_index == 0) */
-				/* std::cout << (ap_uint<8>)(s_output) << " "; */
-#endif
-#endif
 			o_data.write(s_output); 
 		}
 	}
@@ -424,13 +460,15 @@ template <
 	hls::stream<t_output> &o_data
 ) {
 
+#pragma HLS inline
+
 	const int c_index = c_fh*c_fw;
-	const int c_o_index = c_oh*c_ow;
 	/* TODO: handle different bit width with quantization */
 	/* const int c_quant = -1 * 128; */
 	const int c_quant = 0;
 	const int c_shift_l = 7 + c_scale;
 	const int c_shift_h = c_shift_l + 7;
+
 
 	/* while(1) { */
 #ifndef __SYNTHESIS__
@@ -447,62 +485,44 @@ template <
 			while(i_weights[s_index].empty());
 #endif
 
-		for (uint16_t s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
-#pragma HLS dataflow
-			hls::stream<t_acc> s_acc_stream[c_ops];
+
+	hls::stream<t_acc> s_acc_stream[c_ops];
 #pragma HLS STREAM variable=s_acc_stream depth=c_och
 
-			ConvComp <
-				t_input,
-				t_weight,
-				t_acc,
-				c_ich,
-				c_och,
-				c_index,
-				c_str,
-				c_ops
-			> (
-				i_data,
-				i_weights,
-				s_acc_stream
-			);
+	ConvComp <
+		t_input,
+		t_weight,
+		t_acc,
+		c_ich,
+		c_och,
+		c_oh,
+		c_ow,
+		c_index,
+		c_str,
+		c_ops
+	> (
+		i_data,
+		i_weights,
+		s_acc_stream
+	);
 
-#ifndef __SYNTHESIS__
-#ifdef DEBUG
-				std::cout << "OUTPUT VALUES" << std::endl;
-#endif
-#endif
-
-			StreamOutput <
-				t_output,
-				t_acc,
-				c_ich,
-				c_och,
-				c_index,
-				c_ops,
-				c_relu,
-				c_quant,
-				c_shift_h,
-				c_shift_l
-			> (
-				s_acc_stream,
-				o_data
-			);
-
-
-#ifndef __SYNTHESIS__
-#ifdef DEBUG
-			std::cout << std::endl;
-#endif
-#ifdef DEBUG_LINE
-			if (s_o_index == 0) {
-				std::cout << std::endl;
-				std::cout << "CONVOP: " << c_ih << " " << c_iw << " " << c_ich << " " << c_str << " " << c_pad << " " << std::endl;
-			}
-#endif
-#endif
-
-		}
+	StreamOutput <
+		t_output,
+		t_acc,
+		c_ich,
+		c_och,
+		c_oh,
+		c_ow,
+		c_index,
+		c_ops,
+		c_relu,
+		c_quant,
+		c_shift_h,
+		c_shift_l
+	> (
+		s_acc_stream,
+		o_data
+	);
 
 #ifndef __SYNTHESIS__
 

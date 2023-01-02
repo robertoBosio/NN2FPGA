@@ -60,6 +60,86 @@ template <
 	int c_bits
 > void ProduceStream(
 	hls::stream<t_input> &i_data,
+	hls::stream<t_output> &o_data
+) {
+
+	const int c_par = c_i_data/8;
+	const int c_index = (c_ich*c_ih*c_iw)/c_par;
+
+#ifndef __SYNTHESIS__
+
+	while(i_data.empty());
+
+#endif
+
+	/* while(1) { */
+
+#ifndef __SYNTHESIS__
+		int s_dbg_count_bytes = 0;
+#endif
+
+		t_input tmp_r;
+		PRODSTR: for (int s_index = 0; s_index < c_index; s_index++) {
+			tmp_r = i_data.read();
+			ap_uint<64> tmp_r_par = tmp_r.data;
+			
+			for (uint8_t s_par = 0; s_par < c_par; s_par++) {
+#pragma HLS pipeline off
+				/* t_output tmp_w = (t_output)(tmp_r.data(8*(s_par+1)-1,8*s_par)); */
+				t_output tmp_w = (t_output)(tmp_r_par & 0xff);
+#ifndef __SYNTHESIS__
+#ifdef DEBUG
+					std::cout << (ap_uint<8>)(tmp_w) << " ";
+#endif
+#endif
+				o_data.write(tmp_w);
+				tmp_r_par = tmp_r_par >> 8;
+			}
+
+#ifndef __SYNTHESIS__
+			s_dbg_count_bytes += c_par;
+#endif
+			
+		}
+
+#ifndef __SYNTHESIS__
+#ifdef DEBUG
+		std::cout << std::endl;
+#endif
+#endif
+
+#ifndef __SYNTHESIS__
+
+#ifdef DEBUG
+		std::cout << "Read " << s_dbg_count_bytes << " bytes" << std::endl;
+		std::cout << "Producing last signal" << std::endl;
+#endif
+
+#endif
+
+		/* if (tmp_r.last) */
+		/* 	break; */
+
+	/* } */
+
+#ifndef __SYNTHESIS__
+	EmptyStream<t_input>(i_data);
+#ifdef DEBUG
+	std::cout << "PRODUCESTREAM: " << c_ih << " " << c_iw << " " << c_ich << std::endl;
+#endif
+#endif
+
+}
+
+template <
+	class t_input,
+	class t_output,
+	int c_ich,
+	int c_iw,
+	int c_ih,
+	int c_bits
+> void ProduceStream(
+	hls::stream<t_input> &i_data,
 	hls::stream<ap_uint<1>> &o_last,
 	hls::stream<t_output> &o_data
 ) {
@@ -197,6 +277,54 @@ template <
 	}
 
 }
+
+template <
+	class t_input,
+	class t_output,
+	int c_och,
+	int c_ow,
+	int c_oh
+> void ConsumeStream(
+	hls::stream<t_input> &i_data,
+	hls::stream<t_output> &o_data
+) {
+
+#ifndef __SYNTHESIS__
+
+	if (i_data.empty())
+		return;
+
+#endif
+
+	const int c_index = c_och*c_oh*c_ow;
+
+	/* while(1) { */
+
+		for (int s_index = 0; s_index < c_index-1; s_index++) {
+
+			t_input s_read = i_data.read();
+			t_output tmp;
+			tmp.data = s_read;
+			tmp.last = false;
+			tmp.keep = -1;
+			o_data.write(tmp);
+
+		}
+
+		t_output tmp;
+		t_input s_read = i_data.read();
+		tmp.data = s_read;
+		tmp.last = true;
+		tmp.keep = -1;
+		o_data.write(tmp);
+
+		/* if (tmp.last) */
+		/* 	break; */
+
+	/* } */
+
+}
+
 
 template <
 	class t_input,
