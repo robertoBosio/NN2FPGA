@@ -20,7 +20,8 @@ from preprocessing import *
 MODEL_SW = "TESTMODEL"
 
 if (MODEL_SW == "TESTMODEL"):
-    log_name = 'testmodel1_w8a8'
+    log_name = 'testmodel_w8a8'
+    # pretrain_dir = './tmp/testmodel_baseline'
     pretrain_dir = './tmp/testmodel1_baseline'
     model_proto = testmodel
 

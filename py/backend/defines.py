@@ -101,10 +101,10 @@ def write(
             n_bits = 8*parallel_ops[node_name]
 
             if (off_chip_storage or (n_bits > 64)):
-                fd.write("typedef ap_int<%0d> t_%s_st;\n" % (n_bits, weight_name))
+                fd.write("typedef ap_uint<%0d> t_%s_st;\n" % (n_bits, weight_name))
             else:
-                fd.write("typedef int%0d_t t_%s_st;\n" % (n_bits, weight_name))
-            fd.write("typedef ap_int<8*c_%s_ops> t_%s;\n" % (node_name, weight_name))
+                fd.write("typedef uint%0d_t t_%s_st;\n" % (n_bits, weight_name))
+            fd.write("typedef ap_uint<8*c_%s_ops> t_%s;\n" % (node_name, weight_name))
             fd.write("const int c_%s_och = %d;\n" % (weight_name, c_och))
             fd.write("const int c_%s_ich = %d;\n" % (weight_name, c_ich))
             fd.write("const int c_%s_ih  = %d;\n" % (weight_name, c_ih))

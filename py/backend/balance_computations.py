@@ -71,7 +71,7 @@ def opt(layers_info):
 
     parallel_ops = parallel_ops_number(layers_info)
 
-    for name, op in parallel_ops.items():
-        parallel_ops[name] = 1
+    # for name, op in parallel_ops.items():
+    #     parallel_ops[name] = 1
 
     return parallel_ops

@@ -80,6 +80,7 @@ if (MODEL == 'TESTMODEL'):
     # model.load_state_dict(state_dict, strict=False)
     model.load_state_dict(
         torch.load(
+            # "./ckpt/testmodel_w8a8/checkpoint.t7",
             "./ckpt/testmodel1_w8a8/checkpoint.t7",
             map_location=torch.device('cpu')
         )

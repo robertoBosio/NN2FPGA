@@ -486,33 +486,6 @@ def write(
         weights, sw = dequant(weights)
         fd.write("\tconst int c_%s_scale = %0d;\n" % (node_name, sw))
 
-        # TODO: Specialized for DAC2023 submission, must be automated
-
-        # parallel_ops = {}
-        # parallel_ops['conv_0']  = 1                                                    
-        # parallel_ops['conv_2']  = 2                                                    
-        # parallel_ops['conv_4']  = 2                                                    
-        # parallel_ops['conv_7']  = 2                                                    
-        # parallel_ops['conv_9']  = 2                                                    
-        # parallel_ops['conv_12']  = 2                                                   
-        # parallel_ops['conv_14']  = 2                                                   
-        # parallel_ops['conv_17']  = 1                                                   
-        # parallel_ops['conv_19']  = 1                                                   
-        # parallel_ops['conv_21']  = 1                                                   
-        # parallel_ops['conv_24']  = 1                                                   
-        # parallel_ops['conv_26']  = 1                                                   
-        # parallel_ops['conv_29']  = 1                                                   
-        # parallel_ops['conv_31']  = 1                                                   
-        # parallel_ops['conv_34']  = 1                                                   
-        # parallel_ops['conv_36']  = 1                                                   
-        # parallel_ops['conv_38']  = 1                                                   
-        # parallel_ops['conv_41']  = 1                                                   
-        # parallel_ops['conv_43']  = 1                                                   
-        # parallel_ops['conv_46']  = 1                                                   
-        # parallel_ops['conv_48']  = 1                                                   
-        # parallel_ops['conv_54']  = 1  
-        #################################################################
-
         if off_chip_storage:
             new_offset = sum([info[3] for name, info in additional_ports_info.items()])
             additional_ports_info[weight_name] = []
@@ -546,11 +519,24 @@ def write(
                         fd.write("{")
                         for ich in range(weights.shape[1]):
                             for och in range(int(weights.shape[0]/parallel_ops[node_name])):
-                                weight_value = 0
+                                off = och*parallel_ops[node_name]
+                                weight_value = ""
+                                # If the number of parallel kernels is greater
+                                # or equal than 16 and the quantization is
+                                # 8 bits than the init of the weights must be
+                                # on ap_uint data type
+
                                 for op in range(parallel_ops[node_name]):
                                     # weight_value = np.random.randint(0, 256)
-                                    weight_value |= int(weights[och+op][ich][ih][iw]) << (8*op)
-                                fd.write("%0d" % (weight_value))
+                                    weight_value = ("%02x" % (int(weights[off+op][ich][ih][iw]) & 0xff)) + weight_value
+
+                                if (parallel_ops[node_name]) > 8: 
+                                    # weight_value = ("t_%s_st(\"" % weight_name) + weight_value
+                                    weight_value = "ap_uint<128>(\"" + weight_value.upper()
+                                    weight_value = weight_value + "\", 16)"
+                                    fd.write("%s" % (weight_value))
+                                else:
+                                    fd.write("0x%s" % (weight_value))
                                 fd.write(", ")
                         fd.write("0")
                         if (ih==(c_ih-1)) and (iw==(c_iw-1)):
@@ -602,6 +588,44 @@ def write(
 
                     fd.write("};\n")
                     fd.write("\n")
+
+    def write_line_buffer(
+        node_name,
+        input_name,
+        c_fh,
+        c_fw,
+        forward_name=None
+    ):
+
+        c_index = c_fh*c_fw
+
+        for fh in range(c_fh):
+            for fw in range(c_fw):
+                index = fh*c_fw + fw
+                fd.write("ShiftOp<")
+                fd.write("\tt_%s," % input_name)
+                fd.write("\tc_%s_ich," % node_name)
+                fd.write("\tc_%s_och," % node_name)
+                fd.write("\tc_%s_ih," % node_name)
+                fd.write("\tc_%s_iw," % node_name)
+                fd.write("\tc_%s_oh," % node_name)
+                fd.write("\tc_%s_ow," % node_name)
+                fd.write("\tc_%s_fh," % node_name)
+                fd.write("\tc_%s_fw," % node_name)
+                fd.write("\tc_%s_str," % node_name)
+                fd.write("\tc_%s_pad," % node_name)
+                fd.write("\t%0d," % (c_fh - 1))
+                fd.write("\t%0d" % (c_fw - 1))
+                fd.write("> (")
+                if (index == 0):
+                    fd.write("\ts_%s," % input_name)
+                else:
+                    fd.write("\ts_%s_compute[%0d]" % (input_name, index))
+                if (index < (c_index - 1)):
+                    fd.write("\ts_%s_compute[%0d]" % (input_name, index+1))
+                if (forward_name is not None):
+                    fd.write("\ts_%s" % (forward_name))
+                fd.write(");")
 
     def write_conv(
         fd,
