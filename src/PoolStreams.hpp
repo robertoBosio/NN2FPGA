@@ -34,10 +34,6 @@ template <
 	const int c_quant = 0;
 
 	/* while(1) { */
-#ifndef __SYNTHESIS__
-		while(i_data.empty());
-#endif
-
 		t_acc s_acc_buff[c_och];
 		for (uint8_t s_och = 0; s_och < c_och; s_och++)
 			s_acc_buff[s_och] = c_quant;
@@ -47,16 +43,6 @@ template <
 				for (uint8_t s_och = 0; s_och < c_och; s_och++) {
 
 					t_input s_input = i_data.read();
-
-#ifndef __SYNTHESIS__
-#ifdef DEBUG_POOL
-			/* if (s_och == 0) { */
-			if ((s_o_index == 0) && (s_index == 0)) {
-				std::cout << (ap_uint<8>)(s_input) << " ";
-				std::cout << std::endl;
-			}
-#endif
-#endif
 
 					if (c_pool == 0) // Average Pool
 						s_acc_buff[s_och] += s_input;
@@ -76,36 +62,80 @@ template <
 
 			/* TODO: Write generic version for multiple bits quantization */
 
-#ifndef __SYNTHESIS__
-#ifdef DEBUG_POOL
-
-			std::cout << "OUTPUT VALUE: " << (ap_int<32>)(s_acc) << " ";
-			std::cout << std::endl;
-#endif
-#endif
-
 			if (s_acc >= 256)
 				s_acc = 255;
 
 			o_data.write((t_output)(s_acc)); 
 		}
-#ifndef __SYNTHESIS__
 
-#ifdef DEBUG_POOL
-#endif
+}
 
-#endif
+template <
+	class t_input_struct,
+	class t_input,
+	class t_output_struct,
+	class t_output,
+	class t_acc,
+	int c_ich,
+	int c_och,
+	int c_ih,
+	int c_iw,
+	int c_oh,
+	int c_ow,
+	int c_fh,
+	int c_fw,
+	int c_str,
+	int c_pad,
+	int c_pool
+> void PoolOp(
+	hls::stream<t_input_struct> &i_data,
+	hls::stream<t_output_struct> &o_data
+) {
 
-		/* 	break; */
+	const int c_index = c_fh*c_fw;
+	const int c_o_index = c_oh*c_ow;
+	const uint8_t c_average_scale = (uint8_t)(log2(c_fh*c_fw));
+	const int c_quant = 0;
 
-	/* } */
+	bool s_last;
+	t_acc s_acc_buff[c_och];
+	for (uint8_t s_och = 0; s_och < c_och; s_och++)
+		s_acc_buff[s_och] = c_quant;
 
-#ifndef __SYNTHESIS__
-	EmptyStream<t_input>(i_data);
-#ifdef DEBUG_POOL
-	std::cout << "POOLOP: " << c_ih << " " << c_iw << " " << c_ich << " " << c_str << " " << c_pad << " " << std::endl;
-#endif
-#endif
+	for (uint16_t s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
+		for (uint8_t s_index = 0; s_index < c_index; s_index++) {
+			for (uint8_t s_och = 0; s_och < c_och; s_och++) {
+
+				t_input_struct s_input_struct = i_data.read();
+				t_input s_input = s_input_struct.data;
+				s_last = s_input_struct.last;
+
+				if (c_pool == 0) // Average Pool
+					s_acc_buff[s_och] += s_input;
+				if (c_pool == 1) { // Max Poool
+					if (s_input > s_acc_buff[s_och])
+						s_acc_buff[s_och] = s_input;
+				}
+			}
+
+		}
+	}
+
+	for (uint8_t s_och = 0; s_och < c_och; s_och++) {
+		t_output_struct s_output_struct;
+		t_acc s_acc = s_acc_buff[s_och];
+		if (c_pool == 0) // Average Pool
+			s_acc = s_acc >> c_average_scale;
+
+		/* TODO: Write generic version for multiple bits quantization */
+
+		if (s_acc >= 256)
+			s_acc = 255;
+
+		s_output_struct.data = (t_output)s_acc;
+		s_output_struct.last = s_last;
+		o_data.write(s_output_struct); 
+	}
 
 }
 
@@ -135,58 +165,28 @@ template <
 	const uint8_t c_average_scale = (uint8_t)(log2(c_fh*c_fw));
 	const int c_quant = 0;
 
-	/* while(1) { */
-#ifndef __SYNTHESIS__
-		for (uint8_t s_index = 0; s_index < c_index; s_index++)
-			while(i_data[s_index].empty());
-#endif
+	for (uint16_t s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
 
-		for (uint16_t s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
+		for (uint8_t s_och = 0; s_och < c_och; s_och++) {
+			t_acc s_acc_buff = c_quant;
 
-			for (uint8_t s_och = 0; s_och < c_och; s_och++) {
-				t_acc s_acc_buff = c_quant;
-
-				for (uint8_t s_index = 0; s_index < c_index; s_index++) {
-					t_input s_input = i_data[s_index].read();
-					if (c_pool == 0) // Average Pool
-						s_acc_buff += s_input;
-					if (c_pool == 1) { // Max Poool
-						if (s_input > s_acc_buff)
-							s_acc_buff = s_input;
-					}
-				}
-
+			for (uint8_t s_index = 0; s_index < c_index; s_index++) {
+				t_input s_input = i_data[s_index].read();
 				if (c_pool == 0) // Average Pool
-					s_acc_buff = s_acc_buff << c_average_scale;
-#ifndef __SYNTHESIS__
-#ifdef DEBUG_POOL
-				std::cout << (t_output)(s_acc_buff) << " ";
-				std::cout << std::endl;
-#endif
-#endif
-				o_data.write((t_output)(s_acc_buff)); 
+					s_acc_buff += s_input;
+				if (c_pool == 1) { // Max Poool
+					if (s_input > s_acc_buff)
+						s_acc_buff = s_input;
+				}
 			}
 
+			if (c_pool == 0) // Average Pool
+				s_acc_buff = s_acc_buff << c_average_scale;
+
+			o_data.write((t_output)(s_acc_buff)); 
 		}
 
-#ifndef __SYNTHESIS__
-
-#ifdef DEBUG_POOL
-#endif
-
-#endif
-
-		/* 	break; */
-
-	/* } */
-
-#ifndef __SYNTHESIS__
-	for (uint8_t s_index = 0; s_index < c_index; s_index++)
-		EmptyStream<t_input>(i_data[s_index]);
-#ifdef DEBUG_POOL
-	std::cout << "POOLOP: " << c_ih << " " << c_iw << " " << c_ich << " " << c_str << " " << c_pad << " " << std::endl;
-#endif
-#endif
+	}
 
 }
 
@@ -361,12 +361,6 @@ template <
 ) {
 
 #pragma HLS inline
-
-#ifndef __SYNTHESIS__
-
-	while(i_data.empty());
-
-#endif
 
 	PoolKernel <
 		t_input,

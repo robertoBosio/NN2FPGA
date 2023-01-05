@@ -3,6 +3,7 @@
 #include "hls_stream.h"
 #include <unistd.h>
 #include "../src/Debug.hpp"
+#include <ap_utils.h>
 char *getcwd(char *buf, size_t size);
 
 int main() {
@@ -26,7 +27,7 @@ int main() {
 	/* 	std::cout << dataset.test_images.at(i) << ' '; */
 	/* } */
 	/* const int c_batch = dataset.test_images.size(); */
-	const int c_batch = 3;
+	const int c_batch = 4;
 	const int n_bytes =c_index*c_par;
 	std::cout << "SENDING " << c_batch << " IMAGES" << std::endl;
 	std::cout << "SENDING " << n_bytes << " BYTES" << std::endl;
@@ -42,6 +43,7 @@ int main() {
 			t_i_data s_data;
 			int s_par = (s_bytes % c_par);
 			s_data.data(8*(s_par+1)-1,8*s_par) = (ap_uint<8>)(*itt);
+			s_data.keep = -1;
 
 #ifdef DEBUG
 			std::cout << (ap_uint<8>)(*itt) << " ";
@@ -51,8 +53,10 @@ int main() {
 				s_data.last = true;
 			else
 				s_data.last = false;
-			if (s_par == (c_par-1))
+			if (s_par == (c_par-1)) {
 				i_data.write(s_data);
+			}
+
 			s_bytes++;
 			if (s_bytes == n_bytes)
 				break;
