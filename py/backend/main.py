@@ -100,9 +100,16 @@ def write(
             input_name = input_name.lower().replace("onnx::", "")
             # input_shape = tensors_info[model.graph.input[0].name].tensor_type.shape
 
-            write_stream(fd, "input", "2*c_%s_ich" % input_name)
-            fd.write("\t#define c_last_depth 256\n")
-            write_stream(fd, "last", "c_last_depth")
+            fd.write(
+                "\thls::stream<t_input_struct> s_input;\n"
+            )
+            fd.write(
+                "\t#pragma HLS STREAM variable=s_input depth=3 type=fifo\n"
+            )
+            fd.write("\n")
+            # write_stream(fd, "input", "2*c_%s_ich" % input_name)
+            # fd.write("\t#define c_last_depth 256\n")
+            # write_stream(fd, "last", "c_last_depth")
 
         fd.write("\n")
 
@@ -111,6 +118,7 @@ def write(
         if write_blocks:
             fd.write("\tProduceStream<\n")
             fd.write("\t\tt_i_data, \n")
+            fd.write("\t\tt_%s_struct,\n" % (input_name))
             fd.write("\t\tt_%s,\n" % (input_name))
             fd.write("\t\tc_%s_ich,\n" % (input_name))
             fd.write("\t\tc_%s_iw,\n" % (input_name))
@@ -118,17 +126,20 @@ def write(
             fd.write("\t\tc_i_data\n")
             fd.write("\t>(\n")
             fd.write("\t\ti_data,\n")
-            fd.write("\t\ts_last,\n")
+            # fd.write("\t\ts_last,\n")
             fd.write("\t\ts_%s\n" % (input_name))
             fd.write("\t);\n")
 
             fd.write("\n")
 
-    def write_stream(fd, name, channels=None):
+    def write_stream(fd, name, channels=None, struct=False):
         
         # Each stream has a channel width equal to the number of channels of the 
         # output feature 
-        fd.write("\thls::stream<t_%s> s_%s(\"s_%s\");\n" % (name, name, name))
+        if struct:
+            fd.write("\thls::stream<t_%s_struct> s_%s(\"s_%s\");\n" % (name, name, name))
+        else:
+            fd.write("\thls::stream<t_%s> s_%s(\"s_%s\");\n" % (name, name, name))
         if (channels is None):
             fd.write(
                 "\t#pragma HLS STREAM variable=s_%s depth=3 type=fifo\n" % (
@@ -143,16 +154,16 @@ def write(
                 )
             )
 
-    def write_array_stream(fd, name, channels=None, c_split=None):
+    def write_array_stream(fd, name, channels=None, c_split=None, pragma=True):
         
         # Each stream has a channel width equal to the number of channels of the 
         # output feature 
         if (c_split is not None):
             fd.write(
-                "\thls::stream<t_%s> s_%s[c_%s_split];\n" % (
+                "\thls::stream<t_%s> s_%s[%0d];\n" % (
                     name,
                     name,
-                    name
+                    c_split
                 )
             )
         else:
@@ -165,19 +176,20 @@ def write(
                 )
             )
 
-        if (channels is None):
-            fd.write(
-                "\t#pragma HLS STREAM variable=s_%s depth=3 type=fifo\n" % (
-                    name
+        if pragma:
+            if (channels is None):
+                fd.write(
+                    "\t#pragma HLS STREAM variable=s_%s depth=3 type=fifo\n" % (
+                        name
+                    )
                 )
-            )
-        else:
-            fd.write(
-                "\t#pragma HLS STREAM variable=s_%s depth=%s type=fifo\n" % (
-                    name,
-                    channels
+            else:
+                fd.write(
+                    "\t#pragma HLS STREAM variable=s_%s depth=%s type=fifo\n" % (
+                        name,
+                        channels
+                    )
                 )
-            )
 
     def write_last_flags(fd, layers_allocated):
         fd.write(
@@ -359,7 +371,7 @@ def write(
         output_name = output_name.lower().replace("onnx::", "")
 
         if emit_streams:
-            write_stream(fd, output_name, "c_%s_och" % node_name)
+            write_stream(fd, output_name, "c_%s_och" % node_name, struct=True)
             fd.write("\n")
 
         input_shape = tensors_info[node.input[0]].tensor_type.shape
@@ -373,9 +385,12 @@ def write(
         c_och    = getattr(output_shape, 'dim')[1].dim_value
         c_oh     = getattr(output_shape, 'dim')[2].dim_value
         c_ow     = getattr(output_shape, 'dim')[3].dim_value
-        if ('adaptive' in node_name):
-            c_fh     = c_oh
-            c_fw     = c_ow
+        c_fh     = getattr(attributes[1], 'ints')[0]
+        c_fw     = getattr(attributes[1], 'ints')[1]
+        adaptive = ('adaptive' in node_name) or ((c_fh == c_ih) and (c_fw == c_iw))
+        if adaptive:
+            c_fh     = c_ih
+            c_fw     = c_iw
             c_stride = 1
             c_pad    = 0
         else:
@@ -394,25 +409,49 @@ def write(
             )
 
         if write_blocks:
-            fd.write("\tPoolStreams<\n")
-            fd.write("\t\tt_%s,\n" % (input_name))
-            fd.write("\t\tt_%s,\n" % (output_name))
-            fd.write("\t\tt_%s_acc,\n" % (node_name))
-            fd.write("\t\tc_%s_ich,\n" % (node_name))
-            fd.write("\t\tc_%s_och,\n" % (node_name))
-            fd.write("\t\tc_%s_iw,\n" % (node_name))
-            fd.write("\t\tc_%s_ih,\n" % (node_name))
-            fd.write("\t\tc_%s_ow,\n" % (node_name))
-            fd.write("\t\tc_%s_oh,\n" % (node_name))
-            fd.write("\t\tc_%s_fw,\n" % (node_name))
-            fd.write("\t\tc_%s_fh,\n" % (node_name))
-            fd.write("\t\tc_%s_stride,\n" % (node_name))
-            fd.write("\t\tc_%s_pad,\n" % (node_name))
-            fd.write("\t\tc_%s_pool\n" % (node_name))
-            fd.write("\t> (\n")
-            fd.write("\t\ts_%s,\n" % (input_name))
-            fd.write("\t\ts_%s\n" % (output_name))
-            fd.write("\t);\n")
+
+            if adaptive:
+                fd.write("\tPoolOp<\n")
+                fd.write("\t\tt_%s_struct,\n" % (input_name))
+                fd.write("\t\tt_%s,\n" % (input_name))
+                fd.write("\t\tt_%s_struct,\n" % (output_name))
+                fd.write("\t\tt_%s,\n" % (output_name))
+                fd.write("\t\tt_%s_acc,\n" % (node_name))
+                fd.write("\t\tc_%s_ich,\n" % (node_name))
+                fd.write("\t\tc_%s_och,\n" % (node_name))
+                fd.write("\t\tc_%s_iw,\n" % (node_name))
+                fd.write("\t\tc_%s_ih,\n" % (node_name))
+                fd.write("\t\tc_%s_ow,\n" % (node_name))
+                fd.write("\t\tc_%s_oh,\n" % (node_name))
+                fd.write("\t\tc_%s_fw,\n" % (node_name))
+                fd.write("\t\tc_%s_fh,\n" % (node_name))
+                fd.write("\t\tc_%s_stride,\n" % (node_name))
+                fd.write("\t\tc_%s_pad,\n" % (node_name))
+                fd.write("\t\tc_%s_pool\n" % (node_name))
+                fd.write("\t> (\n")
+                fd.write("\t\ts_%s,\n" % (input_name))
+                fd.write("\t\ts_%s\n" % (output_name))
+                fd.write("\t);\n")
+            else:
+                fd.write("\tPoolStreams<\n")
+                fd.write("\t\tt_%s,\n" % (input_name))
+                fd.write("\t\tt_%s,\n" % (output_name))
+                fd.write("\t\tt_%s_acc,\n" % (node_name))
+                fd.write("\t\tc_%s_ich,\n" % (node_name))
+                fd.write("\t\tc_%s_och,\n" % (node_name))
+                fd.write("\t\tc_%s_iw,\n" % (node_name))
+                fd.write("\t\tc_%s_ih,\n" % (node_name))
+                fd.write("\t\tc_%s_ow,\n" % (node_name))
+                fd.write("\t\tc_%s_oh,\n" % (node_name))
+                fd.write("\t\tc_%s_fw,\n" % (node_name))
+                fd.write("\t\tc_%s_fh,\n" % (node_name))
+                fd.write("\t\tc_%s_stride,\n" % (node_name))
+                fd.write("\t\tc_%s_pad,\n" % (node_name))
+                fd.write("\t\tc_%s_pool\n" % (node_name))
+                fd.write("\t> (\n")
+                fd.write("\t\ts_%s,\n" % (input_name))
+                fd.write("\t\ts_%s\n" % (output_name))
+                fd.write("\t);\n")
 
             fd.write("\n")
 
@@ -434,13 +473,13 @@ def write(
         output_name = output_name.lower().replace("onnx::", "")
 
         if emit_streams:
-            write_stream(fd, output_name)
+            write_stream(fd, output_name, struct=True)
             fd.write("\n")
 
         if write_blocks:
             fd.write("\tPadStream<\n")
-            fd.write("\t\tt_%s,\n" % (input_name))
-            fd.write("\t\tt_%s,\n" % (output_name))
+            fd.write("\t\tt_%s_struct,\n" % (input_name))
+            fd.write("\t\tt_%s_struct,\n" % (output_name))
             fd.write("\t\tc_%s_ich,\n" % (node_name))
             fd.write("\t\tc_%s_och,\n" % (node_name))
             fd.write("\t\tc_%s_iw,\n" % (node_name))
@@ -501,7 +540,7 @@ def write(
         last_weight = True
         if (pack_weights):
             if (not off_chip_storage):
-                fd.write("\tconst t_%s_st c_%s_st[c_%s_fh*c_%s_fw][c_%s_och*c_%s_ich/%0d+1] = {\n" % (
+                fd.write("\tconst t_%s_st c_%s_st[c_%s_fh*c_%s_fw][c_%s_och*c_%s_ich/%0d] = {\n" % (
                         weight_name,
                         # 8*parallel_ops[node_name],
                         weight_name,
@@ -514,32 +553,27 @@ def write(
                 )
 
 
-                for ih in range(c_ih):
-                    for iw in range(c_iw):
+                # Inversion because of line buffer structure
+                for ih in range(c_ih-1, -1, -1):
+                    for iw in range(c_iw-1, -1, -1):
                         fd.write("{")
-                        for ich in range(weights.shape[1]):
-                            for och in range(int(weights.shape[0]/parallel_ops[node_name])):
+                        c_ich = weights.shape[1]
+                        for ich in range(c_ich):
+                            c_och_ops = int(weights.shape[0]/parallel_ops[node_name])
+                            for och in range(c_och_ops):
                                 off = och*parallel_ops[node_name]
-                                weight_value = ""
-                                # If the number of parallel kernels is greater
-                                # or equal than 16 and the quantization is
-                                # 8 bits than the init of the weights must be
-                                # on ap_uint data type
+                                weight_value = "{"
 
                                 for op in range(parallel_ops[node_name]):
                                     # weight_value = np.random.randint(0, 256)
-                                    weight_value = ("%02x" % (int(weights[off+op][ich][ih][iw]) & 0xff)) + weight_value
+                                    weight_value = weight_value + ("%2d" % int(weights[off+op][ich][ih][iw]))
+                                    if (op < (parallel_ops[node_name] - 1)):
+                                        weight_value = weight_value + ", " 
 
-                                if (parallel_ops[node_name]) > 8: 
-                                    # weight_value = ("t_%s_st(\"" % weight_name) + weight_value
-                                    weight_value = "ap_uint<128>(\"" + weight_value.upper()
-                                    weight_value = weight_value + "\", 16)"
-                                    fd.write("%s" % (weight_value))
-                                else:
-                                    fd.write("0x%s" % (weight_value))
-                                fd.write(", ")
-                        fd.write("0")
-                        if (ih==(c_ih-1)) and (iw==(c_iw-1)):
+                                fd.write("%s}" % (weight_value))
+                                if not ((och == (c_och_ops-1)) and (ich == (c_ich-1))):
+                                    fd.write(", ")
+                        if (ih==0) and (iw==0):
                             fd.write("}\n")
                         else:
                             fd.write("},\n")
@@ -589,7 +623,42 @@ def write(
                     fd.write("};\n")
                     fd.write("\n")
 
+    def write_padding(
+        fd,
+        node_name,
+        input_name
+    ):
+
+        fd.write(
+            "\thls::stream<t_%s_struct> s_%s_padded;\n" % (
+                input_name,
+                input_name
+            )
+        )
+        fd.write(
+            "\t#pragma HLS STREAM variable=s_%s_padded depth=%0d type=fifo\n" % (
+                input_name,
+                3
+            )
+        )
+        fd.write("\n")
+
+        fd.write("\tPadInput<\n")
+        fd.write("\t\tt_%s_struct,\n" % input_name)
+        fd.write("\t\tc_%s_ich,\n" % node_name)
+        fd.write("\t\tc_%s_ih,\n" % node_name)
+        fd.write("\t\tc_%s_iw,\n" % node_name)
+        fd.write("\t\tc_%s_fh,\n" % node_name)
+        fd.write("\t\tc_%s_fw,\n" % node_name)
+        fd.write("\t\tc_%s_pad\n" % node_name)
+        fd.write("\t> (\n")
+        fd.write("\t\ts_%s,\n" % input_name)
+        fd.write("\t\ts_%s_padded\n" % input_name)
+        fd.write("\t);\n")
+        fd.write("\n")
+
     def write_line_buffer(
+        fd,
         node_name,
         input_name,
         c_fh,
@@ -599,33 +668,75 @@ def write(
 
         c_index = c_fh*c_fw
 
+        fd.write(
+            "\thls::stream<t_%s_struct> s_%s_compute[%0d];\n" % (
+                input_name,
+                input_name,
+                c_fh*c_fw
+            )
+        )
+        fd.write(
+            "\t#pragma HLS STREAM variable=s_%s_compute depth=%0d type=fifo\n" % (
+                input_name,
+                10
+            )
+        )
+        fd.write("\n")
+
+        fd.write(
+            "\thls::stream<t_%s_struct> s_%s_data[%0d];\n" % (
+                input_name,
+                input_name,
+                c_fh*c_fw-1
+            )
+        )
+
+        for index in range(c_index):
+            if ((index % c_fh) == (c_fh-1)):
+                depth = "c_%s_ich*c_%s_iw" % (node_name, node_name)
+            else:
+                depth = "c_%s_ich" % node_name
+            fd.write(
+                "\t#pragma HLS STREAM variable=s_%s_data depth=%s type=fifo\n" % (
+                    input_name,
+                    depth
+                )
+            )
+        fd.write("\n")
+
         for fh in range(c_fh):
             for fw in range(c_fw):
                 index = fh*c_fw + fw
-                fd.write("ShiftOp<")
-                fd.write("\tt_%s," % input_name)
-                fd.write("\tc_%s_ich," % node_name)
-                fd.write("\tc_%s_och," % node_name)
-                fd.write("\tc_%s_ih," % node_name)
-                fd.write("\tc_%s_iw," % node_name)
-                fd.write("\tc_%s_oh," % node_name)
-                fd.write("\tc_%s_ow," % node_name)
-                fd.write("\tc_%s_fh," % node_name)
-                fd.write("\tc_%s_fw," % node_name)
-                fd.write("\tc_%s_str," % node_name)
-                fd.write("\tc_%s_pad," % node_name)
-                fd.write("\t%0d," % (c_fh - 1))
-                fd.write("\t%0d" % (c_fw - 1))
-                fd.write("> (")
+                fd.write("\tShiftOp<\n")
+                fd.write("\t\tt_%s_struct,\n" % input_name)
+                fd.write("\t\tc_%s_ich,\n" % node_name)
+                fd.write("\t\tc_%s_och,\n" % node_name)
+                fd.write("\t\tc_%s_ih,\n" % node_name)
+                fd.write("\t\tc_%s_iw,\n" % node_name)
+                fd.write("\t\tc_%s_oh,\n" % node_name)
+                fd.write("\t\tc_%s_ow,\n" % node_name)
+                fd.write("\t\tc_%s_fh,\n" % node_name)
+                fd.write("\t\tc_%s_fw,\n" % node_name)
+                fd.write("\t\tc_%s_stride,\n" % node_name)
+                fd.write("\t\tc_%s_pad,\n" % node_name)
+                fd.write("\t\t%0d,\n" % (c_fh - 1 - fh))
+                fd.write("\t\t%0d\n" % (c_fw - 1 - fw))
+                fd.write("\t> (\n")
                 if (index == 0):
-                    fd.write("\ts_%s," % input_name)
+                    fd.write("\t\ts_%s_padded,\n" % input_name)
                 else:
-                    fd.write("\ts_%s_compute[%0d]" % (input_name, index))
-                if (index < (c_index - 1)):
-                    fd.write("\ts_%s_compute[%0d]" % (input_name, index+1))
-                if (forward_name is not None):
-                    fd.write("\ts_%s" % (forward_name))
-                fd.write(");")
+                    fd.write("\t\ts_%s_data[%0d],\n" % (input_name, index-1))
+                if (index == (c_index-1) and (forward_name is None)):
+                    fd.write("\t\ts_%s_compute[%0d]\n" % (input_name, index))
+                else:
+                    fd.write("\t\ts_%s_compute[%0d],\n" % (input_name, index))
+                if (index == (c_index-1)):
+                    if (forward_name is not None):
+                        fd.write("\t\ts_%s\n" % (forward_name))
+                else:
+                    fd.write("\t\ts_%s_data[%0d]\n" % (input_name, index))
+                fd.write("\t);\n")
+                fd.write("\n")
 
     def write_conv(
         fd,
@@ -688,6 +799,8 @@ def write(
         input_name = input_name.replace(".", "_")
         input_name = input_name.lower().replace("onnx::", "")
 
+        skip_name = None
+
         if (node.name in skip_connections_info.keys()):
             # If it is greater than 2 it means is a producer
             if (len(skip_connections_info[node.name]) < 2):
@@ -728,7 +841,8 @@ def write(
                     write_stream(
                         fd,
                         skip_name,
-                        "c_%s_ich*c_%s_och" % (node_name, node_name)
+                        "c_%s_ich*c_%s_och" % (node_name, node_name),
+                        struct=True
                         # depth
                     )
                 fd.write("\n")
@@ -783,6 +897,7 @@ def write(
                     fd,
                     output_name,
                     "c_%s_ich*c_%s_och" % (node_name, node_name),
+                    struct=True
                     # 20,
                 )
             fd.write("\n")
@@ -815,6 +930,7 @@ def write(
                 pack_weights=True,
                 off_chip_storage=off_chip_storage
             )
+            
         # Given stride a different weight stream is selected
         write_internal_weight(
             fd,
@@ -831,71 +947,53 @@ def write(
 
         if write_blocks:
 
-            if (no_skip):
-                fd.write("\tPackedConvBuffAcc<\n")
+            write_padding(
+                fd,
+                node_name,
+                input_name
+            )
+
+            write_line_buffer(
+                fd,
+                node_name,
+                input_name,
+                c_fh,
+                c_fw,
+                forward_name=skip_name
+            )
+
+            fd.write("\tConvOp<\n")
+            fd.write("\t\tt_%s_struct,\n" % (input_name))
+            fd.write("\t\tt_%s,\n" % (input_name))
+            fd.write("\t\tt_%s,\n" % (weight_name))
+            fd.write("\t\tt_%s_struct,\n" % (output_name))
+            fd.write("\t\tt_%s,\n" % (output_name))
+            if (bias):
                 fd.write("\t\tt_%s,\n" % (input_name))
-                fd.write("\t\tt_%s,\n" % (weight_name))
-                fd.write("\t\tt_%s,\n" % (output_name))
-                if (bias):
-                    fd.write("\t\tt_%s,\n" % (input_name))
-                fd.write("\t\tt_%s_acc,\n" % (node_name))
-                fd.write("\t\tc_%s_ich,\n" % (node_name))
-                fd.write("\t\tc_%s_och,\n" % (node_name))
-                fd.write("\t\tc_%s_iw,\n" % (node_name))
-                fd.write("\t\tc_%s_ih,\n" % (node_name))
-                fd.write("\t\tc_%s_ow,\n" % (node_name))
-                fd.write("\t\tc_%s_oh,\n" % (node_name))
-                if (not pointwise):
-                  fd.write("\t\tc_%s_fw,\n" % (node_name))
-                  fd.write("\t\tc_%s_fh,\n" % (node_name))
-                fd.write("\t\tc_%s_relu,\n" % (node_name))
-                if (split):
-                    fd.write("\t\tc_%s_a_split,\n" % (output_name))
-                fd.write("\t\tc_%s_stride,\n" % (node_name))
-                fd.write("\t\tc_%s_pad,\n" % (node_name))
-                fd.write("\t\tc_%s_scale,\n" % (node_name))
-                fd.write("\t\tc_%s_ops\n" % (node_name))
-                fd.write("\t> (\n")
-                if indexed:
-                    fd.write("\t\ts_%s[%d],\n" % (input_name, index))
-                else:
-                    fd.write("\t\ts_%s,\n" % (input_name))
-                fd.write("\t\ts_%s,\n" % (weight_name))
-                if (bias):
-                    fd.write("\t\ts_%s,\n" % (bias_name))
-                fd.write("\t\ts_%s\n" % (output_name))
-                fd.write("\t);\n")
+            fd.write("\t\tt_%s_acc,\n" % (node_name))
+            fd.write("\t\tc_%s_ich,\n" % (node_name))
+            fd.write("\t\tc_%s_och,\n" % (node_name))
+            fd.write("\t\tc_%s_iw,\n" % (node_name))
+            fd.write("\t\tc_%s_ih,\n" % (node_name))
+            fd.write("\t\tc_%s_ow,\n" % (node_name))
+            fd.write("\t\tc_%s_oh,\n" % (node_name))
+            fd.write("\t\tc_%s_fw,\n" % (node_name))
+            fd.write("\t\tc_%s_fh,\n" % (node_name))
+            fd.write("\t\tc_%s_relu,\n" % (node_name))
+            fd.write("\t\tc_%s_stride,\n" % (node_name))
+            fd.write("\t\tc_%s_pad,\n" % (node_name))
+            fd.write("\t\tc_%s_ops,\n" % (node_name))
+            fd.write("\t\tc_%s_scale\n" % (node_name))
+            fd.write("\t> (\n")
+            if indexed:
+                fd.write("\t\ts_%s_compute[%d],\n" % (input_name, index))
             else:
-                fd.write("\tPackedConvBuffAcc<\n")
-                fd.write("\t\tt_%s,\n" % (input_name))
-                fd.write("\t\tt_%s,\n" % (weight_name))
-                fd.write("\t\tt_%s,\n" % (output_name))
-                fd.write("\t\tt_%s_acc,\n" % (node_name))
-                fd.write("\t\tc_%s_ich,\n" % (node_name))
-                fd.write("\t\tc_%s_och,\n" % (node_name))
-                fd.write("\t\tc_%s_iw,\n" % (node_name))
-                fd.write("\t\tc_%s_ih,\n" % (node_name))
-                fd.write("\t\tc_%s_ow,\n" % (node_name))
-                fd.write("\t\tc_%s_oh,\n" % (node_name))
-                if (not pointwise):
-                  fd.write("\t\tc_%s_fw,\n" % (node_name))
-                  fd.write("\t\tc_%s_fh,\n" % (node_name))
-                fd.write("\t\tc_%s_relu,\n" % (node_name))
-                if (split):
-                    fd.write("\t\tc_%s_a_split,\n" % (output_name))
-                fd.write("\t\tc_%s_stride,\n" % (node_name))
-                fd.write("\t\tc_%s_pad,\n" % (node_name))
-                fd.write("\t\tc_%s_scale,\n" % (node_name))
-                fd.write("\t\tc_%s_ops\n" % (node_name))
-                fd.write("\t> (\n")
-                if indexed:
-                    fd.write("\t\ts_%s[%d],\n" % (input_name, index))
-                else:
-                    fd.write("\t\ts_%s,\n" % (input_name))
-                fd.write("\t\ts_%s,\n" % (weight_name))
-                fd.write("\t\ts_%s,\n" % (output_name))
-                fd.write("\t\ts_%s\n" % (skip_name))
-                fd.write("\t);\n")
+                fd.write("\t\ts_%s_compute,\n" % (input_name))
+            fd.write("\t\ts_%s,\n" % (weight_name))
+            if (bias):
+                fd.write("\t\ts_%s,\n" % (bias_name))
+            fd.write("\t\ts_%s\n" % (output_name))
+            fd.write("\t);\n")
 
             fd.write("\n")
 
@@ -987,14 +1085,14 @@ def write(
             output_name = output_name.lower().replace("onnx::", "")
 
             fd.write("\tConsumeStream<\n")
-            fd.write("\t\tt_%s,\n" % (output_name))
+            fd.write("\t\tt_%s_struct,\n" % (output_name))
             fd.write("\t\tt_o_data,\n")
             fd.write("\t\tc_%s_och,\n" % (output_name))
             fd.write("\t\tc_%s_ow,\n" % (output_name))
             fd.write("\t\tc_%s_oh\n" % (output_name))
             fd.write("\t> (\n")
             fd.write("\t\ts_%s,\n" % (output_name))
-            fd.write("\t\ts_last,\n")
+            # fd.write("\t\ts_last,\n")
             fd.write("\t\to_data\n")
             fd.write("\t);\n")
 

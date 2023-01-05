@@ -3,7 +3,7 @@ import sys
 import pulp
 import math
 
-def parallel_ops_number(layers_info, clamp8=True):
+def parallel_ops_number(layers_info, clamp8=False):
 
     NUM_DSP = 400
     MIN_OP = 1

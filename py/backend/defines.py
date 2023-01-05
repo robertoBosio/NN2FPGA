@@ -26,6 +26,7 @@ def write(
         fd.write("#include \"ap_axi_sdata.h\"\n")
         fd.write("#include \"hls_stream.h\"\n")
         fd.write("#include \"ap_int.h\"\n")
+        fd.write("#include \"hls_vector.h\"\n")
         fd.write("#include <stdint.h>\n")
 
         # Handle internal or external parameters
@@ -44,6 +45,11 @@ def write(
             input_shape = tensors_info[input.name].tensor_type.shape
 
             fd.write("typedef uint8_t t_%s;\n" % (input_name))
+
+            fd.write("typedef struct {\n")
+            fd.write("\tt_%s data;\n" % (input_name))
+            fd.write("\tbool last;\n")
+            fd.write("} t_%s_struct;\n" % (input_name))
 
             fd.write("\n")
 
@@ -100,11 +106,28 @@ def write(
 
             n_bits = 8*parallel_ops[node_name]
 
-            if (off_chip_storage or (n_bits > 64)):
-                fd.write("typedef ap_uint<%0d> t_%s_st;\n" % (n_bits, weight_name))
-            else:
-                fd.write("typedef uint%0d_t t_%s_st;\n" % (n_bits, weight_name))
-            fd.write("typedef ap_uint<8*c_%s_ops> t_%s;\n" % (node_name, weight_name))
+            # if (off_chip_storage or (n_bits > 64)):
+            #     fd.write("typedef ap_uint<%0d> t_%s_st;\n" % (n_bits, weight_name))
+            # else:
+            #     fd.write("typedef uint%0d_t t_%s_st;\n" % (n_bits, weight_name))
+            # fd.write("typedef ap_uint<8*c_%s_ops> t_%s;\n" % (node_name, weight_name))
+
+            # Using the hls::vector class to handle SIMD operations
+
+            fd.write(
+                "typedef hls::vector<int8_t, c_%s_ops> t_%s_st;\n" % (
+                    node_name,
+                    weight_name
+                )
+            )
+
+            fd.write(
+                "typedef hls::vector<int8_t, c_%s_ops> t_%s;\n" % (
+                    node_name,
+                    weight_name
+                )
+            )
+
             fd.write("const int c_%s_och = %d;\n" % (weight_name, c_och))
             fd.write("const int c_%s_ich = %d;\n" % (weight_name, c_ich))
             fd.write("const int c_%s_ih  = %d;\n" % (weight_name, c_ih))
@@ -132,7 +155,7 @@ def write(
         if (write_file):
             fd.write("\n")
 
-            fd.write("typedef uint8_t t_%s;\n" % (output_name))
+            # fd.write("typedef uint8_t t_%s;\n" % (output_name))
 
             fd.write("const int c_%s_ich    = %d;\n" % (node_name, c_ich))
             fd.write("const int c_%s_ih     = %d;\n" % (node_name, c_ih))
@@ -209,6 +232,11 @@ def write(
             fd.write("typedef uint8_t t_%s;\n" % (output_name))
             fd.write("typedef int32_t t_%s_acc;\n" % (node_name))
 
+            fd.write("typedef struct {\n")
+            fd.write("\tt_%s data;\n" % (output_name))
+            fd.write("\tbool last;\n")
+            fd.write("} t_%s_struct;\n" % (output_name))
+
             fd.write("const int c_%s_ich    = %d;\n" % (node_name, c_ich))
             fd.write("const int c_%s_och    = %d;\n" % (node_name, c_och))
             fd.write("const int c_%s_ih     = %d;\n" % (node_name, c_ih))
@@ -251,6 +279,11 @@ def write(
 
             fd.write("typedef uint8_t t_%s;\n" % (output_name))
             fd.write("typedef int8_t t_%s_acc;\n" % (node_name))
+
+            fd.write("typedef struct {\n")
+            fd.write("\tt_%s data;\n" % (output_name))
+            fd.write("\tbool last;\n")
+            fd.write("} t_%s_struct;\n" % (output_name))
 
             fd.write("const int c_%s_ich    = %d;\n" % (node_name, c_ich))
             fd.write("const int c_%s_och    = %d;\n" % (node_name, c_och))
@@ -360,6 +393,10 @@ def write(
 
         if (write_file):
             fd.write("typedef %s t_%s;\n" % (output_type, output_name))
+            fd.write("typedef struct {\n")
+            fd.write("\tt_%s data;\n" % (output_name))
+            fd.write("\tbool last;\n")
+            fd.write("} t_%s_struct;\n" % (output_name))
             fd.write("typedef ap_int<32> t_%s_acc;\n" % (node_name))
             fd.write("const int c_%s_ich    = %d;\n" % (node_name, c_ich))
             fd.write("const int c_%s_och    = %d;\n" % (node_name, c_och))
