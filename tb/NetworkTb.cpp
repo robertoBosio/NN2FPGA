@@ -27,7 +27,7 @@ int main() {
 	/* 	std::cout << dataset.test_images.at(i) << ' '; */
 	/* } */
 	/* const int c_batch = dataset.test_images.size(); */
-	const int c_batch = 2;
+	const int c_batch = 4;
 	const int n_bytes =c_index*c_par;
 	std::cout << "SENDING " << c_batch << " IMAGES" << std::endl;
 	std::cout << "SENDING " << n_bytes << " BYTES" << std::endl;
@@ -43,6 +43,7 @@ int main() {
 			t_i_data s_data;
 			int s_par = (s_bytes % c_par);
 			s_data.data(8*(s_par+1)-1,8*s_par) = (ap_uint<8>)(*itt);
+			s_data.keep = -1;
 
 #ifdef DEBUG
 			std::cout << (ap_uint<8>)(*itt) << " ";
