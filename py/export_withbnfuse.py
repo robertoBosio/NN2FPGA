@@ -220,9 +220,9 @@ def main():
 
     model.to('cuda:0')
 
-    #post_quant = 0
-    #if(post_quant) :
-    #    model = calibrate_model(train_loader,model)
+    post_quant = 0
+    if(post_quant) :
+        model = calibrate_model(train_loader,model)
     if(val) :
          test(start_epoch)
          print("\n-------------------RETRAINING-----------------\n") 
