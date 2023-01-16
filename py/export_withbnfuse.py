@@ -2,8 +2,6 @@ import os
 import time
 import argparse
 from datetime import datetime
-#import onnx
-#import onnxoptimizer
 import torch
 import torch.optim as optim
 import torch.backends.cudnn as cudnn
@@ -18,8 +16,6 @@ from models.resnet_brevitas_int import *
 from utils.preprocess import *
 from utils.bar_show import progress_bar
 import brevitas
-from brevitas.export import StdQOpONNXManager
-from brevitas.export import FINNManager
 from brevitas.export.onnx.generic.manager import BrevitasONNXManager
 from brevitas.core.quant import QuantType
 from brevitas.core.restrict_val import RestrictValueType
