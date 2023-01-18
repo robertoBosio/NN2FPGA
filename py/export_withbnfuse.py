@@ -2,6 +2,8 @@ import os
 import time
 import argparse
 from datetime import datetime
+#import onnx
+#import onnxoptimizer
 import torch
 import torch.optim as optim
 import torch.backends.cudnn as cudnn
@@ -16,6 +18,8 @@ from models.resnet_brevitas_int import *
 from utils.preprocess import *
 from utils.bar_show import progress_bar
 import brevitas
+from brevitas.export import StdQOpONNXManager
+from brevitas.export import FINNManager
 from brevitas.export.onnx.generic.manager import BrevitasONNXManager
 from brevitas.core.quant import QuantType
 from brevitas.core.restrict_val import RestrictValueType
@@ -200,11 +204,11 @@ def main():
         with torch.no_grad():
             # Put the model in training mode to collect statistics
             quant_model.train()
-            for i, (images, _) in enumerate(calibration_loader):
-                print(f'Calibration iteration {i}')
-                # Disable quantization while collecting statistics
-                DisableQuantInference().apply(quant_model, images)
-            # Put the model in inference mode to use those statistics
+            f#or i, (images, _) in enumerate(calibration_loader):
+             #   print(f'Calibration iteration {i}')
+             #   # Disable quantization while collecting statistics
+             #   DisableQuantInference().apply(quant_model, images)
+            #  Put the model in inference mode to use those statistics
             quant_model.eval()
             bc = BiasCorrection(iterations=len(calibration_loader))
             for i, (images, _) in enumerate(calibration_loader):
@@ -242,10 +246,12 @@ def main():
 
 
 
-
     model.to('cpu')
     dummy_input = torch.randn(10, 3, 32, 32, device="cpu")
-
+    example_path = './onnx/'
+    path = example_path + 'Brevonnx_resnet_final.onnx'      
+                                 
+    os.makedirs(example_path, exist_ok=True)
     BrevitasONNXManager.export(model.module, input_shape=(1, 3, 32, 32), export_path='onnx/Brevonnx_resnet_final.onnx')
 
 
