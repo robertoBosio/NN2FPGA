@@ -64,26 +64,28 @@ template <
 	hls::stream<t_output_struct> &o_data
 ) {
 
-	const int c_par = c_i_data/8;
-	const int c_index = (c_ich*c_ih*c_iw)/c_par;
+	const int c_par = c_bits/8;
+	const int c_index = (c_ich*c_ih*c_iw);
 
 	t_input tmp_r;
+	ap_uint<c_bits> tmp_r_par;
 	PRODSTR: for (int s_index = 0; s_index < c_index; s_index++) {
-		tmp_r = i_data.read();
-		ap_uint<64> tmp_r_par = tmp_r.data;
-		
-		for (uint8_t s_par = 0; s_par < c_par; s_par++) {
-#pragma HLS pipeline off
-			/* t_output tmp_w = (t_output)(tmp_r.data(8*(s_par+1)-1,8*s_par)); */
-			t_output_struct tmp_w;
-		  tmp_w.data = (t_output)(tmp_r_par & 0xff);
-			if (s_par < (c_par-1))
-				tmp_w.last = false;
-			else
-				tmp_w.last = tmp_r.last;
-			o_data.write(tmp_w);
-			tmp_r_par = tmp_r_par >> 8;
+#pragma HLS pipeline style=frp
+		uint8_t s_par = s_index % c_par;
+
+		if (s_par == 0) {
+			tmp_r = i_data.read();
+			tmp_r_par = tmp_r.data;
 		}
+		
+		t_output_struct tmp_w;
+		tmp_w.data = (t_output)(tmp_r_par & 0xff);
+		if (s_par < (c_par-1))
+			tmp_w.last = false;
+		else
+			tmp_w.last = tmp_r.last;
+		o_data.write(tmp_w);
+		tmp_r_par = tmp_r_par >> 8;
 
 	}
 
@@ -236,6 +238,7 @@ template <
 			t_input s_read = i_data.read();
 			tmp.data((s_par + 1)*8-1,s_par*8) = s_read;
 		}
+		tmp.keep = -1;
 		tmp.last = false;
 		o_data.write(tmp);
 
@@ -250,6 +253,7 @@ template <
 	}
 	/* The input last stream doesn't count the number of activations streamed but the */
 	/* number of batches analyzed */
+	tmp.keep = -1;
 	tmp.last = i_last.read();
 	o_data.write(tmp);
 
@@ -417,7 +421,7 @@ template <
 	int c_fh,
 	int c_ops
 > void ProduceStream(
-	const t_input i_data[c_fh*c_fw][c_och*c_ich/c_ops],
+	const t_input i_data[c_fh*c_fw][c_och*c_ich/c_ops][c_ops],
 	hls::stream<t_output> o_data[c_fh*c_fw]
 ) {
 
@@ -428,8 +432,51 @@ template <
 		for (uint16_t s_ch = 0; s_ch < c_ch; s_ch++) {
 #pragma HLS pipeline
 			for (uint8_t s_index = 0; s_index < c_index; s_index++) {
-				o_data[s_index].write((t_output)(i_data[s_index][s_ch]));
+				t_output s_output;
+				for (uint8_t s_ops = 0; s_ops < c_ops; s_ops++)
+					s_output[s_ops] = i_data[s_index][s_ch][s_ops];
+				o_data[s_index].write(s_output);
 			}
+		}
+	}
+
+}
+
+template <
+	class t_input,
+	class t_output,
+	int c_ich,
+	int c_och,
+	int c_ow,
+	int c_oh,
+	int c_fw,
+	int c_fh,
+	int c_ops
+> void ProduceStream(
+	hls::stream<t_input> i_data[c_fh*c_fw],
+	hls::stream<t_output> o_data[c_fh*c_fw]
+) {
+
+	const int c_index = c_fh*c_fw;
+	const int c_ch = c_ich*c_och/c_ops;
+	const int c_iter = 64/c_ops;
+	const int c_o_index = c_oh*c_ow*c_ch;
+	t_input s_data[c_index];
+	for (uint32_t s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
+#pragma HLS pipeline style=frp
+		uint8_t s_iter = s_o_index % c_iter;
+		if (s_iter == 0) {
+			for (uint8_t s_index = 0; s_index < c_index; s_index++)
+				s_data[s_index] = i_data[s_index].read();
+		}
+
+		for (uint8_t s_index = 0; s_index < c_index; s_index++) {
+			t_output s_output;
+			for (uint8_t s_ops = 0; s_ops < c_ops; s_ops++) {
+				uint8_t s_part = s_iter*c_ops + c_ops;
+				s_output[s_ops] = s_data[s_index](8*(s_part+1)-1, 8*s_part);
+			}
+			o_data[s_index].write(s_output);
 		}
 	}
 
@@ -644,7 +691,7 @@ template <
 	hls::stream<t_input> &i_data,
 	hls::stream<t_input> &o_data
 ) {
-#pragma HLS inline
+/* #pragma HLS inline */
 
 	/* This handles padding aware inputs */
 
@@ -661,27 +708,28 @@ template <
 	/* OPTIMIZATION */
 	const int c_i_index = c_ih_pad*c_iw_pad*c_ich;
 
-	for (uint32_t s_i_index = 0; s_i_index < c_i_index; s_i_index++) {
+	for (uint32_t s_ih = 0; s_ih < c_ih_pad; s_ih++) {
+		for (uint32_t s_iw = 0; s_iw < c_iw_pad; s_iw++) {
+			for (uint32_t s_ich = 0; s_ich < c_ich; s_ich++) {
 #pragma HLS pipeline style=frp
 
-		bool s_data_read = true;
-		uint16_t s_i_index_ich = s_i_index / c_ich;
-		uint16_t s_ih = s_i_index_ich / c_iw_pad;
-		uint16_t s_iw = s_i_index_ich % c_iw_pad;
+				bool s_data_read = true;
 
-		s_data_read &= (s_ih >= c_pad_index_h);
-		s_data_read &= (s_ih < (c_ih_pad - c_pad_index_h));
-		s_data_read &= (s_iw >= c_pad_index_w);
-		s_data_read &= (s_iw < (c_iw_pad - c_pad_index_w));
+				s_data_read &= (s_ih >= c_pad_index_h);
+				s_data_read &= (s_ih < (c_ih_pad - c_pad_index_h));
+				s_data_read &= (s_iw >= c_pad_index_w);
+				s_data_read &= (s_iw < (c_iw_pad - c_pad_index_w));
 
-		t_input s_input = s_zero;
-		if (s_data_read)
-			s_input = i_data.read();
+				t_input s_input = s_zero;
+				if (s_data_read)
+					s_input = i_data.read();
 
-		s_zero.last = s_input.last;
+				s_zero.last = s_input.last;
 
-		o_data.write(s_input);
+				o_data.write(s_input);
 
+			}
+		}
 	}
 
 }
@@ -824,25 +872,26 @@ template <
 	/* Constants for new version */
 	const int c_i_index = c_ih_pad*c_iw_pad*c_ich;
 
-	for (int32_t s_index = 0; s_index < c_i_index; s_index++) {
+	for (auto s_index_h = 0; s_index_h < c_ih_pad; s_index_h++) {
+		for (auto s_index_w = 0; s_index_w < c_iw_pad; s_index_w++) {
+			for (auto s_index_ich = 0; s_index_ich < c_ich; s_index_ich++) {
 #pragma HLS pipeline style=frp
-		bool s_compute_write = true;
-		uint16_t s_index_ich = s_index / c_ich;
-		uint16_t s_index_h = s_index_ich / c_ih_pad;
-		uint16_t s_index_w = s_index_ich % c_ih_pad;
-		uint16_t s_index_h_str = s_index_h % c_str;
-		uint16_t s_index_w_str = s_index_w % c_str;
+				bool s_compute_write = true;
+				uint16_t s_index_h_str = s_index_h % c_str;
+				uint16_t s_index_w_str = s_index_w % c_str;
 
-		s_compute_write &= (s_index_h >= c_paddingh_shift);
-		s_compute_write &= (s_index_h < (c_ih_pad-c_end_paddingh_shift));
-		s_compute_write &= (s_index_w >= c_paddingw_shift);
-		s_compute_write &= (s_index_w < (c_iw_pad-c_end_paddingw_shift));
-		s_compute_write &= (s_index_h_str == (c_paddingh_shift%c_str));
-		s_compute_write &= (s_index_w_str == (c_paddingw_shift%c_str));
+				s_compute_write &= (s_index_h >= c_paddingh_shift);
+				s_compute_write &= (s_index_h < (c_ih_pad-c_end_paddingh_shift));
+				s_compute_write &= (s_index_w >= c_paddingw_shift);
+				s_compute_write &= (s_index_w < (c_iw_pad-c_end_paddingw_shift));
+				s_compute_write &= (s_index_h_str == (c_paddingh_shift%c_str));
+				s_compute_write &= (s_index_w_str == (c_paddingw_shift%c_str));
 
-		t_input s_input = i_data.read();
-		if (s_compute_write)
-			o_compute.write(s_input);
+				t_input s_input = i_data.read();
+				if (s_compute_write)
+					o_compute.write(s_input);
+			}
+		}
 	}
 
 }
@@ -866,7 +915,7 @@ template <
 	hls::stream<t_input> &o_compute,
 	hls::stream<t_input> &o_data
 ) {
-#pragma HLS inline
+/* #pragma HLS inline */
 
 	const int c_starth = (c_fh-1)*(1-c_pad);
 	const int c_startw = (c_fw-1)*(1-c_pad);
@@ -884,26 +933,103 @@ template <
 	/* Constants for new version */
 	const int c_i_index = c_ih_pad*c_iw_pad*c_ich;
 
-	for (int32_t s_index = 0; s_index < c_i_index; s_index++) {
+	for (auto s_index_h = 0; s_index_h < c_ih_pad; s_index_h++) {
+		for (auto s_index_w = 0; s_index_w < c_iw_pad; s_index_w++) {
+			for (auto s_index_ich = 0; s_index_ich < c_ich; s_index_ich++) {
 #pragma HLS pipeline style=frp
-		bool s_compute_write = true;
-		uint16_t s_index_ich = s_index / c_ich;
-		uint16_t s_index_h = s_index_ich / c_ih_pad;
-		uint16_t s_index_w = s_index_ich % c_ih_pad;
-		uint16_t s_index_h_str = s_index_h % c_str;
-		uint16_t s_index_w_str = s_index_w % c_str;
+				bool s_compute_write = true;
+				uint16_t s_index_h_str = s_index_h % c_str;
+				uint16_t s_index_w_str = s_index_w % c_str;
 
-		s_compute_write &= (s_index_h >= c_paddingh_shift);
-		s_compute_write &= (s_index_h < (c_ih_pad-c_end_paddingh_shift));
-		s_compute_write &= (s_index_w >= c_paddingw_shift);
-		s_compute_write &= (s_index_w < (c_iw_pad-c_end_paddingw_shift));
-		s_compute_write &= (s_index_h_str == (c_paddingh_shift%c_str));
-		s_compute_write &= (s_index_w_str == (c_paddingw_shift%c_str));
+				s_compute_write &= (s_index_h >= c_paddingh_shift);
+				s_compute_write &= (s_index_h < (c_ih_pad-c_end_paddingh_shift));
+				s_compute_write &= (s_index_w >= c_paddingw_shift);
+				s_compute_write &= (s_index_w < (c_iw_pad-c_end_paddingw_shift));
+				s_compute_write &= (s_index_h_str == (c_paddingh_shift%c_str));
+				s_compute_write &= (s_index_w_str == (c_paddingw_shift%c_str));
 
-		t_input s_input = i_data.read();
-		if (s_compute_write)
-			o_compute.write(s_input);
-		o_data.write(s_input);
+				t_input s_input = i_data.read();
+				if (s_compute_write)
+					o_compute.write(s_input);
+				o_data.write(s_input);
+			}
+		}
+	}
+
+}
+
+template <
+	class t_input,
+	int c_ich,
+	int c_och,
+	int c_ih,
+	int c_iw,
+	int c_oh,
+	int c_ow,
+	int c_fh,
+	int c_fw,
+	int c_str,
+	int c_pad
+> void ShiftOp(
+	hls::stream<t_input> &i_data,
+	hls::stream<t_input> o_compute[c_fh*c_fw]
+) {
+#pragma HLS inline
+
+	const int c_starth = (c_fh-1)*(1-c_pad);
+	const int c_startw = (c_fw-1)*(1-c_pad);
+	const int c_pad_index_h = c_pad * (c_fh - 1) / 2;
+	const int c_pad_index_w = c_pad * (c_fw - 1) / 2;
+	const int c_ih_pad = c_ih + c_pad_index_h*2;
+	const int c_iw_pad = c_iw + c_pad_index_w*2;
+	const int c_strideh_shift = (c_str-1);
+	const int c_stridew_shift = (c_str-1);
+
+	/* Constants for new version */
+	const int c_i_index = c_ih_pad*c_iw_pad*c_ich;
+	const int c_index = c_fh*c_fw;
+
+	hls::stream<t_input> s_data[c_fh*c_fw-1];
+#pragma HLS STREAM variable=s_data depth=c_ich*c_iw_pad type=fifo
+
+	for (auto s_index_h = 0; s_index_h < c_ih_pad; s_index_h++) {
+		for (auto s_index_w = 0; s_index_w < c_iw_pad; s_index_w++) {
+			for (auto s_index_ich = 0; s_index_ich < c_ich; s_index_ich++) {
+#pragma HLS pipeline style=frp
+				uint16_t s_index_h_str = s_index_h % c_str;
+				uint16_t s_index_w_str = s_index_w % c_str;
+
+				for (uint8_t s_fh=0; s_fh<c_fh; s_fh++) {
+					for (uint8_t s_fw=0; s_fw<c_fw; s_fw++) {
+						bool s_compute_write = true;
+						uint8_t c_paddingh_shift = c_fh-s_fh-1;
+						uint8_t c_paddingw_shift = c_fw-s_fw-1;
+						uint8_t c_end_paddingh_shift = s_fh;
+						uint8_t c_end_paddingw_shift = s_fw;
+
+						s_compute_write &= (s_index_h >= c_paddingh_shift);
+						s_compute_write &= (s_index_h < (c_ih_pad-c_end_paddingh_shift));
+						s_compute_write &= (s_index_w >= c_paddingw_shift);
+						s_compute_write &= (s_index_w < (c_iw_pad-c_end_paddingw_shift));
+						s_compute_write &= (s_index_h_str == (c_paddingh_shift%c_str));
+						s_compute_write &= (s_index_w_str == (c_paddingw_shift%c_str));
+
+						uint8_t s_index = s_fh*c_fw+s_fw;
+						t_input s_input;
+						if (s_index == 0)
+							s_input = i_data.read();
+						else
+							s_input = s_data[s_index-1].read();
+
+						if (s_compute_write)
+							o_compute[s_index].write(s_input);
+
+						if (s_index < (c_index-1))
+							s_data[s_index].write(s_input);
+					}
+				}
+			}
+		}
 	}
 
 }
