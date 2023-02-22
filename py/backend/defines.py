@@ -15,7 +15,8 @@ def write(
     split_info,
     off_chip_storage,
     additional_ports,
-    parallel_ops
+    parallel_ops,
+    read_width
 ):
 
     def write_header(fd):
@@ -28,7 +29,9 @@ def write(
         fd.write("#include \"ap_int.h\"\n")
         fd.write("#include \"hls_vector.h\"\n")
         fd.write("#include <stdint.h>\n")
+        fd.write("#include \"hls_burst_maxi.h\"\n")
 
+        fd.write("#define READ_WIDTH %0d\n" % read_width)
         # Handle internal or external parameters
         fd.write("#define c_i_data 64\n")
         fd.write("typedef ap_axiu<c_i_data, 0, 0, 0> t_i_data;\n")
@@ -111,15 +114,17 @@ def write(
             # else:
             #     fd.write("typedef uint%0d_t t_%s_st;\n" % (n_bits, weight_name))
             # fd.write("typedef ap_uint<8*c_%s_ops> t_%s;\n" % (node_name, weight_name))
+            fd.write("typedef int8_t t_%s_st;\n" % (weight_name))
+            # fd.write("typedef int8_t t_%s;\n" % (weight_name))
 
             # Using the hls::vector class to handle SIMD operations
 
-            fd.write(
-                "typedef hls::vector<int8_t, c_%s_ops> t_%s_st;\n" % (
-                    node_name,
-                    weight_name
-                )
-            )
+            # fd.write(
+            #     "typedef hls::vector<int8_t, c_%s_ops> t_%s_st;\n" % (
+            #         node_name,
+            #         weight_name
+            #     )
+            # )
 
             fd.write(
                 "typedef hls::vector<int8_t, c_%s_ops> t_%s;\n" % (
@@ -457,8 +462,8 @@ def write(
         # Adding prototype declaration
         fd.write("void Network(\n")
         fd.write("\thls::stream<t_i_data> &i_data,\n")
-        for name in additional_ports:
-            fd.write("\thls::stream<t_%s> s_%s[c_%s_index],\n" % (name, name, name))
+        for i, name in enumerate(additional_ports):
+            fd.write("\tap_uint<READ_WIDTH> *i_data_%s,\n" % name)
         fd.write("\thls::stream<t_o_data> &o_data\n")
         fd.write(");\n")
 

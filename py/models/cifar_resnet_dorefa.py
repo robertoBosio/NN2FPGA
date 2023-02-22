@@ -260,7 +260,9 @@ class TestModel1(nn.Module):
 
 
 def testmodel(wbits, abits, num_classes=10):
-  # return TestModel(wbits, abits, num_classes=num_classes)
+  return TestModel(wbits, abits, num_classes=num_classes)
+
+def testmodel1(wbits, abits, num_classes=10):
   return TestModel1(wbits, abits, num_classes=num_classes)
 
 def resnet20(wbits, abits, num_classes=10):
