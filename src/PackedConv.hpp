@@ -25,7 +25,7 @@ template <
 	hls::stream<t_weight> i_weights[c_index],
 	hls::stream<t_acc_struct> o_acc_stream[c_ops]
 ) {
-#pragma HLS inline
+/* #pragma HLS inline */
 
 	const int c_num_comp = c_ich*c_och;
 	const int c_pipe_iter = c_num_comp/c_ops;
@@ -115,39 +115,40 @@ template <
 	hls::stream<t_acc_struct> i_acc[c_ops],
 	hls::stream<t_output_struct> &o_data
 ) {
-#pragma HLS inline
+/* #pragma HLS inline */
 
 	const int c_num_comp = c_oh*c_ow*c_och;
 	const int c_pipe_iter = c_num_comp;
 
-	for (uint32_t s_pipe_iter = 0; s_pipe_iter < c_pipe_iter; s_pipe_iter++) {
+	for (auto s_pipe_iter = 0; s_pipe_iter < c_pipe_iter; s_pipe_iter+=c_ops) {
+		for (auto s_ops = 0; s_ops < c_ops; s_ops++) {
 #pragma HLS pipeline style=frp
-		uint8_t s_ops = s_pipe_iter % c_ops;
-		t_acc_struct s_acc_struct = i_acc[s_ops].read();
-		t_acc s_acc = c_quant;
+			t_acc_struct s_acc_struct = i_acc[s_ops].read();
+			t_acc s_acc = c_quant;
 
-		/* 1 subtraction for quantization */
-		s_acc += s_acc_struct.data;
+			/* 1 subtraction for quantization */
+			s_acc += s_acc_struct.data;
 
-		t_output_struct s_output;
+			t_output_struct s_output;
 
-		if (c_relu == 1) {
-			s_acc = ReluOp<t_acc>(s_acc);
-			/* TODO: write generic version for different bit quantization*/
-			/* if ((s_acc(c_shift_h, c_shift_l)) >= 256) */
-			if ((s_acc >> c_shift_l) >= 256)
-				s_output.data = 255;
-			else {
-				/* s_output = (uint8_t)(s_acc && ((128 << c_shift) -1)) > (32 << c_shift); */
-				s_output.data = s_acc(c_shift_h, c_shift_l);
+			if (c_relu == 1) {
+				s_acc = ReluOp<t_acc>(s_acc);
+				/* TODO: write generic version for different bit quantization*/
+				/* if ((s_acc(c_shift_h, c_shift_l)) >= 256) */
+				if ((s_acc >> c_shift_l) >= 256)
+					s_output.data = 255;
+				else {
+					/* s_output = (uint8_t)(s_acc && ((128 << c_shift) -1)) > (32 << c_shift); */
+					s_output.data = s_acc(c_shift_h, c_shift_l);
+				}
+			} else {
+				/* s_output = s_acc(c_shift_h, c_shift_l); */
+				s_output.data = s_acc;
 			}
-		} else {
-			/* s_output = s_acc(c_shift_h, c_shift_l); */
-			s_output.data = s_acc;
-		}
-		s_output.last = s_acc_struct.last;
+			s_output.last = s_acc_struct.last;
 
-		o_data.write(s_output); 
+			o_data.write(s_output); 
+		}
 	}
 
 }
@@ -177,6 +178,7 @@ template <
 
 	for (uint8_t s_pipe_iter = 0; s_pipe_iter < c_pipe_iter; s_pipe_iter++) {
 		for (uint8_t s_ops = 0; s_ops < c_ops; s_ops++) {
+#pragma HLS pipeline style=frp
 			t_acc s_acc = (i_bias.read() << c_shift_l) + c_quant;
 
 			/* 1 subtraction for quantization */

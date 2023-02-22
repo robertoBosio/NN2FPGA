@@ -854,7 +854,7 @@ template <
 	hls::stream<t_input> &i_data,
 	hls::stream<t_input> &o_compute
 ) {
-#pragma HLS inline
+/* #pragma HLS inline */
 
 	const int c_starth = (c_fh-1)*(1-c_pad);
 	const int c_startw = (c_fw-1)*(1-c_pad);
@@ -974,7 +974,7 @@ template <
 	hls::stream<t_input> &i_data,
 	hls::stream<t_input> o_compute[c_fh*c_fw]
 ) {
-#pragma HLS inline
+/* #pragma HLS inline */
 
 	const int c_starth = (c_fh-1)*(1-c_pad);
 	const int c_startw = (c_fw-1)*(1-c_pad);

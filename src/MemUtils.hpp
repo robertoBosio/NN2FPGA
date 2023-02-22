@@ -96,53 +96,117 @@ template <
 }
 
 template <
-	int data_width,
-	int num_streams
+	class t_output,
+	int c_ich,
+	int c_och,
+	int c_ow,
+	int c_oh,
+	int c_fw,
+	int c_fh,
+	int c_ops,
+	int c_bits,
+	int c_start
 > void MemAlgo(
-	hls::stream<ap_uint<data_width>> o_streams[num_streams],
-	hls::burst_maxi<ap_uint<READ_WIDTH>> i_data
+	hls::stream<t_output> o_data[c_fh*c_fw],
+	ap_int<c_bits> *i_data
 ) {
 
-	const int c_bytes = data_width/8;
+#pragma HLS inline
+#pragma HLS dataflow
+	const int c_bytes = c_bits/8;
 	const int c_words = 4096/(c_bytes);
-	static uint32_t s_read_address[num_streams]; 
+	const int c_index = c_fh*c_fw;
+	const int c_f_index = c_start+c_index*c_och*c_ich;
+	const int c_w_index = c_och*c_ich/c_ops;
+	const int c_o_index = c_ow*c_oh;
 
-#ifndef __SYNTHESIS__
-	int iteration = 0;
-#endif
+	hls::stream<t_output> s_data_stream("data_stream");
+#pragma HLS stream variable=s_data_stream depth=1
+	for (auto s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
+		for (auto s_f_index = c_start; s_f_index < c_f_index; s_f_index+=c_ops) {
+#pragma HLS pipeline style=frp
+			t_output s_data;
+			for (auto s_ops = 0; s_ops < c_ops; s_ops++)
+				s_data[s_ops]	= i_data[s_f_index+s_ops];
+			s_data_stream.write(s_data);
+		}
+	}
 
-	for (auto s_sel = 0; s_sel < num_streams; s_sel++)
-		s_read_address[s_sel] = c_address_start[s_sel];
-
-	do {
-		for (auto s_sel = 0; s_sel < num_streams; s_sel++) {
-			if (!o_streams[s_sel].full()) {
-				uint32_t c_read = (c_address_end[s_sel] - s_read_address[s_sel])/c_bytes;
-				c_read = (c_read < c_words) ? c_read : c_words;
-				i_data.read_request(s_read_address[s_sel]/c_bytes, c_read);
-				bool s_full = false;
-				for (auto s_words = 0; s_words < c_read; s_words++) {
-#pragma HLS pipeline
-					ap_uint<data_width> s_data = i_data.read();
-					s_full = s_full | o_streams[s_sel].full();
-					if (!s_full) {
-						o_streams[s_sel].write(s_data);
-					}
-				}
-				if (c_read < c_words) {
-					s_read_address[s_sel] = c_address_start[s_sel];
-				} else {
-					s_read_address[s_sel] += c_read*c_bytes;
-				}
+	for (auto s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
+		for (auto s_w_index = 0; s_w_index < c_w_index; s_w_index++) {
+			for (auto s_index = 0; s_index < c_index; s_index++) {
+#pragma HLS pipeline style=frp
+				o_data[s_index].write(s_data_stream.read());
 			}
 		}
-#ifndef __SYNTHESIS__
-		iteration++;
-	} while(iteration < 10000);
-#endif
-#ifdef __SYNTHESIS__
-	} while(1);
-#endif
+	}
+
+}
+
+template <
+	class t_output,
+	int c_ich,
+	int c_och,
+	int c_ow,
+	int c_oh,
+	int c_fw,
+	int c_fh,
+	int c_ops,
+	int c_bits,
+	int c_start
+> void MemAlgo(
+	hls::stream<t_output> &o_data,
+	ap_int<c_bits> *i_data
+) {
+
+	const int c_bytes = c_bits/8;
+	const int c_words = 4096/(c_bytes);
+	const int c_f_index = c_start+c_fh*c_fw*c_och*c_ich;
+	const int c_o_index = c_ow*c_oh;
+
+	for (auto s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
+		for (auto s_f_index = c_start; s_f_index < c_f_index; s_f_index+=c_ops) {
+#pragma HLS pipeline
+			t_output s_data;
+			for (auto s_ops = 0; s_ops < c_ops; s_ops++)
+				s_data[s_ops]	= i_data[s_f_index+s_ops];
+			o_data.write(s_data);
+		}
+	}
+
+}
+
+template <
+	class t_input,
+	class t_output,
+	int c_ich,
+	int c_och,
+	int c_ow,
+	int c_oh,
+	int c_fw,
+	int c_fh,
+	int c_ops,
+	int c_bits
+> void ProduceStream(
+	hls::stream<t_output> &i_data,
+	hls::stream<t_output> o_data[c_fh*c_fw]
+) {
+
+/* #pragma HLS inline */
+	const int c_index = c_fh*c_fw;
+	const int c_ch = c_ich*c_och;
+	const int c_o_index = c_oh*c_ow*c_ch/(c_ops);
+	
+	/* const ap_uint<c_ops*8> c_mask = c_ops*256-1; */
+
+	/* Maximum input bandwidth is 64bytes */
+	t_input s_tmp;
+	for (auto s_o_index = 0; s_o_index < c_o_index; s_o_index++) { 
+		for (auto s_index = 0; s_index < c_index; s_index++) { 
+#pragma HLS pipeline
+			o_data[s_index].write(i_data.read());
+		}
+	}
 
 }
 

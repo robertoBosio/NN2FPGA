@@ -26,6 +26,13 @@ add_files -tb tb/${TOP_NAME}Tb.cpp
 
 create_clock -period 5
 
+# config_interface -m_axi_max_widen_bitwidth 0
+# config_interface -m_axi_alignment_byte_size 1
+
+config_interface -m_axi_max_widen_bitwidth 128
+config_interface -m_axi_alignment_byte_size 16
+config_interface -m_axi_latency 1
+
 # Done to avoid forced pipelining of loops that could waste resources
 # config_compile -pipeline_loops 200000
 # csim_design
