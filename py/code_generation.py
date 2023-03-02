@@ -5,12 +5,15 @@ import os
 from backend.write_network import write_network
 import network_graph
 # import models.resnet20 as resnet20
-import models.cifar_resnet_dorefa as resnet20
+import models.resnet_brevitas_int as resnet20
 import torchvision
-from torchvision.models import resnet50, ResNet50_Weights
+
+
+ckpt_dir = os.path.join('./ckpt/resnetq_8w8f_cifar')
+os.makedirs(ckpt_dir, exist_ok=True)
 
 DATASET = 'CIFAR10'
-MODEL = 'TESTMODEL'
+MODEL = 'RESNET20'
 
 DIRECTORY = './data'
 os.system('mkdir -p %s' % DIRECTORY)
@@ -60,12 +63,8 @@ if (MODEL == 'RESNET20'):
     #     map_location=torch.device('cpu')
     # )
     # model.load_state_dict(state_dict, strict=False)
-    model.load_state_dict(
-        torch.load(
-            "./tmp/resnet_w8a8/checkpoint.t7",
-            map_location=torch.device('cpu')
-        )
-    )
+    ckpt = torch.load(os.path.join(ckpt_dir, f'checkpoint_quant.t7'),map_location=torch.device('cpu'))
+    model.load_state_dict(ckpt['model_state_dict'])
     model.act_q.export = True
     for name, module in model.named_modules():
       module.export = True

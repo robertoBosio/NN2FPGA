@@ -1,10 +1,13 @@
 import os
 import sys
-import onnx
+#import onnx
 import backend.main as main
 import backend.defines as defines
 import backend.memory as memory
 import backend.block_design as block_design
+import qonnx
+from qonnx.transformation import infer_shapes
+
 
 def evaluate_connection_level(model):
     connection_level = {}
@@ -65,11 +68,11 @@ def extracts_skip_connections_info(model):
             if input not in general_info.keys():
                 general_info[input] = []
             general_info[input].append(node)
-
     # DONT USE SKIP IN MODEL
     for input_name, nodes in general_info.items():
         if len(nodes) > 1:
-            if diff_level[input_name][0] > 0:
+            #print(nodes)
+            if diff_level[input_name] != 0:
                 suffix = ""
                 for i, node in enumerate(nodes):
                     skip_connections_info[node.name] = []
@@ -146,8 +149,19 @@ def extracts_weights_info(model):
 
     weights_info = {}
 
+    print("------------------------------------------------------")
+    
+    input_info = {}
+    for node in model.graph.node:
+        # Associating input weight to quant output
+        for input in node.input:
+            input_info[input] = node.output[0]
+
     for info in model.graph.initializer:
-        weights_info[info.name] = info
+        if not input_info[info.name] in weights_info.keys():
+            weights_info[input_info[info.name]] = {}
+
+        weights_info[input_info[info.name]][info.name] = info
 
     return weights_info
 
@@ -157,15 +171,15 @@ def write_network(
     off_chip_storage=False
 ):
 
-    inferred_model = onnx.shape_inference.infer_shapes(model)
+    inferred_model = model.transform(infer_shapes.InferShapes())
 
-    skip_connections_info, bias_info, split_info, reordered_layers = extracts_skip_connections_info(model)
+    skip_connections_info, bias_info, split_info, reordered_layers = extracts_skip_connections_info(inferred_model)
 
-    weights_info = extracts_weights_info(model)
+    weights_info = extracts_weights_info(inferred_model)
 
-    relu_info = extracts_relu_info(model)
+    relu_info = extracts_relu_info(inferred_model)
 
-    flatten_info = extracts_flatten_info(model)
+    flatten_info = extracts_flatten_info(inferred_model)
 
     tensors_info = extracts_tensors_info(inferred_model)
 

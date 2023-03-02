@@ -88,12 +88,17 @@ def write(
             fd.write("\n")
 
     def write_weights(weight_shape, weight_name, node_name, write_file=False):
+        
+        
+        keys = list(weight_shape.keys())
+        #print(keys)
+        weight_shape_n = numpy_helper.to_array(weight_shape[keys[1]]).shape
 
-        c_och    = getattr(weight_shape, 'dims')[0]
-        c_ich    = getattr(weight_shape, 'dims')[1]
-        if (len(getattr(weight_shape, 'dims')) > 2):
-            c_ih     = getattr(weight_shape, 'dims')[2]
-            c_iw     = getattr(weight_shape, 'dims')[3]
+        c_och    = weight_shape_n[0]
+        c_ich    = weight_shape_n[1]
+        if (len(weight_shape_n) > 2):
+            c_ih     = weight_shape_n[2]
+            c_iw     = weight_shape_n[3]
         else:
             c_ih     = 1
             c_iw     = 1
@@ -221,10 +226,10 @@ def write(
             c_stride = 1
             c_pad    = 0
         else:
-            c_fh     = getattr(attributes[1], 'ints')[0]
-            c_fw     = getattr(attributes[1], 'ints')[1]
-            c_stride = getattr(attributes[3], 'ints')[0]
-            c_pad    = getattr(attributes[2], 'ints')[0]
+            c_fh     = getattr(attributes[0], 'ints')[0]
+            c_fw     = getattr(attributes[0], 'ints')[1]
+            c_stride = getattr(attributes[2], 'ints')[0]
+            c_pad    = getattr(attributes[1], 'ints')[0]
 
         if (write_file):
             fd.write("\n")

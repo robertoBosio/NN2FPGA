@@ -18,10 +18,6 @@ from models.resnet_brevitas_int import *
 from utils.preprocess import *
 from utils.bar_show import progress_bar
 import brevitas
-from brevitas.export import StdQOpONNXManager
-from brevitas.export import FINNManager
-from brevitas.export.onnx.generic.manager import BrevitasONNXManager
-from brevitas.core.quant import QuantType
 from brevitas.core.restrict_val import RestrictValueType
 from brevitas.core.scaling import ScalingImplType
 
@@ -56,12 +52,9 @@ os.makedirs(cfg.log_dir, exist_ok=True)
 os.makedirs(cfg.ckpt_dir, exist_ok=True)
 
 val=1
-print_onnx = 0
+print_onnx = 1
 writer = SummaryWriter()
 
-from brevitas.graph.calibrate import finalize_collect_stats
-from brevitas.graph.calibrate import BiasCorrection
-from brevitas.graph.calibrate import DisableQuantInference
 
 
 def main():
@@ -196,9 +189,6 @@ def main():
         summary_writer.close()
 
 
-    from brevitas.graph.calibrate import finalize_collect_stats
-    from brevitas.graph.calibrate import BiasCorrection
-    from brevitas.graph.calibrate import DisableQuantInference
 
     def calibrate_model(calibration_loader, quant_model):
         with torch.no_grad():
@@ -231,7 +221,7 @@ def main():
          test(start_epoch)
          print("\n-------------------RETRAINING-----------------\n") 
          retrain = 1
-         for epoch in range(start_epoch, start_epoch+50): 
+         for epoch in range(start_epoch, start_epoch+1): 
             if(not(post_quant)) :
                 train(epoch)
             test(epoch)
@@ -245,34 +235,33 @@ def main():
 
 
 
-
     model.to('cpu')
     dummy_input = torch.randn(10, 3, 32, 32, device="cpu")
     example_path = './onnx/'
-    path = example_path + 'Brevonnx_resnet_final.onnx'      
-                                 
+    path = example_path + 'Brevonnx_resnet_final.onnx'   
     os.makedirs(example_path, exist_ok=True)
-    BrevitasONNXManager.export(model.module, input_shape=(1, 3, 32, 32), export_path='onnx/Brevonnx_resnet_final.onnx')
-
-
-    
-    
+    from brevitas.export.onnx.qonnx.manager import QONNXManager 
+    QONNXManager.export(model.module, input_shape=(1, 3, 32, 32), export_path='onnx/Brevonnx_resnet_final.onnx')
+    from qonnx.transformation import infer_shapes
+    import onnx
+    from utils.utils import output_shape_quant
+    #inferred_model = model.module.transform(infer_shapes.InferShapes())    
+    #output_shape_quant()    
     import onnx
     from onnx import helper, numpy_helper
+   
     example_path = './onnx/'
     path = example_path + 'Brevonnx_resnet_final.onnx'                                       
-
-                                                                        
+    
+    #onnx.save(onnx_model, 'onnx/Brevonnx_resnet_final.onnx')                                                                        
     if (print_onnx) :   
         from qonnx.core.modelwrapper import ModelWrapper                                
         from qonnx.transformation import infer_shapes 
 
         
-
         model = ModelWrapper(path)
         inferred_model = model.transform(infer_shapes.InferShapes())
-
-        for node in model.graph.node:                                               
+        for node in inferred_model.graph.node:                                               
             print(node.name)
             print(node)                                                        
    
