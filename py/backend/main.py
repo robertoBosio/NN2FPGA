@@ -511,9 +511,11 @@ def write(
 
         keys = list(weight_shape.keys())
         #print(keys)
+        #print(keys)
         weight_shape_n = numpy_helper.to_array(weight_shape[keys[1]]).shape
 
-
+        scale_factor = numpy_helper.to_array(weight_shape[keys[2]])
+        
         c_och    = weight_shape_n[0]
         c_ich    = weight_shape_n[1]
         if (len(weight_shape_n) > 2):
@@ -579,7 +581,9 @@ def write(
 
                                 for op in range(parallel_ops[node_name]):
                                     # weight_value = np.random.randint(0, 256)
-                                    weight_value = weight_value + ("%2d" % int(weights[off+op][ich][ih][iw]))
+                                    #weight_value = weight_value + ("%2d" % int(weights[off+op][ich][ih][iw]))
+                                    weight_value = weight_value + ("%d" % int(weights[off+op][ich][ih][iw]/scale_factor))
+
                                     if (op < (parallel_ops[node_name] - 1)):
                                         weight_value = weight_value + ", " 
 

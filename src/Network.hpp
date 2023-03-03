@@ -37,6 +37,8 @@ const int c_53_iw  = 3;
 const int c_53_ops = 1;
 const int c_53_index = 9;
 const int c_53_iter  = 49;
+const float c_53_scale = 0.007812;
+const int c_53_scale_shift = -7;
 
 typedef uint8_t t_55;
 typedef struct {
@@ -77,6 +79,8 @@ const int c_64_iw  = 3;
 const int c_64_ops = 2;
 const int c_64_index = 9;
 const int c_64_iter  = 129;
+const float c_64_scale = 0.007812;
+const int c_64_scale_shift = -7;
 
 typedef uint8_t t_66;
 typedef struct {
@@ -96,6 +100,8 @@ const int c_conv_16_relu   = 1;
 const int c_66_a_split  = 0;
 const int c_conv_16_stride = 1;
 const int c_conv_16_pad    = 1;
+const float c_conv_16_scale = 0.031250;
+const int c_conv_16_scale_shift = -5;
 const int c_conv_16_split  = 2;
 
 
@@ -115,6 +121,8 @@ const int c_75_iw  = 3;
 const int c_75_ops = 4;
 const int c_75_index = 9;
 const int c_75_iter  = 65;
+const float c_75_scale = 0.007812;
+const int c_75_scale_shift = -7;
 
 typedef uint8_t t_78;
 typedef struct {
@@ -161,6 +169,8 @@ const int c_84_iw  = 3;
 const int c_84_ops = 2;
 const int c_84_index = 9;
 const int c_84_iter  = 129;
+const float c_84_scale = 0.007812;
+const int c_84_scale_shift = -7;
 
 typedef uint8_t t_86;
 typedef struct {
@@ -180,6 +190,8 @@ const int c_conv_36_relu   = 1;
 const int c_86_a_split  = 0;
 const int c_conv_36_stride = 1;
 const int c_conv_36_pad    = 1;
+const float c_conv_36_scale = 0.031250;
+const int c_conv_36_scale_shift = -5;
 const int c_conv_36_split  = 2;
 
 
@@ -199,6 +211,8 @@ const int c_95_iw  = 3;
 const int c_95_ops = 2;
 const int c_95_index = 9;
 const int c_95_iter  = 129;
+const float c_95_scale = 0.007812;
+const int c_95_scale_shift = -7;
 
 typedef uint8_t t_98;
 typedef struct {
@@ -245,6 +259,8 @@ const int c_104_iw  = 3;
 const int c_104_ops = 2;
 const int c_104_index = 9;
 const int c_104_iter  = 129;
+const float c_104_scale = 0.007812;
+const int c_104_scale_shift = -7;
 
 typedef uint8_t t_106;
 typedef struct {
@@ -264,6 +280,8 @@ const int c_conv_56_relu   = 1;
 const int c_106_a_split  = 0;
 const int c_conv_56_stride = 1;
 const int c_conv_56_pad    = 1;
+const float c_conv_56_scale = 0.031250;
+const int c_conv_56_scale_shift = -5;
 const int c_conv_56_split  = 2;
 
 
@@ -283,6 +301,8 @@ const int c_115_iw  = 3;
 const int c_115_ops = 2;
 const int c_115_index = 9;
 const int c_115_iter  = 129;
+const float c_115_scale = 0.007812;
+const int c_115_scale_shift = -7;
 
 typedef uint8_t t_118;
 typedef struct {
@@ -329,6 +349,8 @@ const int c_124_iw  = 3;
 const int c_124_ops = 1;
 const int c_124_index = 9;
 const int c_124_iter  = 513;
+const float c_124_scale = 0.007812;
+const int c_124_scale_shift = -7;
 
 typedef uint8_t t_126;
 typedef struct {
@@ -348,6 +370,8 @@ const int c_conv_76_relu   = 1;
 const int c_126_a_split  = 0;
 const int c_conv_76_stride = 2;
 const int c_conv_76_pad    = 1;
+const float c_conv_76_scale = 0.031250;
+const int c_conv_76_scale_shift = -5;
 const int c_conv_76_split  = 2;
 
 
@@ -362,6 +386,8 @@ const int c_141_iw  = 1;
 const int c_141_ops = 1;
 const int c_141_index = 1;
 const int c_141_iter  = 513;
+const float c_141_scale = 0.007812;
+const int c_141_scale_shift = -7;
 
 typedef uint8_t t_142;
 typedef struct {
@@ -381,6 +407,8 @@ const int c_conv_93_relu   = 0;
 const int c_142_a_split  = 0;
 const int c_conv_93_stride = 2;
 const int c_conv_93_pad    = 0;
+const float c_conv_93_scale = 0.031250;
+const int c_conv_93_scale_shift = -5;
 const int c_conv_93_split  = 2;
 
 
@@ -400,6 +428,8 @@ const int c_135_iw  = 3;
 const int c_135_ops = 2;
 const int c_135_index = 9;
 const int c_135_iter  = 513;
+const float c_135_scale = 0.007812;
+const int c_135_scale_shift = -7;
 
 typedef uint8_t t_144;
 typedef struct {
@@ -446,6 +476,8 @@ const int c_150_iw  = 3;
 const int c_150_ops = 2;
 const int c_150_index = 9;
 const int c_150_iter  = 513;
+const float c_150_scale = 0.007812;
+const int c_150_scale_shift = -7;
 
 typedef uint8_t t_152;
 typedef struct {
@@ -465,6 +497,8 @@ const int c_conv_102_relu   = 1;
 const int c_152_a_split  = 0;
 const int c_conv_102_stride = 1;
 const int c_conv_102_pad    = 1;
+const float c_conv_102_scale = 0.031250;
+const int c_conv_102_scale_shift = -5;
 const int c_conv_102_split  = 2;
 
 
@@ -484,6 +518,8 @@ const int c_161_iw  = 3;
 const int c_161_ops = 2;
 const int c_161_index = 9;
 const int c_161_iter  = 513;
+const float c_161_scale = 0.007812;
+const int c_161_scale_shift = -7;
 
 typedef uint8_t t_164;
 typedef struct {
@@ -530,6 +566,8 @@ const int c_170_iw  = 3;
 const int c_170_ops = 2;
 const int c_170_index = 9;
 const int c_170_iter  = 513;
+const float c_170_scale = 0.007812;
+const int c_170_scale_shift = -7;
 
 typedef uint8_t t_172;
 typedef struct {
@@ -549,6 +587,8 @@ const int c_conv_122_relu   = 1;
 const int c_172_a_split  = 0;
 const int c_conv_122_stride = 1;
 const int c_conv_122_pad    = 1;
+const float c_conv_122_scale = 0.031250;
+const int c_conv_122_scale_shift = -5;
 const int c_conv_122_split  = 2;
 
 
@@ -568,6 +608,8 @@ const int c_181_iw  = 3;
 const int c_181_ops = 2;
 const int c_181_index = 9;
 const int c_181_iter  = 513;
+const float c_181_scale = 0.007812;
+const int c_181_scale_shift = -7;
 
 typedef uint8_t t_184;
 typedef struct {
@@ -614,6 +656,8 @@ const int c_190_iw  = 3;
 const int c_190_ops = 1;
 const int c_190_index = 9;
 const int c_190_iter  = 2049;
+const float c_190_scale = 0.007812;
+const int c_190_scale_shift = -7;
 
 typedef uint8_t t_192;
 typedef struct {
@@ -633,6 +677,8 @@ const int c_conv_142_relu   = 1;
 const int c_192_a_split  = 0;
 const int c_conv_142_stride = 2;
 const int c_conv_142_pad    = 1;
+const float c_conv_142_scale = 0.031250;
+const int c_conv_142_scale_shift = -5;
 const int c_conv_142_split  = 2;
 
 
@@ -647,6 +693,8 @@ const int c_207_iw  = 1;
 const int c_207_ops = 1;
 const int c_207_index = 1;
 const int c_207_iter  = 2049;
+const float c_207_scale = 0.007812;
+const int c_207_scale_shift = -7;
 
 typedef uint8_t t_208;
 typedef struct {
@@ -666,6 +714,8 @@ const int c_conv_159_relu   = 0;
 const int c_208_a_split  = 0;
 const int c_conv_159_stride = 2;
 const int c_conv_159_pad    = 0;
+const float c_conv_159_scale = 0.031250;
+const int c_conv_159_scale_shift = -5;
 const int c_conv_159_split  = 2;
 
 
@@ -685,6 +735,8 @@ const int c_201_iw  = 3;
 const int c_201_ops = 2;
 const int c_201_index = 9;
 const int c_201_iter  = 2049;
+const float c_201_scale = 0.007812;
+const int c_201_scale_shift = -7;
 
 typedef uint8_t t_210;
 typedef struct {
@@ -731,6 +783,8 @@ const int c_216_iw  = 3;
 const int c_216_ops = 2;
 const int c_216_index = 9;
 const int c_216_iter  = 2049;
+const float c_216_scale = 0.007812;
+const int c_216_scale_shift = -7;
 
 typedef uint8_t t_218;
 typedef struct {
@@ -750,6 +804,8 @@ const int c_conv_168_relu   = 1;
 const int c_218_a_split  = 0;
 const int c_conv_168_stride = 1;
 const int c_conv_168_pad    = 1;
+const float c_conv_168_scale = 0.031250;
+const int c_conv_168_scale_shift = -5;
 const int c_conv_168_split  = 2;
 
 
@@ -769,6 +825,8 @@ const int c_227_iw  = 3;
 const int c_227_ops = 2;
 const int c_227_index = 9;
 const int c_227_iter  = 2049;
+const float c_227_scale = 0.007812;
+const int c_227_scale_shift = -7;
 
 typedef uint8_t t_230;
 typedef struct {
@@ -815,6 +873,8 @@ const int c_236_iw  = 3;
 const int c_236_ops = 2;
 const int c_236_index = 9;
 const int c_236_iter  = 2049;
+const float c_236_scale = 0.007812;
+const int c_236_scale_shift = -7;
 
 typedef uint8_t t_238;
 typedef struct {
@@ -834,6 +894,8 @@ const int c_conv_188_relu   = 1;
 const int c_238_a_split  = 0;
 const int c_conv_188_stride = 1;
 const int c_conv_188_pad    = 1;
+const float c_conv_188_scale = 0.031250;
+const int c_conv_188_scale_shift = -5;
 const int c_conv_188_split  = 2;
 
 
@@ -853,6 +915,8 @@ const int c_247_iw  = 3;
 const int c_247_ops = 2;
 const int c_247_index = 9;
 const int c_247_iter  = 2049;
+const float c_247_scale = 0.007812;
+const int c_247_scale_shift = -7;
 
 typedef uint8_t t_250;
 typedef struct {
@@ -916,6 +980,8 @@ const int c_257_iw  = 1;
 const int c_257_ops = 1;
 const int c_257_index = 1;
 const int c_257_iter  = 641;
+const float c_257_scale = 0.007812;
+const int c_257_scale_shift = -7;
 
 typedef uint8_t t_258;
 typedef struct {

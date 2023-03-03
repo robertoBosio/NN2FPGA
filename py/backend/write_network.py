@@ -162,7 +162,7 @@ def extracts_weights_info(model):
             weights_info[input_info[info.name]] = {}
 
         weights_info[input_info[info.name]][info.name] = info
-
+    print(weights_info.keys())
     return weights_info
 
 # Expects an ONNX model
