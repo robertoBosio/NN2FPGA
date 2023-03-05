@@ -7,7 +7,8 @@ from quant_dorefa import weight_quantize_fn
 import torch
 from math import log2
 from math import ceil
-from backend.balance_computations import opt
+from backend.balance_computations import opt as comp_opt
+from backend.balance_reuse import opt as reuse_opt
 
 def write(
     model,
@@ -19,7 +20,8 @@ def write(
     split_info,
     flatten_info,
     reordered_layers,
-    off_chip_storage
+    off_chip_storage,
+    read_width
 ):
 
     forwarded_streams = {}
@@ -38,6 +40,10 @@ def write(
         write_blocks=True
     ):
 
+        input_name = model.graph.input[0].name.replace(".", "_")
+        input_name = input_name.lower().replace("onnx::", "")
+        # input_shape = tensors_info[model.graph.input[0].name].tensor_type.shape
+
         if emit_streams:
             # Write header with network definitions
             fd.write("#include \"Network.hpp\"\n")
@@ -49,20 +55,15 @@ def write(
             fd.write("#include \"AddStreams.hpp\"\n")
             fd.write("#include \"PoolStreams.hpp\"\n")
             fd.write("#include \"Utils.hpp\"\n")
+            fd.write("#include \"MemoryManagement.hpp\"\n")
 
             fd.write("\n")
 
             # Handle internal or external parameters
             fd.write("void Network(\n")
             fd.write("\thls::stream<t_i_data> &i_data,\n")
-            for name in additional_ports:
-                fd.write(
-                    "\thls::stream<t_%s> s_%s[c_%s_index],\n" % (
-                        name, 
-                        name, 
-                        name
-                    )
-                )
+            for i, name in enumerate(additional_ports):
+                fd.write("\tap_int<READ_WIDTH> *i_data_%s,\n" % name)
             fd.write("\thls::stream<t_o_data> &o_data\n")
             fd.write(") {\n")
 
@@ -72,33 +73,25 @@ def write(
             # fd.write("\t#pragma HLS interface m_axi port=i_weight depth=10 offset=slave bundle=gmem1 max_read_burst_length=256\n")
             # fd.write("\t#pragma HLS interface m_axi port=o_data depth=10 offset=slave\n")
             fd.write("\t#pragma HLS interface axis port=i_data\n")
-            fd.write("\t#pragma HLS interface axis port=o_data\n")
-            fd.write("\t#pragma HLS INTERFACE ap_ctrl_none port=return\n")
-            fd.write("\t#pragma HLS DATAFLOW\n")
-
-            for name in additional_ports:
-                # channels = "c_%s_och" % name
-                channels = 3
+            for i, name in enumerate(additional_ports):
                 fd.write(
-                    "\t#pragma HLS STREAM variable=s_%s depth=%s type=fifo\n" % (
+                    "\t#pragma HLS INTERFACE m_axi port=i_data_%s depth=c_%s_ich*c_%s_och*c_%s_ih*c_%s_iw bundle=gmem%0d\n" % (
                         name,
-                        channels
+                        name,
+                        name,
+                        name,
+                        name,
+                        1+i
                     )
                 )
-                fd.write(
-                    "\t#pragma HLS INTERFACE mode=ap_fifo port=s_%s\n" % (
-                        name
-                    )
-                )
+            fd.write("\t#pragma HLS interface axis port=o_data\n")
+            fd.write("\t#pragma HLS INTERFACE s_axilite port=return\n")
+            fd.write("\t#pragma HLS DATAFLOW\n")
 
             # for i, name in enumerate(additional_ports):
             #     fd.write("\t#pragma HLS interface m_axi port=c_%s_st offset=slave bundle=gmem%0d\n" % (name, i))
 
             fd.write("\n")
-
-            input_name = model.graph.input[0].name.replace(".", "_")
-            input_name = input_name.lower().replace("onnx::", "")
-            # input_shape = tensors_info[model.graph.input[0].name].tensor_type.shape
 
             fd.write(
                 "\thls::stream<t_input_struct> s_input;\n"
@@ -116,6 +109,20 @@ def write(
         # write_last_flags(fd, layers_allocated)
 
         if write_blocks:
+            fd.write("\tMemoryManagement(\n")
+            for name in additional_ports:
+                fd.write(
+                    "\t\ts_%s,\n" % (
+                        name
+                    )
+                )
+            for i, name in enumerate(additional_ports):
+                fd.write("\t\ti_data_%s" % name)
+                if (i < (len(additional_ports)-1)):
+                    fd.write(",")
+                fd.write("\n")
+            fd.write("\t);\n")
+            fd.write("\n")
             fd.write("\tProduceStream<\n")
             fd.write("\t\tt_i_data, \n")
             fd.write("\t\tt_%s_struct,\n" % (input_name))
@@ -223,8 +230,7 @@ def write(
     ):
 
         if emit_streams:
-            if (not off_chip_storage):
-                write_array_stream(fd, name, "c_%s_och" % name)
+            write_array_stream(fd, name, "c_%s_och" % name)
 
             fd.write("\n")
 
@@ -403,8 +409,9 @@ def write(
             layers_info.append(
                 [
                     node_name,
-                    1/(c_oh*c_ow*c_och*c_fh*c_fw),
-                    c_fh*c_fw
+                    1/(c_oh*c_ow*c_ich*c_och*c_fh*c_fw),
+                    c_fh*c_fw,
+                    c_oh*c_ow
                 ]
             )
 
@@ -526,7 +533,10 @@ def write(
         fd.write("\tconst int c_%s_scale = %0d;\n" % (node_name, sw))
 
         if off_chip_storage:
-            new_offset = sum([info[3] for name, info in additional_ports_info.items()])
+            new_offset = max([info[3] for name, info in additional_ports_info.items()], default=0)
+            dim = c_ich*c_och*c_iw*c_ih
+            end_real = new_offset+dim
+            dim = (int(dim/read_width)+1)*read_width
             additional_ports_info[weight_name] = []
             additional_ports_info[weight_name].append(c_ih*c_iw)
             additional_ports_info[weight_name].append(parallel_ops[node_name]*8)
@@ -534,13 +544,23 @@ def write(
                 new_offset
             )
             additional_ports_info[weight_name].append(
-                new_offset+c_ich*c_och*c_iw*c_ih
+                new_offset+dim
+            )
+            additional_ports_info[weight_name].append(
+                dim
+            )
+            additional_ports_info[weight_name].append(
+                end_real
+            )
+            additional_ports_info[weight_name].append(
+                node_name
             )
 
         last_weight = True
         if (pack_weights):
             if (not off_chip_storage):
-                fd.write("\tconst t_%s_st c_%s_st[c_%s_fh*c_%s_fw][c_%s_och*c_%s_ich/%0d] = {\n" % (
+                # fd.write("\tconst t_%s_st c_%s_st[c_%s_fh*c_%s_fw][c_%s_och*c_%s_ich/%0d] = {\n" % (
+                fd.write("\tconst t_%s_st c_%s_st[c_%s_fh*c_%s_fw][c_%s_och*c_%s_ich/%0d][%0d] = {\n" % (
                         weight_name,
                         # 8*parallel_ops[node_name],
                         weight_name,
@@ -548,6 +568,7 @@ def write(
                         node_name,
                         node_name,
                         node_name,
+                        parallel_ops[node_name],
                         parallel_ops[node_name]
                     )
                 )
@@ -586,23 +607,23 @@ def write(
                     )
                 )
             else:
+                dim = weights.shape[1]*weights.shape[0]*c_ih*c_iw
+                # dim = (int(dim/read_width)+1)*read_width
                 weight_export = np.zeros(
                     [
-                        weights.shape[1]*
-                        weights.shape[0]*
-                        c_ih*
-                        c_iw
+                        dim
                     ]
                 )
                 addr = 0
                 for ich in range(weights.shape[1]):
                     for och in range(int(weights.shape[0]/parallel_ops[node_name])):
-                        for ih in range(c_ih):
-                            for iw in range(c_iw):
+                        for ih in range(c_ih-1, -1, -1):
+                            for iw in range(c_iw-1, -1, -1):
+                                off = och*parallel_ops[node_name]
                                 for op in range(parallel_ops[node_name]):
                                     # weight_value = np.random.randint(0, 256)
                                     # weight_value |= int(weights[och+op][ich][ih][iw]) << (8*op)
-                                    weight_value = int(weights[och+op][ich][ih][iw])
+                                    weight_value = int(weights[off+op][ich][ih][iw])
                                     weight_export[addr] = weight_value
                                     addr = addr + 1
                 weights_export.append(weight_export)
@@ -654,6 +675,90 @@ def write(
         fd.write("\t> (\n")
         fd.write("\t\ts_%s,\n" % input_name)
         fd.write("\t\ts_%s_padded\n" % input_name)
+        fd.write("\t);\n")
+        fd.write("\n")
+
+    def write_line_buffer_new(
+        fd,
+        node_name,
+        input_name,
+        c_fh,
+        c_fw,
+        forward_name=None
+    ):
+
+        c_index = c_fh*c_fw
+
+        fd.write(
+            "\thls::stream<t_%s_struct> s_%s_compute[%0d];\n" % (
+                input_name,
+                input_name,
+                c_fh*c_fw
+            )
+        )
+        fd.write(
+            "\t#pragma HLS STREAM variable=s_%s_compute depth=%0d type=fifo\n" % (
+                input_name,
+                10
+            )
+        )
+        fd.write("\n")
+
+        # fd.write(
+        #     "\thls::stream<t_%s_struct> s_%s_data[%0d];\n" % (
+        #         input_name,
+        #         input_name,
+        #         c_fh*c_fw-1
+        #     )
+        # )
+
+        # for index in range(c_index):
+        #     if ((index % c_fh) == (c_fh-1)):
+        #         depth = "c_%s_ich*c_%s_iw" % (node_name, node_name)
+        #     else:
+        #         depth = "c_%s_ich" % node_name
+        #     fd.write(
+        #         "\t#pragma HLS STREAM variable=s_%s_data depth=%s type=fifo\n" % (
+        #             input_name,
+        #             depth
+        #         )
+        #     )
+        # fd.write("\n")
+
+        fd.write("\tShiftOp<\n")
+        fd.write("\t\tt_%s_struct,\n" % input_name)
+        fd.write("\t\tc_%s_ich,\n" % node_name)
+        fd.write("\t\tc_%s_och,\n" % node_name)
+        fd.write("\t\tc_%s_ih,\n" % node_name)
+        fd.write("\t\tc_%s_iw,\n" % node_name)
+        fd.write("\t\tc_%s_oh,\n" % node_name)
+        fd.write("\t\tc_%s_ow,\n" % node_name)
+        fd.write("\t\tc_%s_fh,\n" % node_name)
+        fd.write("\t\tc_%s_fw,\n" % node_name)
+        fd.write("\t\tc_%s_stride,\n" % node_name)
+        if (c_fh*c_fw == 1):
+            fd.write("\t\tc_%s_pad,\n" % node_name)
+            fd.write("\t\t0,\n")
+            fd.write("\t\t0\n")
+        else:
+            fd.write("\t\tc_%s_pad\n" % node_name)
+        fd.write("\t> (\n")
+        # if (index == 0):
+        fd.write("\t\ts_%s_padded,\n" % input_name)
+        # else:
+        #     fd.write("\t\ts_%s_data[%0d],\n" % (input_name, index-1))
+        # if (index == (c_index-1) and (forward_name is None)):
+        # fd.write("\t\ts_%s_compute\n" % (input_name, index))
+        # else:
+        if (c_fh*c_fw == 1):
+            fd.write("\t\ts_%s_compute[0]\n" % (input_name))
+        else:
+            fd.write("\t\ts_%s_compute\n" % (input_name))
+        # if (index == (c_index-1)):
+        #     if (forward_name is not None):
+        #         fd.write("\t\ts_%s\n" % (forward_name))
+        # else:
+        #     fd.write("\t\ts_%s_data[%0d]\n" % (input_name, index))
         fd.write("\t);\n")
         fd.write("\n")
 
@@ -738,6 +843,7 @@ def write(
                 fd.write("\t);\n")
                 fd.write("\n")
 
+
     def write_conv(
         fd,
         node,
@@ -820,7 +926,8 @@ def write(
                 [
                     node_name,
                     1/(c_oh*c_ow*c_och*c_ich*c_fh*c_fw),
-                    c_fh*c_fw
+                    c_fh*c_fw,
+                    c_oh*c_ow
                 ]
             )
 
@@ -983,7 +1090,8 @@ def write(
             fd.write("\t\tc_%s_stride,\n" % (node_name))
             fd.write("\t\tc_%s_pad,\n" % (node_name))
             fd.write("\t\tc_%s_ops,\n" % (node_name))
-            fd.write("\t\tc_%s_scale\n" % (node_name))
+            fd.write("\t\tc_%s_scale\n," % (node_name))
+            fd.write("\t\tc_%s_reuse\n" % (weight_name))
             fd.write("\t> (\n")
             if indexed:
                 fd.write("\t\ts_%s_compute[%d],\n" % (input_name, index))
@@ -1099,6 +1207,26 @@ def write(
             # End of main file
             fd.write("}\n")
 
+    def pad_weights_numpy(weights_export):
+
+        weights = np.concatenate(
+            [layer.flatten() for layer in weights_export],
+            axis=0
+        )
+
+        shape = weights.flatten().shape[0]
+        if ((shape % 4096) != 0):
+            padding = 1
+        else:
+            padding = 0
+
+        pad_shape = (int(shape/4096)+padding)*4096
+        # fd.write("ap_uint<8> weights[%0d + 1] = {" % shape)
+        packed_weights = np.zeros([pad_shape])
+        packed_weights[0:shape] = weights
+        return packed_weights
+
+
     with open("src/Network.cpp", "w+") as fd:
 
         layers_allocated = count_allocated(model)
@@ -1106,21 +1234,24 @@ def write(
         # parse additional ports for off-chip parameters storage
         write_body(fd, model, emit_streams=False, write_blocks=False)
 
-        parallel_ops = opt(layers_info)
-        print(parallel_ops)
+        parallel_ops = comp_opt(layers_info, off_chip_storage)
+        reuse = reuse_opt(layers_info, parallel_ops)
 
-        write_header(fd, layers_allocated)
+        write_header(fd, layers_allocated, emit_streams=True, write_blocks=False)
 
         write_body(fd, model, emit_streams=True, write_blocks=False)
+
+        write_header(fd, layers_allocated, emit_streams=False, write_blocks=True)
 
         write_body(fd, model, emit_streams=False, write_blocks=True)
 
         write_footer(fd, layers_allocated)
 
         if (off_chip_storage):
-            np.save(
-                "backup/weights",
-                np.concatenate([weight.flatten() for weight in weights_export])
-            )
+            for i, layer in enumerate(weights_export):
+                np.save(
+                    "backup/weights_%s" % additional_ports[i],
+                    layer.flatten()
+                )
 
-    return conv_relu, additional_ports, additional_ports_info, parallel_ops
+    return conv_relu, additional_ports, additional_ports_info, parallel_ops, weights_export, reuse

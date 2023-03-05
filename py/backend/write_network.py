@@ -5,6 +5,8 @@ import backend.main as main
 import backend.defines as defines
 import backend.memory as memory
 import backend.block_design as block_design
+import backend.memory_header as memory_header
+import backend.memory_defines as memory_defines
 
 def evaluate_connection_level(model):
     connection_level = {}
@@ -157,6 +159,8 @@ def write_network(
     off_chip_storage=False
 ):
 
+    read_width = 8
+
     inferred_model = onnx.shape_inference.infer_shapes(model)
 
     skip_connections_info, bias_info, split_info, reordered_layers = extracts_skip_connections_info(model)
@@ -169,7 +173,7 @@ def write_network(
 
     tensors_info = extracts_tensors_info(inferred_model)
 
-    conv_relu, additional_ports, additional_ports_info, parallel_ops = main.write(
+    conv_relu, additional_ports, additional_ports_info, parallel_ops, weights_export, reuse = main.write(
         inferred_model,
         tensors_info,
         weights_info,
@@ -179,7 +183,8 @@ def write_network(
         split_info,
         flatten_info,
         reordered_layers,
-        off_chip_storage
+        off_chip_storage,
+        read_width
     )
 
     # TODO: export tensors and weight info
@@ -198,16 +203,33 @@ def write_network(
         split_info,
         off_chip_storage,
         additional_ports,
-        parallel_ops
+        parallel_ops,
+        read_width,
+        reuse
     )
 
     if off_chip_storage:
+
         memory.write(
             additional_ports,
-            additional_ports_info
+            additional_ports_info,
+            read_width
         )
 
-        block_design.write(
+        memory_defines.write(
             additional_ports,
-            additional_ports_info
+            additional_ports_info,
+            read_width
         )
+
+        memory_header.write(
+            additional_ports,
+            weights_export,
+            read_width
+        )
+
+        # block_design.write(
+        #     additional_ports,
+        #     additional_ports_info,
+        #     read_width
+        # )

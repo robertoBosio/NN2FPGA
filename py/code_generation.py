@@ -11,6 +11,8 @@ from torchvision.models import resnet50, ResNet50_Weights
 
 DATASET = 'CIFAR10'
 MODEL = 'TESTMODEL'
+#MODEL = 'TESTMODEL1'
+# MODEL = 'RESNET20'
 
 DIRECTORY = './data'
 os.system('mkdir -p %s' % DIRECTORY)
@@ -80,7 +82,25 @@ if (MODEL == 'TESTMODEL'):
     # model.load_state_dict(state_dict, strict=False)
     model.load_state_dict(
         torch.load(
-            # "./ckpt/testmodel_w8a8/checkpoint.t7",
+            "./ckpt/testmodel_w8a8/checkpoint.t7",
+            # "./ckpt/testmodel1_w8a8/checkpoint.t7",
+            map_location=torch.device('cpu')
+        )
+    )
+    model.act_q.export = True
+    for name, module in model.named_modules():
+      module.export = True
+      module.requires_grad_(False)
+
+if (MODEL == 'TESTMODEL1'):
+    model = resnet20.testmodel1(wbits=8, abits=8)
+    # state_dict = torch.load(
+    #     "./tmp/resnet20.weights",
+    #     map_location=torch.device('cpu')
+    # )
+    # model.load_state_dict(state_dict, strict=False)
+    model.load_state_dict(
+        torch.load(
             "./ckpt/testmodel1_w8a8/checkpoint.t7",
             map_location=torch.device('cpu')
         )
@@ -103,7 +123,7 @@ with torch.no_grad():
     onnx_model = network_graph.export_onnx(model, test_features)
     write_network(
         onnx_model,
-        off_chip_storage=False
+        off_chip_storage=True
     )
 
     
