@@ -7,7 +7,8 @@ from quant_dorefa import weight_quantize_fn
 import torch
 from math import log2
 from math import ceil
-from backend.balance_computations import opt
+from backend.balance_computations import opt as comp_opt
+from backend.balance_reuse import opt as reuse_opt
 
 def write(
     model,
@@ -408,8 +409,9 @@ def write(
             layers_info.append(
                 [
                     node_name,
-                    1/(c_oh*c_ow*c_och*c_fh*c_fw),
-                    c_fh*c_fw
+                    1/(c_oh*c_ow*c_ich*c_och*c_fh*c_fw),
+                    c_fh*c_fw,
+                    c_oh*c_ow
                 ]
             )
 
@@ -924,7 +926,8 @@ def write(
                 [
                     node_name,
                     1/(c_oh*c_ow*c_och*c_ich*c_fh*c_fw),
-                    c_fh*c_fw
+                    c_fh*c_fw,
+                    c_oh*c_ow
                 ]
             )
 
@@ -1087,7 +1090,8 @@ def write(
             fd.write("\t\tc_%s_stride,\n" % (node_name))
             fd.write("\t\tc_%s_pad,\n" % (node_name))
             fd.write("\t\tc_%s_ops,\n" % (node_name))
-            fd.write("\t\tc_%s_scale\n" % (node_name))
+            fd.write("\t\tc_%s_scale\n," % (node_name))
+            fd.write("\t\tc_%s_reuse\n" % (weight_name))
             fd.write("\t> (\n")
             if indexed:
                 fd.write("\t\ts_%s_compute[%d],\n" % (input_name, index))
@@ -1230,8 +1234,8 @@ def write(
         # parse additional ports for off-chip parameters storage
         write_body(fd, model, emit_streams=False, write_blocks=False)
 
-        parallel_ops = opt(layers_info, off_chip_storage)
-        print(parallel_ops)
+        parallel_ops = comp_opt(layers_info, off_chip_storage)
+        reuse = reuse_opt(layers_info, parallel_ops)
 
         write_header(fd, layers_allocated, emit_streams=True, write_blocks=False)
 
@@ -1250,4 +1254,4 @@ def write(
                     layer.flatten()
                 )
 
-    return conv_relu, additional_ports, additional_ports_info, parallel_ops, weights_export
+    return conv_relu, additional_ports, additional_ports_info, parallel_ops, weights_export, reuse

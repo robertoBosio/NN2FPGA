@@ -30,7 +30,7 @@ def write(
             node_name = additional_ports_info[name][6]
 
             fd.write("void f_mem_algo_%s (\n" % (name))
-            fd.write("\thls::stream<t_%s> &o_data,\n" % (name))
+            fd.write("\thls::stream<t_%s> o_data[c_%s_bw],\n" % (name, name))
             fd.write("\tap_int<READ_WIDTH> *i_data \n")
             fd.write(") {\n")
             fd.write("\tMemAlgo< \n")
@@ -43,6 +43,8 @@ def write(
             fd.write("\t\tc_%s_ih,\n" % (name))
             fd.write("\t\tc_%s_ops,\n" % (name))
             fd.write("\t\tREAD_WIDTH,\n")
+            fd.write("\t\tc_%s_bw,\n" % (name))
+            fd.write("\t\tc_%s_reuse,\n" % (name))
             fd.write("\t\t0\n")
             fd.write("\t>( \n")
             fd.write("\t\to_data,\n")
@@ -55,7 +57,7 @@ def write(
             node_name = additional_ports_info[name][6]
 
             fd.write("void f_%s (\n" % (name))
-            fd.write("\thls::stream<t_%s> &i_data,\n" % (name))
+            fd.write("\thls::stream<t_%s> i_data[c_%s_bw],\n" % (name, name))
             fd.write("\thls::stream<t_%s> o_data[c_%s_index] \n" % (name, name))
             fd.write(") {\n")
             fd.write("\tProduceStream< \n")
@@ -68,6 +70,8 @@ def write(
             fd.write("\t\tc_%s_iw,\n" % (name))
             fd.write("\t\tc_%s_ih,\n" % (name))
             fd.write("\t\tc_%s_ops,\n" % (name))
+            fd.write("\t\tc_%s_bw,\n" % (name))
+            fd.write("\t\tc_%s_reuse,\n" % (name))
             fd.write("\t\tREAD_WIDTH \n")
             fd.write("\t>( \n")
             fd.write("\t\ti_data,\n")
@@ -97,14 +101,16 @@ def write(
 
         for name in additional_ports:
             fd.write(
-                "\thls::stream<t_%s> s_o_%s;\n" % (
+                "\thls::stream<t_%s> s_o_%s[c_%s_bw];\n" % (
+                    name,
                     name,
                     name
                 )
             )
 
             fd.write(
-                "\t#pragma HLS STREAM variable=s_o_%s depth=4096/c_%s_ops type=fifo\n" % (
+                "\t#pragma HLS STREAM variable=s_o_%s depth=4096/(c_%s_bw*c_%s_ops) type=fifo\n" % (
+                    name,
                     name,
                     name
                     # depth

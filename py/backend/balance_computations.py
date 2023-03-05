@@ -70,12 +70,13 @@ def parallel_ops_number(layers_info, clamp=None):
 def opt(layers_info, off_chip_storage):
 
     if off_chip_storage:
-        clamp = 4
+        clamp = 8
     else:
         clamp = None
 
     parallel_ops = parallel_ops_number(layers_info, clamp)
 
+    print(parallel_ops)
     # for name, op in parallel_ops.items():
     #     parallel_ops[name] = 1
 

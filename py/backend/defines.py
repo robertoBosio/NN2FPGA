@@ -16,7 +16,8 @@ def write(
     off_chip_storage,
     additional_ports,
     parallel_ops,
-    read_width
+    read_width,
+    reuse
 ):
 
     def write_header(fd):
@@ -104,6 +105,8 @@ def write(
         if (write_file):
             
             fd.write("const int c_%s_ops  = %d;\n" % (node_name, parallel_ops[node_name]))
+            fd.write("const int c_%s_bw   = 4;\n" % (weight_name))
+            fd.write("const int c_%s_reuse = %0d;\n" % (weight_name, reuse[node_name]))
 
             fd.write("\n")
 
@@ -463,7 +466,7 @@ def write(
         fd.write("void Network(\n")
         fd.write("\thls::stream<t_i_data> &i_data,\n")
         for i, name in enumerate(additional_ports):
-            fd.write("\tap_uint<READ_WIDTH> *i_data_%s,\n" % name)
+            fd.write("\tap_int<READ_WIDTH> *i_data_%s,\n" % name)
         fd.write("\thls::stream<t_o_data> &o_data\n")
         fd.write(");\n")
 

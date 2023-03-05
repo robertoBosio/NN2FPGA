@@ -173,7 +173,7 @@ def write_network(
 
     tensors_info = extracts_tensors_info(inferred_model)
 
-    conv_relu, additional_ports, additional_ports_info, parallel_ops, weights_export = main.write(
+    conv_relu, additional_ports, additional_ports_info, parallel_ops, weights_export, reuse = main.write(
         inferred_model,
         tensors_info,
         weights_info,
@@ -204,7 +204,8 @@ def write_network(
         off_chip_storage,
         additional_ports,
         parallel_ops,
-        read_width
+        read_width,
+        reuse
     )
 
     if off_chip_storage:

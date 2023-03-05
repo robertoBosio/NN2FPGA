@@ -10,8 +10,8 @@ import torchvision
 from torchvision.models import resnet50, ResNet50_Weights
 
 DATASET = 'CIFAR10'
-# MODEL = 'TESTMODEL'
-MODEL = 'TESTMODEL1'
+MODEL = 'TESTMODEL'
+#MODEL = 'TESTMODEL1'
 # MODEL = 'RESNET20'
 
 DIRECTORY = './data'
