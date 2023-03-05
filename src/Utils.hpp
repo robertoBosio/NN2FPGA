@@ -4,6 +4,7 @@
 #include "hls_math.h"
 #include "Debug.hpp"
 #include "LineBuffer.hpp"
+#include <etc/autopilot_ssdm_op.h>
 
 //////////////////////////// FROM POINTER TO STREAM /////////////////////////// 
 // For input activations
@@ -711,7 +712,7 @@ template <
 	for (uint32_t s_ih = 0; s_ih < c_ih_pad; s_ih++) {
 		for (uint32_t s_iw = 0; s_iw < c_iw_pad; s_iw++) {
 			for (uint32_t s_ich = 0; s_ich < c_ich; s_ich++) {
-#pragma HLS pipeline style=frp
+#pragma HLS pipeline style=flp
 
 				bool s_data_read = true;
 
@@ -834,7 +835,191 @@ template <
 }
 
 //////////////////////////////////////////////////////////////////////////////
+/* Rearranging activations for weights reusage generation */
 
+template <
+	class t_data,
+	int c_och,
+	int c_ops,
+	int c_reuse
+> void StoreNCHW(
+	hls::stream<t_data> &i_data,
+	t_data o_data[c_reuse][c_och]
+) {
+	const int c_och_ops = c_och/c_ops;
+	for (auto s_och = 0; s_och < c_och_ops; s_och++) {
+		for (auto s_reuse = 0; s_reuse < c_reuse; s_reuse++) {
+			for (auto s_ops = 0; s_ops < c_ops; s_ops++) {
+#pragma HLS pipeline style=frp
+				t_data s_data = i_data.read();
+				o_data[s_reuse][s_och*c_ops+s_ops] = s_data;
+			}
+		}
+	}
+}
+
+template <
+	class t_data,
+	int c_och,
+	int c_ops,
+	int c_reuse
+> void StreamNHWC(
+	t_data i_data[c_reuse][c_och],
+	hls::stream<t_data> &o_data
+) {
+	for (auto s_reuse = 0; s_reuse < c_reuse; s_reuse++) {
+		for (auto s_och = 0; s_och < c_och; s_och++) {
+#pragma HLS pipeline style=frp
+			t_data s_data = i_data[s_reuse][s_och];
+			o_data.write(s_data);
+		}
+	}
+}
+
+template <
+	class t_data,
+	int c_ich,
+	int c_och,
+	int c_oh,
+	int c_ow,
+	int c_index,
+	int c_str,
+	int c_ops,
+	int c_reuse
+> void RearrangeOp(
+	hls::stream<t_data> &i_data,
+	hls::stream<t_data> &o_data
+) {
+/* #pragma HLS inline */
+
+	/* Fix c_ops different than 1 case */
+	const int c_o_index = c_oh*c_ow/c_reuse;
+
+	for (auto s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
+#pragma HLS dataflow
+
+		t_data s_reuse_buffer[c_reuse][c_och];
+#pragma HLS array_partition variable=s_reuse_buffer type=complete dim=1
+#pragma HLS stream variable=s_reuse_buffer type=shared
+
+		StoreNCHW <
+			t_data,
+			c_och,
+			c_ops,
+			c_reuse
+		> (
+			i_data,
+			s_reuse_buffer
+		);
+
+		StreamNHWC <
+			t_data,
+			c_och,
+			c_ops,
+			c_reuse
+		> (
+			s_reuse_buffer,
+			o_data
+		);
+
+	}
+
+}
+
+template <
+	class t_data,
+	int c_ich,
+	int c_index,
+	int c_reuse
+> void StoreNHWC(
+	hls::stream<t_data> i_data[c_index],
+	t_data o_data[c_reuse][c_ich][c_index]
+) {
+
+	for (auto s_reuse = 0; s_reuse < c_reuse; s_reuse++) {
+		for (auto s_ich = 0; s_ich < c_ich; s_ich++) {
+			for (auto s_index = 0; s_index < c_index; s_index++) {
+#pragma HLS pipeline style=frp
+				t_data s_data = i_data[s_index].read();
+				o_data[s_reuse][s_ich][s_index] = s_data;
+			}
+		}
+	}
+
+}
+
+template <
+	class t_data,
+	int c_ich,
+	int c_index,
+	int c_reuse
+> void StreamNCHW(
+	t_data i_data[c_reuse][c_ich][c_index],
+	hls::stream<t_data> o_data[c_index]
+) {
+
+	for (auto s_ich = 0; s_ich < c_ich; s_ich++) {
+		for (auto s_reuse = 0; s_reuse < c_reuse; s_reuse++) {
+			for (auto s_index = 0; s_index < c_index; s_index++) {
+#pragma HLS pipeline style=frp
+				t_data s_data = i_data[s_reuse][s_ich][s_index];
+				o_data[s_index].write(s_data);
+			}
+		}
+	}
+
+}
+
+template <
+	class t_data,
+	int c_ich,
+	int c_och,
+	int c_oh,
+	int c_ow,
+	int c_index,
+	int c_str,
+	int c_ops,
+	int c_reuse
+> void ArrangeOp(
+	hls::stream<t_data> i_data[c_index],
+	hls::stream<t_data> o_data[c_index]
+) {
+/* #pragma HLS inline */
+
+	/* Fix c_ops different than 1 case */
+	const int c_o_index = c_oh*c_ow/c_reuse;
+
+	for (auto s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
+#pragma HLS dataflow
+
+		t_data s_reuse_buffer[c_reuse][c_ich][c_index];
+#pragma HLS stream variable=s_reuse_buffer type=shared
+#pragma HLS array_partition variable=s_reuse_buffer type=complete dim=3
+
+		StoreNHWC <
+			t_data,
+			c_ich,
+			c_index,
+			c_reuse
+		> (
+			i_data,
+			s_reuse_buffer
+		);
+
+		StreamNCHW <
+			t_data,
+			c_ich,
+			c_index,
+			c_reuse
+		> (
+			s_reuse_buffer,
+			o_data
+		);
+
+	}
+}
+
+//////////////////////////////////////////////////////////////////////////////
 /* Line Buffers generation */
 template <
 	class t_input,

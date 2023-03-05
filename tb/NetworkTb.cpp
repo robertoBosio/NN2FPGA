@@ -7,8 +7,8 @@
 #include "MemoryWeights.hpp"
 /* #include "../src/MemoryManagement.hpp" */
 char *getcwd(char *buf, size_t size);
-#define READ_WIDTH 128
-#define READ_BYTES 16
+#define READ_WIDTH 8
+#define READ_BYTES 1
 
 int main() {
 
@@ -31,7 +31,7 @@ int main() {
 	/* 	std::cout << dataset.test_images.at(i) << ' '; */
 	/* } */
 	/* const int c_batch = dataset.test_images.size(); */
-	const int c_batch = 3;
+	const int c_batch = 4;
 	const int n_bytes =c_index*c_par;
 	std::cout << "SENDING " << c_batch << " IMAGES" << std::endl;
 	std::cout << "SENDING " << n_bytes << " BYTES" << std::endl;
@@ -72,22 +72,16 @@ int main() {
 		// INIT DATA
 
 		///////////////////////// KERNEL EXECUTION ON IMAGE ///////////////////////
-		ap_uint<READ_WIDTH> weights_cast[(3104)/READ_BYTES];
-		for (int i=0; i<3104/READ_BYTES; i++) {
-			ap_uint<READ_WIDTH> word = 0;
-			for (int j=0; j<READ_BYTES; j++) {
-				word((j+1)*8 -1, j*8) = weights[i*READ_BYTES+j];
-
-			}
-			weights_cast[i] = word;
-		}	
 
 		std::cout << "--------------------- KERNEL -----------------------" << "\n";
 		Network(
 			i_data,
-			weights_cast,
-			weights_cast,
-			weights_cast,
+			weights_conv0_weight,
+			weights_conv1_weight,
+			weights_conv2_weight,
+			weights_conv3_weight,
+			weights_conv4_weight,
+			weights_fc_weight,
 			o_data_sim
 		);
 

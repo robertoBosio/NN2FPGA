@@ -211,6 +211,80 @@ template <
 }
 
 template <
+	class t_output,
+	int c_ich,
+	int c_och,
+	int c_ow,
+	int c_oh,
+	int c_fw,
+	int c_fh,
+	int c_ops,
+	int c_bits,
+	int c_bw,
+	int c_reuse,
+	int c_start
+> void MemAlgo(
+	hls::stream<t_output> o_data[c_bw],
+	ap_int<c_bits> *i_data
+) {
+
+	const int c_bytes = c_bits/8;
+	const int c_words = 4096/(c_bytes);
+	const int c_f_index = c_start+c_fh*c_fw*c_och*c_ich;
+	const int c_o_index = c_ow*c_oh/c_reuse;
+
+	for (auto s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
+		for (auto s_f_index = c_start; s_f_index < c_f_index; s_f_index+=c_ops*c_bw) {
+#pragma HLS pipeline
+			for (auto s_bw = 0; s_bw < c_bw*c_ops; s_bw+=c_ops) {
+				t_output s_data;
+				for (auto s_ops = 0; s_ops < c_ops; s_ops++)
+					s_data[s_ops]	= i_data[s_f_index+s_bw+s_ops];
+				o_data[s_bw/c_ops].write(s_data);
+			}
+		}
+	}
+
+}
+
+template <
+	class t_input,
+	class t_output,
+	int c_ich,
+	int c_och,
+	int c_ow,
+	int c_oh,
+	int c_fw,
+	int c_fh,
+	int c_ops,
+	int c_bw,
+	int c_reuse,
+	int c_bits
+> void ProduceStream(
+	hls::stream<t_output> i_data[c_bw],
+	hls::stream<t_output> o_data[c_fh*c_fw]
+) {
+
+/* #pragma HLS inline */
+	const int c_index = c_fh*c_fw;
+	const int c_ch = c_ich*c_och;
+	const int c_o_index = c_index*c_oh*c_ow*c_ch/(c_ops*c_reuse);
+	
+	/* const ap_uint<c_ops*8> c_mask = c_ops*256-1; */
+
+	/* Maximum input bandwidth is 64bytes */
+	t_input s_tmp;
+	for (auto s_o_index = 0; s_o_index < c_o_index; s_o_index+=c_bw) { 
+#pragma HLS pipeline
+		for (auto s_bw = 0; s_bw < c_bw; s_bw++) { 
+			auto s_index = (s_o_index + s_bw) % c_index;
+			o_data[s_index].write(i_data[s_bw].read());
+		}
+	}
+
+}
+
+template <
 	int c_ich,
 	int c_och,
 	int c_ow,

@@ -29,8 +29,12 @@ create_clock -period 5
 # config_interface -m_axi_max_widen_bitwidth 0
 # config_interface -m_axi_alignment_byte_size 1
 
+config_interface -s_axilite_auto_restart_counter 1
+config_interface -s_axilite_sw_reset
 config_interface -m_axi_max_widen_bitwidth 128
 config_interface -m_axi_alignment_byte_size 16
+config_interface -m_axi_max_read_burst_length 256
+config_interface -m_axi_num_read_outstanding 1
 config_interface -m_axi_latency 1
 
 # Done to avoid forced pipelining of loops that could waste resources
