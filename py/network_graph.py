@@ -2,7 +2,8 @@ import torch
 import onnx
 import sys
 import os
-
+import torchvision
+import models.resnet_brevitas_int as resnet20
 def io_nodes(onnx_model):
     layers_info = {}
 
@@ -17,14 +18,14 @@ def export_onnx(model, x):
     torch.onnx.export(
         model,
         args=x,
-        f="tmp/extract.onnx",
+        f="onnx/Brevonnx_resnet_final.onnx",
         export_params = True,
         do_constant_folding = True,
         input_names = ["input"],
         output_names = ["output"]
     )
 
-    onnx_model = onnx.load("tmp/extract.onnx")
+    onnx_model = onnx.load("onnx/Brevonnx_resnet_final.onnx")
 
     return onnx_model
 

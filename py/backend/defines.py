@@ -2,6 +2,7 @@ import os
 import sys
 import onnx
 from onnx import numpy_helper
+import numpy
 
 def write(
     model,
@@ -92,12 +93,18 @@ def write(
             fd.write("\n")
 
     def write_weights(weight_shape, weight_name, node_name, write_file=False):
-
-        c_och    = getattr(weight_shape, 'dims')[0]
-        c_ich    = getattr(weight_shape, 'dims')[1]
-        if (len(getattr(weight_shape, 'dims')) > 2):
-            c_ih     = getattr(weight_shape, 'dims')[2]
-            c_iw     = getattr(weight_shape, 'dims')[3]
+        
+        
+        keys = list(weight_shape.keys())
+        #print(keys)
+        weight_shape_n = numpy_helper.to_array(weight_shape[keys[1]]).shape
+        scale_factor = numpy_helper.to_array(weight_shape[keys[2]])
+        scale_factor_shift = numpy.log2(scale_factor)
+        c_och    = weight_shape_n[0]
+        c_ich    = weight_shape_n[1]
+        if (len(weight_shape_n) > 2):
+            c_ih     = weight_shape_n[2]
+            c_iw     = weight_shape_n[3]
         else:
             c_ih     = 1
             c_iw     = 1
@@ -143,6 +150,8 @@ def write(
             fd.write("const int c_%s_ops = %0d;\n" % (weight_name, parallel_ops[node_name]))
             fd.write("const int c_%s_index = %0d;\n" % (weight_name, c_ih*c_iw)) 
             fd.write("const int c_%s_iter  = %0d;\n" % (weight_name, c_och*c_ich/parallel_ops[node_name] + 1))
+            fd.write("const float c_%s_scale = %f;\n" % (weight_name, scale_factor))
+            fd.write("const int c_%s_scale_shift = %d;\n" %  (weight_name, scale_factor_shift))
             fd.write("\n")
 
     def write_relu(fd, node, write_file=False):
@@ -229,10 +238,10 @@ def write(
             c_stride = 1
             c_pad    = 0
         else:
-            c_fh     = getattr(attributes[1], 'ints')[0]
-            c_fw     = getattr(attributes[1], 'ints')[1]
-            c_stride = getattr(attributes[3], 'ints')[0]
-            c_pad    = getattr(attributes[2], 'ints')[0]
+            c_fh     = getattr(attributes[0], 'ints')[0]
+            c_fw     = getattr(attributes[0], 'ints')[1]
+            c_stride = getattr(attributes[2], 'ints')[0]
+            c_pad    = getattr(attributes[1], 'ints')[0]
 
         if (write_file):
             fd.write("\n")
@@ -311,10 +320,16 @@ def write(
         input_name = node.input[0].replace(".", "_")
         input_name = input_name.lower().replace("onnx::", "")
         input_shape = tensors_info[node.input[0]].tensor_type.shape
-
+         
         weight_name = node.input[1].replace(".", "_")
         weight_name = weight_name.lower().replace("onnx::", "")
         weight_shape = weights_info[node.input[1]]
+
+        if (node.input[0] in weights_info.keys()) :
+            activation_shape = weights_info[node.input[0]]
+            keys = list(activation_shape.keys())
+            activation_scale = numpy_helper.to_array(activation_shape[keys[1]])
+            activation_scale_shift = numpy.log2(activation_scale)
 
         if (node.name in skip_connections_info.keys()):
             # If it is greater than 2 it means is a producer
@@ -424,6 +439,10 @@ def write(
             fd.write("const int c_%s_a_split  = %d;\n" % (output_name, c_split))
             fd.write("const int c_%s_stride = %d;\n" % (node_name, c_stride))
             fd.write("const int c_%s_pad    = %d;\n" % (node_name, c_pad))
+            if 'activation_scale' in locals():
+                fd.write("const float c_%s_scale = %f;\n" % (node_name, activation_scale)) 
+                fd.write("const int c_%s_scale_shift = %d;\n" % (node_name, activation_scale_shift)) 
+                                                
             if (not off_chip_storage):
                 fd.write("const int c_%s_split  = %d;\n" % (node_name, c_l_split))
 
