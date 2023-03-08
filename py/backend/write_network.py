@@ -44,7 +44,32 @@ def reorder_layers(model, connection_level):
 
         reordered_layers[node_level].append(node)
 
-    return reordered_layers
+
+    # Done for skip connection and stride management
+    reordered_layers_skip = []
+    for node_level in reordered_layers:
+        reordered_level = node_level
+        if len(node_level) != 0: 
+            node_name = node_level[0].name.lower()
+            print("--------------------------------------------------")
+            reordered_level = []
+            cycles = []
+            for node in node_level:
+                print(node.input)
+                attributes = getattr(node, "attribute")
+                if (len(attributes) < 2):
+                    c_kernel = 1
+                else:
+                    c_kernel = getattr(attributes[2], 'ints')[0]**2
+                cycles.append([node, c_kernel])
+            print("-------------------------")
+            reordered_level = list(sorted(cycles, key=lambda i: i[1], reverse=True))
+            reordered_level = [elem[0] for elem in reordered_level]
+            for node in reordered_level:
+                print(node.input)
+            reordered_layers_skip.append(reordered_level)
+
+    return reordered_layers_skip
 
 def extracts_skip_connections_info(model):
 
@@ -62,11 +87,12 @@ def extracts_skip_connections_info(model):
 
     reordered_layers = reorder_layers(model, connection_level)
 
-    for node in model.graph.node:
-        for input in node.input:
-            if input not in general_info.keys():
-                general_info[input] = []
-            general_info[input].append(node)
+    for node_level in reordered_layers:
+        for node in node_level:
+            for input in node.input:
+                if input not in general_info.keys():
+                    general_info[input] = []
+                general_info[input].append(node)
 
     # DONT USE SKIP IN MODEL
     for input_name, nodes in general_info.items():
@@ -83,9 +109,17 @@ def extracts_skip_connections_info(model):
                         skip_connections_info[node.name].append(connection_name)
                         skip_connections.append(connection_name)
             else:
-                split_info[input_name] = []
-                for node in nodes:
-                    split_info[input_name].append(node.name)
+                split_info[input_name] = [[], []]
+                tensor_name = input_name.replace(".", "_")
+                tensor_name = input_name.lower().replace("onnx::", "")
+                for i, node in enumerate(nodes):
+                    split_info[input_name][0].append(tensor_name + "_skip%0d" % i)
+                    split_info[input_name][1].append(node.name)
+                    if (i < (len(nodes)-1)):
+                        skip_connections_info[node.name] = []
+                        connection_name = input_name + "_skip%0d" % (i+1)
+                        skip_connections_info[node.name].append(tensor_name)
+                        skip_connections_info[node.name].append(connection_name)
 
     for node in model.graph.node:
         if 'add' == node.op_type.lower():

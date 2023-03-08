@@ -326,6 +326,12 @@ def write(
                     # Declaring copied stream
                     fd.write("typedef uint8_t t_%s;\n" % (skip_name))
                     fd.write("\n")
+                    fd.write("typedef struct {\n")
+                    fd.write("\tt_%s data;\n" % (skip_name))
+                    fd.write("\tbool last;\n")
+                    fd.write("} t_%s_struct;\n" % (skip_name))
+                    fd.write("typedef uint8_t t_%s;\n" % (skip_name))
+                    fd.write("\n")
 
         output_name = node.output[0]
         if output_name in bias_info.keys():

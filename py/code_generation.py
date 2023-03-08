@@ -10,9 +10,9 @@ import torchvision
 from torchvision.models import resnet50, ResNet50_Weights
 
 DATASET = 'CIFAR10'
-MODEL = 'TESTMODEL'
-#MODEL = 'TESTMODEL1'
-# MODEL = 'RESNET20'
+# MODEL = 'TESTMODEL'
+# MODEL = 'TESTMODEL1'
+MODEL = 'RESNET20'
 
 DIRECTORY = './data'
 os.system('mkdir -p %s' % DIRECTORY)
@@ -123,7 +123,7 @@ with torch.no_grad():
     onnx_model = network_graph.export_onnx(model, test_features)
     write_network(
         onnx_model,
-        off_chip_storage=True
+        off_chip_storage=False
     )
 
     
