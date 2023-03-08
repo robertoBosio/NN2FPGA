@@ -4,7 +4,7 @@
 #include <unistd.h>
 #include "../src/Debug.hpp"
 #include <ap_utils.h>
-#include "MemoryWeights.hpp"
+/* #include "MemoryWeights.hpp" */
 /* #include "../src/MemoryManagement.hpp" */
 char *getcwd(char *buf, size_t size);
 #define READ_WIDTH 8
@@ -76,12 +76,12 @@ int main() {
 		std::cout << "--------------------- KERNEL -----------------------" << "\n";
 		Network(
 			i_data,
-			weights_conv0_weight,
-			weights_conv1_weight,
-			weights_conv2_weight,
-			weights_conv3_weight,
-			weights_conv4_weight,
-			weights_fc_weight,
+			/* weights_conv0_weight, */
+			/* weights_conv1_weight, */
+			/* weights_conv2_weight, */
+			/* weights_conv3_weight, */
+			/* weights_conv4_weight, */
+			/* weights_fc_weight, */
 			o_data_sim
 		);
 
