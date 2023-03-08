@@ -146,3 +146,5 @@ runs/
 *.txt
 cifar-10/
 .Xil/
+data
+tmp
