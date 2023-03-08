@@ -16,8 +16,8 @@ from models.cifar_resnet_dorefa import *
 
 from preprocessing import *
 
-# MODEL_SW = "RESNET20"
-MODEL_SW = "TESTMODEL"
+MODEL_SW = "RESNET20"
+# MODEL_SW = "TESTMODEL"
 
 if (MODEL_SW == "TESTMODEL"):
     log_name = 'testmodel_w8a8'
@@ -26,7 +26,7 @@ if (MODEL_SW == "TESTMODEL"):
 
 if (MODEL_SW == "RESNET20"):
     log_name = 'resnet_w8a8'
-    pretrain_dir = './tmp/resnet20_baseline'
+    pretrain_dir = './tmp/resnet_w8a8'
     model_proto = resnet20
 
 # Training settings
