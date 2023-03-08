@@ -1024,6 +1024,7 @@ def write(
         #         fd.write("\n")
 
         if emit_streams:
+<<<<<<< HEAD
             # if (split):
             #     write_array_stream(
             #         fd,
@@ -1042,6 +1043,27 @@ def write(
                 as_array=True
                 # 20,
             )
+=======
+            if (split):
+                depth = "c_%s_och*(c_%s_fh-1)*(c_%s_iw+c_%s_fw-1)" % (node_name, node_name, node_name, node_name)
+                write_array_stream(
+                    fd,
+                    output_name,
+                    # "c_%s_ich*c_%s_och" % (node_name, node_name),
+                    depth,
+                    # 20,
+                    2
+                )
+            else:
+                depth = "c_%s_och*(c_%s_fh-1)*(c_%s_iw+c_%s_fw-1)" % (node_name, node_name, node_name, node_name)
+                write_stream(
+                    fd,
+                    output_name,
+                    depth,
+                    # "c_%s_ich*c_%s_och" % (node_name, node_name),
+                    # 20,
+                )
+>>>>>>> main
             fd.write("\n")
 
         if (c_fh*c_fw) == 1:
