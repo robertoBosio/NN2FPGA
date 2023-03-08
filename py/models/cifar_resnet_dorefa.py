@@ -135,6 +135,135 @@ class PreActResNet(nn.Module):
       return out.view(out.size(0), -1)
     return out
 
+from backend.dequant import dequant
+class TestModel(nn.Module):
+  def __init__(self, wbit, abit, num_classes):
+    super(TestModel, self).__init__()
+    Conv2d = conv2d_Q_fn(w_bit=wbit)
+    Linear = linear_Q_fn(w_bit=wbit)
+    self.abit = abit
+    self.act_q = activation_quantize_fn(a_bit=abit)
+
+    self.conv0 = Conv2d(3, 16, kernel_size=3, stride=1, padding=1, bias=False)
+    self.conv1 = Conv2d(16, 32, kernel_size=3, stride=1, padding=1, bias=False)
+    self.conv2 = Conv2d(32, 64, kernel_size=3, stride=1, padding=1, bias=False)
+    self.conv3 = Conv2d(64, 32, kernel_size=3, stride=2, padding=1, bias=False)
+    self.conv4 = Conv2d(32, 16, kernel_size=3, stride=2, padding=1, bias=False)
+    self.avgpool = nn.AvgPool2d(8, stride=1)
+    self.fc = Conv2d(16, num_classes, 1, bias=False)
+
+    self.export = False
+    self.show = False
+
+  def forward(self, x):
+    # out = x - 0.5;
+
+    # out = torch.round(x*256)/256
+    out = self.act_q(x)
+    # for b in range(1):
+    #   for ih in range(1):
+    #     for iw in range(3):
+    #       for ich in range(3):
+    #         print(out[b][ich][ih][iw]*256)
+    # print("--------------------------------------------")
+    # weights = dequant(self.conv0.weight.detach())
+    # for och in range(1):
+    #   for ich in range(1):
+    #     for ih in range(3):
+    #       for iw in range(3):
+    #         print(weights[och][ich][ih][iw])
+    # sys.exit(0)
+
+    out = self.conv0(out)
+    out = F.relu(out)
+    out = self.act_q(out)
+    out = self.conv1(out)
+    out = F.relu(out)
+    out = self.act_q(out)
+    out = self.conv2(out)
+    out = F.relu(out)
+    out = self.act_q(out)
+    out = self.conv3(out)
+    out = F.relu(out)
+    out = self.act_q(out)
+    out = self.conv4(out)
+    out = F.relu(out)
+    out = self.act_q(out)
+
+    out = self.avgpool(out)
+    out = self.act_q(out)
+    # for b in range(1):
+    #   for ih in range(1):
+    #     for iw in range(1):
+    #       for ich in range(16):
+    #         print(out[b][ich][ih][iw]*256)
+    # sys.exit(0)
+    out = self.fc(out)
+    if not self.export:
+      return out.view(out.size(0), -1)
+    return out
+
+class TestModel1(nn.Module):
+  def __init__(self, wbit, abit, num_classes):
+    super(TestModel1, self).__init__()
+    Conv2d = conv2d_Q_fn(w_bit=wbit)
+    Linear = linear_Q_fn(w_bit=wbit)
+    self.abit = abit
+    self.act_q = activation_quantize_fn(a_bit=abit)
+
+    self.conv0 = Conv2d(3, 16, kernel_size=3, stride=2, padding=1, bias=False)
+    self.conv1 = Conv2d(16, 16, kernel_size=3, stride=2, padding=1, bias=False)
+    self.avgpool = nn.AvgPool2d(8, stride=1)
+    self.fc = Conv2d(16, num_classes, 1, bias=False)
+
+    self.export = False
+    self.show = False
+
+  def forward(self, x):
+    # out = x - 0.5;
+
+    # out = torch.round(x*256)/256
+    out = self.act_q(x)
+    # for b in range(1):
+    #   for ih in range(1):
+    #     for iw in range(3):
+    #       for ich in range(3):
+    #         print(out[b][ich][ih][iw]*256)
+    # print("--------------------------------------------")
+    # weights = dequant(self.conv0.weight.detach())
+    # for och in range(1):
+    #   for ich in range(1):
+    #     for ih in range(3):
+    #       for iw in range(3):
+    #         print(weights[och][ich][ih][iw])
+    # sys.exit(0)
+
+    out = self.conv0(out)
+    out = F.relu(out)
+    out = self.act_q(out)
+    out = self.conv1(out)
+    out = F.relu(out)
+    out = self.act_q(out)
+
+    out = self.avgpool(out)
+    out = self.act_q(out)
+    # for b in range(1):
+    #   for ih in range(1):
+    #     for iw in range(1):
+    #       for ich in range(16):
+    #         print(out[b][ich][ih][iw]*256)
+    # sys.exit(0)
+    out = self.fc(out)
+    if not self.export:
+      return out.view(out.size(0), -1)
+    return out
+
+
+def testmodel(wbits, abits, num_classes=10):
+  return TestModel(wbits, abits, num_classes=num_classes)
+
+def testmodel1(wbits, abits, num_classes=10):
+  return TestModel1(wbits, abits, num_classes=num_classes)
 
 def resnet20(wbits, abits, num_classes=10):
   return PreActResNet(PreActBlock_conv_Q, [3, 3, 3], wbits, abits, num_classes=num_classes)

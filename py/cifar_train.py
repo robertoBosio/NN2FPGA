@@ -16,14 +16,28 @@ from models.cifar_resnet_dorefa import *
 
 from preprocessing import *
 
+# MODEL_SW = "RESNET20"
+MODEL_SW = "TESTMODEL"
+
+if (MODEL_SW == "TESTMODEL"):
+    log_name = 'testmodel_w8a8'
+    # pretrain_dir = './tmp/testmodel_baseline'
+    pretrain_dir = './tmp/testmodel1_baseline'
+    model_proto = testmodel
+
+if (MODEL_SW == "RESNET20"):
+    log_name = 'resnet_w8a8'
+    pretrain_dir = './tmp/resnet20_baseline'
+    model_proto = resnet20
+
 # Training settings
 parser = argparse.ArgumentParser(description='DoReFa-Net pytorch implementation')
 
 parser.add_argument('--root_dir', type=str, default='./')
 parser.add_argument('--data_dir', type=str, default='./data')
-parser.add_argument('--log_name', type=str, default='resnet_w8a8')
+parser.add_argument('--log_name', type=str, default=log_name)
 parser.add_argument('--pretrain', action='store_true', default=False)
-parser.add_argument('--pretrain_dir', type=str, default='./tmp/resnet20_baseline')
+parser.add_argument('--pretrain_dir', type=str, default=pretrain_dir)
 
 parser.add_argument('--cifar', type=int, default=10)
 
@@ -77,9 +91,9 @@ def main():
 
   print('==> Building ResNet..')
   if cfg.use_gpu:
-    model = resnet20(wbits=cfg.Wbits, abits=cfg.Abits).cuda()
+    model = model_proto(wbits=cfg.Wbits, abits=cfg.Abits).cuda()
   else:
-    model = resnet20(wbits=cfg.Wbits, abits=cfg.Abits)
+    model = model_proto(wbits=cfg.Wbits, abits=cfg.Abits)
 
   optimizer = torch.optim.SGD(model.parameters(), lr=cfg.lr, momentum=0.9, weight_decay=cfg.wd)
   lr_schedu = optim.lr_scheduler.MultiStepLR(optimizer, [100, 150, 180], gamma=0.1)

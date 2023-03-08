@@ -1,8 +1,9 @@
 import os
 import sys
 import pulp
+import math
 
-def parallel_ops_number(layers_info):
+def parallel_ops_number(layers_info, clamp=None):
 
     NUM_DSP = 400
     MIN_OP = 1
@@ -45,6 +46,11 @@ def parallel_ops_number(layers_info):
     for i in range(num_layers):
         prob += pulp.lpSum([choices[i]]) >= MIN_OP
 
+    # TODO: Do architectural changes to avoid limiting the parallel ops
+    if clamp is not None:
+        for i in range(num_layers):
+            prob += pulp.lpSum([choices[i]]) <= clamp
+
     prob.writeLP("tmp/parallel_ops.lp")
 
     prob.solve()
@@ -55,12 +61,23 @@ def parallel_ops_number(layers_info):
     for i in range(num_layers):
         # Returning the layers name together with the computed number of 
         # operations that should be executed in parallel
-        parallel_op[layers_info[i][0]] = choices[i].value()
+        exp = int(math.log2(choices[i].value()))
+        data = 2**exp
+        parallel_op[layers_info[i][0]] = int(data)
     
     return parallel_op
 
-def opt(layers_info):
+def opt(layers_info, off_chip_storage):
 
-    parallel_ops = parallel_ops_number(layers_info)
+    if off_chip_storage:
+        clamp = 8
+    else:
+        clamp = None
+
+    parallel_ops = parallel_ops_number(layers_info, clamp)
+
+    print(parallel_ops)
+    # for name, op in parallel_ops.items():
+    #     parallel_ops[name] = 1
 
     return parallel_ops
