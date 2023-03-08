@@ -7,7 +7,8 @@ import backend.memory as memory
 import backend.block_design as block_design
 import qonnx
 from qonnx.transformation import infer_shapes
-
+import backend.memory_header as memory_header
+import backend.memory_defines as memory_defines
 
 def evaluate_connection_level(model):
     connection_level = {}
@@ -45,7 +46,32 @@ def reorder_layers(model, connection_level):
 
         reordered_layers[node_level].append(node)
 
-    return reordered_layers
+
+    # Done for skip connection and stride management
+    reordered_layers_skip = []
+    for node_level in reordered_layers:
+        reordered_level = node_level
+        if len(node_level) != 0: 
+            node_name = node_level[0].name.lower()
+            print("--------------------------------------------------")
+            reordered_level = []
+            cycles = []
+            for node in node_level:
+                print(node.input)
+                attributes = getattr(node, "attribute")
+                if (len(attributes) < 2):
+                    c_kernel = 1
+                else:
+                    c_kernel = getattr(attributes[2], 'ints')[0]**2
+                cycles.append([node, c_kernel])
+            print("-------------------------")
+            reordered_level = list(sorted(cycles, key=lambda i: i[1], reverse=True))
+            reordered_level = [elem[0] for elem in reordered_level]
+            for node in reordered_level:
+                print(node.input)
+            reordered_layers_skip.append(reordered_level)
+
+    return reordered_layers_skip
 
 def extracts_skip_connections_info(model):
 
@@ -63,11 +89,13 @@ def extracts_skip_connections_info(model):
 
     reordered_layers = reorder_layers(model, connection_level)
 
-    for node in model.graph.node:
-        for input in node.input:
-            if input not in general_info.keys():
-                general_info[input] = []
-            general_info[input].append(node)
+    for node_level in reordered_layers:
+        for node in node_level:
+            for input in node.input:
+                if input not in general_info.keys():
+                    general_info[input] = []
+                general_info[input].append(node)
+
     # DONT USE SKIP IN MODEL
     for input_name, nodes in general_info.items():
         if len(nodes) > 1:
@@ -84,9 +112,17 @@ def extracts_skip_connections_info(model):
                         skip_connections_info[node.name].append(connection_name)
                         skip_connections.append(connection_name)
             else:
-                split_info[input_name] = []
-                for node in nodes:
-                    split_info[input_name].append(node.name)
+                split_info[input_name] = [[], []]
+                tensor_name = input_name.replace(".", "_")
+                tensor_name = input_name.lower().replace("onnx::", "")
+                for i, node in enumerate(nodes):
+                    split_info[input_name][0].append(tensor_name + "_skip%0d" % i)
+                    split_info[input_name][1].append(node.name)
+                    if (i < (len(nodes)-1)):
+                        skip_connections_info[node.name] = []
+                        connection_name = input_name + "_skip%0d" % (i+1)
+                        skip_connections_info[node.name].append(tensor_name)
+                        skip_connections_info[node.name].append(connection_name)
 
     for node in model.graph.node:
         if 'add' == node.op_type.lower():
@@ -173,6 +209,8 @@ def write_network(
 
     inferred_model = model.transform(infer_shapes.InferShapes())
 
+    read_width = 8
+
     skip_connections_info, bias_info, split_info, reordered_layers = extracts_skip_connections_info(inferred_model)
 
     weights_info = extracts_weights_info(inferred_model)
@@ -183,7 +221,7 @@ def write_network(
 
     tensors_info = extracts_tensors_info(inferred_model)
 
-    conv_relu, additional_ports, additional_ports_info, parallel_ops = main.write(
+    conv_relu, additional_ports, additional_ports_info, parallel_ops, weights_export, reuse = main.write(
         inferred_model,
         tensors_info,
         weights_info,
@@ -193,7 +231,8 @@ def write_network(
         split_info,
         flatten_info,
         reordered_layers,
-        off_chip_storage
+        off_chip_storage,
+        read_width
     )
 
     # TODO: export tensors and weight info
@@ -212,16 +251,33 @@ def write_network(
         split_info,
         off_chip_storage,
         additional_ports,
-        parallel_ops
+        parallel_ops,
+        read_width,
+        reuse
     )
 
     if off_chip_storage:
+
         memory.write(
             additional_ports,
-            additional_ports_info
+            additional_ports_info,
+            read_width
         )
 
-        block_design.write(
+        memory_defines.write(
             additional_ports,
-            additional_ports_info
+            additional_ports_info,
+            read_width
         )
+
+        memory_header.write(
+            additional_ports,
+            weights_export,
+            read_width
+        )
+
+        # block_design.write(
+        #     additional_ports,
+        #     additional_ports_info,
+        #     read_width
+        # )

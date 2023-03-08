@@ -134,3 +134,17 @@ cifar10/
 ckpt/
 log/
 logs/
+*.jou
+*_ip
+*Network.*pp*
+*MemoryManagement.*pp*
+*.str
+MemoryManagement/
+backup/
+*MemoryWeights*
+runs/
+*.txt
+cifar-10/
+.Xil/
+data
+tmp

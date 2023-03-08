@@ -13,6 +13,8 @@ ckpt_dir = os.path.join('./ckpt/resnetq_8w8f_cifar')
 os.makedirs(ckpt_dir, exist_ok=True)
 
 DATASET = 'CIFAR10'
+# MODEL = 'TESTMODEL'
+# MODEL = 'TESTMODEL1'
 MODEL = 'RESNET20'
 
 DIRECTORY = './data'
@@ -79,7 +81,25 @@ if (MODEL == 'TESTMODEL'):
     # model.load_state_dict(state_dict, strict=False)
     model.load_state_dict(
         torch.load(
-            # "./ckpt/testmodel_w8a8/checkpoint.t7",
+            "./ckpt/testmodel_w8a8/checkpoint.t7",
+            # "./ckpt/testmodel1_w8a8/checkpoint.t7",
+            map_location=torch.device('cpu')
+        )
+    )
+    model.act_q.export = True
+    for name, module in model.named_modules():
+      module.export = True
+      module.requires_grad_(False)
+
+if (MODEL == 'TESTMODEL1'):
+    model = resnet20.testmodel1(wbits=8, abits=8)
+    # state_dict = torch.load(
+    #     "./tmp/resnet20.weights",
+    #     map_location=torch.device('cpu')
+    # )
+    # model.load_state_dict(state_dict, strict=False)
+    model.load_state_dict(
+        torch.load(
             "./ckpt/testmodel1_w8a8/checkpoint.t7",
             map_location=torch.device('cpu')
         )

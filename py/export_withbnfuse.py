@@ -55,8 +55,6 @@ val=1
 print_onnx = 1
 writer = SummaryWriter()
 
-
-
 def main():
     if cfg.cifar == 10:
         print('training CIFAR-10 !')
@@ -187,7 +185,6 @@ def main():
             test(epoch)
             lr_schedu.step(epoch)
         summary_writer.close()
-
 
 
     def calibrate_model(calibration_loader, quant_model):
