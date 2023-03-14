@@ -13,6 +13,7 @@ from backend.balance_reuse import opt as reuse_opt
 def write(
     model,
     tensors_info,
+    quant_info,
     weights_info,
     skip_connections_info,
     bias_info,
@@ -98,10 +99,14 @@ def write(
             fd.write("\n")
 
             fd.write(
-                "\thls::stream<t_input_struct> s_input;\n"
+                "\thls::stream<t_%s_struct> s_%s;\n" % (
+                    input_name,
+                    input_name
+                )
             )
             fd.write(
-                "\t#pragma HLS STREAM variable=s_input depth=3 type=fifo\n"
+                "\t#pragma HLS STREAM variable=s_%s depth=3 type=fifo\n" %
+                input_name
             )
             fd.write("\n")
             # write_stream(fd, "input", "2*c_%s_ich" % input_name)
@@ -392,6 +397,10 @@ def write(
         if output_name in flatten_info.keys():
             output_name = flatten_info[output_name][1]
         output_name = output_name.lower().replace("onnx::", "")
+
+        #Merging quant layer
+        if output_name in quant_info.keys():
+            output_name = quant_info[output_name]
 
         if emit_streams:
             write_stream(fd, output_name, "c_%s_och" % node_name, struct=True, as_array=True)
@@ -977,9 +986,14 @@ def write(
         if (node.name in skip_connections_info.keys()):
             # If it is greater than 2 it means is a producer
             if (len(skip_connections_info[node.name]) > 1):
+                print(skip_connections_info[node.name])
                 skip_name = skip_connections_info[node.name][1].replace(".", "_")
                 skip_name = skip_name.lower().replace("onnx::", "")
+                #Merging quant layer
+                if skip_name in quant_info.keys():
+                    skip_name = quant_info[skip_name]
                 no_skip = False
+                print("SKIP DETECTED")
 
                 # Declaring copied stream
                 if emit_streams:
@@ -995,8 +1009,12 @@ def write(
                     )
                 fd.write("\n")
 
-        # Adding BIAS and merging to add layer
         output_name = node.output[0]
+        #Merging quant layer
+        if output_name in quant_info.keys():
+            output_name = quant_info[output_name]
+
+        # Adding BIAS and merging to add layer
         if output_name in bias_info.keys():
             bias = True
             bias_name = bias_info[output_name][0]
@@ -1005,11 +1023,20 @@ def write(
 
             output_name = bias_info[output_name][1]
 
+        #Merging quant layer
+        if output_name in quant_info.keys():
+            output_name = quant_info[output_name]
+
         # Merging RELU to conv
         if output_name in relu_info.keys():
             replaced_relu.append(relu_info[output_name][0])
             conv_relu.append(node.name)
             output_name = relu_info[output_name][1]
+
+        #Merging quant layer
+        if output_name in quant_info.keys():
+            output_name = quant_info[output_name]
+
 
         # Bypassing flatten
         if output_name in flatten_info.keys():
@@ -1027,26 +1054,7 @@ def write(
         output_tensor_name = output_tensor_name.replace(".", "_")
         output_tensor_name = output_tensor_name.lower().replace("onnx::", "")
 
-        # if write_blocks:
-        #     if (not off_chip_storage):
-        #         fd.write("\tSplitStream<\n")
-        #         fd.write("\t\tc_%s_split\n" % (node_name))
-        #         fd.write("\t>(\n")
-        #         fd.write("\t\ts_last_split[%0d],\n" % (last_flag))
-        #         fd.write("\t\ts_last_%s\n" % (node_name))
-        #         fd.write("\t);\n")
-        #         fd.write("\n")
-
         if emit_streams:
-            # if (split):
-            #     write_array_stream(
-            #         fd,
-            #         output_name,
-            #         "c_%s_ich*c_%s_och" % (node_name, node_name),
-            #         # 20,
-            #         2
-            #     )
-            # else:
             write_stream(
                 fd,
                 output_tensor_name,
@@ -1148,10 +1156,10 @@ def write(
             fd.write("\t\tc_%s_pad,\n" % (node_name))
             fd.write("\t\tc_%s_ops,\n" % (node_name))
             if off_chip_storage:
-                fd.write("\t\tc_%s_scale\n," % (node_name))
+                fd.write("\t\tc_%s_scale_shift\n," % (node_name))
                 fd.write("\t\tc_%s_reuse\n" % (weight_name))
             else:
-                fd.write("\t\tc_%s_scale\n" % (node_name))
+                fd.write("\t\tc_%s_scale_shift\n" % (node_name))
             fd.write("\t> (\n")
             if (pointwise):
                 fd.write("\t\ts_%s,\n" % (tensor_name))

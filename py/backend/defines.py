@@ -7,6 +7,7 @@ import numpy
 def write(
     model,
     tensors_info,
+    quant_info,
     weights_info,
     skip_connections_info,
     bias_info,
@@ -325,12 +326,6 @@ def write(
         weight_name = weight_name.lower().replace("onnx::", "")
         weight_shape = weights_info[node.input[1]]
 
-        if (node.input[0] in weights_info.keys()) :
-            activation_shape = weights_info[node.input[0]]
-            keys = list(activation_shape.keys())
-            activation_scale = numpy_helper.to_array(activation_shape[keys[1]])
-            activation_scale_shift = numpy.log2(activation_scale)
-
         if (node.name in skip_connections_info.keys()):
             # If it is greater than 2 it means is a producer
             if (len(skip_connections_info[node.name]) > 1):
@@ -357,9 +352,18 @@ def write(
 
             output_name = bias_info[output_name][1]
 
+        if (output_name in weights_info.keys()):
+            activation_shape = weights_info[output_name]
+            keys = list(activation_shape.keys())
+            activation_scale = numpy_helper.to_array(activation_shape[keys[1]])
+            activation_scale_shift = numpy.log2(activation_scale)
+
         # Merging RELU to conv
         if output_name in relu_info.keys():
             output_name = relu_info[output_name][1]
+
+        if output_name in quant_info.keys():
+            output_name = quant_info[output_name]
 
         # Bypassing flatten
         if output_name in flatten_info.keys():
@@ -502,34 +506,10 @@ def write(
 
         write_header(fd)
 
+        # print(weights_info.keys())
         write_body(fd, model, write_file=False)
 
         # TODO: Specialized for DAC2023 submission, must be automated
-
-        # parallel_ops = {}
-        # parallel_ops['conv_0']  = 1                                                    
-        # parallel_ops['conv_2']  = 2                                                    
-        # parallel_ops['conv_4']  = 2                                                    
-        # parallel_ops['conv_7']  = 2                                                    
-        # parallel_ops['conv_9']  = 2                                                    
-        # parallel_ops['conv_12']  = 2                                                   
-        # parallel_ops['conv_14']  = 2                                                   
-        # parallel_ops['conv_17']  = 1                                                   
-        # parallel_ops['conv_19']  = 1                                                   
-        # parallel_ops['conv_21']  = 1                                                   
-        # parallel_ops['conv_24']  = 1                                                   
-        # parallel_ops['conv_26']  = 1                                                   
-        # parallel_ops['conv_29']  = 1                                                   
-        # parallel_ops['conv_31']  = 1                                                   
-        # parallel_ops['conv_34']  = 1                                                   
-        # parallel_ops['conv_36']  = 1                                                   
-        # parallel_ops['conv_38']  = 1                                                   
-        # parallel_ops['conv_41']  = 1                                                   
-        # parallel_ops['conv_43']  = 1                                                   
-        # parallel_ops['conv_46']  = 1                                                   
-        # parallel_ops['conv_48']  = 1                                                   
-        # parallel_ops['conv_54']  = 1  
-        #################################################################
 
         write_body(fd, model, write_file=True)
 

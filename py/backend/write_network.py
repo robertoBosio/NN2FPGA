@@ -53,27 +53,22 @@ def reorder_layers(model, connection_level):
         reordered_level = node_level
         if len(node_level) != 0: 
             node_name = node_level[0].name.lower()
-            print("--------------------------------------------------")
             reordered_level = []
             cycles = []
             for node in node_level:
-                print(node.input)
                 attributes = getattr(node, "attribute")
-                if (len(attributes) < 2):
+                if ('conv' not in node_name):
                     c_kernel = 1
                 else:
                     c_kernel = getattr(attributes[2], 'ints')[0]**2
                 cycles.append([node, c_kernel])
-            print("-------------------------")
             reordered_level = list(sorted(cycles, key=lambda i: i[1], reverse=True))
             reordered_level = [elem[0] for elem in reordered_level]
-            for node in reordered_level:
-                print(node.input)
             reordered_layers_skip.append(reordered_level)
 
     return reordered_layers_skip
 
-def extracts_skip_connections_info(model):
+def extracts_skip_connections_info(model, quant_info):
 
     skip_connections_info = {}
 
@@ -89,17 +84,28 @@ def extracts_skip_connections_info(model):
 
     reordered_layers = reorder_layers(model, connection_level)
 
+    last_conv = None
     for node_level in reordered_layers:
         for node in node_level:
+            if 'conv' in node.name.lower():
+                last_conv = node
             for input in node.input:
                 if input not in general_info.keys():
                     general_info[input] = []
-                general_info[input].append(node)
+                if 'quant' in node.name.lower():
+                    general_info[input].append(last_conv)
+                else:
+                    general_info[input].append(node)
+
+    
+    print(general_info)
 
     # DONT USE SKIP IN MODEL
     for input_name, nodes in general_info.items():
         if len(nodes) > 1:
-            #print(nodes)
+            if input_name in quant_info.keys():
+                input_name = quant_info[input_name]
+            # print(nodes)
             if diff_level[input_name] != 0:
                 suffix = ""
                 for i, node in enumerate(nodes):
@@ -141,6 +147,93 @@ def extracts_skip_connections_info(model):
             # OUT_NAME is the name of the output to the relu function
             bias_info[no_skip_name] = [skip_name, out_name]
 
+    print(skip_connections_info)
+    print(sys.exit(0))
+
+    return skip_connections_info, bias_info, split_info, reordered_layers
+
+def extracts_skip_connections_info(model, quant_info):
+
+    skip_connections_info = {}
+
+    skip_connections = []
+
+    general_info = {}
+
+    bias_info = {}
+
+    split_info = {}
+
+    connection_level, diff_level = evaluate_connection_level(model)
+
+    reordered_layers = reorder_layers(model, connection_level)
+
+    # The dictionary reports all the layers which have a different input output
+    # structure with respect to the original 1 input stream - 1 output stream
+    # architecture
+    
+    io_dict = {}
+    
+    for node_level in reordered_layers:
+        for node in node_level:
+            # if 'quant' in node.name.lower():
+                # if node.input[0] == model.graph.input[0].name:
+                #     io_dict[node.name] = [[], []]
+                #     input_name = node.input[0]
+                #     output_name = node.output[0]
+                #     io_dict[node.name][0].append(input_name)
+                #     io_dict[node.name][1].append(output_name)
+
+            if 'quant' not in node.name.lower():
+                io_dict[node.name] = [[], []]
+
+                input_name = node.input[0]
+                io_dict[node.name][0].append(input_name)
+
+                output_name = node.output[0]
+                if node.output[0] in quant_info.keys():
+                    output_name = quant_info[output_name]
+
+                io_dict[node.name][1].append(output_name)
+
+    io_connect = {}
+
+    # This list is storing metadata of the connections between the output 
+    # streams and the producers
+    for node_name, io_info in io_dict.items():
+        output_name = io_info[1][0]
+
+        io_connect.setdefault(output_name, [[], []])
+
+        io_connect[output_name][1].append(node_name)
+
+    inv_quant_info = {}
+
+    for output_name, input_name in quant_info.items():
+        inv_quant_info[input_name] = output_name
+
+    print(quant_info)
+    print(io_connect)
+
+    # Adding to the previous list the connections to the consumers
+    for node_name, io_info in io_dict.items():
+        input_name = io_info[0][0]
+        
+        if input_name in inv_quant_info.keys():
+            input_name = inv_quant_info[input_name]
+
+        if input_name in io_connect.keys():
+            io_connect[input_name][0].append(node_name)
+
+
+    opt_skip_info = {}
+
+    # for node_name, io_info in io_dict.items():
+
+    print(io_connect)
+    print(sys.exit(0))
+
+
     return skip_connections_info, bias_info, split_info, reordered_layers
 
 def extracts_relu_info(model):
@@ -152,6 +245,25 @@ def extracts_relu_info(model):
             relu_info[node.input[0]] = [node.name, node.output[0]]
 
     return relu_info
+
+def extracts_quant_info(model):
+
+    quant_info = {}
+
+    last_input = None
+    last_output = None
+    for node in model.graph.node:
+        if 'quant' in node.op_type.lower():
+            quant_info[node.input[0]] = node.output[0]
+            if last_output is not None:
+                if last_output == node.input[0]:
+                    # Assuming equal quantization between consecutive quant
+                    # nodes
+                    quant_info[last_input] = node.output[0]
+            last_input = node.input[0]
+            last_output = node.output[0]
+
+    return quant_info
 
 def extracts_flatten_info(model):
 
@@ -185,8 +297,6 @@ def extracts_weights_info(model):
 
     weights_info = {}
 
-    print("------------------------------------------------------")
-    
     input_info = {}
     for node in model.graph.node:
         # Associating input weight to quant output
@@ -198,7 +308,6 @@ def extracts_weights_info(model):
             weights_info[input_info[info.name]] = {}
 
         weights_info[input_info[info.name]][info.name] = info
-    print(weights_info.keys())
     return weights_info
 
 # Expects an ONNX model
@@ -211,7 +320,9 @@ def write_network(
 
     read_width = 8
 
-    skip_connections_info, bias_info, split_info, reordered_layers = extracts_skip_connections_info(inferred_model)
+    quant_info = extracts_quant_info(inferred_model)
+
+    skip_connections_info, bias_info, split_info, reordered_layers = extracts_skip_connections_info(inferred_model, quant_info)
 
     weights_info = extracts_weights_info(inferred_model)
 
@@ -224,6 +335,7 @@ def write_network(
     conv_relu, additional_ports, additional_ports_info, parallel_ops, weights_export, reuse = main.write(
         inferred_model,
         tensors_info,
+        quant_info,
         weights_info,
         skip_connections_info,
         bias_info,
@@ -242,6 +354,7 @@ def write_network(
     defines.write(
         inferred_model,
         tensors_info,
+        quant_info,
         weights_info,
         skip_connections_info,
         bias_info,
