@@ -112,8 +112,9 @@ def merge_quant(io_dict, quant_info, inherit_quant=False):
             for i, output in enumerate(node["seq_out"]):
                 if output in quant_info.keys():
                     # Avoid splits with unbalanced quantizations, i.e
-                    # One branch with quant and one without quant
-                    if len(quant_info[output]["others"]) == 0:
+                    # not merging in case of branches
+                    single_quant = len(quant_info[output]["seq_out"]) < 2
+                    if (len(quant_info[output]["others"]) == 0) and single_quant:
                         for j, new_output in enumerate(quant_info[output]["seq_out"]):
                             new_node_name = quant_info[output][new_output]
                             new_scale = quant_info[output]["seq_scale"][j]
@@ -124,6 +125,8 @@ def merge_quant(io_dict, quant_info, inherit_quant=False):
                             new_node["changed"] = True
                         new_node["removed"].append(quant_info[output]["seq"][0])
                         remove_node.append(output)
+                    else:
+                        keep_elem.append(i)
                 else:
                     keep_elem.append(i)
 
