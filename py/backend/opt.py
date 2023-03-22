@@ -227,7 +227,8 @@ def opt_quant(model, io_dict, quant_info):
 
         search_layers = [
             'conv',
-            'pool'
+            'pool',
+            'produce',
         ]
 
         start_merge = any(
@@ -412,6 +413,9 @@ def opt_steps(
             io_dict,
             init_info
         )
+
+        for name, info in io_dict.items():
+            print(name, info)
 
         io_dict = opt_skip_quant(
             inferred_model,

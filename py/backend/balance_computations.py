@@ -26,6 +26,11 @@ def parallel_ops_number(layers_info, clamp=None):
 
     num_layers = len(layers_info)
 
+    # Counting merged 1x1 layers
+    for i in range(num_layers):
+        if layers_info[i][4]:
+            NUM_DSP -= 1
+
     _, best_index = find_high_comp(layers_info)
 
     prob = pulp.LpProblem("Parallel ops", pulp.LpMaximize)
@@ -51,6 +56,12 @@ def parallel_ops_number(layers_info, clamp=None):
         for i in range(num_layers):
             prob += pulp.lpSum([choices[i]]) <= clamp
 
+    # Have equal allocations for same number of operations
+    for i in range(num_layers):
+        for j in range(num_layers):
+            if layers_info[i][1] == layers_info[j][1]:
+                prob += choices[i] == choices[j]
+
     prob.writeLP("tmp/parallel_ops.lp")
 
     prob.solve()
@@ -67,17 +78,32 @@ def parallel_ops_number(layers_info, clamp=None):
     
     return parallel_op
 
-def opt(layers_info, off_chip_storage):
+def ilp(io_dict, off_chip_storage):
 
     if off_chip_storage:
         clamp = 8
     else:
         clamp = None
 
+    layers_info = []
+
+    for node_name, node_info in io_dict.items():
+        if 'conv' in node_name.lower():
+            layers_info.append(
+                [
+                    node_name,
+                    node_info["total"],
+                    node_info["kernel"],
+                    node_info["img_ch"],
+                    node_info["merge_1x1"]
+                ]
+            )
+
     parallel_ops = parallel_ops_number(layers_info, clamp)
 
     print(parallel_ops)
-    # for name, op in parallel_ops.items():
-    #     parallel_ops[name] = 1
 
-    return parallel_ops
+    for node_name, ops in parallel_ops.items():
+        io_dict[node_name]["ops"] = ops
+
+    return io_dict

@@ -4,7 +4,8 @@ import sys
 import qonnx
 from onnx import numpy_helper
 import numpy as np
-from backend.layers_info import *
+import backend.layers.conv as conv
+import backend.layers.pool as pool
 
 def net_distance(io_dict, io_connect):
 
@@ -37,48 +38,15 @@ def net_distance(io_dict, io_connect):
         
     return net_levels 
 
-# def reorder_layers(io_dict, connection_level):
-
-#     # Reordering nodes for optimized residual layer
-#     reordered_layers = [[]]
-#     for node_name, node in io_dict:
-#         node_level = connection_level[node["output"][0]]
-
-#         while node_level >= len(reordered_layers):
-#             reordered_layers.append([])
-
-#         reordered_layers[node_level].append(node)
-
-
-#     # Done for skip connection and stride management
-#     reordered_layers_skip = []
-#     for node_level in reordered_layers:
-#         reordered_level = node_level
-#         if len(node_level) != 0: 
-#             node_name = node_level[0].name.lower()
-#             reordered_level = []
-#             cycles = []
-#             for node in node_level:
-#                 attributes = getattr(node, "attribute")
-#                 if ('conv' not in node_name):
-#                     c_kernel = 1
-#                 else:
-#                     c_kernel = getattr(attributes[2], 'ints')[0]**2
-#                 cycles.append([node, c_kernel])
-#             reordered_level = list(
-#                 sorted(cycles, key=lambda i: i[1], reverse=True)
-#             )
-#             reordered_level = [elem[0] for elem in reordered_level]
-#             reordered_layers_skip.append(reordered_level)
-
-#     return reordered_layers_skip
-
 def extract_connections(model, io_dict):
 
     io_connect = {}
 
     graph_input_name = model.graph.input[0].name
+    graph_input_name = graph_input_name.replace(".", "_")
+
     graph_output_name = model.graph.output[0].name
+    graph_output_name = graph_output_name.replace(".", "_")
 
     # This list is storing metadata of the connections between the output 
     # streams and the producers
@@ -138,6 +106,7 @@ def graph_info(model, init_info):
     # quantization process
 
     graph_input_name = model.graph.input[0].name
+    graph_input_name = graph_input_name.replace(".", "_")
 
     # Declaring input stream management as a specific node
     # of the network
@@ -145,52 +114,60 @@ def graph_info(model, init_info):
     io_dict["ProduceStream"]["input"] = [graph_input_name]
     io_dict["ProduceStream"]["output"] = [graph_input_name]
     io_dict["ProduceStream"]["is_constant"] = False
+    io_dict["ProduceStream"]["type"] = 'produce'
 
     for node in model.graph.node:
 
-        io_dict[node.name] = {}
-        io_dict[node.name]["input"] = []
-        io_dict[node.name]["output"] = []
+        node_name = node.name
+        node_name = node_name.replace(".", "_")
+        io_dict[node_name] = {}
+        io_dict[node_name]["input"] = []
+        io_dict[node_name]["output"] = []
 
         for input in node.input:
 
             input_name = input
-
-            io_dict[node.name]["input"].append(input_name)
-            node_name_comp = node.name.lower()
+            input_name = input_name.replace(".", "_")
+            io_dict[node_name]["input"].append(input_name)
+            node_name_comp = node_name.lower()
             # Not including the weights parameters
             # if ('conv' in node_name_comp):
             #     break
 
-        output_name = node.output[0]
+        for output in node.output:
+            output_name = output
+            output_name = output_name.replace(".", "_")
 
-        io_dict[node.name]["output"].append(output_name)
-        io_dict[node.name]["has_forward"] = False
-        io_dict[node.name]["merge_1x1"] = False
+            io_dict[node_name]["output"].append(output_name)
+
+        io_dict[node_name]["has_forward"] = False
+        io_dict[node_name]["merge_1x1"] = False
 
         if 'conv' in node.op_type.lower():
-            io_dict = conv_info(
+            io_dict = conv.info(
                 io_dict,
                 node,
+                node_name,
                 init_info,
                 tensors_info
             )
 
         if 'pool' in node.op_type.lower():
-            io_dict = pool_info(
+            io_dict = pool.info(
                 io_dict,
                 node,
+                node_name,
                 init_info,
                 tensors_info
             )
 
         if 'quant' in node.op_type.lower():
-            scale_name   = io_dict[node.name]["input"][1]
+            scale_name   = io_dict[node_name]["input"][1]
             scale_info   = init_info[scale_name]
             scale_factor = numpy_helper.to_array(scale_info)
             scale_factor = np.log2(scale_factor)
 
-            io_dict[node.name]["scale_factor"] = scale_factor
+            io_dict[node_name]["scale_factor"] = scale_factor
 
     return io_dict
 
