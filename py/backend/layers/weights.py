@@ -5,6 +5,7 @@ import qonnx
 from onnx import numpy_helper
 import numpy as np
 from backend.graph import extract_connections
+from backend.utils import *
 
 def parse_on_chip(
     node_info,
@@ -21,7 +22,7 @@ def parse_on_chip(
     doch_ops = int(doch/dops)
 
     values = np.zeros(
-        [dih*diw, dich, doch_ops, dops]
+        [dih*diw, dich*doch_ops, dops]
     )
 
     for ih in range(dih-1, -1, -1):
@@ -32,7 +33,9 @@ def parse_on_chip(
                     for ops in range(dops):
                         quant_value = pre_values[off+ops][ich][ih][iw]
                         quant_value = int(quant_value/scale_factor)
-                        values[ih*diw+iw][ich][och][ops] = quant_value
+                        index = ih*diw+iw
+                        ch = ich*doch_ops+och
+                        values[dih*diw-1-index][ch][ops] = quant_value
     
     return values
 
@@ -179,11 +182,6 @@ def weights_info(
                 off_chip_memory
             )
 
-            # new_nodes[""]
-            # new_nodes[""]
-
-            # if new_nodes["off_chip_memory"]:
-
             rem_nodes.append(node_name)
             
     for node_name, node_info in new_nodes.items():
@@ -216,3 +214,173 @@ def parse_main(io_dict):
             block["pragma"] = []
 
     return block
+
+def parse(name, node):
+    
+    input_name = node["input"][0]
+    output_name = node["output"][0]
+
+    blocks = []
+    if node["off_chip_memory"]:
+        block = {}
+        block["func"] = "MemAlgo"
+        block["args"] = []
+        block["input"] = []
+        block["output"] = []
+
+        block["template"] = []
+        block["template"].append("t_%s" % (output_name))
+        block["template"].append("c_%s_ich" % (name))
+        block["template"].append("c_%s_och" % (name))
+        block["template"].append("c_%s_ow" % (name))
+        block["template"].append("c_%s_oh" % (name))
+        block["template"].append("c_%s_iw" % (output_name))
+        block["template"].append("c_%s_ih" % (output_name))
+        block["template"].append("c_%s_ops" % (output_name))
+        block["template"].append("READ_WIDTH")
+        block["template"].append("c_%s_bw" % (output_name))
+        block["template"].append("c_%s_reuse" % (output_name))
+        block["template"].append("0")
+
+        block["input"].append("i_data_%s" % output_name)
+        block["args"].append("s_o_%s" % output_name)
+        block["args"].append("i_data_%s" % output_name)
+
+        block["declare"] = []
+
+        block["pragma"] = []
+
+        blocks.append(block)
+
+        block = {}
+
+        block["func"] = "ProduceStream"
+        block["args"] = []
+        block["input"] = []
+        block["output"] = []
+
+        block["template"] = []
+        block["template"].append("ap_int<READ_WIDTH> ")
+        block["template"].append("t_%s" % (output_name))
+        block["template"].append("c_%s_ich" % (name))
+        block["template"].append("c_%s_och" % (name))
+        block["template"].append("c_%s_ow" % (name))
+        block["template"].append("c_%s_oh" % (name))
+        block["template"].append("c_%s_iw" % (output_name))
+        block["template"].append("c_%s_ih" % (output_name))
+        block["template"].append("c_%s_ops" % (output_name))
+        block["template"].append("c_%s_bw" % (output_name))
+        block["template"].append("c_%s_reuse" % (output_name))
+        block["template"].append("READ_WIDTH")
+
+        block["output"].append("s_%s" % output_name)
+        block["args"].append("s_o_%s" % output_name)
+        block["args"].append("s_%s" % output_name)
+
+        block["declare"] = []
+
+        block["pragma"] = []
+        blocks.append(block)
+
+    else:
+
+        block = {}
+
+        block["func"] = "ProduceStream"
+        block["args"] = []
+        block["input"] = []
+        block["output"] = []
+
+        block["template"] = []
+        block["template"].append("t_%s_st" % (output_name))
+        block["template"].append("t_%s" % (output_name))
+        block["template"].append("c_%s_ich" % (name))
+        block["template"].append("c_%s_och" % (name))
+        block["template"].append("c_%s_ow" % (name))
+        block["template"].append("c_%s_oh" % (name))
+        block["template"].append("c_%s_iw" % (output_name))
+        block["template"].append("c_%s_ih" % (output_name))
+        block["template"].append("c_%s_ops" % (output_name))
+
+        block["output"].append("s_%s" % output_name)
+        block["args"].append("c_%s" % output_name)
+        block["args"].append("s_%s" % output_name)
+
+        block["declare"] = []
+        tmp = {}
+        tmp["name"] = "c_%s" % input_name
+        tmp["type"] = "t_%s" % input_name
+        tmp["is_array"] = True
+        tmp["init"] = node["values"]
+
+        block["declare"].append(tmp)
+
+        pragma = {}
+        pragma["name"] = "array_partition"
+        options = [
+            ["variable", "c_%s" % (input_name)],
+            ["type", "block"],
+            ["factor", 1],
+            ["dim", 1],
+        ]
+        pragma["options"] = options
+
+        block["pragma"] = []
+        block["pragma"].append(pragma)
+        blocks.append(block)
+
+    return blocks
+
+def parse_all(io_dict):
+
+    parsed_write = []
+
+    for name, node in io_dict.items():
+
+        if 'const' == node["type"]:
+            parsed_write = parsed_write + parse(name, node)
+
+    return parsed_write
+
+def init(file_name, network_name, parsed_write):
+
+
+    libraries = [
+        "%s.hpp" % network_name,
+        "ap_int.h",
+        "MemUtils.hpp",
+        "hls_stream.hpp",
+    ]
+
+    with open("src/%s.cpp" % file_name, "w+") as fd:
+        # Write header with network definitions
+        for lib in libraries:
+            fd.write("#include \"%s\"\n" % lib)
+        fd.write("\n")
+
+        # Handle internal or external parameters
+        fd.write("void MemoryManagement(\n")
+
+        for layer in parsed_write:
+            for name in layer["input"]:
+                fd.write("\tap_int<READ_WIDTH> *i_data_%s,\n" % (name))
+
+        for i, layer in enumerate(parsed_write):
+            for j, name in enumerate(layer["output"]):
+                fd.write("\thls::stream<t_%s> &s_%s" % (name, name))
+                if i < (len(parsed_write)-1) or j < (len(layer["output"])-1):
+                    fd.write(",")
+                fd.write("\n")
+
+        fd.write(") {\n")
+
+        fd.write("\n")
+
+def write(io_dict, network_name):
+
+    parsed_write = parse_all(io_dict)
+
+    init("MemoryManagement", network_name, parsed_write)
+    declare("MemoryManagement", parsed_write)
+    body("MemoryManagement", parsed_write)
+

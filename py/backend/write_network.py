@@ -7,7 +7,7 @@ from qonnx.transformation import infer_shapes
 from backend.quant import *
 from backend.graph import *
 from backend.opt import *
-from backend.layers.weights import *
+import backend.layers.weights as weights
 import backend.balance_computations as balance_computations
 import backend.main as main
 
@@ -42,15 +42,12 @@ def write_network(
         init_info
     )
 
-    for name, info in io_dict.items():
-        print(name, info)
-
     io_dict = balance_computations.ilp(
         io_dict,
         off_chip_storage
     )
 
-    io_dict = weights_info(
+    io_dict = weights.weights_info(
         inferred_model,
         io_dict,
         init_info,
@@ -58,6 +55,14 @@ def write_network(
     )
 
     main.write(
+        io_dict,
+        file_name
+    )
+
+    # for name, info in io_dict.items():
+    #     print(name, info)
+
+    weights.write(
         io_dict,
         file_name
     )

@@ -8,13 +8,13 @@ import backend.layers.pool as pool
 import backend.layers.line_buffer as line_buffer
 import backend.layers.pad as pad
 import backend.layers.weights as weights
+from backend.utils import *
 
 def init(file_name, parsed_write):
 
 
     libraries = [
         "%s.hpp" % file_name,
-        "hls_stream.h",
         "ap_int.h",
         "hls_stream.h",
         "PackedConv.hpp",
@@ -50,69 +50,6 @@ def init(file_name, parsed_write):
 
         fd.write("\n")
 
-def write_func(fd, info):
-
-    fd.write("\t%s" % info["func"])
-    if "template" in info.keys():
-        fd.write(" <\n")
-        for i, template in enumerate(info["template"]):
-            fd.write("\t\t%s" % template)
-            if i < len(info["template"])-1:
-                fd.write(",\n")
-            else:
-                fd.write("\n")
-                fd.write("\t>")
-    fd.write(" (\n")
-    for i, arg in enumerate(info["args"]):
-        fd.write("\t\t%s" %arg)
-        if i < len(info["args"])-1:
-            fd.write(",\n")
-        else:
-            fd.write("\n")
-            fd.write("\t);\n")
-    fd.write("\n")
-
-
-def body(file_name, parsed_write):
-
-    with open("src/%s.cpp" % file_name, "a") as fd:
-        
-        for layer in parsed_write:
-
-            write_func(fd, layer)
-
-        fd.write("}\n")
-    
-def write_declare(fd, stream):
-    
-    name = stream["name"]
-    type_name = stream["type"]
-    dim = stream["dim"]
-    fd.write("\thls::stream<%s> %s[%0d];\n" % (type_name, name, dim))
-
-def write_pragma(fd, pragma):
-    
-    name = pragma["name"]
-    depth = pragma["depth"]
-    fd.write(
-        "\t#pragma HLS STREAM variable=%s depth=%0d type=fifo\n" %
-        (name, depth)
-    )
-
-def declare(file_name, parsed_write):
-
-    with open("src/%s.cpp" % file_name, "a") as fd:
-        
-        for layer in parsed_write:
-
-            for stream in layer["declare"]:
-                write_declare(fd, stream)
-
-            for pragma in layer["pragma"]:
-                write_pragma(fd, pragma)
-
-        fd.write("\n")
-    
 def input_block(name, node):
     
     input_name  = node["input"][0]
@@ -142,7 +79,24 @@ def input_block(name, node):
 
     block["declare"] = []
 
+    declare = {}
+    declare["name"] = "s_%s" % output_name
+    declare["type"] = "t_%s_struct" % output_name
+    declare["is_array"] = False
+    declare["dim"] = 1
+    block["declare"].append(declare)
+
     block["pragma"] = []
+
+    pragma = {}
+    pragma["name"] = "stream"
+    options = [
+        ["variable", "s_%s" % (output_name)],
+        ["depth", 2],
+        ["type", "fifo"],
+    ]
+    pragma["options"] = options
+    block["pragma"].append(pragma)
 
     return block
 

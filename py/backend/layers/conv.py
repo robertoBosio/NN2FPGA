@@ -125,6 +125,43 @@ def parse(name, node):
 
     block["declare"] = []
 
+    declare = {}
+    declare["name"] = "s_%s" % output_name
+    declare["type"] = "t_%s_struct" % output_name
+    declare["is_array"] = True
+    declare["dim"] = 1
+    block["declare"].append(declare)
+
+
+    if (node["merge_1x1"]):
+        declare = {}
+        declare["name"] = "s_%s" % output_1x1_name
+        declare["type"] = "t_%s_struct" % output_1x1_name
+        declare["is_array"] = True
+        declare["dim"] = 1
+        block["declare"].append(declare)
+
     block["pragma"] = []
+
+    pragma = {}
+    pragma["name"] = "stream"
+    options = [
+        ["variable", "s_%s" % (output_name)],
+        ["depth", 2],
+        ["type", "fifo"],
+    ]
+    pragma["options"] = options
+    block["pragma"].append(pragma)
+
+    if (node["merge_1x1"]):
+        pragma = {}
+        pragma["name"] = "stream"
+        options = [
+            ["variable", "s_%s" % (output_1x1_name)],
+            ["depth", 2],
+            ["type", "fifo"],
+        ]
+        pragma["options"] = options
+        block["pragma"].append(pragma)
 
     return block

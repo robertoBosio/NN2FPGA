@@ -80,19 +80,31 @@ def parse(name, node):
 
             if (index == 0):
                 pragma = {}
-                pragma["name"] = "s_%s_compute" % output_name
-                pragma["depth"] = 2
+                pragma["name"] = "stream"
+                options = [
+                    ["variable", "s_%s_compute" % output_name],
+                    ["depth", "2"],
+                    ["type", "fifo"],
+                ]
+                pragma["options"] = options
                 block["pragma"].append(pragma)
 
             pragma = {}
 
-            pragma["name"] = "s_%s_data[%0d]" % (output_name, index)
             if (index == 0):
-                pragma["depth"] = 2
+                depth = 2
             elif (fw == 0):
-                pragma["depth"] = node["iw"]*node["ich"]
+                depth = node["iw"]*node["ich"]
             else:
-                pragma["depth"] = node["ich"]
+                depth = node["ich"]
+
+            pragma["name"] = "stream"
+            options = [
+                ["variable", "s_%s_data[%0d]" % (output_name, index)],
+                ["depth", depth],
+                ["type", "fifo"],
+            ]
+            pragma["options"] = options
 
             block["pragma"].append(pragma)
 
