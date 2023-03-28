@@ -77,6 +77,21 @@ def input_block(name, node):
 
     block["input"] = ["i_%s" % input_name]
 
+    block["defines"] = {}
+    block["defines"]["c_i_data"] = ["const", 64]
+    block["defines"]["t_%s" % input_type_name] = [
+        "type",
+        "ap_axiu<c_i_data, 0, 0, 0>"
+    ]
+    block["defines"]["t_%s" % output_type_name] = [
+        "type",
+        "uint8_t"
+    ]
+    block["defines"]["t_%s_struct" % output_type_name] = [
+        "struct",
+        [["data", "uint8_t"], ["last", "bool"]]
+    ]
+
     block["declare"] = []
 
     declare = {}
@@ -122,6 +137,13 @@ def output_block(parsed_write):
     block["args"].append("%s" % input_name)
     block["args"].append("%s" % output_name)
 
+    block["defines"] = {}
+    block["defines"]["c_o_data"] = ["const", 32]
+    block["defines"]["t_%s" % output_type_name] = [
+        "type",
+        "ap_axiu<c_o_data, 0, 0, 0>"
+    ]
+
     block["declare"] = []
 
     block["pragma"] = []
@@ -134,6 +156,8 @@ def parse_all_main(io_dict):
     parsed_write.append(
         weights.parse_main(io_dict)
     )
+
+    parsed_const = []
 
     for name, node in io_dict.items():
 
@@ -160,17 +184,24 @@ def parse_all_main(io_dict):
                 pool.parse(name, node)
             )
 
+        # Just for the sake of constant definition
+        if 'const' == node["type"]:
+            parsed_const = parsed_const + weights.parse(name, node)
+
     parsed_write.append(
         output_block(parsed_write)
     )
 
-    return parsed_write
+    return parsed_write, parsed_const
 
 def write(io_dict, file_name):
 
-    parsed_write = parse_all_main(io_dict)
+    parsed_write, parsed_const = parse_all_main(io_dict)
 
     init(file_name, parsed_write)
     declare(file_name, parsed_write)
     body(file_name, parsed_write)
 
+    parsed_write = parsed_write + parsed_const
+
+    defines(file_name, parsed_write)

@@ -98,3 +98,78 @@ def declare(file_name, parsed_write):
 
         fd.write("\n")
 
+def write_defines(fd, values):
+
+    for name, value in values.items():
+
+        if value[0] == 'const':
+            fd.write(
+                "const int %s = %0d;\n" % (
+                    name,
+                    value[1]
+                )
+            )
+
+        if value[0] == 'type':
+            fd.write(
+                "typedef %s %s;\n" % (
+                    name,
+                    value[1]
+                )
+            )
+
+        if value[0] == 'struct':
+            fd.write("typedef struct {\n")
+            for field in value[1]:
+                fd.write("\t%s %s;\n" % (field[1], field[0]))
+            fd.write("} %s;\n" % name)
+
+def defines(file_name, parsed_write):
+
+    with open("src/%s.hpp" % file_name, "w+") as fd:
+        
+        fd.write("#ifndef __NETWORK__\n")
+        fd.write("#define __NETWORK__\n")
+
+        for layer in parsed_write:
+
+            if 'defines' in layer.keys():
+                write_defines(fd, layer["defines"])
+
+        fd.write("\n")
+
+        fd.write("void %s(\n" % file_name)
+
+        for layer in parsed_write:
+            if "ProduceStream" == layer["func"]:
+                for name in layer["input"]:
+                    fd.write("\thls::stream<t_%s> &%s,\n" % (name, name))
+
+        for layer in parsed_write:
+            if "MemoryManagement" == layer["func"]:
+                for name in layer["input"]:
+                    fd.write("\tap_int<READ_WIDTH> *i_data_%s,\n" % name)
+
+        name = parsed_write[-1]["args"][-1]
+        fd.write("\thls::stream<t_%s> &%s\n" % (name, name))
+        fd.write(");\n")
+
+        fd.write("void MemoryManagement(\n")
+
+        for layer in parsed_write:
+            if 'is_const' in layer.keys():
+                for name in layer["input"]:
+                    fd.write("\tap_int<READ_WIDTH> *i_data_%s,\n" % (name))
+
+        for i, layer in enumerate(parsed_write):
+            if 'is_const' in layer.keys():
+                for j, name in enumerate(layer["output"]):
+                    fd.write("\thls::stream<t_%s> &s_%s" % (name, name))
+                    if i < (len(parsed_write)-1) or j < (len(layer["output"])-1):
+                        fd.write(",")
+                    fd.write("\n")
+
+        fd.write(");\n")
+
+        fd.write("\n")
+        fd.write("#endif")

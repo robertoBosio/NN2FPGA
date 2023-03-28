@@ -108,6 +108,7 @@ def extract_info(
     else:
         ops = node_info["ops"]
 
+    new_node["data_type"] = "int8_t"
     new_node["ich"]    = ich
     new_node["ih"]     = ih
     new_node["iw"]     = iw
@@ -277,10 +278,22 @@ def parse(name, node):
         block["args"].append("s_o_%s" % output_name)
         block["args"].append("s_%s" % output_name)
 
+        block["defines"] = {}
+        output_type_name = "hls::vector<%s, %0d>" % (node["data_type"], node["ops"])
+        block["defines"]["t_%s" % (output_name)]       = ["type",  output_type_name]
+        block["defines"]["c_%s_ich" % (name)]          = ["const", node["ich"]]
+        block["defines"]["c_%s_och" % (name)]          = ["const", node["och"]]
+        block["defines"]["c_%s_ow" % (name)]           = ["const", node["ow"]]
+        block["defines"]["c_%s_oh" % (name)]           = ["const", node["oh"]]
+        block["defines"]["c_%s_iw" % (output_name)]    = ["const", node["iw"]]
+        block["defines"]["c_%s_ih" % (output_name)]    = ["const", node["ih"]]
+        block["defines"]["c_%s_ops" % (output_name)]   = ["const", node["ops"]]
+        block["defines"]["c_%s_bw" % (output_name)]    = ["const", node["bw"]]
+        block["defines"]["c_%s_reuse" % (output_name)] = ["const", node["reuse"]]
+
         block["declare"] = []
 
         block["pragma"] = []
-        blocks.append(block)
 
     else:
 
@@ -302,7 +315,7 @@ def parse(name, node):
         block["template"].append("c_%s_ih" % (output_name))
         block["template"].append("c_%s_ops" % (output_name))
 
-        block["output"].append("s_%s" % output_name)
+        block["output"].append("%s" % output_name)
         block["args"].append("c_%s" % output_name)
         block["args"].append("s_%s" % output_name)
 
@@ -314,6 +327,17 @@ def parse(name, node):
         tmp["init"] = node["values"]
 
         block["declare"].append(tmp)
+
+        block["defines"] = {}
+        output_type_name = "hls::vector<%s, %0d>" % (node["data_type"], node["ops"])
+        block["defines"]["t_%s" % (output_name)]       = ["type",  output_type_name]
+        block["defines"]["c_%s_ich" % (name)]          = ["const", node["ich"]]
+        block["defines"]["c_%s_och" % (name)]          = ["const", node["och"]]
+        block["defines"]["c_%s_ow" % (name)]           = ["const", node["ow"]]
+        block["defines"]["c_%s_oh" % (name)]           = ["const", node["oh"]]
+        block["defines"]["c_%s_iw" % (output_name)]    = ["const", node["iw"]]
+        block["defines"]["c_%s_ih" % (output_name)]    = ["const", node["ih"]]
+        block["defines"]["c_%s_ops" % (output_name)]   = ["const", node["ops"]]
 
         pragma = {}
         pragma["name"] = "array_partition"
@@ -327,7 +351,8 @@ def parse(name, node):
 
         block["pragma"] = []
         block["pragma"].append(pragma)
-        blocks.append(block)
+    block["is_const"] = True
+    blocks.append(block)
 
     return blocks
 

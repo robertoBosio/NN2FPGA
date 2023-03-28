@@ -70,12 +70,36 @@ def parse(name, node):
     block["template"].append("c_%s_fh" % name)
     block["template"].append("c_%s_stride" % name)
     block["template"].append("c_%s_pad" % name)
-    block["template"].append("c_%s_scale_shift" % name)
-    block["template"].append("c_%s_in_scale_shift" % name)
+    block["template"].append("c_%s_scale_factor" % name)
+    block["template"].append("c_%s_in_scale_factor" % name)
 
     block["args"] = []
     block["args"].append("s_%s" % input_name)
     block["args"].append("s_%s" % output_name)
+
+    block["defines"] = {}
+    block["defines"]["t_%s_struct" % output_type_name] = [
+        "struct",
+        [["data", "uint8_t"], ["last", "bool"]]
+    ]
+    block["defines"]["t_%s" % output_type_name] = ["type", "uint8_t"]
+
+    block["defines"]["t_%s_acc" % name]            = ["type", "int32_t"]
+    block["defines"]["c_%s_ich" % name]            = ["const", node["ich"]]
+    block["defines"]["c_%s_och" % name]            = ["const", node["och"]]
+    block["defines"]["c_%s_iw" % name]             = ["const", node["iw"]]
+    block["defines"]["c_%s_ih" % name]             = ["const", node["ih"]]
+    block["defines"]["c_%s_ow" % name]             = ["const", node["ow"]]
+    block["defines"]["c_%s_oh" % name]             = ["const", node["oh"]]
+    block["defines"]["c_%s_fw" % name]             = ["const", node["fw"]]
+    block["defines"]["c_%s_fh" % name]             = ["const", node["fh"]]
+    block["defines"]["c_%s_stride" % name]         = ["const", node["stride"]]
+    block["defines"]["c_%s_pad" % name]            = ["const", node["pad"]]
+    if "scale_factor" in node.keys():
+        block["defines"]["c_%s_scale_factor" % name] = [
+            "const", 
+            node["scale_factor"][0]
+        ]
 
     block["declare"] = []
 

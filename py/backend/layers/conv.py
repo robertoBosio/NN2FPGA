@@ -26,6 +26,7 @@ def info(io_dict, node, node_name, init_info, tensors_info):
     kernel   = fh*fw
     img_ch   = oh*ow
     reuse    = 1
+    relu     = False
     add      = False
     in_scale_factor = 0
 
@@ -44,6 +45,7 @@ def info(io_dict, node, node_name, init_info, tensors_info):
     io_dict[node_name]["kernel"] = kernel
     io_dict[node_name]["img_ch"] = img_ch
     io_dict[node_name]["reuse"]  = reuse
+    io_dict[node_name]["relu"]   = relu
     io_dict[node_name]["add"]    = add
     io_dict[node_name]["in_scale_factor"] = in_scale_factor
     io_dict[node_name]["type"]   = 'conv'
@@ -55,7 +57,6 @@ def parse(name, node):
     input_name  = node["input"][0]
     input_type_name = input_name.replace("_skip", "")
     weight_name = node["input"][1]
-
 
     # If no batchnorm merge then there is no bias
     has_bias = len(node["input"]) > 2
@@ -103,9 +104,46 @@ def parse(name, node):
     block["template"].append("c_%s_stride" % name)
     block["template"].append("c_%s_pad" % name)
     block["template"].append("c_%s_ops" % name)
-    block["template"].append("c_%s_scale_shift" % name)
+    block["template"].append("c_%s_scale_factor" % name)
     block["template"].append("c_%s_reuse" % name)
-    block["template"].append("c_%s_in_scale_shift" % name)
+    block["template"].append("c_%s_in_scale_factor" % name)
+
+    block["defines"] = {}
+    block["defines"]["t_%s_struct" % output_type_name] = [
+        "struct",
+        [["data", "uint8_t"], ["last", "bool"]]
+    ]
+    block["defines"]["t_%s" % output_type_name] = ["type", "uint8_t"]
+    if (node["merge_1x1"]):
+        block["defines"]["t_%s_struct" % output_1x1_type_name] = [
+            "struct",
+            [["data", "uint8_t"], ["last", "bool"]]
+        ]
+        block["defines"]["t_%s" % output_1x1_type_name] = ["type", "uint8_t"]
+
+    block["defines"]["t_%s_acc" % name]            = ["type", "int32_t"]
+    block["defines"]["c_%s_ich" % name]            = ["const", node["ich"]]
+    block["defines"]["c_%s_och" % name]            = ["const", node["och"]]
+    block["defines"]["c_%s_iw" % name]             = ["const", node["iw"]]
+    block["defines"]["c_%s_ih" % name]             = ["const", node["ih"]]
+    block["defines"]["c_%s_ow" % name]             = ["const", node["ow"]]
+    block["defines"]["c_%s_oh" % name]             = ["const", node["oh"]]
+    block["defines"]["c_%s_fw" % name]             = ["const", node["fw"]]
+    block["defines"]["c_%s_fh" % name]             = ["const", node["fh"]]
+    block["defines"]["c_%s_relu" % name]           = ["const", int(node["relu"])]
+    block["defines"]["c_%s_stride" % name]         = ["const", node["stride"]]
+    block["defines"]["c_%s_pad" % name]            = ["const", node["pad"]]
+    block["defines"]["c_%s_ops" % name]            = ["const", node["ops"]]
+    if "scale_factor" in node.keys():
+        block["defines"]["c_%s_scale_factor" % name]   = [
+            "const", 
+            node["scale_factor"][0]
+        ]
+    block["defines"]["c_%s_reuse" % name]          = ["const", node["reuse"]]
+    block["defines"]["c_%s_in_scale_factor" % name] = [
+        "const",
+        node["in_scale_factor"]
+    ]
 
     block["args"] = []
     if node["is_1x1"]:
