@@ -6,6 +6,7 @@ from onnx import numpy_helper
 import numpy as np
 import backend.layers.conv as conv
 import backend.layers.pool as pool
+import backend.layers.input_gen as input_gen
 
 def net_distance(io_dict, io_connect):
 
@@ -104,17 +105,14 @@ def graph_info(model, init_info):
     
     # Listing for each layer the input and outputs taking into account the
     # quantization process
-
-    graph_input_name = model.graph.input[0].name
-    graph_input_name = graph_input_name.replace(".", "_")
-
+    
     # Declaring input stream management as a specific node
     # of the network
-    io_dict["ProduceStream"] = {}
-    io_dict["ProduceStream"]["input"] = [graph_input_name]
-    io_dict["ProduceStream"]["output"] = [graph_input_name]
-    io_dict["ProduceStream"]["is_constant"] = False
-    io_dict["ProduceStream"]["type"] = 'produce'
+    io_dict = input_gen.info(
+        io_dict,
+        tensors_info,
+        model
+    )
 
     for node in model.graph.node:
 

@@ -6,6 +6,19 @@
 #include "LineBuffer.hpp"
 #include <etc/autopilot_ssdm_op.h>
 
+//////////////////////////// QUANT FUNCTIONS //////////////////////////////////
+template <
+	class t_input,
+	int c_scale
+> void QuantAct (
+	t_input i_data
+) {
+	if (c_scale >= 0)
+		i_data = i_data >> c_scale;
+	else
+		i_data = i_data << c_scale;
+}
+
 //////////////////////////// FROM POINTER TO STREAM /////////////////////////// 
 // For input activations
 /* template < */
@@ -59,7 +72,8 @@ template <
 	int c_ich,
 	int c_iw,
 	int c_ih,
-	int c_bits
+	int c_bits,
+	int c_scale
 > void ProduceStream(
 	hls::stream<t_input> &i_data,
 	hls::stream<t_output_struct> &o_data
@@ -81,6 +95,8 @@ template <
 		
 		t_output_struct tmp_w;
 		tmp_w.data = (t_output)(tmp_r_par & 0xff);
+		QuantAct<t_output,c_scale>(&tmp_w.data);
+
 		if (s_par < (c_par-1))
 			tmp_w.last = false;
 		else
@@ -105,7 +121,7 @@ template <
 	hls::stream<t_output> &o_data
 ) {
 
-	const int c_par = c_i_data/8;
+	const int c_par = c_bits/8;
 	const int c_index = (c_ich*c_ih*c_iw)/c_par;
 
 	t_input tmp_r;

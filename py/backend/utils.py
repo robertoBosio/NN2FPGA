@@ -113,8 +113,8 @@ def write_defines(fd, values):
         if value[0] == 'type':
             fd.write(
                 "typedef %s %s;\n" % (
+                    value[1],
                     name,
-                    value[1]
                 )
             )
 
@@ -126,10 +126,21 @@ def write_defines(fd, values):
 
 def defines(file_name, parsed_write):
 
+    libraries = [
+        "ap_int.h",
+        "hls_stream.h",
+        "hls_vector.h",
+        "stdint.h",
+        "ap_axi_sdata.h",
+    ]
+
     with open("src/%s.hpp" % file_name, "w+") as fd:
         
         fd.write("#ifndef __NETWORK__\n")
         fd.write("#define __NETWORK__\n")
+
+        for lib in libraries:
+            fd.write("#include \"%s\"\n" % lib)
 
         for layer in parsed_write:
 
@@ -150,8 +161,11 @@ def defines(file_name, parsed_write):
                 for name in layer["input"]:
                     fd.write("\tap_int<READ_WIDTH> *i_data_%s,\n" % name)
 
-        name = parsed_write[-1]["args"][-1]
-        fd.write("\thls::stream<t_%s> &%s\n" % (name, name))
+        for layer in parsed_write:
+            if "ConsumeStream" == layer["func"]:
+                for name in layer["output"]:
+                    fd.write("\thls::stream<t_%s> &%s\n" % (name, name))
+
         fd.write(");\n")
 
         fd.write("void MemoryManagement(\n")
@@ -164,7 +178,13 @@ def defines(file_name, parsed_write):
         for i, layer in enumerate(parsed_write):
             if 'is_const' in layer.keys():
                 for j, name in enumerate(layer["output"]):
-                    fd.write("\thls::stream<t_%s> &s_%s" % (name, name))
+                    fd.write(
+                        "\thls::stream<t_%s> s_%s[%0d]" % (
+                            name,
+                            name,
+                            layer["size"]
+                        )
+                    )
                     if i < (len(parsed_write)-1) or j < (len(layer["output"])-1):
                         fd.write(",")
                     fd.write("\n")

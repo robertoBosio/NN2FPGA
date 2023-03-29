@@ -201,6 +201,8 @@ def parse_main(io_dict):
     block["input"] = []
     block["output"] = []
 
+    block["declare"] = []
+    block["pragma"] = []
     for name, node in io_dict.items():
         if 'const' == node["type"]:
             input_name = node["input"][0]
@@ -210,9 +212,23 @@ def parse_main(io_dict):
                 block["args"].append("i_data_%s" % input_name)
             block["args"].append("s_%s" % output_name)
 
-            block["declare"] = []
+            tmp = {}
+            tmp["name"] = "s_%s" % output_name
+            tmp["type"] = "t_%s" % output_name
+            tmp["dim"]  = node["ih"]*node["iw"]
+            tmp["is_array"] = True
 
-            block["pragma"] = []
+            block["declare"].append(tmp)
+
+            pragma = {}
+            pragma["name"] = "stream"
+            options = [
+                ["variable", "s_%s" % output_name],
+                ["depth", "2"],
+                ["type", "fifo"],
+            ]
+            pragma["options"] = options
+            block["pragma"].append(pragma)
 
     return block
 
@@ -351,6 +367,7 @@ def parse(name, node):
 
         block["pragma"] = []
         block["pragma"].append(pragma)
+    block["size"] = node["iw"]*node["ih"]
     block["is_const"] = True
     blocks.append(block)
 
@@ -392,7 +409,13 @@ def init(file_name, network_name, parsed_write):
 
         for i, layer in enumerate(parsed_write):
             for j, name in enumerate(layer["output"]):
-                fd.write("\thls::stream<t_%s> &s_%s" % (name, name))
+                fd.write(
+                    "\thls::stream<t_%s> s_%s[%0d]" % (
+                        name,
+                        name,
+                        layer["size"]
+                    )
+                )
                 if i < (len(parsed_write)-1) or j < (len(layer["output"])-1):
                     fd.write(",")
                 fd.write("\n")
