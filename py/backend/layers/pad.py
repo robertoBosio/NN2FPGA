@@ -28,7 +28,7 @@ def parse(name, node):
 
     block["args"] = []
 
-    block["args"].append("s_%s" % input_name)
+    block["args"].append("s_%s[0]" % input_name)
     block["args"].append("s_%s_padded" % input_name)
 
     block["declare"] = []

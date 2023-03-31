@@ -79,9 +79,7 @@ def parse_all_main(io_dict):
                     pad.parse(name, node)
                 )
                 parsed_write = parsed_write + line_buffer.parse(name, node)
-            parsed_write.append(
-                conv.parse(name, node)
-            )
+            parsed_write = parsed_write + conv.parse(name, node)
 
         if 'pool' == node["type"]:
             parsed_write.append(

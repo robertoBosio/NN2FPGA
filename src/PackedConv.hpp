@@ -14,6 +14,7 @@ template <
 	class t_input_struct,
 	class t_input,
 	class t_weight,
+	class t_bias,
 	class t_acc_struct,
 	class t_acc,
 	int c_ich,
@@ -27,6 +28,7 @@ template <
 > void ConvComp(
 	hls::stream<t_input_struct> i_input[c_index],
 	hls::stream<t_weight> i_weights[c_index],
+	hls::stream<t_bias> i_bias[1],
 	hls::stream<t_acc_struct> o_acc_stream[c_ops]
 ) {
 /* #pragma HLS inline */
@@ -85,7 +87,11 @@ template <
 					t_acc_struct s_acc_struct;
 					s_acc_struct.last = s_last & (s_och == (c_och-1));
 
-					s_acc = 0;
+					if (s_ich == 0)
+						s_acc = i_bias[0].read();
+					else
+						s_acc = 0;
+
 					s_acc_base = s_acc_buff[s_reuse][s_och];
 
 					for (auto s_index = 0; s_index < c_index; s_index++) {
@@ -113,6 +119,119 @@ template <
 	class t_input_struct,
 	class t_input,
 	class t_weight,
+	class t_bias,
+	class t_weight_1x1,
+	class t_bias_1x1,
+	class t_acc_struct,
+	class t_acc,
+	class t_acc_1x1_struct,
+	class t_acc_1x1,
+	int c_ich,
+	int c_och,
+	int c_oh,
+	int c_ow,
+	int c_index,
+	int c_str,
+	int c_ops,
+	int c_reuse
+> void ConvComp(
+	hls::stream<t_input_struct> i_input[c_index],
+	hls::stream<t_weight> i_weights[c_index],
+	hls::stream<t_bias> i_bias[1],
+	hls::stream<t_weight_1x1> i_weights_1x1[1],
+	hls::stream<t_bias_1x1> i_bias_1x1[1],
+	hls::stream<t_acc_struct> o_acc_stream[c_ops],
+	hls::stream<t_acc_1x1_struct> o_acc_1x1_stream[1]
+) {
+/* #pragma HLS inline */
+
+	const auto c_o_index = c_oh*c_ow/c_reuse;
+	const auto c_num_och = c_och/c_ops;
+	const auto c_iter    = c_reuse*c_num_och;
+
+	t_acc s_acc_buff[c_reuse][c_och];
+#pragma HLS array_partition variable=s_acc_buff type=complete dim=0
+	t_input s_input[c_reuse][c_index];
+#pragma HLS array_partition variable=s_input type=complete
+	bool s_last = false;
+	int8_t s_weight[c_ops][c_index];
+#pragma HLS array_partition variable=s_weight type=complete
+
+		/* for (auto s_reuse = 0; s_reuse < c_reuse; s_reuse++) */
+		/* 	for (auto s_och = 0; s_och < c_och; s_och++) */
+		/* 		s_acc_buff[s_reuse][s_och] = 0; */
+
+	for (auto s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
+		for (auto s_ich = 0; s_ich < c_ich; s_ich++) {
+			for (auto s_iter = 0; s_iter < c_iter; s_iter++) {
+#pragma HLS pipeline style=frp
+
+				auto s_reuse = s_iter % c_reuse;
+				auto s_num_och = s_iter / c_reuse;
+
+				if (s_num_och == 0) {
+					for (auto s_index = 0; s_index < c_index; s_index++) {
+						t_input_struct s_input_stuct = i_input[s_index].read();
+						s_input[s_reuse][s_index] = s_input_stuct.data;
+						/* Sending last only at the bottom left data */
+						if (s_index == 0)
+							s_last = s_input_stuct.last;
+					}
+				}
+
+				/* Buffering to speed up computations */
+				/* TODO: Adjust for generic bit quantizations */
+				if (s_reuse == 0) {
+					for (auto s_index = 0; s_index < c_index; s_index++) {
+						t_weight s_tmp_weight = i_weights[s_index].read();
+						for (auto s_ops = 0; s_ops < c_ops; s_ops++) {
+							/* Input weights are reversed with respect to original order */
+							s_weight[s_ops][s_index] = s_tmp_weight[s_ops];
+						}
+					}
+				}
+
+			/* TODO: try unroll and pipeline of the inner loop */
+				COMPUTE: for (auto s_ops = 0; s_ops < c_ops; s_ops++) {
+					auto s_och = s_num_och*c_ops + s_ops;
+					t_acc s_acc;
+					t_acc s_acc_base;
+					t_acc_struct s_acc_struct;
+					s_acc_struct.last = s_last & (s_och == (c_och-1));
+
+					if (s_ich == 0)
+						s_acc = i_bias[0].read();
+					else
+						s_acc = 0;
+
+					s_acc_base = s_acc_buff[s_reuse][s_och];
+
+					for (auto s_index = 0; s_index < c_index; s_index++) {
+						s_acc += s_input[s_reuse][s_index] * s_weight[s_ops][s_index];
+					}
+
+					if (s_ich != 0)
+						s_acc += s_acc_base;
+
+					s_acc_struct.data = s_acc;
+
+					if (s_ich == (c_ich - 1)) {
+						o_acc_stream[s_ops].write(s_acc_struct);
+					} else {
+						s_acc_buff[s_reuse][s_och] = s_acc;
+					}
+				}
+			}
+		}
+	}
+
+}
+
+template <
+	class t_input_struct,
+	class t_input,
+	class t_weight,
+	class t_bias,
 	class t_acc_struct,
 	class t_acc,
 	int c_ich,
@@ -126,6 +245,7 @@ template <
 > void ConvComp(
 	hls::stream<t_input_struct> i_input[c_index],
 	hls::stream<t_weight> i_weights[c_index],
+	hls::stream<t_bias> i_bias[1],
 	hls::stream<t_input_struct> &o_forward,
 	hls::stream<t_acc_struct> o_acc_stream[c_ops]
 ) {
@@ -185,7 +305,11 @@ template <
 					t_acc_struct s_acc_struct;
 					s_acc_struct.last = s_last & (s_och == (c_och-1));
 
-					s_acc = 0;
+					if (s_ich == 0)
+						s_acc = i_bias[0].read();
+					else
+						s_acc = 0;
+
 					s_acc_base = s_acc_buff[s_reuse][s_och];
 
 					for (auto s_index = 0; s_index < c_index; s_index++) {
@@ -224,7 +348,8 @@ template <
 	class t_input_struct,
 	class t_input,
 	class t_weight,
-	class t_bias_struct,
+	class t_bias,
+	class t_add_struct,
 	class t_acc_struct,
 	class t_acc,
 	int c_ich,
@@ -238,7 +363,8 @@ template <
 > void ConvComp(
 	hls::stream<t_input_struct> i_input[c_index],
 	hls::stream<t_weight> i_weights[c_index],
-	hls::stream<t_bias_struct> &i_bias,
+	hls::stream<t_bias> i_bias[1],
+	hls::stream<t_add_struct> &i_add,
 	hls::stream<t_acc_struct> o_acc_stream[c_ops]
 ) {
 /* #pragma HLS inline */
@@ -259,7 +385,7 @@ template <
 		/* 	for (auto s_och = 0; s_och < c_och; s_och++) */
 		/* 		s_acc_buff[s_reuse][s_och] = 0; */
 
-	t_bias_struct s_bias;
+	t_add_struct s_add;
 	for (auto s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
 		for (auto s_ich = 0; s_ich < c_ich; s_ich++) {
 			for (auto s_iter = 0; s_iter < c_iter; s_iter++) {
@@ -291,10 +417,10 @@ template <
 				}
 
 				// Done to avoid partitioning of the stream and resource wasting
-				// Theoretically with the bias the input and output dimensions should
-				// be equal, so we could add the bias in different iterations
+				// Theoretically with the add the input and output dimensions should
+				// be equal, so we could add the add in different iterations
 				if (s_iter == 0) {
-					s_bias = i_bias.read();
+					s_add = i_add.read();
 				}
 
 			/* TODO: try unroll and pipeline of the inner loop */
@@ -306,7 +432,7 @@ template <
 					s_acc_struct.last = s_last & (s_och == (c_och-1));
 
 					if (s_ich == s_och) { 
-						s_acc = (t_acc)(s_bias.data) << 7;
+						s_acc = ((t_acc)(s_add.data) << 7) + i_bias[0].read();
 					}
 					else
 						s_acc = 0;
@@ -338,6 +464,7 @@ template <
 	class t_input_struct,
 	class t_input,
 	class t_weight,
+	class t_bias,
 	class t_acc_struct,
 	class t_acc,
 	int c_ich,
@@ -350,6 +477,7 @@ template <
 > void ConvComp(
 	hls::stream<t_input_struct> i_input[c_index],
 	hls::stream<t_weight> i_weights[c_index],
+	hls::stream<t_bias> i_bias[1],
 	hls::stream<t_acc_struct> o_acc_stream[c_ops]
 ) {
 /* #pragma HLS inline */
@@ -403,7 +531,13 @@ template <
 	/* TODO: try unroll and pipeline of the inner loop */
 		COMPUTE: for (uint8_t s_ops = 0; s_ops < c_ops; s_ops++) {
 			uint8_t s_och = s_num_och*c_ops + s_ops;
-			t_acc s_acc = 0;
+			t_acc s_acc;
+
+			if (s_ich == 0)
+				s_acc = i_bias[0].read();
+			else
+				s_acc = 0;
+
 			for (uint8_t s_index = 0; s_index < c_index; s_index++) {
 				s_acc += s_input[s_index] * s_weight[s_ops][s_index];
 			}
@@ -425,6 +559,69 @@ template <
 }
 
 //////////////////////////////////////////////////////////////////////////////
+
+template <
+	class t_output_struct,
+	class t_output_1x1_struct,
+	class t_acc_struct,
+	class t_acc,
+	class t_acc_1x1_struct,
+	class t_acc_1x1,
+	int c_ich,
+	int c_och,
+	int c_oh,
+	int c_ow,
+	int c_index,
+	int c_ops,
+	int c_relu,
+	int c_quant,
+	int c_shift_h,
+	int c_shift_l,
+	int c_shift_h_1x1,
+	int c_shift_l_1x1
+> void StreamOutput(
+	hls::stream<t_acc_struct> i_acc[c_ops],
+	hls::stream<t_acc_1x1_struct> i_acc_1x1[1],
+	hls::stream<t_output_struct> &o_data,
+	hls::stream<t_output_1x1_struct> &o_data_1x1
+) {
+/* #pragma HLS inline */
+
+	const int c_num_comp = c_oh*c_ow*c_och;
+	const int c_pipe_iter = c_num_comp;
+
+	for (auto s_pipe_iter = 0; s_pipe_iter < c_pipe_iter; s_pipe_iter+=c_ops) {
+		for (auto s_ops = 0; s_ops < c_ops; s_ops++) {
+#pragma HLS pipeline style=frp
+			t_acc_struct s_acc_struct = i_acc[s_ops].read();
+			t_acc s_acc = c_quant;
+
+			/* 1 subtraction for quantization */
+			s_acc += s_acc_struct.data;
+
+			t_output_struct s_output;
+
+			if (c_relu == 1) {
+				s_acc = ReluOp<t_acc>(s_acc);
+				/* TODO: write generic version for different bit quantization*/
+				/* if ((s_acc(c_shift_h, c_shift_l)) >= 256) */
+				if ((s_acc >> c_shift_l) >= 256)
+					s_output.data = 255;
+				else {
+					/* s_output = (uint8_t)(s_acc && ((128 << c_shift) -1)) > (32 << c_shift); */
+					s_output.data = s_acc(c_shift_h, c_shift_l);
+				}
+			} else {
+				/* s_output = s_acc(c_shift_h, c_shift_l); */
+				s_output.data = s_acc;
+			}
+			s_output.last = s_acc_struct.last;
+
+			o_data.write(s_output); 
+		}
+	}
+
+}
 
 template <
 	class t_output_struct,

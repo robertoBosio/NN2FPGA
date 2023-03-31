@@ -47,6 +47,9 @@ def write_network(
         off_chip_storage
     )
 
+    for name, info in io_dict.items():
+        print(name, info)
+
     io_dict = weights.weights_info(
         inferred_model,
         io_dict,
@@ -58,9 +61,6 @@ def write_network(
         io_dict,
         file_name
     )
-
-    # for name, info in io_dict.items():
-    #     print(name, info)
 
     weights.write(
         io_dict,

@@ -54,7 +54,7 @@ def parse(name, node):
 
     block["args"] = []
     block["args"].append("i_%s" % input_name)
-    block["args"].append("s_%s" % output_name)
+    block["args"].append("s_%s[0]" % output_name)
 
     block["input"] = ["%s" % input_name]
 
@@ -95,7 +95,7 @@ def parse(name, node):
     declare = {}
     declare["name"] = "s_%s" % output_name
     declare["type"] = "t_%s_struct" % output_name
-    declare["is_array"] = False
+    declare["is_array"] = True
     declare["dim"] = 1
     block["declare"].append(declare)
 

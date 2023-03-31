@@ -33,7 +33,7 @@ def info(io_dict, tensors_info, model):
 
 def parse(parsed_write):
     
-    input_name  = parsed_write[-1]["args"][-1]
+    input_name  = parsed_write[-1]["output"][-1]
     input_type_name = input_name.replace("_skip", "")
     output_name = input_name.replace("s_", "o_")
     output_type_name = output_name.replace("_skip", "")
