@@ -48,7 +48,7 @@ def init(file_name, parsed_write):
         for layer in parsed_write:
             if "ConsumeStream" == layer["func"]:
                 for name in layer["output"]:
-                    fd.write("\thls::stream<t_%s> &%s\n" % (name, name))
+                    fd.write("\thls::stream<t_o_%s> &o_%s\n" % (name, name))
 
         fd.write(") {\n")
 
@@ -90,8 +90,10 @@ def parse_all_main(io_dict):
         if 'const' == node["type"]:
             parsed_const = parsed_const + weights.parse(name, node)
 
+        last_node_name = name
+
     parsed_write.append(
-        output_gen.parse(parsed_write)
+        output_gen.parse(parsed_write, last_node_name)
     )
 
     return parsed_write, parsed_const

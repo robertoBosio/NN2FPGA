@@ -21,7 +21,14 @@ def info(io_dict, node, node_name, init_info, tensors_info):
     fw     = getattr(attributes[0], 'ints')[1]
     stride = getattr(attributes[2], 'ints')[0]
     pad    = getattr(attributes[1], 'ints')[0]
+    in_scale_factor = 0
     adaptive = ('adaptive' in node_name) or ((fh == ih) and (fw == iw))
+
+    if 'max' in node_name.lower():
+        pool     = 1
+
+    if 'average' in node_name.lower():
+        pool     = 0
 
     if (adaptive):
         fh     = oh
@@ -39,7 +46,9 @@ def info(io_dict, node, node_name, init_info, tensors_info):
     io_dict[node_name]["fw"]     = fw
     io_dict[node_name]["stride"] = stride
     io_dict[node_name]["pad"]    = pad
+    io_dict[node_name]["pool"]   = pool
     io_dict[node_name]["type"]   = 'pool'
+    io_dict[node_name]["in_scale_factor"] = in_scale_factor
 
     return io_dict
 
@@ -70,12 +79,13 @@ def parse(name, node):
     block["template"].append("c_%s_fh" % name)
     block["template"].append("c_%s_stride" % name)
     block["template"].append("c_%s_pad" % name)
+    block["template"].append("c_%s_pool" % name)
     block["template"].append("c_%s_scale_factor" % name)
-    block["template"].append("c_%s_in_scale_factor" % name)
+    # block["template"].append("c_%s_in_scale_factor" % name)
 
     block["args"] = []
-    block["args"].append("s_%s" % input_name)
-    block["args"].append("s_%s" % output_name)
+    block["args"].append("s_%s[0]" % input_name)
+    block["args"].append("s_%s[0]" % output_name)
 
     block["defines"] = {}
     block["defines"]["t_%s_struct" % output_type_name] = [
@@ -95,6 +105,7 @@ def parse(name, node):
     block["defines"]["c_%s_fh" % name]             = ["const", node["fh"]]
     block["defines"]["c_%s_stride" % name]         = ["const", node["stride"]]
     block["defines"]["c_%s_pad" % name]            = ["const", node["pad"]]
+    block["defines"]["c_%s_pool" % name]           = ["const", node["pool"]]
     if "scale_factor" in node.keys():
         block["defines"]["c_%s_scale_factor" % name] = [
             "const", 
@@ -106,7 +117,7 @@ def parse(name, node):
     declare = {}
     declare["name"] = "s_%s" % output_name
     declare["type"] = "t_%s_struct" % output_name
-    declare["is_array"] = False
+    declare["is_array"] = True
     declare["dim"] = 1
 
     block["declare"].append(declare)

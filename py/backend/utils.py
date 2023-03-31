@@ -164,7 +164,7 @@ def defines(file_name, parsed_write):
         for layer in parsed_write:
             if "ConsumeStream" == layer["func"]:
                 for name in layer["output"]:
-                    fd.write("\thls::stream<t_%s> &%s\n" % (name, name))
+                    fd.write("\thls::stream<t_o_%s> &o_%s\n" % (name, name))
 
         fd.write(");\n")
 

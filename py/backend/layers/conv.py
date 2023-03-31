@@ -72,8 +72,10 @@ def parse_wout(name, node):
     # Template parameters
     block["template"] = []
     block["template"].append("t_%s_struct" % output_type_name)
+    block["template"].append("t_%s" % output_type_name)
     if (node["merge_1x1"]):
         block["template"].append("t_%s_struct" % output_1x1_name)
+        block["template"].append("t_%s" % output_1x1_name)
     block["template"].append("t_%s_acc_struct" % output_name)
     block["template"].append("t_%s_acc" % output_name)
     if (node["merge_1x1"]):

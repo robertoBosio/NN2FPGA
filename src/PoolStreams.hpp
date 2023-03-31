@@ -86,7 +86,8 @@ template <
 	int c_fw,
 	int c_str,
 	int c_pad,
-	int c_pool
+	int c_pool,
+	int c_scale_factor
 > void PoolOp(
 	hls::stream<t_input_struct> &i_data,
 	hls::stream<t_output_struct> &o_data

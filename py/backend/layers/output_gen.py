@@ -31,12 +31,13 @@ def info(io_dict, tensors_info, model):
 
     return io_dict
 
-def parse(parsed_write):
+def parse(parsed_write, node_name):
     
-    input_name  = parsed_write[-1]["output"][-1]
+    input_name = parsed_write[-1]["output"][-1]
+    input_name = input_name.replace("s_", "")
     input_type_name = input_name.replace("_skip", "")
-    output_name = input_name.replace("s_", "o_")
-    output_type_name = output_name.replace("_skip", "")
+    output_name = input_name
+    output_type_name = input_type_name
 
     block = {}
     block["func"] = "ConsumeStream"
@@ -44,18 +45,18 @@ def parse(parsed_write):
     # Template parameters
     block["template"] = []
     block["template"].append("t_%s_struct" % input_type_name)
-    block["template"].append("t_%s" % output_type_name)
-    block["template"].append("c_%s_och" % input_name)
-    block["template"].append("c_%s_ow" % input_name)
-    block["template"].append("c_%s_oh" % input_name)
+    block["template"].append("t_o_%s" % output_type_name)
+    block["template"].append("c_%s_och" % node_name)
+    block["template"].append("c_%s_ow" % node_name)
+    block["template"].append("c_%s_oh" % node_name)
 
     block["args"] = []
-    block["args"].append("%s" % input_name)
-    block["args"].append("%s" % output_name)
+    block["args"].append("s_%s[0]" % input_name)
+    block["args"].append("o_%s" % output_name)
 
     block["defines"] = {}
     block["defines"]["c_%s" % (output_name)] = ["const", 32]
-    block["defines"]["t_%s" % output_type_name] = [
+    block["defines"]["t_o_%s" % output_type_name] = [
         "type",
         "ap_axiu<c_%s, 0, 0, 0>" % output_name
     ]

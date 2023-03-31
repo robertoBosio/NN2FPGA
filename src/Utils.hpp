@@ -7,16 +7,35 @@
 #include <etc/autopilot_ssdm_op.h>
 
 //////////////////////////// QUANT FUNCTIONS //////////////////////////////////
+
 template <
 	class t_input,
 	int c_scale
 > void QuantAct (
+	t_input &i_data
+) {
+	const int c_scale_inv = -1*c_scale;
+	t_input c_mask = -1;
+	if (c_scale >= 0)
+		i_data = (i_data >> c_scale) & c_mask;
+	else
+		i_data = (i_data << c_scale_inv) & c_mask;
+}
+
+template <
+	class t_input,
+	int c_scale,
+	class t_output
+> t_output QuantAct (
 	t_input i_data
 ) {
-	if (c_scale >= 0)
-		i_data = i_data >> c_scale;
-	else
-		i_data = i_data << c_scale;
+	t_output c_mask = -1;
+	if (i_data > 255) {
+		return 255;
+	} else {
+		QuantAct<t_input,c_scale>(i_data);
+	}
+	return (t_output)(i_data);
 }
 
 //////////////////////////// FROM POINTER TO STREAM /////////////////////////// 
@@ -95,7 +114,7 @@ template <
 		
 		t_output_struct tmp_w;
 		tmp_w.data = (t_output)(tmp_r_par & 0xff);
-		QuantAct<t_output,c_scale>(&tmp_w.data);
+		QuantAct<t_output,c_scale>(tmp_w.data);
 
 		if (s_par < (c_par-1))
 			tmp_w.last = false;

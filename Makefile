@@ -11,3 +11,7 @@ generate:
 compile:
 	gcc -c ${CFLAGS} -Isrc/ src/${NAME}.cpp -o ${NAME}.o
 
+sim:
+	gcc ${CFLAGS} -Itb/ tb/${NAME}Tb.cpp -o ${NAME}Tb
+	# chmod +x ${NAME}Tb
+	# ./${NAME}Tb
