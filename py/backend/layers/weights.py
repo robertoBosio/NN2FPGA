@@ -108,7 +108,10 @@ def extract_info(
     else:
         ops = node_info["ops"]
 
-    new_node["data_type"] = "int8_t"
+    if (is_bias):
+        new_node["data_type"] = "int16_t"
+    else:
+        new_node["data_type"] = "int8_t"
     new_node["ich"]    = ich
     new_node["ih"]     = ih
     new_node["iw"]     = iw
@@ -296,7 +299,8 @@ def parse(name, node):
 
         block["defines"] = {}
         output_type_name = "hls::vector<%s, %0d>" % (node["data_type"], node["ops"])
-        block["defines"]["t_%s" % (output_name)]       = ["type",  output_type_name]
+        block["defines"]["t_%s_st" % (name)]       = ["type",  output_type_name]
+        block["defines"]["t_%s" % (name)]       = ["type",  output_type_name]
         block["defines"]["c_%s_ich" % (name)]          = ["const", node["ich"]]
         block["defines"]["c_%s_och" % (name)]          = ["const", node["och"]]
         block["defines"]["c_%s_ow" % (name)]           = ["const", node["ow"]]
@@ -337,14 +341,15 @@ def parse(name, node):
 
         block["declare"] = []
         tmp = {}
-        tmp["name"] = "c_%s" % input_name
-        tmp["type"] = "t_%s" % input_name
+        tmp["name"] = "c_%s" % output_name
+        tmp["type"] = "t_%s" % output_name
         tmp["is_array"] = True
         tmp["init"] = node["values"]
 
         block["declare"].append(tmp)
 
         block["defines"] = {}
+        block["defines"]["t_%s_st" % (output_name)]    = ["type", node["data_type"]]
         output_type_name = "hls::vector<%s, %0d>" % (node["data_type"], node["ops"])
         block["defines"]["t_%s" % (output_name)]       = ["type",  output_type_name]
         block["defines"]["c_%s_ich" % (name)]          = ["const", node["ich"]]
@@ -358,7 +363,7 @@ def parse(name, node):
         pragma = {}
         pragma["name"] = "array_partition"
         options = [
-            ["variable", "c_%s" % (input_name)],
+            ["variable", "c_%s" % (output_name)],
             ["type", "block"],
             ["factor", 1],
             ["dim", 1],
@@ -391,7 +396,7 @@ def init(file_name, network_name, parsed_write):
         "%s.hpp" % network_name,
         "ap_int.h",
         "MemUtils.hpp",
-        "hls_stream.hpp",
+        "hls_stream.h",
     ]
 
     with open("src/%s.cpp" % file_name, "w+") as fd:

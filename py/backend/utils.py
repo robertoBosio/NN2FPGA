@@ -55,11 +55,13 @@ def write_declare(fd, variable):
     if not is_const:
         dim = variable["dim"]
         type_name = "hls::stream<%s>" % type_name
+    else:
+        fd.write("\tconst ")
 
     if (variable["is_array"] and not is_const):
         fd.write("\t%s %s[%0d]" % (type_name, name, dim))
     else:
-        fd.write("\t%s %s" % (type_name, name))
+        fd.write("%s_st %s" % (type_name, name))
 
     if (is_const):
         for dim in variable["init"].shape:
