@@ -3,7 +3,6 @@
 
 #include "hls_stream.h"
 #include "ap_int.h"
-#include "MemoryManagement.hpp"
 #include <stdio.h>
 #include <string.h>
 #include "hls_burst_maxi.h"
