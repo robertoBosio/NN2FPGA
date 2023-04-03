@@ -251,11 +251,15 @@ template <
 
 	t_acc s_acc_buff[c_reuse][c_och];
 #pragma HLS array_partition variable=s_acc_buff type=complete dim=0
+	t_acc_1x1 s_acc_1x1_buff[c_reuse][c_och];
+#pragma HLS array_partition variable=s_acc_1x1_buff type=complete dim=0
 	t_input s_input[c_reuse][c_index];
 #pragma HLS array_partition variable=s_input type=complete
 	bool s_last = false;
 	int8_t s_weight[c_ops][c_index];
 #pragma HLS array_partition variable=s_weight type=complete
+	int8_t s_weight_1x1[c_ops][c_index];
+#pragma HLS array_partition variable=s_weight_1x1 type=complete
 
 		/* for (auto s_reuse = 0; s_reuse < c_reuse; s_reuse++) */
 		/* 	for (auto s_och = 0; s_och < c_och; s_och++) */
@@ -289,15 +293,24 @@ template <
 							s_weight[s_ops][s_index] = s_tmp_weight[s_ops];
 						}
 					}
+					t_weight_1x1 s_tmp_weight_1x1 = i_weights_1x1[0].read();
+					for (auto s_ops = 0; s_ops < c_ops; s_ops++) {
+						/* Input weights are reversed with respect to original order */
+						s_weight_1x1[s_ops][0] = s_tmp_weight_1x1[s_ops];
+					}
 				}
 
-			/* TODO: try unroll and pipeline of the inner loop */
 				COMPUTE: for (auto s_ops = 0; s_ops < c_ops; s_ops++) {
 					auto s_och = s_num_och*c_ops + s_ops;
 					t_acc s_acc;
 					t_acc s_acc_base;
 					t_acc_struct s_acc_struct;
 					s_acc_struct.last = s_last & (s_och == (c_och-1));
+
+					t_acc_1x1 s_acc_1x1;
+					t_acc_1x1 s_acc_1x1_base;
+					t_acc_1x1_struct s_acc_1x1_struct;
+					s_acc_1x1_struct.last = s_last & (s_och == (c_och-1));
 
 					if (s_ich == 0)
 						s_acc = i_bias[0].read()[0];
@@ -310,15 +323,31 @@ template <
 						s_acc += s_input[s_reuse][s_index] * s_weight[s_ops][s_index];
 					}
 
+					if (s_ich == 0)
+						s_acc_1x1 = i_bias_1x1[0].read()[0];
+					else
+						s_acc_1x1 = 0;
+
+					s_acc_1x1_base = s_acc_1x1_buff[s_reuse][s_och];
+
+					s_acc_1x1 += s_input[s_reuse][c_index/2] * s_weight_1x1[s_ops][c_index/2];
+
 					if (s_ich != 0)
 						s_acc += s_acc_base;
 
 					s_acc_struct.data = s_acc;
 
+					if (s_ich != 0)
+						s_acc_1x1 += s_acc_1x1_base;
+
+					s_acc_1x1_struct.data = s_acc_1x1;
+
 					if (s_ich == (c_ich - 1)) {
 						o_acc_stream[s_ops].write(s_acc_struct);
+						o_acc_1x1_stream[s_ops].write(s_acc_1x1_struct);
 					} else {
 						s_acc_buff[s_reuse][s_och] = s_acc;
+						s_acc_1x1_buff[s_reuse][s_och] = s_acc_1x1;
 					}
 				}
 			}

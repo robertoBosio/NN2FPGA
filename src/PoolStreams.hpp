@@ -87,7 +87,7 @@ template <
 	int c_str,
 	int c_pad,
 	int c_pool,
-	int c_scale_factor
+	int c_shift
 > void PoolOp(
 	hls::stream<t_input_struct> &i_data,
 	hls::stream<t_output_struct> &o_data
@@ -127,6 +127,8 @@ template <
 		t_acc s_acc = s_acc_buff[s_och];
 		if (c_pool == 0) // Average Pool
 			s_acc = s_acc >> c_average_scale;
+
+		s_acc = QuantAct<t_acc,c_shift,t_output>(s_acc);
 
 		/* TODO: Write generic version for multiple bits quantization */
 

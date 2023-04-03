@@ -15,7 +15,7 @@ template <
 	t_input &i_data
 ) {
 	const int c_scale_inv = -1*c_scale;
-	t_input c_mask = -1;
+	t_input c_mask = 0xfffffffff;
 	if (c_scale >= 0)
 		i_data = (i_data >> c_scale) & c_mask;
 	else
@@ -29,7 +29,7 @@ template <
 > t_output QuantAct (
 	t_input i_data
 ) {
-	t_output c_mask = -1;
+	const t_output c_mask = 0xffffffff;
 	if (i_data > 255) {
 		return 255;
 	} else {
