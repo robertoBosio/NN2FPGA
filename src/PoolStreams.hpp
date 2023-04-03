@@ -103,9 +103,9 @@ template <
 	for (uint8_t s_och = 0; s_och < c_och; s_och++)
 		s_acc_buff[s_och] = c_quant;
 
-	for (uint16_t s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
-		for (uint8_t s_index = 0; s_index < c_index; s_index++) {
-			for (uint8_t s_och = 0; s_och < c_och; s_och++) {
+	for (auto s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
+		for (auto s_index = 0; s_index < c_index; s_index++) {
+			for (auto s_och = 0; s_och < c_och; s_och++) {
 
 				t_input_struct s_input_struct = i_data.read();
 				t_input s_input = s_input_struct.data;
@@ -122,7 +122,7 @@ template <
 		}
 	}
 
-	for (uint8_t s_och = 0; s_och < c_och; s_och++) {
+	for (auto s_och = 0; s_och < c_och; s_och++) {
 		t_output_struct s_output_struct;
 		t_acc s_acc = s_acc_buff[s_och];
 		if (c_pool == 0) // Average Pool

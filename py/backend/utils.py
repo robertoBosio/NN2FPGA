@@ -60,6 +60,8 @@ def write_declare(fd, variable):
 
     if (variable["is_array"] and not is_const):
         fd.write("\t%s %s[%0d]" % (type_name, name, dim))
+    elif not is_const:
+        fd.write("\t%s %s" % (type_name, name))
     else:
         fd.write("%s_st %s" % (type_name, name))
 

@@ -17,24 +17,28 @@ def info(io_dict, node, node_name, init_info, tensors_info):
     och    = getattr(output_shape, 'dim')[1].dim_value
     oh     = getattr(output_shape, 'dim')[2].dim_value
     ow     = getattr(output_shape, 'dim')[3].dim_value
-    fh     = getattr(attributes[0], 'ints')[0]
-    fw     = getattr(attributes[0], 'ints')[1]
-    stride = getattr(attributes[2], 'ints')[0]
-    pad    = getattr(attributes[1], 'ints')[0]
+
+    global_pool = ("Global" in node.op_type)
+    adaptive =  global_pool or ('adaptive' in node_name) or ((fh == ih) and (fw == iw))
+
+    if (adaptive):
+        fh     = ih
+        fw     = iw
+        stride = 1
+        pad    = 0
+    else:
+        fh     = getattr(attributes[0], 'ints')[0]
+        fw     = getattr(attributes[0], 'ints')[1]
+        stride = getattr(attributes[2], 'ints')[0]
+        pad    = getattr(attributes[1], 'ints')[0]
+
     in_scale_factor = 0
-    adaptive = ('adaptive' in node_name) or ((fh == ih) and (fw == iw))
 
     if 'max' in node_name.lower():
         pool     = 1
 
     if 'average' in node_name.lower():
         pool     = 0
-
-    if (adaptive):
-        fh     = oh
-        fw     = ow
-        stride = 1
-        pad    = 0
 
     io_dict[node_name]["ich"]    = ich
     io_dict[node_name]["ih"]     = ih

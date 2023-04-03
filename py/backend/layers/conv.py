@@ -24,7 +24,7 @@ def info(io_dict, node, node_name, init_info, tensors_info):
     is_1x1   = (fh == 1) and (fw == 1)
     total    = 1/(oh*ow*och*ich*fh*fw)
     kernel   = fh*fw
-    img_ch   = oh*ow
+    img_ch   = ich*och
     reuse    = 1
     relu     = False
     add      = False

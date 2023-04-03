@@ -396,6 +396,7 @@ def init(file_name, network_name, parsed_write):
         "%s.hpp" % network_name,
         "ap_int.h",
         "MemUtils.hpp",
+        "Utils.hpp",
         "hls_stream.h",
     ]
 
