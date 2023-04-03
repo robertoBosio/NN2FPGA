@@ -4,6 +4,47 @@ import sys
 import qonnx
 from onnx import numpy_helper
 import numpy as np
+from backend.graph import *
+
+def diff_quant(model, io_dict):
+    
+    io_connect = extract_connections(model, io_dict)
+
+    for net_name, layers in io_connect.items():
+        layer_in_name = layers[0][0]
+        layer_out_name = layers[1][0]
+
+        is_quant0 = 'quant' in io_dict[layer_in_name].keys()
+
+        if layer_in_name == "ProduceStream":
+            prod_layer = io_dict[layer_in_name]
+            prod_layer["abs_scale_factor"] = prod_layer["scale_factor"]
+
+        if layer_out_name != "ConsumeStream":
+            is_quant1 = 'quant' in io_dict[layer_out_name].keys()
+            if is_quant0 and is_quant1:
+                in_scale_factors = io_dict[layer_in_name]["abs_scale_factor"]
+
+                # Multiple outputs from previous layer in case of skip 
+                # connections
+                in_net_names = io_dict[layer_in_name]["output"]
+                scale_index0 = in_net_names.index(net_name)
+                scale_factor0 = in_scale_factors[scale_index0]
+
+                diff_scale = []
+                abs_scale = []
+                for scale_factor1 in io_dict[layer_out_name]["scale_factor"]:
+                    abs_scale.append(
+                        scale_factor1
+                    )
+                    diff_scale.append(
+                        scale_factor1 - scale_factor0
+                    ) 
+
+                io_dict[layer_out_name]["abs_scale_factor"] = abs_scale
+                io_dict[layer_out_name]["scale_factor"] = diff_scale
+
+    return io_dict
 
 def merge_quant(io_dict, quant_info, inherit_quant=False):
 

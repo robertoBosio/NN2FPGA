@@ -47,6 +47,11 @@ def write_network(
         off_chip_storage
     )
 
+    io_dict = diff_quant(
+        model,
+        io_dict
+    )
+
     for name, info in io_dict.items():
         print(name, info)
 
