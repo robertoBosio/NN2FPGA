@@ -11,15 +11,16 @@
 template <
 	class t_input,
 	int c_scale
-> void QuantAct (
-	t_input &i_data
+> t_input QuantAct (
+	t_input i_data
 ) {
 	const int c_scale_inv = -1*c_scale;
-	t_input c_mask = 0xfffffffff;
-	if (c_scale >= 0)
-		i_data = (i_data >> c_scale) & c_mask;
+	t_input s_data;
+	if (c_scale <= 0)
+		s_data = (i_data << c_scale_inv);
 	else
-		i_data = (i_data << c_scale_inv) & c_mask;
+		s_data = (i_data >> c_scale);
+	return s_data;
 }
 
 template <
@@ -29,13 +30,18 @@ template <
 > t_output QuantAct (
 	t_input i_data
 ) {
-	const t_output c_mask = 0xffffffff;
-	if (i_data > 255) {
-		return 255;
+	t_input s_data = QuantAct<t_input,c_scale>(i_data);
+	const t_output c_msb    = sizeof(t_output)*8-1;
+	const t_output c_mask_0 = ~(t_output)(0);
+	const t_output c_mask_1 = c_mask_0 ^ (1 << c_msb);
+	const t_output c_mask = (c_mask_0 < 0) ? c_mask_1 : c_mask_0;
+	/* std::cout << (ap_uint<8>)c_mask << std::endl; */
+
+	if (s_data > c_mask) {
+		return c_mask;
 	} else {
-		QuantAct<t_input,c_scale>(i_data);
+		return (t_output)(s_data);
 	}
-	return (t_output)(i_data);
 }
 
 //////////////////////////// FROM POINTER TO STREAM /////////////////////////// 
@@ -114,7 +120,7 @@ template <
 		
 		t_output_struct tmp_w;
 		tmp_w.data = (t_output)(tmp_r_par & 0xff);
-		QuantAct<t_output,c_scale>(tmp_w.data);
+		tmp_w.data = QuantAct<t_output,c_scale,t_output>(tmp_w.data);
 
 		if (s_par < (c_par-1))
 			tmp_w.last = false;

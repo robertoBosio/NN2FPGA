@@ -85,9 +85,12 @@ def parse(name, node):
         "const",
         node["ih"]
     ]
+
+    scale_factor = 8+node["scale_factor"][0]
+
     block["defines"]["c_%s_scale_factor" % name] = [
         "const",
-        node["scale_factor"][0]
+        scale_factor
     ]
 
     block["declare"] = []

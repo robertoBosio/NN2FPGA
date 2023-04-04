@@ -47,7 +47,7 @@ def write_network(
         off_chip_storage
     )
 
-    io_dict = diff_quant(
+    io_dict = hw_quant(
         model,
         io_dict
     )

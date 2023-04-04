@@ -19,7 +19,7 @@ def info(io_dict, node, node_name, init_info, tensors_info):
     ow     = getattr(output_shape, 'dim')[3].dim_value
 
     global_pool = ("Global" in node.op_type)
-    adaptive =  global_pool or ('adaptive' in node_name) or ((fh == ih) and (fw == iw))
+    adaptive =  global_pool or ('adaptive' in node_name)
 
     if (adaptive):
         fh     = ih
@@ -53,6 +53,7 @@ def info(io_dict, node, node_name, init_info, tensors_info):
     io_dict[node_name]["pool"]   = pool
     io_dict[node_name]["type"]   = 'pool'
     io_dict[node_name]["in_scale_factor"] = in_scale_factor
+    io_dict[node_name]["actscale"] = []
 
     return io_dict
 
@@ -111,9 +112,15 @@ def parse(name, node):
     block["defines"]["c_%s_pad" % name]            = ["const", node["pad"]]
     block["defines"]["c_%s_pool" % name]           = ["const", node["pool"]]
     if "scale_factor" in node.keys():
+        if (len(node["actscale"]) > 0):
+            off = -1*(node["actscale"][0])
+        else:
+            off = 0
+
+        diff_scale = off + node["scale_factor"][0] + node["in_scale_factor"]
         block["defines"]["c_%s_scale_factor" % name] = [
             "const", 
-            node["scale_factor"][0]
+            diff_scale
         ]
 
     block["declare"] = []

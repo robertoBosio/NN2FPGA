@@ -50,6 +50,9 @@ def info(io_dict, node, node_name, init_info, tensors_info):
     io_dict[node_name]["scale_factor"] = 0
     io_dict[node_name]["in_scale_factor"] = in_scale_factor
     io_dict[node_name]["type"]   = 'conv'
+    io_dict[node_name]["wbias"]  = len(node.input) > 2
+    io_dict[node_name]["wscale"] = []
+    io_dict[node_name]["actscale"] = []
 
     return io_dict
 
@@ -98,23 +101,29 @@ def parse_wout(name, node):
     block["defines"] = {}
 
     block["defines"] = {}
-    block["defines"]["t_%s" % output_name] = ["type", "int32_t"]
+    block["defines"]["t_%s" % output_name] = ["type", "uint8_t"]
     block["defines"]["t_%s_struct" % output_name] = [
         "struct",
         [["data", "t_%s" % output_name], ["last", "bool"]]
     ]
 
     if (node["merge_1x1"]):
-        block["defines"]["t_%s" % output_1x1_name] = ["type", "int32_t"]
+        block["defines"]["t_%s" % output_1x1_name] = ["type", "uint8_t"]
         block["defines"]["t_%s_struct" % output_1x1_name] = [
             "struct",
             [["data", "t_%s" % output_1x1_name], ["last", "bool"]]
         ]
 
     # Evaluate these values both for the normal output and the pointwise merge
-    diff_scale = node["scale_factor"][0] - node["in_scale_factor"]
+    if (len(node["actscale"]) > 0):
+        off = -1*(node["actscale"][0] + node["wscale"][0])
+    else:
+        off = 0
+
+    diff_scale = off + node["scale_factor"] + node["in_scale_factor"]
     block["defines"]["c_%s_shift_h" % output_name] = ["const", diff_scale + 7]
     block["defines"]["c_%s_shift_l" % output_name] = ["const", diff_scale]
+
     if (node["merge_1x1"]):
         block["defines"]["c_%s_shift_h" % output_1x1_name] = ["const", diff_scale + 7]
         block["defines"]["c_%s_shift_l" % output_1x1_name] = ["const", diff_scale]
@@ -433,12 +442,12 @@ def parse_wrapper(name, node):
     block["defines"]["c_%s_pad" % name]            = ["const", node["pad"]]
     block["defines"]["c_%s_ops" % name]            = ["const", node["ops"]]
     block["defines"]["c_%s_index" % name]          = ["const", node["kernel"]]
+    block["defines"]["c_%s_reuse" % name]          = ["const", node["reuse"]]
     if "scale_factor" in node.keys():
         block["defines"]["c_%s_scale_factor" % name]   = [
             "const", 
             node["scale_factor"][0]
         ]
-    block["defines"]["c_%s_reuse" % name]          = ["const", node["reuse"]]
     block["defines"]["c_%s_in_scale_factor" % name] = [
         "const",
         node["in_scale_factor"]

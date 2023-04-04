@@ -718,11 +718,10 @@ template <
 
 	if (c_relu == 1) {
 		s_acc = ReluOp<t_acc>(s_acc);
-		s_output.data = QuantAct<t_acc,c_shift_l,t_output>(s_acc);
-	} else {
-		s_output.data = s_acc;
 	}
+	s_output.data = QuantAct<t_acc,c_shift_l,t_output>(s_acc);
 	s_output.last = s_acc_struct.last;
+	/* std::cout << (ap_uint<8>)s_output.data << " "; */
 
 	o_data.write(s_output); 
 }
@@ -830,6 +829,7 @@ template <
 	const int c_num_comp = c_oh*c_ow*c_och;
 	const int c_pipe_iter = c_num_comp;
 
+	/* std::cout << std::endl; */
 	for (auto s_pipe_iter = 0; s_pipe_iter < c_pipe_iter; s_pipe_iter+=c_ops) {
 		for (auto s_ops = 0; s_ops < c_ops; s_ops++) {
 #pragma HLS pipeline style=frp
@@ -855,6 +855,7 @@ template <
 
 		}
 	}
+	/* std::cout << std::endl; */
 
 }
 

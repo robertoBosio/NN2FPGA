@@ -12,7 +12,7 @@ compile:
 	g++ -c ${CFLAGS} -Isrc/ src/${NAME}.cpp -o ${NAME}.o
 	g++ -c ${CFLAGS} -Isrc/ src/${MEM}.cpp -o ${MEM}.o
 
-sim:
+sim: compile
 	g++ -c ${CFLAGS} -Itb/ tb/${NAME}Tb.cpp -o ${NAME}Tb.o
 	g++ ${NAME}Tb.o ${NAME}.o ${MEM}.o -o ${NAME}Tb
 	chmod +x ${NAME}Tb

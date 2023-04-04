@@ -6,7 +6,7 @@ from onnx import numpy_helper
 import numpy as np
 from backend.graph import *
 
-def diff_quant(model, io_dict):
+def hw_quant(model, io_dict):
     
     io_connect = extract_connections(model, io_dict)
 
@@ -15,15 +15,13 @@ def diff_quant(model, io_dict):
         layer_out_name = layers[1][0]
 
         is_quant0 = 'quant' in io_dict[layer_in_name].keys()
-
-        if layer_in_name == "ProduceStream":
-            prod_layer = io_dict[layer_in_name]
-            prod_layer["abs_scale_factor"] = prod_layer["scale_factor"]
+        is_weight = 'quant' in layer_in_name.lower()
+        is_not_bias = 'bias' not in io_dict[layer_in_name]["input"][0].lower()
 
         if layer_out_name != "ConsumeStream":
             is_quant1 = 'quant' in io_dict[layer_out_name].keys()
             if is_quant0 and is_quant1:
-                in_scale_factors = io_dict[layer_in_name]["abs_scale_factor"]
+                in_scale_factors = io_dict[layer_in_name]["scale_factor"]
 
                 # Multiple outputs from previous layer in case of skip 
                 # connections
@@ -31,18 +29,11 @@ def diff_quant(model, io_dict):
                 scale_index0 = in_net_names.index(net_name)
                 scale_factor0 = in_scale_factors[scale_index0]
 
-                diff_scale = []
-                abs_scale = []
-                for scale_factor1 in io_dict[layer_out_name]["scale_factor"]:
-                    abs_scale.append(
-                        scale_factor1
-                    )
-                    diff_scale.append(
-                        scale_factor1 - scale_factor0
-                    ) 
+                io_dict[layer_out_name]["actscale"].append(scale_factor0)
+            elif is_weight and is_not_bias:
+                scale_factor = io_dict[layer_in_name]["scale_factor"]
+                io_dict[layer_out_name]["wscale"].append(scale_factor)
 
-                io_dict[layer_out_name]["abs_scale_factor"] = abs_scale
-                io_dict[layer_out_name]["scale_factor"] = diff_scale
 
     return io_dict
 
