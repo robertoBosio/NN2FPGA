@@ -148,3 +148,4 @@ cifar-10/
 .Xil/
 data
 tmp
+*.o
