@@ -64,6 +64,8 @@ def parse(name, node):
     output_name = node["output"][0]
     output_type_name = output_name.replace("_skip", "")
 
+    signed = node["signed"]
+
     block = {}
     block["func"] = "PoolOp"
 
@@ -93,11 +95,16 @@ def parse(name, node):
     block["args"].append("s_%s[0]" % output_name)
 
     block["defines"] = {}
+    if (signed):
+        output_type = "int8_t"
+    else:
+        output_type = "uint8_t"
+
+    block["defines"]["t_%s" % output_type_name] = ["type", output_type]
     block["defines"]["t_%s_struct" % output_type_name] = [
         "struct",
-        [["data", "uint8_t"], ["last", "bool"]]
+        [["data", "t_%s" % output_type_name], ["last", "bool"]]
     ]
-    block["defines"]["t_%s" % output_type_name] = ["type", "uint8_t"]
 
     block["defines"]["t_%s_acc" % name]            = ["type", "int32_t"]
     block["defines"]["c_%s_ich" % name]            = ["const", node["ich"]]

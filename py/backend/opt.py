@@ -221,6 +221,8 @@ def opt_quant(model, io_dict, quant_info):
     
     io_connect = extract_connections(model, io_dict)
 
+    removed_layers = []
+
     for net_name, layers in io_connect.items():
         layer_in_name = layers[0][0]
         layer_out_name = layers[1][0]
@@ -231,12 +233,18 @@ def opt_quant(model, io_dict, quant_info):
             'produce',
         ]
 
+        if layer_in_name in removed_layers:
+            continue
+
         start_merge = any(
-            search_name in layer_in_name.lower()
+            search_name in io_dict[layer_in_name]["type"]
             for search_name in search_layers
         )
 
-        end_quant = 'quant' in layer_out_name.lower()
+        if (layer_out_name == "ConsumeStream"):
+            continue
+
+        end_quant = 'quant' == io_dict[layer_out_name]["type"]
         single_quant = len(layers[1]) < 2
 
         # If true the relu can be absorbed into convolution
@@ -252,10 +260,15 @@ def opt_quant(model, io_dict, quant_info):
                 # must be saved
 
                 scale_factor = quant_info[net_name]["seq_scale"]
+                signed = quant_info[net_name]["signed"]
 
                 io_dict[layer_in_name]["quant"] = True
                 io_dict[layer_in_name]["scale_factor"] = scale_factor
+                io_dict[layer_in_name]["signed"] = signed
                 io_dict[layer_in_name]["output"] = out_names
+
+                removed_layers.append(layer_out_name)
+
                 del io_dict[layer_out_name]
 
     return io_dict

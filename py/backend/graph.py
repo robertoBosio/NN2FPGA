@@ -159,13 +159,66 @@ def graph_info(model, init_info):
                 tensors_info
             )
 
+        if 'relu' in node.op_type.lower():
+            io_dict[node_name]["type"] = "relu"
+
         if 'quant' in node.op_type.lower():
             scale_name   = io_dict[node_name]["input"][1]
             scale_info   = init_info[scale_name]
             scale_factor = numpy_helper.to_array(scale_info)
             scale_factor = np.log2(scale_factor)
 
+            attributes = getattr(node, "attribute" )
+            signed = attributes[2].i
+
             io_dict[node_name]["scale_factor"] = scale_factor
+            io_dict[node_name]["signed"] = signed
+            io_dict[node_name]["type"] = "quant"
 
     return io_dict
 
+def rename_nodes(io_dict):
+
+    new_io_dict = {}
+    
+    for node_name, node in io_dict.items():
+        new_node_name = node_name
+        if node["type"] == "const":
+            name_list = node_name.split("/")
+            if len(name_list) > 1:
+                new_node_name = "%s%s" % (name_list[0], name_list[1])
+        else:
+            name_list = node_name.split("/")
+
+            if len(name_list) > 1:
+                new_node_name = name_list[1]
+            else:
+                new_node_name = name_list[0]
+            
+        new_io_dict[new_node_name] = node
+
+    return new_io_dict
+
+def rename_edges(model, io_dict):
+
+    io_connect = extract_connections(model, io_dict)
+
+    
+    for net_name, layers in io_connect.items():
+        layer_in_name = layers[0][0]
+        layer_out_name = layers[1][0]
+
+        name_list = net_name.split("/")
+        if len(name_list) > 1:
+            new_net_name = "%s_%s" % (name_list[1], name_list[2])
+        else:
+            new_net_name = net_name
+
+        in_pos = io_dict[layer_in_name]["output"].index(net_name)
+        io_dict[layer_in_name]["output"][in_pos] = new_net_name 
+
+        if layer_out_name != "ConsumeStream":
+            out_pos = io_dict[layer_out_name]["input"].index(net_name)
+            io_dict[layer_out_name]["input"][out_pos] = new_net_name 
+
+    return io_dict

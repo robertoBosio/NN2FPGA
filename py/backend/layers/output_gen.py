@@ -55,7 +55,7 @@ def parse(parsed_write, node_name):
     block["args"].append("o_%s" % output_name)
 
     block["defines"] = {}
-    block["defines"]["c_%s" % (output_name)] = ["const", 32]
+    block["defines"]["c_%s" % (output_name)] = ["const", 8]
     block["defines"]["t_o_%s" % output_type_name] = [
         "type",
         "ap_axis<c_%s, 0, 0, 0>" % output_name

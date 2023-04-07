@@ -144,13 +144,15 @@ def extract_quant_info(model, io_dict, init_info):
     quant_dict = {}
 
     for node_name, node in io_dict.items():
-        if 'quant' in node_name.lower():
+        if 'quant' == node["type"]:
 
             # Saving connections and scale factors for all the quantizations
             scale_name   = io_dict[node_name]["input"][1]
             scale_info   = init_info[scale_name]
             scale_factor = numpy_helper.to_array(scale_info)
             scale_factor = np.log2(scale_factor)
+
+            signed = node["signed"]
 
             quant_info.setdefault(node["input"][0], {})
             quant_info[node["input"][0]].setdefault("seq", [])
@@ -160,6 +162,7 @@ def extract_quant_info(model, io_dict, init_info):
             quant_info[node["input"][0]].setdefault("others_scale", [])
             quant_info[node["input"][0]].setdefault("changed", False)
             quant_info[node["input"][0]].setdefault("removed", [])
+            quant_info[node["input"][0]].setdefault("signed", signed)
 
             quant_info[node["input"][0]][node["output"][0]] = node_name
             quant_info[node["input"][0]]["seq"].append(node_name)

@@ -15,12 +15,10 @@ template <
 	t_input i_data
 ) {
 	const int c_scale_inv = -1*c_scale;
-	t_input s_data;
 	if (c_scale <= 0)
-		s_data = (i_data << c_scale_inv);
+		return (i_data << c_scale_inv);
 	else
-		s_data = (i_data >> c_scale);
-	return s_data;
+		return (i_data >> c_scale);
 }
 
 template <
@@ -32,16 +30,22 @@ template <
 ) {
 	t_input s_data = QuantAct<t_input,c_scale>(i_data);
 	const t_output c_msb    = sizeof(t_output)*8-1;
-	const t_output c_mask_0 = ~(t_output)(0);
-	const t_output c_mask_1 = c_mask_0 ^ (1 << c_msb);
-	const t_output c_mask = (c_mask_0 < 0) ? c_mask_1 : c_mask_0;
-	/* std::cout << (ap_uint<8>)c_mask << std::endl; */
 
-	if (s_data > c_mask) {
-		return c_mask;
-	} else {
-		return (t_output)(s_data);
+	const t_output c_max_0 = ~(t_output)(0);
+	const t_output c_max_1 = c_max_0 ^ (-1 << c_msb);
+	const t_output c_max   = (c_max_0 < 0) ? c_max_1 : c_max_0;
+
+	const t_output c_min_0 = ~(t_output)(0);
+	const t_output c_min_1 = (-1 << c_msb);
+	const t_output c_min   = (c_min_0 < 0) ? c_min_1 : 0;
+
+	if (s_data > c_max) {
+		return c_max;
 	}
+	if (s_data < c_min) {
+		return c_min;
+	}
+	return (t_output)(s_data);
 }
 
 //////////////////////////// FROM POINTER TO STREAM /////////////////////////// 
@@ -92,6 +96,7 @@ template <
 
 template <
 	class t_input,
+	class t_input_part,
 	class t_output_struct,
 	class t_output,
 	int c_ich,
@@ -119,8 +124,10 @@ template <
 		}
 		
 		t_output_struct tmp_w;
-		tmp_w.data = (t_output)(tmp_r_par & 0xff);
-		tmp_w.data = QuantAct<t_output,c_scale,t_output>(tmp_w.data);
+		t_input_part tmp_p = (t_input_part)(tmp_r_par & 0xff);
+		tmp_p--;
+		std::cout << (ap_int<32>)tmp_p << " ";
+		tmp_w.data = QuantAct<t_input_part,c_scale,t_output>(tmp_p);
 
 		if (s_par < (c_par-1))
 			tmp_w.last = false;
@@ -130,6 +137,7 @@ template <
 		tmp_r_par = tmp_r_par >> 8;
 
 	}
+	std::cout << std::endl;
 
 }
 
@@ -573,153 +581,6 @@ template <
 
 
 //////////////////////////// BLOCK INTERFACES /////////////////////////////////
-
-template <
-	class t_acc,
-	class t_output,
-	int c_och,
-	int c_ow,
-	int c_fh,
-	int c_pad
-> void WriteOutputKernel(
-	uint16_t s_oh,
-	uint16_t s_ow,
-	t_acc s_acc_buffer[c_fh*2][c_ow][c_och],
-	hls::stream<t_output> &o_data
-) {
-
-	for (uint8_t s_och = 0; s_och < c_och; s_och++) {
-
-			t_output s_out_buffer = (t_output)(s_acc_buffer[s_oh][s_ow][s_och]);
-			o_data.write(s_out_buffer);
-			s_acc_buffer[s_oh][s_ow][s_och] = 0;
-
-	}
-
-}
-
-template <
-	class t_input,
-	int c_ich,
-	int c_iw,
-	int c_ih
-> void PadInput(
-	hls::stream<t_input> &o_data
-) {
-
-	const int c_index = c_ich*c_ih*c_iw;
-
-	PRODSTR: for (int s_index = 0; s_index < c_index; s_index++) {
-		o_data.write(0);
-	}
-
-}
-
-template <
-	class t_input,
-	int c_ich,
-	int c_iw,
-	int c_ih,
-	int c_fw,
-	int c_fh,
-	int c_pad
-> void PadInput(
-	hls::stream<t_input> &o_data
-) {
-
-	/* This handles padding aware inputs */
-
-	const int c_pad_index_h = c_pad * (c_fh - 1);
-	const int c_pad_index_w = c_pad * (c_fw - 1);
-	const int c_ih_pad = c_ih + c_pad_index_h;
-	const int c_iw_pad = c_iw + c_pad_index_w;
-
-	/* Top padding */
-	for (uint8_t s_ih = 0; s_ih < c_ih_pad; s_ih++){
-		for (uint8_t s_iw = 0; s_iw < c_iw_pad; s_iw++) {
-			for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
-#pragma HLS loop_flatten
-				o_data.write(0);
-			}
-		}
-	}
-
-}
-
-template <
-	class t_input,
-	int c_ich,
-	int c_iw,
-	int c_ih,
-	int c_fw,
-	int c_fh,
-	int c_pad
-> void PadInputOld(
-	hls::stream<t_input> &i_data,
-	hls::stream<t_input> &o_data
-) {
-
-/* #pragma HLS pipeline */
-
-	/* This handles padding aware inputs */
-
-	const int c_pad_index_h = c_pad * (c_fh - 1) / 2;
-	const int c_pad_index_w = c_pad * (c_fw - 1) / 2;
-
-	const int c_ih_pad = c_ih + c_pad_index_h*2;
-	const int c_iw_pad = c_iw + c_pad_index_w*2;
-
-	const t_input s_zero_false = {0, false};
-	const t_input s_zero_true = {0, true};
-	bool s_last;
-	t_input s_zero = s_zero_false;
-
-	/* Top padding */
-	for (uint8_t s_pad = 0; s_pad < c_pad_index_h; s_pad++){
-		for (uint8_t s_iw = 0; s_iw < c_iw_pad; s_iw++) {
-			for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
-				o_data.write(s_zero);
-			}
-		}
-	}
-
-	for (uint8_t s_ih = 0; s_ih < c_ih; s_ih++) {
-
-		/* Right padding */
-		for (uint8_t s_pad = 0; s_pad < c_pad_index_w; s_pad++){
-			for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
-				o_data.write(s_zero);
-			}
-		}
-
-		for (uint8_t s_iw = 0; s_iw < c_iw; s_iw++) {
-			for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
-				t_input s_input = i_data.read();
-				o_data.write(s_input);
-				s_last = s_input.last;
-			}
-		}
-
-		s_zero.last = s_last;
-
-		/* Left padding */
-		for (uint8_t s_pad = 0; s_pad < c_pad_index_w; s_pad++){
-			for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
-				o_data.write(s_zero);
-			}
-		}
-
-	}
-
-	for (uint8_t s_pad = 0; s_pad < c_pad_index_h; s_pad++){
-		for (uint8_t s_iw = 0; s_iw < c_iw_pad; s_iw++) {
-			for (uint8_t s_ich = 0; s_ich < c_ich; s_ich++) {
-				o_data.write(s_zero);
-			}
-		}
-	}
-
-}
 
 template <
 	class t_input,

@@ -37,6 +37,7 @@ def parse(name, node):
     input_type_name = input_name.replace("_skip", "")
     output_name = node["output"][0]
     output_type_name = output_name.replace("_skip", "")
+    signed = node["signed"]
 
     block = {}
     block["func"] = "ProduceStream"
@@ -44,6 +45,7 @@ def parse(name, node):
     # Template parameters
     block["template"] = []
     block["template"].append("t_%s" % input_type_name)
+    block["template"].append("t_%s_part" % input_type_name)
     block["template"].append("t_%s_struct" % output_type_name)
     block["template"].append("t_%s" % output_type_name)
     block["template"].append("c_%s_ich" % name)
@@ -64,13 +66,23 @@ def parse(name, node):
         "type",
         "ap_axiu<c_%s, 0, 0, 0>" % input_name
     ]
-    block["defines"]["t_%s" % output_type_name] = [
+
+    if (signed):
+        output_type = "int8_t"
+    else:
+        output_type = "uint8_t"
+
+    block["defines"]["t_%s_part" % input_type_name] = [
         "type",
         "uint8_t"
     ]
+    block["defines"]["t_%s" % output_type_name] = [
+        "type",
+        output_type
+    ]
     block["defines"]["t_%s_struct" % output_type_name] = [
         "struct",
-        [["data", "uint8_t"], ["last", "bool"]]
+        [["data", output_type], ["last", "bool"]]
     ]
 
     block["defines"]["c_%s_ich" % name] = [

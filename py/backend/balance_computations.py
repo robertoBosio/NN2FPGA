@@ -88,7 +88,7 @@ def ilp(io_dict, off_chip_storage):
     layers_info = []
 
     for node_name, node_info in io_dict.items():
-        if 'conv' in node_name.lower():
+        if 'conv' in node_info["type"]:
             layers_info.append(
                 [
                     node_name,

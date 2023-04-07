@@ -12,8 +12,13 @@ compile:
 	g++ -c ${CFLAGS} -Isrc/ src/${NAME}.cpp -o ${NAME}.o
 	g++ -c ${CFLAGS} -Isrc/ src/${MEM}.cpp -o ${MEM}.o
 
-sim: compile
+compile_tb:
 	g++ -c ${CFLAGS} -Itb/ tb/${NAME}Tb.cpp -o ${NAME}Tb.o
 	g++ ${NAME}Tb.o ${NAME}.o ${MEM}.o -o ${NAME}Tb
+
+sim: generate compile compile_tb
 	chmod +x ${NAME}Tb
 	./${NAME}Tb
+
+run_model:
+	python py/utils/test_model.py

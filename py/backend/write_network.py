@@ -62,6 +62,15 @@ def write_network(
         off_chip_storage
     )
 
+    io_dict = rename_nodes(
+        io_dict
+    )
+
+    io_dict = rename_edges(
+        model,
+        io_dict
+    )
+
     main.write(
         io_dict,
         file_name

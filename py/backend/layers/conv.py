@@ -61,6 +61,7 @@ def parse_wout(name, node):
     input_type_name = input_name.replace("_skip", "")
     weight_name = node["input"][1]
 
+    signed = node["signed"]
     # If no batchnorm merge then there is no bias
 
     output_name = node["output"][0]
@@ -100,14 +101,20 @@ def parse_wout(name, node):
 
     block["defines"] = {}
 
+    if (signed):
+        output_type = "int8_t"
+    else:
+        output_type = "uint8_t"
+
     block["defines"] = {}
-    block["defines"]["t_%s" % output_name] = ["type", "uint8_t"]
+    block["defines"]["t_%s" % output_name] = ["type", output_type]
     block["defines"]["t_%s_struct" % output_name] = [
         "struct",
         [["data", "t_%s" % output_name], ["last", "bool"]]
     ]
 
     if (node["merge_1x1"]):
+        # TODO: implement array of signed values for multi-output conv
         block["defines"]["t_%s" % output_1x1_name] = ["type", "uint8_t"]
         block["defines"]["t_%s_struct" % output_1x1_name] = [
             "struct",
