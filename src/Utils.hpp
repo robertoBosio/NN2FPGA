@@ -17,8 +17,10 @@ template <
 	const int c_scale_inv = -1*c_scale;
 	if (c_scale <= 0)
 		return (i_data << c_scale_inv);
-	else
-		return (i_data >> c_scale);
+	else {
+		t_input round = (i_data >> (c_scale-1)) & 0x1;
+		return ((i_data >> c_scale) + round);
+	}
 }
 
 template <
@@ -125,7 +127,6 @@ template <
 		
 		t_output_struct tmp_w;
 		t_input_part tmp_p = (t_input_part)(tmp_r_par & 0xff);
-		tmp_p--;
 		std::cout << (ap_int<32>)tmp_p << " ";
 		tmp_w.data = QuantAct<t_input_part,c_scale,t_output>(tmp_p);
 

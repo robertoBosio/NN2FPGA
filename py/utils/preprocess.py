@@ -14,13 +14,18 @@ def cifar_transform(is_training=True):
         transform_list = [transforms.RandomHorizontalFlip(),
                           transforms.Pad(padding=4, padding_mode='reflect'),
                           transforms.RandomCrop(32, padding=0),
-                          transforms.ToTensor(),
-                          # transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)), ]
-                          transforms.Normalize((1/255, 1/255, 1/255), (1/255, 1/255, 1/255)), ]
+                          transforms.ToTensor()]
+        # transform_list = [transforms.RandomHorizontalFlip(),
+        #                   transforms.Pad(padding=4, padding_mode='reflect'),
+        #                   transforms.RandomCrop(32, padding=0),
+        #                   transforms.ToTensor(),
+        #                   # transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)), ]
+        #                   transforms.Normalize((1/255, 1/255, 1/255), (1/255, 1/255, 1/255)), ]
     else:
-        transform_list = [transforms.ToTensor(),
-                          # transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)), ]
-                          transforms.Normalize((1/255, 1/255, 1/255), (1/255, 1/255, 1/255)), ]
+        transform_list = [transforms.ToTensor()]
+        # transform_list = [transforms.ToTensor(),
+        #                   # transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)), ]
+        #                   transforms.Normalize((1/255, 1/255, 1/255), (1/255, 1/255, 1/255)), ]
 
     transform_list = transforms.Compose(transform_list)
     return transform_list

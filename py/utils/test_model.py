@@ -36,15 +36,21 @@ def conv3x3(in_planes, out_planes, stride=1, weight_bits=8):
                        )
 
 
-def print_act(x, fd):
-    fd.write("%0d\n" % x.shape[2])
-    fd.write("%0d\n" % x.shape[3])
-    fd.write("%0d\n" % x.shape[1])
-    for ih in range(x.shape[2]):
-        for iw in range(x.shape[3]):
-            for ch in range(x.shape[1]):
-                fd.write("%f " % x[0, ch, ih, iw].detach().cpu().numpy())
-            fd.write("\n")
+def print_act(x, fd, red=False):
+    if not red:
+        fd.write("%0d\n" % x.shape[2])
+        fd.write("%0d\n" % x.shape[3])
+        fd.write("%0d\n" % x.shape[1])
+        for ih in range(x.shape[2]):
+            for iw in range(x.shape[3]):
+                for ch in range(x.shape[1]):
+                    fd.write("%f " % x[0, ch, ih, iw].detach().cpu().numpy())
+                fd.write("\n")
+    else:
+        fd.write("%0d\n" % x.shape[1])
+        for ch in range(x.shape[1]):
+            fd.write("%f " % x[0, ch].detach().cpu().numpy())
+        fd.write("\n")
 
 class TestModel(nn.Module) :
     def __init__(self):
@@ -92,9 +98,15 @@ class TestModel(nn.Module) :
                 print_act(x, fd)
         x = self.avgpool(x)
         # if (not train):
-        #     print("POOLOUT\n")
-        #     print_act(x)
+        #     with open("log.txt", "a") as fd:
+        #         print("POOLOUT")
+        #         fd.write("POOL OUT\n")
+        #         print_act(x, fd)
         x = self.fc(x)
+        if (not train):
+            with open("log.txt", "a") as fd:
+                fd.write("NET OUT\n")
+                print_act(x, fd, red=True)
         return x
 
 def testModel( **kwargs):
@@ -198,22 +210,23 @@ def main() :
     eval_loader = torch.utils.data.DataLoader(eval_dataset, batch_size=1, shuffle=False,
                                             num_workers=4)
 
-    for name, module in model.named_modules():
-        print(name)
     correct, total = 0, 0
+    print ("===> Testing Network")
     for batch_idx, (inputs, targets) in enumerate(eval_loader):
-         inputs, targets = inputs.to('cuda:0'), targets.to('cuda:0')
+        
+        print("inputs\n", inputs)
+        inputs, targets = inputs.to('cuda:0'), targets.to('cuda:0')
 
-         outputs = model(inputs, False).view(model(inputs).size(0),-1)
-         _, predicted = outputs.max(1)
-         print("predicted :\n", predicted)
-         print("true:\n", targets)
-         total += targets.size(0)
-         correct += predicted.eq(targets).sum().item()
-         print("correct :\n", correct)
-         print("inputs\n", inputs)
-         if(batch_idx == 1) :
-             break
+        outputs = model(inputs, False)
+        outputs = outputs.view(outputs.size(0),-1)
+        _, predicted = outputs.max(1)
+        print("predicted :\n", predicted)
+        print("true:\n", targets)
+        total += targets.size(0)
+        correct += predicted.eq(targets).sum().item()
+        print("correct :\n", correct)
+        if(batch_idx == 0) :
+            break
          
 
     model.to('cpu') 
