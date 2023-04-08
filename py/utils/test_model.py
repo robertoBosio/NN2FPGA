@@ -96,6 +96,11 @@ class TestModel(nn.Module) :
             with open("log.txt", "a") as fd:
                 fd.write("RELU OUT\n")
                 print_act(x, fd)
+                # for ih in range(2):
+                #     for iw in range(2):
+                #         for ch in range(3):
+                #             fd.write("%f " % x[0, ch, ih, iw].detach().cpu().numpy())
+                #         fd.write("\n")
         x = self.avgpool(x)
         # if (not train):
         #     with open("log.txt", "a") as fd:
@@ -194,12 +199,12 @@ def main() :
         cudnn.benchmark = True
         #print("no cuda")
 
-    optimizer = torch.optim.SGD(model.parameters(), lr=0.0001, momentum=0.9, weight_decay=1e-4)
+    optimizer = torch.optim.SGD(model.parameters(), lr=0.1, momentum=0.9, weight_decay=1e-4)
    
     lr_schedu = optim.lr_scheduler.MultiStepLR(optimizer, [90, 150, 200], gamma=0.1)
     criterion = torch.nn.CrossEntropyLoss()
 
-    for epoch in range(start_epoch,1):
+    for epoch in range(start_epoch,10):
         train(epoch)
         test(epoch)
         lr_schedu.step(epoch)

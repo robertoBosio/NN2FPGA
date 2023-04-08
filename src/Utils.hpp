@@ -127,8 +127,8 @@ template <
 		
 		t_output_struct tmp_w;
 		t_input_part tmp_p = (t_input_part)(tmp_r_par & 0xff);
-		std::cout << (ap_int<32>)tmp_p << " ";
 		tmp_w.data = QuantAct<t_input_part,c_scale,t_output>(tmp_p);
+		/* std::cout << (ap_int<32>)tmp_w.data << " "; */
 
 		if (s_par < (c_par-1))
 			tmp_w.last = false;
@@ -138,7 +138,7 @@ template <
 		tmp_r_par = tmp_r_par >> 8;
 
 	}
-	std::cout << std::endl;
+	/* std::cout << std::endl; */	
 
 }
 
