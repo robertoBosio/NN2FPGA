@@ -260,7 +260,17 @@ def opt_quant(model, io_dict, quant_info):
                 # must be saved
 
                 scale_factor = quant_info[net_name]["seq_scale"]
+                clip_factor = quant_info[net_name]["seq_clip"]
                 signed = quant_info[net_name]["signed"]
+
+                in_index = io_dict[layer_in_name]["output"].index(net_name)
+
+                if "quant" in io_dict[layer_in_name].keys():
+                    old_clip = io_dict[layer_in_name]["clip_factor"][in_index]
+                    if (old_clip < clip_factor):
+                        io_dict[layer_in_name]["clip_factor"][in_index] = old_clip
+                else:
+                    io_dict[layer_in_name]["clip_factor"] = clip_factor
 
                 io_dict[layer_in_name]["quant"] = True
                 io_dict[layer_in_name]["scale_factor"] = scale_factor

@@ -50,6 +50,32 @@ template <
 	return (t_output)(s_data);
 }
 
+template <
+	class t_input,
+	int c_scale,
+	int c_clip,
+	class t_output
+> t_output QuantAct (
+	t_input i_data
+) {
+	t_input s_data = QuantAct<t_input,c_scale>(i_data);
+	const t_output c_msb    = sizeof(t_output)*8-1;
+
+	const t_output c_max = c_clip;
+
+	const t_output c_min_0 = ~(t_output)(0);
+	const t_output c_min_1 = (-1 << c_msb);
+	const t_output c_min   = (c_min_0 < 0) ? c_min_1 : 0;
+
+	if (s_data > c_max) {
+		return c_max;
+	}
+	if (s_data < c_min) {
+		return c_min;
+	}
+	return (t_output)(s_data);
+}
+
 //////////////////////////// FROM POINTER TO STREAM /////////////////////////// 
 // For input activations
 /* template < */

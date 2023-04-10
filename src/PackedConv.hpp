@@ -702,6 +702,7 @@ template <
 	int c_ops,
 	int c_relu,
 	int c_quant,
+	int c_shift_h,
 	int c_shift_l
 > void QuantStream(
 	hls::stream<t_acc_struct> i_acc[c_ops],
@@ -720,7 +721,7 @@ template <
 	if (c_relu == 1) {
 		s_acc = ReluOp<t_acc>(s_acc);
 	}
-	s_output.data = QuantAct<t_acc,c_shift_l,t_output>(s_acc);
+	s_output.data = QuantAct<t_acc,c_shift_l,c_shift_h,t_output>(s_acc);
 	s_output.last = s_acc_struct.last;
 	/* std::cout << (ap_int<32>)s_output.data << " "; */
 
@@ -775,6 +776,7 @@ template <
 				c_ops,
 				c_relu,
 				c_quant,
+				c_shift_h,
 				c_shift_l
 			> (
 				i_acc,
@@ -795,6 +797,7 @@ template <
 				1,
 				0,
 				c_quant,
+				c_shift_h_1x1,
 				c_shift_l_1x1
 			> (
 				i_acc_1x1,
@@ -847,6 +850,7 @@ template <
 				c_ops,
 				c_relu,
 				c_quant,
+				c_shift_h,
 				c_shift_l
 			> (
 				i_acc,

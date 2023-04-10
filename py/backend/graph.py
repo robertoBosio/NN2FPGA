@@ -174,6 +174,7 @@ def graph_info(model, init_info):
             io_dict[node_name]["scale_factor"] = scale_factor
             io_dict[node_name]["signed"] = signed
             io_dict[node_name]["type"] = "quant"
+            io_dict[node_name]["clip"] = scale_factor
 
     return io_dict
 
