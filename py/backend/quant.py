@@ -6,6 +6,30 @@ from onnx import numpy_helper
 import numpy as np
 from backend.graph import *
 
+def compute_quant(
+        actscale=None,
+        wscale=None,
+        scale_factor=None,
+        in_scale_factor=None,
+        clip_factor=None
+    ):
+
+        if (actscale is not None):
+            off = -1*(actscale + wscale)
+        else:
+            off = 0
+
+        if (in_scale_factor is not None):
+            diff_scale = off + in_scale_factor
+        else:
+            diff_scale = off + scale_factor
+
+        reduced_clip = -1 * (clip_factor - actscale)
+        reduced_clip = reduced_clip + 7
+        reduced_clip = int(2**reduced_clip)-1
+
+        return diff_scale, reduced_clip
+
 def hw_quant(model, io_dict):
     
     io_connect = extract_connections(model, io_dict)
@@ -54,6 +78,7 @@ def merge_quant(io_dict, quant_info, inherit_quant=False):
             new_node.setdefault("seq", [])
             new_node.setdefault("seq_scale", [])
             new_node.setdefault("seq_out", [])
+            new_node.setdefault("seq_clip", [])
             new_node.setdefault("changed", False)
             new_node.setdefault("removed", [])
             new_node.setdefault("clip", [])
@@ -76,8 +101,8 @@ def merge_quant(io_dict, quant_info, inherit_quant=False):
 
                             # Propagating clip, the smaller one must be kept
                             new_clip = quant_info[output]["seq_clip"][j]
-                            clip_index = node["output"].index(output)
-                            old_clip = node["clip"][clip_index]
+                            clip_index = node["seq_out"].index(output)
+                            old_clip = node["seq_clip"][clip_index]
                             if old_clip < new_clip:
                                 new_clip = old_clip
                             new_node["seq_clip"].append(new_clip)

@@ -149,6 +149,7 @@ def graph_info(model, init_info):
                 init_info,
                 tensors_info
             )
+            continue
 
         if 'pool' in node.op_type.lower():
             io_dict = pool.info(
@@ -158,9 +159,15 @@ def graph_info(model, init_info):
                 init_info,
                 tensors_info
             )
+            continue
 
         if 'relu' in node.op_type.lower():
             io_dict[node_name]["type"] = "relu"
+            continue
+
+        if 'add' in node.op_type.lower():
+            io_dict[node_name]["type"] = "add"
+            continue
 
         if 'quant' in node.op_type.lower():
             scale_name   = io_dict[node_name]["input"][1]
@@ -175,6 +182,7 @@ def graph_info(model, init_info):
             io_dict[node_name]["signed"] = signed
             io_dict[node_name]["type"] = "quant"
             io_dict[node_name]["clip"] = scale_factor
+            continue
 
     return io_dict
 

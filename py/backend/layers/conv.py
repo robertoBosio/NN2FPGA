@@ -4,6 +4,7 @@ import sys
 import qonnx
 from onnx import numpy_helper
 import numpy as np
+import backend.quant
 
 def info(io_dict, node, node_name, init_info, tensors_info):
 
@@ -28,7 +29,7 @@ def info(io_dict, node, node_name, init_info, tensors_info):
     reuse    = 1
     relu     = False
     add      = False
-    in_scale_factor = 0
+    in_scale_factor = None
 
     io_dict[node_name]["ich"]    = ich
     io_dict[node_name]["ih"]     = ih
@@ -122,22 +123,26 @@ def parse_wout(name, node):
         ]
 
     # Evaluate these values both for the normal output and the pointwise merge
-    if (len(node["actscale"]) > 0):
-        off = -1*(node["actscale"][0] + node["wscale"][0])
-    else:
-        off = 0
-
-    diff_scale = off + node["scale_factor"] + node["in_scale_factor"]
-
-    reduced_clip = -1 * (node["clip_factor"][0] - node["actscale"][0])
-    reduced_clip = reduced_clip + 7
-    reduced_clip = int(2**reduced_clip)-1
+    diff_scale, reduced_clip = backend.quant.compute_quant(
+        node["actscale"][0],
+        node["wscale"][0],
+        node["scale_factor"][0],
+        node["in_scale_factor"],
+        node["clip_factor"][0]
+    )
 
     block["defines"]["c_%s_shift_h" % output_name] = ["const", reduced_clip]
     block["defines"]["c_%s_shift_l" % output_name] = ["const", diff_scale]
 
     if (node["merge_1x1"]):
-        block["defines"]["c_%s_shift_h" % output_1x1_name] = ["const", diff_scale + 7]
+        diff_scale, reduced_clip = backend.quant.compute_quant(
+            node["actscale"][0],
+            node["wscale"][1],
+            node["scale_factor"][1],
+            node["in_scale_factor"],
+            node["clip_factor"][1]
+        )
+        block["defines"]["c_%s_shift_h" % output_1x1_name] = ["const", reduced_clip]
         block["defines"]["c_%s_shift_l" % output_1x1_name] = ["const", diff_scale]
 
     block["args"] = []
@@ -277,10 +282,6 @@ def parse_comp(name, node):
     block["defines"]["c_%s_ops" % name]            = ["const", node["ops"]]
     block["defines"]["c_%s_index" % name]          = ["const", node["kernel"]]
     block["defines"]["c_%s_reuse" % name]          = ["const", node["reuse"]]
-    block["defines"]["c_%s_in_scale_factor" % name] = [
-        "const",
-        node["in_scale_factor"]
-    ]
 
     block["args"] = []
 

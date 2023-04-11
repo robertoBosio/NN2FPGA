@@ -87,6 +87,8 @@ def opt_skip(model, io_dict):
     net_levels = net_distance(io_dict, io_connect)
 
     for net_name, net_info in io_connect.items():
+        # Annotating produce layer to forward the quantization
+        layer_in_names  = net_info[0]
         layer_out_names = net_info[1]
 
         if len(layer_out_names) > 1:
@@ -106,6 +108,13 @@ def opt_skip(model, io_dict):
             )
 
             if not_same_level and all_conv:
+
+                # Annotating quantization from previous layer
+                in_layer = io_dict[layer_in_names[0]]
+                in_index = in_layer["output"].index(net_name)
+                in_scale = in_layer["scale_factor"][in_index]
+                in_clip  = in_layer["clip_factor"][in_index]
+
                 # Reordering the layers to have correct actiations passthrough
                 ordered_layers = list(
                     sorted(
@@ -121,6 +130,12 @@ def opt_skip(model, io_dict):
                         skip_name = net_name + "_skip"
                         io_dict[layer_base_name]["output"].append(
                             skip_name
+                        )
+                        io_dict[layer_base_name]["scale_factor"].append(
+                            in_scale
+                        )
+                        io_dict[layer_base_name]["clip_factor"].append(
+                            in_clip
                         )
                         skip_index = io_dict[layer_name]["input"].index(
                             net_name
@@ -186,14 +201,21 @@ def opt_merge_conv(model, io_dict):
                     rem_layer = []
                     input_tensor = []
                     output_tensor = []
+                    scale_factor = []
+                    clip_factor = []
                     for layer_merge_name in layer_out_names:
                         if layer_base_name != layer_merge_name:
+                            layer_merge = io_dict[layer_merge_name]
                             rem_layer.append(layer_merge_name)
-                            for input in io_dict[layer_merge_name]["input"]:
+                            for input in layer_merge["input"]:
                                 if input not in output_names:
                                     input_tensor.append(input)
-                            for output in io_dict[layer_merge_name]["output"]:
+                            for i, output in enumerate(layer_merge["output"]):
                                 output_tensor.append(output)
+                                scale_value = layer_merge["scale_factor"][i]
+                                scale_factor.append(scale_value)
+                                clip_value = layer_merge["clip_factor"][i]
+                                clip_factor.append(clip_value)
                             
                     io_dict[layer_base_name]["merge_1x1"] = True
 
@@ -202,6 +224,9 @@ def opt_merge_conv(model, io_dict):
 
                     for output in output_tensor:
                         io_dict[layer_base_name]["output"].append(output)
+
+                    io_dict[layer_base_name]["scale_factor"] += scale_factor
+                    io_dict[layer_base_name]["clip_factor"] += clip_factor
 
                     # Removing merged layer
                     for rem_name in rem_layer:
