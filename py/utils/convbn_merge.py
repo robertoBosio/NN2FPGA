@@ -6,6 +6,28 @@ from brevitas.core.quant import QuantType
 from brevitas.core.restrict_val import RestrictValueType
 from brevitas.core.scaling import ScalingImplType
 
+
+def replace_layers(model, old, new) :
+    for name, module in model.named_children() :
+        if(len(list(module.children()))) > 0 :
+            replace_layers(module, old, new)
+        if isinstance(module, old) :
+            setattr(model, name, new)
+
+def fuse_layers(model) :
+    idx_layer_to_fuse = 0
+    for name, module in model.named_children() :
+        if(len(list(module.children()))) > 0 :
+            fuse_layers(module) 
+        if(isinstance(module, torch.nn.Conv2d)) :
+            conv_tmp = module
+            name_tmp = name
+        if(isinstance(module, torch.nn.BatchNorm2d)) :
+            bn_tmp = module
+            merge_bn(conv_tmp, bn_tmp)
+            setattr(model, name_tmp, conv_tmp)
+
+
 def merge_conv_bn(model) :
     merge_bn(model.module.conv1,model.module.bn1)
     model.module.bn1 = torch.nn.Identity()
@@ -75,6 +97,3 @@ def merge_conv_bn(model) :
 
     #merge_bn(model.module.fc,model.module.bn2)
     #model.module.bn2 = torch.nn.Identity()
-    return model
-
-
