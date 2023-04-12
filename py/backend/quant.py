@@ -6,6 +6,30 @@ from onnx import numpy_helper
 import numpy as np
 from backend.graph import *
 
+def compute_quant(
+        actscale=None,
+        wscale=None,
+        scale_factor=None,
+        in_scale_factor=None,
+        clip_factor=None
+    ):
+
+        if (actscale is not None):
+            off = -1*(actscale + wscale)
+        else:
+            off = 0
+
+        if (in_scale_factor is not None):
+            diff_scale = off + in_scale_factor
+        else:
+            diff_scale = off + scale_factor
+
+        reduced_clip = -1 * (clip_factor - actscale)
+        reduced_clip = reduced_clip + 7
+        reduced_clip = int(2**reduced_clip)-1
+
+        return diff_scale, reduced_clip
+
 def hw_quant(model, io_dict):
     
     io_connect = extract_connections(model, io_dict)
@@ -54,8 +78,10 @@ def merge_quant(io_dict, quant_info, inherit_quant=False):
             new_node.setdefault("seq", [])
             new_node.setdefault("seq_scale", [])
             new_node.setdefault("seq_out", [])
+            new_node.setdefault("seq_clip", [])
             new_node.setdefault("changed", False)
             new_node.setdefault("removed", [])
+            new_node.setdefault("clip", [])
 
             # Looking for node with in input the previous output
             for i, output in enumerate(node["seq_out"]):
@@ -72,6 +98,15 @@ def merge_quant(io_dict, quant_info, inherit_quant=False):
                             new_node["seq_scale"].append(new_scale)
                             new_node["seq_out"].append(new_output)
                             new_node["changed"] = True
+
+                            # Propagating clip, the smaller one must be kept
+                            new_clip = quant_info[output]["seq_clip"][j]
+                            clip_index = node["seq_out"].index(output)
+                            old_clip = node["seq_clip"][clip_index]
+                            if old_clip < new_clip:
+                                new_clip = old_clip
+                            new_node["seq_clip"].append(new_clip)
+
                         new_node["removed"].append(quant_info[output]["seq"][0])
                         remove_node.append(output)
                     else:
@@ -88,6 +123,7 @@ def merge_quant(io_dict, quant_info, inherit_quant=False):
                 new_node["seq"].append(quant_info[name]["seq"][i])
                 new_node["seq_scale"].append(quant_info[name]["seq_scale"][i])
                 new_node["seq_out"].append(quant_info[name]["seq_out"][i])
+                new_node["seq_clip"].append(quant_info[name]["seq_clip"][i])
 
             quant_info[name] = new_node
 
@@ -110,6 +146,7 @@ def merge_quant(io_dict, quant_info, inherit_quant=False):
         if "quant" in name.lower():
             new_output  = []
             new_scale   = []
+            new_clip   = []
             # The quant_info database is already selecting the point where 
             # quant layers can be merged, for this reason only the changed layers
             # should be updated
@@ -119,15 +156,18 @@ def merge_quant(io_dict, quant_info, inherit_quant=False):
                     seq = quant_info[input_name]["seq"]
                     seq_out = quant_info[input_name]["seq_out"]
                     seq_scale = quant_info[input_name]["seq_scale"]
+                    seq_clip = quant_info[input_name]["seq_clip"]
                     for i, next_output in enumerate(seq_out):
                         new_output.append(next_output)
                         new_scale.append(seq_scale[i])
+                        new_clip.append(seq_clip[i])
                     for rem_name in quant_info[input_name]["removed"]:
                         remove_node.append(rem_name)
 
             if len(new_output) > 0:
                 io_dict[name]["output"] = new_output
                 io_dict[name]["scale"] = new_scale
+                io_dict[name]["clip"] = new_clip
 
     # print(remove_node)
     for name in remove_node:
@@ -151,6 +191,7 @@ def extract_quant_info(model, io_dict, init_info):
             scale_info   = init_info[scale_name]
             scale_factor = numpy_helper.to_array(scale_info)
             scale_factor = np.log2(scale_factor)
+            clip = node["clip"]
 
             signed = node["signed"]
 
@@ -163,11 +204,13 @@ def extract_quant_info(model, io_dict, init_info):
             quant_info[node["input"][0]].setdefault("changed", False)
             quant_info[node["input"][0]].setdefault("removed", [])
             quant_info[node["input"][0]].setdefault("signed", signed)
+            quant_info[node["input"][0]].setdefault("seq_clip", [])
 
             quant_info[node["input"][0]][node["output"][0]] = node_name
             quant_info[node["input"][0]]["seq"].append(node_name)
             quant_info[node["input"][0]]["seq_scale"].append(scale_factor)
             quant_info[node["input"][0]]["seq_out"].append(node["output"][0])
+            quant_info[node["input"][0]]["seq_clip"].append(clip)
 
         else:
 

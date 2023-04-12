@@ -4,6 +4,7 @@ import sys
 import qonnx
 from onnx import numpy_helper
 import numpy as np
+import backend.quant
 
 def info(io_dict, node, node_name, init_info, tensors_info):
 
@@ -28,7 +29,7 @@ def info(io_dict, node, node_name, init_info, tensors_info):
     reuse    = 1
     relu     = False
     add      = False
-    in_scale_factor = 0
+    in_scale_factor = None
 
     io_dict[node_name]["ich"]    = ich
     io_dict[node_name]["ih"]     = ih
@@ -122,17 +123,26 @@ def parse_wout(name, node):
         ]
 
     # Evaluate these values both for the normal output and the pointwise merge
-    if (len(node["actscale"]) > 0):
-        off = -1*(node["actscale"][0] + node["wscale"][0])
-    else:
-        off = 0
+    diff_scale, reduced_clip = backend.quant.compute_quant(
+        node["actscale"][0],
+        node["wscale"][0],
+        node["scale_factor"][0],
+        node["in_scale_factor"],
+        node["clip_factor"][0]
+    )
 
-    diff_scale = off + node["scale_factor"] + node["in_scale_factor"]
-    block["defines"]["c_%s_shift_h" % output_name] = ["const", diff_scale + 7]
+    block["defines"]["c_%s_shift_h" % output_name] = ["const", reduced_clip]
     block["defines"]["c_%s_shift_l" % output_name] = ["const", diff_scale]
 
     if (node["merge_1x1"]):
-        block["defines"]["c_%s_shift_h" % output_1x1_name] = ["const", diff_scale + 7]
+        diff_scale, reduced_clip = backend.quant.compute_quant(
+            node["actscale"][0],
+            node["wscale"][1],
+            node["scale_factor"][1],
+            node["in_scale_factor"],
+            node["clip_factor"][1]
+        )
+        block["defines"]["c_%s_shift_h" % output_1x1_name] = ["const", reduced_clip]
         block["defines"]["c_%s_shift_l" % output_1x1_name] = ["const", diff_scale]
 
     block["args"] = []
@@ -272,10 +282,6 @@ def parse_comp(name, node):
     block["defines"]["c_%s_ops" % name]            = ["const", node["ops"]]
     block["defines"]["c_%s_index" % name]          = ["const", node["kernel"]]
     block["defines"]["c_%s_reuse" % name]          = ["const", node["reuse"]]
-    block["defines"]["c_%s_in_scale_factor" % name] = [
-        "const",
-        node["in_scale_factor"]
-    ]
 
     block["args"] = []
 
@@ -361,167 +367,6 @@ def parse_split(name, node):
 
     return blocks
 
-def parse_wrapper(name, node):
-
-    input_name  = node["input"][0]
-    input_type_name = input_name.replace("_skip", "")
-    weight_name = node["input"][1]
-
-    # If no batchnorm merge then there is no bias
-    has_bias = len(node["input"]) > 2
-    if (has_bias):
-        bias_name   = node["input"][2]
-
-    if (node["add"]):
-        add_name = node["input"][3]
-        add_type_name = add_name.replace("_skip", "")
-    output_name = node["output"][0]
-    output_type_name = output_name.replace("_skip", "")
-    if (node["has_forward"]):
-        forward_name = node["output"][1]
-    if (node["merge_1x1"]):
-        output_1x1_name = node["output"][1]
-        output_1x1_type_name = output_1x1_name.replace("_skip", "")
-
-    block = {}
-    block["func"] = "ConvOp"
-
-    # Template parameters
-    block["template"] = []
-    block["template"].append("t_%s_struct" % input_type_name)
-    block["template"].append("t_%s" % input_type_name)
-    block["template"].append("t_%s" % weight_name)
-    if (has_bias):
-        block["template"].append("t_%s" % bias_name)
-    if (node["add"]):
-        block["template"].append("t_%s_struct" % add_type_name)
-    block["template"].append("t_%s_struct" % output_type_name)
-    block["template"].append("t_%s" % output_type_name)
-    if (node["merge_1x1"]):
-        block["template"].append("t_%s_struct" % output_1x1_type_name)
-        block["template"].append("t_%s" % output_1x1_type_name)
-    block["template"].append("t_%s_acc" % name)
-    block["template"].append("c_%s_ich" % name)
-    block["template"].append("c_%s_och" % name)
-    block["template"].append("c_%s_iw" % name)
-    block["template"].append("c_%s_ih" % name)
-    block["template"].append("c_%s_ow" % name)
-    block["template"].append("c_%s_oh" % name)
-    block["template"].append("c_%s_fw" % name)
-    block["template"].append("c_%s_fh" % name)
-    block["template"].append("c_%s_relu" % name)
-    block["template"].append("c_%s_stride" % name)
-    block["template"].append("c_%s_pad" % name)
-    block["template"].append("c_%s_ops" % name)
-    block["template"].append("c_%s_scale_factor" % name)
-    block["template"].append("c_%s_reuse" % name)
-    block["template"].append("c_%s_in_scale_factor" % name)
-
-    block["defines"] = {}
-    block["defines"]["t_%s_struct" % output_type_name] = [
-        "struct",
-        [["data", "uint8_t"], ["last", "bool"]]
-    ]
-    block["defines"]["t_%s" % output_type_name] = ["type", "uint8_t"]
-    if (node["merge_1x1"]):
-        block["defines"]["t_%s_struct" % output_1x1_type_name] = [
-            "struct",
-            [["data", "uint8_t"], ["last", "bool"]]
-        ]
-        block["defines"]["t_%s" % output_1x1_type_name] = ["type", "uint8_t"]
-
-    block["defines"]["t_%s_acc" % name]            = ["type", "int32_t"]
-    block["defines"]["t_%s_acc_struct" % name] = [
-        "struct",
-        [["data", "t_%s_acc" % name], ["last", "bool"]]
-    ]
-
-    block["defines"]["c_%s_ich" % name]            = ["const", node["ich"]]
-    block["defines"]["c_%s_och" % name]            = ["const", node["och"]]
-    block["defines"]["c_%s_iw" % name]             = ["const", node["iw"]]
-    block["defines"]["c_%s_ih" % name]             = ["const", node["ih"]]
-    block["defines"]["c_%s_ow" % name]             = ["const", node["ow"]]
-    block["defines"]["c_%s_oh" % name]             = ["const", node["oh"]]
-    block["defines"]["c_%s_fw" % name]             = ["const", node["fw"]]
-    block["defines"]["c_%s_fh" % name]             = ["const", node["fh"]]
-    block["defines"]["c_%s_relu" % name]           = ["const", int(node["relu"])]
-    block["defines"]["c_%s_stride" % name]         = ["const", node["stride"]]
-    block["defines"]["c_%s_pad" % name]            = ["const", node["pad"]]
-    block["defines"]["c_%s_ops" % name]            = ["const", node["ops"]]
-    block["defines"]["c_%s_index" % name]          = ["const", node["kernel"]]
-    block["defines"]["c_%s_reuse" % name]          = ["const", node["reuse"]]
-    if "scale_factor" in node.keys():
-        block["defines"]["c_%s_scale_factor" % name]   = [
-            "const", 
-            node["scale_factor"][0]
-        ]
-    block["defines"]["c_%s_in_scale_factor" % name] = [
-        "const",
-        node["in_scale_factor"]
-    ]
-
-    block["args"] = []
-    if node["is_1x1"]:
-        block["args"].append("s_%s" % input_name)
-    else:
-        block["args"].append("s_%s_compute" % input_name)
-    block["args"].append("s_%s" % weight_name)
-    if (has_bias):
-        block["args"].append("s_%s" % bias_name)
-    if (node["add"]):
-        block["args"].append("s_%s" % add_name)
-    if (node["has_forward"]):
-        block["args"].append("s_%s" % forward_name)
-    block["args"].append("s_%s" % output_name)
-    if (node["merge_1x1"]):
-        block["args"].append("s_%s" % output_1x1_name)
-
-    block["declare"] = []
-
-    declare = {}
-    declare["name"] = "s_%s" % output_name
-    declare["type"] = "t_%s_struct" % output_name
-    declare["is_array"] = True
-    declare["dim"] = 1
-    block["declare"].append(declare)
-
-
-    if (node["merge_1x1"]):
-        declare = {}
-        declare["name"] = "s_%s" % output_1x1_name
-        declare["type"] = "t_%s_struct" % output_1x1_name
-        declare["is_array"] = True
-        declare["dim"] = 1
-        block["declare"].append(declare)
-
-    block["pragma"] = []
-
-    pragma = {}
-    pragma["name"] = "stream"
-    options = [
-        ["variable", "s_%s" % (output_name)],
-        ["depth", 2],
-        ["type", "fifo"],
-    ]
-    pragma["options"] = options
-    block["pragma"].append(pragma)
-
-    if (node["merge_1x1"]):
-        pragma = {}
-        pragma["name"] = "stream"
-        options = [
-            ["variable", "s_%s" % (output_1x1_name)],
-            ["depth", 2],
-            ["type", "fifo"],
-        ]
-        pragma["options"] = options
-        block["pragma"].append(pragma)
-
-    return [block]
-
 def parse(name, node, wrapper=False):
 
-    if wrapper:
-        return parse_wrapper(name, node)
-    else:
-        return parse_split(name, node)
+    return parse_split(name, node)
