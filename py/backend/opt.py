@@ -383,9 +383,10 @@ def opt_skip_quant(model, io_dict, quant_info, init_info):
                     quant_dict = quant_info[quant_input]
                     scale_index = quant_dict["seq_out"].index(net_name)
                     scale_factor = quant_dict["seq_scale"][scale_index]
-                    diff_scale_factor = scale_factor - pre_scale_factor
 
-                    io_dict[layer_out_name]["in_scale_factor"] = diff_scale_factor
+                    # The scale factor is stored and the activation is 
+                    # requantized before performing convolution
+                    io_dict[layer_out_name]["in_scale_factor"] = scale_factor
                     io_dict[layer_out_name]["input"][0] = quant_input
                     del io_dict[layer_in_name]
 

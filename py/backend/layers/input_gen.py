@@ -85,6 +85,19 @@ def parse(name, node):
         [["data", output_type], ["last", "bool"]]
     ]
 
+    block["defines"]["c_ProduceStream_ich"] = [
+        "const",
+        node["ich"]
+    ]
+    block["defines"]["c_ProduceStream_iw"] = [
+        "const",
+        node["iw"]
+    ]
+    block["defines"]["c_ProduceStream_ih"] = [
+        "const",
+        node["ih"]
+    ]
+
     block["defines"]["c_%s_ich" % name] = [
         "const",
         node["ich"]

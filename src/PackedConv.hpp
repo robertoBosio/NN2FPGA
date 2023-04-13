@@ -57,11 +57,11 @@ template <
 
 				if (s_num_och == 0) {
 					for (auto s_index = 0; s_index < c_index; s_index++) {
-						t_input_struct s_input_stuct = i_input[s_index].read();
-						s_input[s_reuse][s_index] = s_input_stuct.data;
+						t_input_struct s_input_struct = i_input[s_index].read();
+						s_input[s_reuse][s_index] = s_input_struct.data;
 						/* Sending last only at the bottom left data */
 						if (s_index == 0)
-							s_last = s_input_stuct.last;
+							s_last = s_input_struct.last;
 					}
 				}
 
@@ -159,11 +159,11 @@ template <
 
 				if (s_num_och == 0) {
 					for (auto s_index = 0; s_index < c_index; s_index++) {
-						t_input_struct s_input_stuct = i_input[s_index].read();
-						s_input[s_reuse][s_index] = s_input_stuct.data;
+						t_input_struct s_input_struct = i_input[s_index].read();
+						s_input[s_reuse][s_index] = s_input_struct.data;
 						/* Sending last only at the bottom left data */
 						if (s_index == 0)
-							s_last = s_input_stuct.last;
+							s_last = s_input_struct.last;
 					}
 				}
 
@@ -258,7 +258,7 @@ template <
 	bool s_last = false;
 	int8_t s_weight[c_ops][c_index];
 #pragma HLS array_partition variable=s_weight type=complete
-	int8_t s_weight_1x1[c_ops][c_index];
+	int8_t s_weight_1x1[c_ops][1];
 #pragma HLS array_partition variable=s_weight_1x1 type=complete
 
 		/* for (auto s_reuse = 0; s_reuse < c_reuse; s_reuse++) */
@@ -275,11 +275,11 @@ template <
 
 				if (s_num_och == 0) {
 					for (auto s_index = 0; s_index < c_index; s_index++) {
-						t_input_struct s_input_stuct = i_input[s_index].read();
-						s_input[s_reuse][s_index] = s_input_stuct.data;
+						t_input_struct s_input_struct = i_input[s_index].read();
+						s_input[s_reuse][s_index] = s_input_struct.data;
 						/* Sending last only at the bottom left data */
 						if (s_index == 0)
-							s_last = s_input_stuct.last;
+							s_last = s_input_struct.last;
 					}
 				}
 
@@ -330,7 +330,7 @@ template <
 
 					s_acc_1x1_base = s_acc_1x1_buff[s_reuse][s_och];
 
-					s_acc_1x1 += s_input[s_reuse][c_index/2] * s_weight_1x1[s_ops][c_index/2];
+					s_acc_1x1 += s_input[s_reuse][c_index/2] * s_weight_1x1[s_ops][0];
 
 					if (s_ich != 0)
 						s_acc += s_acc_base;
@@ -370,7 +370,9 @@ template <
 	int c_index,
 	int c_str,
 	int c_ops,
-	int c_reuse
+	int c_reuse,
+	int c_shift_h,
+	int c_shift_l
 > void ConvComp(
 	hls::stream<t_input_struct> i_input[c_index],
 	hls::stream<t_weight> i_weights[c_index],
@@ -406,11 +408,11 @@ template <
 
 				if (s_num_och == 0) {
 					for (auto s_index = 0; s_index < c_index; s_index++) {
-						t_input_struct s_input_stuct = i_input[s_index].read();
-						s_input[s_reuse][s_index] = s_input_stuct.data;
+						t_input_struct s_input_struct = i_input[s_index].read();
+						s_input[s_reuse][s_index] = s_input_struct.data;
 						/* Sending last only at the bottom left data */
 						if (s_index == 0)
-							s_last = s_input_stuct.last;
+							s_last = s_input_struct.last;
 					}
 				}
 
@@ -442,7 +444,10 @@ template <
 					s_acc_base = s_acc_buff[s_reuse][s_och];
 
 					for (auto s_index = 0; s_index < c_index; s_index++) {
-						s_acc += s_input[s_reuse][s_index] * s_weight[s_ops][s_index];
+						t_input s_data = s_input[s_reuse][s_index];
+						if (c_shift_l != 0)
+							s_data = QuantAct<t_input,c_shift_l,c_shift_h,t_input>(s_data);
+						s_acc += s_data * s_weight[s_ops][s_index];
 					}
 
 					if (s_ich != 0)
@@ -488,7 +493,8 @@ template <
 	int c_index,
 	int c_str,
 	int c_ops,
-	int c_reuse
+	int c_reuse,
+	int c_shift_l
 > void ConvComp(
 	hls::stream<t_input_struct> i_input[c_index],
 	hls::stream<t_weight> i_weights[c_index],
@@ -525,11 +531,11 @@ template <
 
 				if (s_num_och == 0) {
 					for (auto s_index = 0; s_index < c_index; s_index++) {
-						t_input_struct s_input_stuct = i_input[s_index].read();
-						s_input[s_reuse][s_index] = s_input_stuct.data;
+						t_input_struct s_input_struct = i_input[s_index].read();
+						s_input[s_reuse][s_index] = s_input_struct.data;
 						/* Sending last only at the bottom left data */
 						if (s_index == 0)
-							s_last = s_input_stuct.last;
+							s_last = s_input_struct.last;
 					}
 				}
 
@@ -561,7 +567,7 @@ template <
 					s_acc_struct.last = s_last & (s_och == (c_och-1));
 
 					if (s_ich == s_och) { 
-						s_acc = ((t_acc)(s_add.data) << 7) + i_bias[0].read()[0];
+						s_acc = ((t_acc)(s_add.data) << c_shift_l) + i_bias[0].read()[0];
 					}
 					else
 						s_acc = 0;
@@ -636,11 +642,11 @@ template <
 
 		if (s_num_och == 0) {
 			for (uint8_t s_index = 0; s_index < c_index; s_index++) {
-				t_input_struct s_input_stuct = i_input[s_index].read();
-				s_input[s_index] = s_input_stuct.data;
+				t_input_struct s_input_struct = i_input[s_index].read();
+				s_input[s_index] = s_input_struct.data;
 				/* Sending last only at the bottom left data */
 				if (s_index == 0)
-					s_last = s_input_stuct.last;
+					s_last = s_input_struct.last;
 			}
 		}
 
@@ -723,7 +729,7 @@ template <
 	}
 	s_output.data = QuantAct<t_acc,c_shift_l,c_shift_h,t_output>(s_acc);
 	s_output.last = s_acc_struct.last;
-	/* std::cout << (ap_int<32>)s_output.data << " "; */
+	std::cout << (ap_int<32>)s_output.data << " ";
 
 	o_data.write(s_output); 
 }
@@ -760,6 +766,7 @@ template <
 	const int c_num_comp = c_oh*c_ow*c_och;
 	const int c_pipe_iter = c_num_comp;
 
+	std::cout << "STREAMOUTPUT" << std::endl;
 	for (auto s_pipe_iter = 0; s_pipe_iter < c_pipe_iter; s_pipe_iter+=c_ops) {
 		for (auto s_ops = 0; s_ops < c_ops; s_ops++) {
 #pragma HLS pipeline style=frp
@@ -784,6 +791,8 @@ template <
 				o_data
 			);
 
+			std::cout << "- ";
+
 			QuantStream <
 				t_output_1x1_struct,
 				t_output_1x1,
@@ -804,8 +813,14 @@ template <
 				0,
 				o_data_1x1
 			);
+
+			std::cout << "- ";
 		}
+
+		if ((s_pipe_iter%c_och)==(c_och-1))
+			std::cout << std::endl;
 	}
+	std::cout << std::endl;
 
 }
 
@@ -833,7 +848,7 @@ template <
 	const int c_num_comp = c_oh*c_ow*c_och;
 	const int c_pipe_iter = c_num_comp;
 
-	/* std::cout << "STREAMOUTPUT" << std::endl; */
+	std::cout << "STREAMOUTPUT" << " " << c_ich << " " << c_och << std::endl;
 	for (auto s_pipe_iter = 0; s_pipe_iter < c_pipe_iter; s_pipe_iter+=c_ops) {
 		for (auto s_ops = 0; s_ops < c_ops; s_ops++) {
 #pragma HLS pipeline style=frp
@@ -859,9 +874,10 @@ template <
 			);
 
 		}
-		/* std::cout << std::endl; */
+		if ((s_pipe_iter%c_och)==(c_och-c_ops))
+			std::cout << std::endl;
 	}
-	/* std::cout << std::endl; */
+	std::cout << std::endl;
 
 }
 

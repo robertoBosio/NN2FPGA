@@ -6,11 +6,10 @@ from onnx import numpy_helper
 import numpy as np
 from backend.graph import *
 
-def compute_quant(
+def compute_out_quant(
         actscale=None,
         wscale=None,
         scale_factor=None,
-        in_scale_factor=None,
         clip_factor=None
     ):
 
@@ -19,12 +18,22 @@ def compute_quant(
         else:
             off = 0
 
-        if (in_scale_factor is not None):
-            diff_scale = off + in_scale_factor
-        else:
-            diff_scale = off + scale_factor
+        diff_scale = off + scale_factor
 
         reduced_clip = -1 * (clip_factor - actscale)
+        reduced_clip = reduced_clip + 7
+        reduced_clip = int(2**reduced_clip)-1
+
+        return diff_scale, reduced_clip
+
+def compute_in_quant(
+        actscale=None,
+        in_scale_factor=None
+    ):
+
+        diff_scale =  in_scale_factor - actscale
+
+        reduced_clip = diff_scale
         reduced_clip = reduced_clip + 7
         reduced_clip = int(2**reduced_clip)-1
 

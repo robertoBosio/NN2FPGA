@@ -21,23 +21,29 @@ def info(io_dict, node, node_name, init_info, tensors_info):
     global_pool = ("Global" in node.op_type)
     adaptive =  global_pool or ('adaptive' in node_name)
 
+    attr_dict = {}
+    for attribute in attributes:
+        name = getattr(attribute, "name")
+        ints = getattr(attribute, "ints")
+        attr_dict[name] = ints
+
     if (adaptive):
         fh     = ih
         fw     = iw
         stride = 1
         pad    = 0
     else:
-        fh     = getattr(attributes[0], 'ints')[0]
-        fw     = getattr(attributes[0], 'ints')[1]
-        stride = getattr(attributes[2], 'ints')[0]
-        pad    = getattr(attributes[1], 'ints')[0]
+        fh     = attr_dict["kernel_shape"][0]
+        fw     = attr_dict["kernel_shape"][1]
+        stride = attr_dict["strides"][0]
+        pad    = attr_dict["pads"][0]
 
     in_scale_factor = 0
 
-    if 'max' in node_name.lower():
+    if 'max' in node.op_type.lower():
         pool     = 1
 
-    if 'average' in node_name.lower():
+    if 'average' in node.op_type.lower():
         pool     = 0
 
     io_dict[node_name]["ich"]    = ich

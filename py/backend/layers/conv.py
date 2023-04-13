@@ -123,11 +123,16 @@ def parse_wout(name, node):
         ]
 
     # Evaluate these values both for the normal output and the pointwise merge
-    diff_scale, reduced_clip = backend.quant.compute_quant(
-        node["actscale"][0],
+    # If there is a need for in place quantization, the activation scale
+    # is the input scale factor
+    actscale = node["actscale"][0]
+    if node["in_scale_factor"] is not None:
+        actscale = node["in_scale_factor"]
+
+    diff_scale, reduced_clip = backend.quant.compute_out_quant(
+        actscale,
         node["wscale"][0],
         node["scale_factor"][0],
-        node["in_scale_factor"],
         node["clip_factor"][0]
     )
 
@@ -135,15 +140,23 @@ def parse_wout(name, node):
     block["defines"]["c_%s_shift_l" % output_name] = ["const", diff_scale]
 
     if (node["merge_1x1"]):
-        diff_scale, reduced_clip = backend.quant.compute_quant(
-            node["actscale"][0],
+        diff_scale, reduced_clip = backend.quant.compute_out_quant(
+            actscale,
             node["wscale"][1],
             node["scale_factor"][1],
-            node["in_scale_factor"],
             node["clip_factor"][1]
         )
         block["defines"]["c_%s_shift_h" % output_1x1_name] = ["const", reduced_clip]
         block["defines"]["c_%s_shift_l" % output_1x1_name] = ["const", diff_scale]
+
+    if (node["in_scale_factor"] is not None):
+        diff_scale, reduced_clip = backend.quant.compute_in_quant(
+            node["actscale"][0],
+            node["in_scale_factor"]
+        )
+
+        block["defines"]["c_%s_in_shift_h" % input_name] = ["const", reduced_clip]
+        block["defines"]["c_%s_in_shift_l" % input_name] = ["const", diff_scale]
 
     block["args"] = []
     block["args"].append("s_%s_acc" % output_name)
@@ -254,6 +267,13 @@ def parse_comp(name, node):
     if (node["reuse"] == 1):
         block["template"].append("c_%s_reuse" % name)
 
+    if (node["in_scale_factor"] is not None):
+        block["template"].append("c_%s_in_shift_h" % input_name)
+        block["template"].append("c_%s_in_shift_l" % input_name)
+
+    if (node["add"]):
+        block["template"].append("c_%s_add_shift_l" % add_name)
+
     block["defines"] = {}
     block["defines"]["t_%s_acc" % output_name] = ["type", "int32_t"]
     block["defines"]["t_%s_acc_struct" % output_name] = [
@@ -282,6 +302,10 @@ def parse_comp(name, node):
     block["defines"]["c_%s_ops" % name]            = ["const", node["ops"]]
     block["defines"]["c_%s_index" % name]          = ["const", node["kernel"]]
     block["defines"]["c_%s_reuse" % name]          = ["const", node["reuse"]]
+
+    if node["add"]:
+        diff_scale = node["actscale"][1] - node["wscale"][0] - node["actscale"][0]
+        block["defines"]["c_%s_add_shift_l" % add_name] = ["const", diff_scale]
 
     block["args"] = []
 

@@ -61,6 +61,8 @@ def parse(parsed_write, node_name):
         "ap_axis<c_%s, 0, 0, 0>" % output_name
     ]
 
+    block["defines"]["t_o_data"] = ["alias", "t_o_%s" % output_type_name]
+
     block["output"] = ["%s" % output_name]
     block["declare"] = []
 

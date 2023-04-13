@@ -128,6 +128,14 @@ def write_defines(fd, values):
                 fd.write("\t%s %s;\n" % (field[1], field[0]))
             fd.write("} %s;\n" % name)
 
+        if value[0] == 'alias':
+            fd.write(
+                "using %s=%s;\n" % (
+                    name,
+                    value[1],
+                )
+            )
+
 def defines(file_name, parsed_write):
 
     libraries = [

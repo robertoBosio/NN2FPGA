@@ -9,7 +9,9 @@ from backend.utils import *
 
 def parse_on_chip(
     node_info,
-    pre_values
+    pre_values,
+    bits=8,
+    signed=1
 ):
 
     dich = node_info["ich"]
@@ -18,6 +20,9 @@ def parse_on_chip(
     doch = node_info["och"]
     dops = node_info["ops"]
     scale_factor = 2**node_info["scale_factor"]
+
+    limit_h = 2**(bits-signed)-1
+    limit_l = -1*signed*2**(bits-signed)
 
     doch_ops = int(doch/dops)
 
@@ -33,6 +38,12 @@ def parse_on_chip(
                     for ops in range(dops):
                         quant_value = pre_values[off+ops][ich][ih][iw]
                         quant_value = int(quant_value/scale_factor)
+                        if (limit_h < quant_value):
+                            quant_value = limit_h
+
+                        if (limit_l > quant_value):
+                            quant_value = limit_l
+
                         index = ih*diw+iw
                         ch = ich*doch_ops+och
                         values[dih*diw-1-index][ch][ops] = quant_value
@@ -41,7 +52,9 @@ def parse_on_chip(
 
 def parse_off_chip(
     node_info,
-    pre_values
+    pre_values,
+    bits=8,
+    signed=True
 ):
 
     dich = node_info["ich"]
@@ -80,7 +93,7 @@ def extract_info(
     shape = pre_values.shape
 
     och = shape[0]
-    if (len(shape) > 1):
+    if not("bias" in weight_name):
         ich = shape[1]
         is_bias = False
     else:
@@ -108,10 +121,13 @@ def extract_info(
     else:
         ops = node_info["ops"]
 
+    signed = 1
     if (is_bias):
         new_node["data_type"] = "int16_t"
+        bits = 16
     else:
         new_node["data_type"] = "int8_t"
+        bits = 8
     new_node["ich"]    = ich
     new_node["ih"]     = ih
     new_node["iw"]     = iw
@@ -131,12 +147,16 @@ def extract_info(
     if new_node["off_chip_memory"]:
         new_node["values"] = parse_off_chip(
             new_node,
-            pre_values
+            pre_values,
+            bits,
+            signed
         )
     else:
         new_node["values"] = parse_on_chip(
             new_node,
-            pre_values
+            pre_values,
+            bits,
+            signed
         )
 
     return new_node

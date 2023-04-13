@@ -190,21 +190,13 @@ def rename_nodes(io_dict):
 
     new_io_dict = {}
     
+    n_node = 0
     for node_name, node in io_dict.items():
-        new_node_name = node_name
-        if node["type"] == "const":
-            name_list = node_name.split("/")
-            if len(name_list) > 1:
-                new_node_name = "%s%s" % (name_list[0], name_list[1])
-        else:
-            name_list = node_name.split("/")
-
-            if len(name_list) > 1:
-                new_node_name = name_list[1]
-            else:
-                new_node_name = name_list[0]
             
+        new_node_name = "node_" + node["type"] + "_%0d" % n_node
         new_io_dict[new_node_name] = node
+
+        n_node += 1
 
     return new_io_dict
 
@@ -212,16 +204,21 @@ def rename_edges(model, io_dict):
 
     io_connect = extract_connections(model, io_dict)
 
-    
+    n_net = 0
+    rename_dict = {}
     for net_name, layers in io_connect.items():
         layer_in_name = layers[0][0]
         layer_out_name = layers[1][0]
 
-        name_list = net_name.split("/")
-        if len(name_list) > 1:
-            new_net_name = "%s_%s" % (name_list[1], name_list[2])
+        in_type = io_dict[layer_in_name]["type"]
+
+        no_skip_name = net_name.replace("_skip", "")
+        if no_skip_name in rename_dict.keys():
+            new_net_name = rename_dict[no_skip_name] + "_skip"
         else:
-            new_net_name = net_name
+            new_net_name = "net_" + in_type + "_%0d" % n_net
+
+        rename_dict[net_name] = new_net_name
 
         in_pos = io_dict[layer_in_name]["output"].index(net_name)
         io_dict[layer_in_name]["output"][in_pos] = new_net_name 
@@ -229,5 +226,7 @@ def rename_edges(model, io_dict):
         if layer_out_name != "ConsumeStream":
             out_pos = io_dict[layer_out_name]["input"].index(net_name)
             io_dict[layer_out_name]["input"][out_pos] = new_net_name 
+
+        n_net += 1
 
     return io_dict
