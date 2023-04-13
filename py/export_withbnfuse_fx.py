@@ -171,6 +171,43 @@ def main():
             best_acc = acc
 
 
+    def print_partial(model):
+        model.eval()
+        model.to('cuda:0')
+
+        eval_loader = torch.utils.data.DataLoader(eval_dataset, batch_size=1, shuffle=False,
+                                                num_workers=1)
+
+        activation = {}
+        def get_activation(name):
+            def hook(model, input, output):
+                activation[name] = output.detach()
+            return hook
+
+        for name, module in model.named_modules():
+            t = type(module)
+            t = t.__name__
+            if 'relu' in t.lower():
+                print(t, name)
+                module.register_forward_hook(get_activation(name))
+
+        with torch.no_grad():
+            for batch_idx, (inputs, targets) in enumerate(eval_loader):
+                inputs, targets = inputs.to('cuda:0'), targets.to('cuda:0')
+                outputs = model(inputs)
+                outputs = outputs.view(outputs.size(0),-1)
+                break
+            with open("tmp/resnet_act.txt", "w+") as fd:
+                for name, tensor in activation.items():
+                    shape = tensor.shape
+                    fd.write("%s\n" % name)
+                    for b in range(shape[0]):
+                        for ih in range(shape[2]):
+                            for iw in range(shape[3]):
+                                for ich in range(shape[1]):
+                                    value = tensor[b][ich][ih][iw]
+                                    fd.write("%f " % value)
+                                fd.write("\n")
 
     model.to('cuda:0')
     #print(model)
@@ -217,13 +254,12 @@ def main():
          test(start_epoch)
          print("\n-------------------RETRAINING-----------------\n") 
          retrain = 1
-         for epoch in range(start_epoch, start_epoch+10): 
+         for epoch in range(start_epoch, start_epoch+1): 
             if(not(post_quant)) :
                 train(epoch)
             test(epoch)
             lr_schedu.step(epoch)
          summary_writer.close()
-
 
 
     #print(model.module)
@@ -257,7 +293,7 @@ def main():
             print(node.name)
             print(node)                                                        
    
-
+    print_partial(model)
 
 if __name__ == '__main__':
     main()
