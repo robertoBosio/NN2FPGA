@@ -37,7 +37,7 @@ def parse_on_chip(
                     off = och*dops
                     for ops in range(dops):
                         quant_value = pre_values[off+ops][ich][ih][iw]
-                        quant_value = int(quant_value/scale_factor)
+                        quant_value = np.round(quant_value/scale_factor)
                         if (limit_h < quant_value):
                             quant_value = limit_h
 
@@ -76,7 +76,7 @@ def parse_off_chip(
                     off = och*dops
                     for ops in range(dops):
                         quant_value  = pre_values[off+ops][ich][ih][iw]
-                        quant_value  = int(quant_value/scale_factor)
+                        quant_value  = np.round(quant_value/scale_factor)
                         values[addr] = quant_value
                         addr         = addr + 1
     

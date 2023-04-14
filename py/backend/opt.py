@@ -252,85 +252,99 @@ def opt_merge_conv(model, io_dict):
 
 def opt_quant(model, io_dict, quant_info):
     
-    io_connect = extract_connections(model, io_dict)
+    change = True
+    while change:
+        change = False
+        io_connect = extract_connections(model, io_dict)
 
-    removed_layers = []
+        removed_layers = []
 
-    for net_name, layers in io_connect.items():
-        layer_in_name = layers[0][0]
-        layer_out_name = layers[1][0]
+        for net_name, layers in io_connect.items():
+            layer_in_name = layers[0][0]
+            layer_out_name = layers[1][0]
 
-        search_layers = [
-            'conv',
-            'pool',
-            'produce',
-        ]
+            search_layers = [
+                'conv',
+                'pool',
+                'produce',
+            ]
 
-        if layer_in_name in removed_layers:
-            continue
+            if layer_in_name in removed_layers:
+                continue
 
-        start_merge = any(
-            search_name in io_dict[layer_in_name]["type"]
-            for search_name in search_layers
-        )
+            start_merge = any(
+                search_name in io_dict[layer_in_name]["type"]
+                for search_name in search_layers
+            )
 
-        if (layer_out_name == "ConsumeStream"):
-            continue
+            if (layer_out_name == "ConsumeStream"):
+                continue
 
-        end_quant = 'quant' == io_dict[layer_out_name]["type"]
-        single_quant = len(layers[1]) < 2
+            end_quant = 'quant' == io_dict[layer_out_name]["type"]
+            single_quant = len(layers[1]) < 2
 
-        # If true the relu can be absorbed into convolution
-        if start_merge and end_quant and single_quant:
+            # If true the relu can be absorbed into convolution
+            if start_merge and end_quant and single_quant:
 
-            others_quant = len(quant_info[net_name]["others"]) > 0
+                others_quant = len(quant_info[net_name]["others"]) > 0
 
-            if not others_quant:
-                out_names = io_dict[layer_out_name]["output"]
+                if not others_quant:
+                    out_names = io_dict[layer_out_name]["output"]
 
-                # Scale factor is equal to the one of the quantization in 
-                # output In case there are multiple output nodes, all of the 
-                # must be saved
+                    # Scale factor is equal to the one of the quantization in 
+                    # output 
 
-                scale_factor = quant_info[net_name]["seq_scale"]
-                clip_factor = quant_info[net_name]["seq_clip"][0]
-                mask_factor = quant_info[net_name]["seq_mask"][0]
-                signed = quant_info[net_name]["signed"]
-
-                in_index = io_dict[layer_in_name]["output"].index(net_name)
-
-                if "quant" in io_dict[layer_in_name].keys():
-                    # The old clip must be saved to have coherent behavior
-                    # If a merged quantization has lower scaling factor then
-                    # quantization is clipping to a lower max value
-                    old_clip = io_dict[layer_in_name]["clip_factor"][in_index]
-                    if (old_clip < clip_factor):
-                        io_dict[layer_in_name]["clip_factor"][in_index] = old_clip
+                    seq_scale = io_dict[layer_out_name]["scale_factor"]
+                    # seq_scale = quant_info[net_name]["seq_scale"]
+                    if isinstance(seq_scale, list):
+                        scale_factor = seq_scale[0]
                     else:
-                        io_dict[layer_in_name]["clip_factor"][in_index] = clip_factor
-                else:
-                    io_dict[layer_in_name]["clip_factor"] = [clip_factor]
+                        scale_factor = seq_scale
 
-                if "quant" in io_dict[layer_in_name].keys():
-                    # The old mask must be saved to have coherent behavior
-                    # If a merged quantization has higher scaling factor then
-                    # quantization is masking the LSBs
-                    old_mask = io_dict[layer_in_name]["mask_factor"][in_index]
-                    if (old_mask > mask_factor):
-                        io_dict[layer_in_name]["mask_factor"][in_index] = old_mask
+                    clip_factor = quant_info[net_name]["seq_clip"][0]
+                    mask_factor = quant_info[net_name]["seq_mask"][0]
+                    signed = quant_info[net_name]["signed"]
+
+                    in_index = io_dict[layer_in_name]["output"].index(net_name)
+
+                    if "quant" in io_dict[layer_in_name].keys():
+                        # The old clip must be saved to have coherent behavior
+                        # If a merged quantization has lower scaling factor then
+                        # quantization is clipping to a lower max value
+                        old_clip = io_dict[layer_in_name]["clip_factor"][in_index]
+                        if (old_clip < clip_factor):
+                            io_dict[layer_in_name]["clip_factor"][in_index] = old_clip
+                        else:
+                            io_dict[layer_in_name]["clip_factor"][in_index] = clip_factor
                     else:
-                        io_dict[layer_in_name]["mask_factor"][in_index] = mask_factor
-                else:
-                    io_dict[layer_in_name]["mask_factor"] = [mask_factor]
+                        io_dict[layer_in_name]["clip_factor"] = [clip_factor]
 
-                io_dict[layer_in_name]["quant"] = True
-                io_dict[layer_in_name]["scale_factor"] = scale_factor
-                io_dict[layer_in_name]["signed"] = signed
-                io_dict[layer_in_name]["output"] = out_names
+                    if "quant" in io_dict[layer_in_name].keys():
+                        # The old mask must be saved to have coherent behavior
+                        # If a merged quantization has higher scaling factor then
+                        # quantization is masking the LSBs
+                        old_mask = io_dict[layer_in_name]["mask_factor"][in_index]
+                        if (old_mask > mask_factor):
+                            io_dict[layer_in_name]["mask_factor"][in_index] = old_mask
+                        else:
+                            io_dict[layer_in_name]["mask_factor"][in_index] = mask_factor
+                    else:
+                        io_dict[layer_in_name]["mask_factor"] = [mask_factor]
 
-                removed_layers.append(layer_out_name)
+                    io_dict[layer_in_name]["quant"] = True
+                    io_dict[layer_in_name]["scale_factor"] = [scale_factor]
+                    io_dict[layer_in_name]["signed"] = signed
+                    io_dict[layer_in_name]["output"] = out_names
 
-                del io_dict[layer_out_name]
+                    removed_layers.append(layer_out_name)
+
+                    if "layer2_1" in layer_in_name:
+                        print("------------------------------------------------")
+                        print(net_name, layer_in_name, io_dict[layer_in_name])
+                        print(layer_out_name, io_dict[layer_out_name])
+                        print("------------------------------------------------")
+                    del io_dict[layer_out_name]
+                    change = True
 
     return io_dict
 

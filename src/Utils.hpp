@@ -34,7 +34,6 @@ template <
 #pragma HLS inline
 	const int c_scale_inv = -1*c_scale;
 	t_input s_data = i_data;
-	/* std::cout << (ap_int<32>)i_data << " " << c_mask << " " << (ap_int<32>)s_data << std::endl; */
 	if (c_scale <= 0)
 		return (s_data << c_scale_inv);
 	else {
@@ -204,7 +203,6 @@ template <
 		t_output_struct tmp_w;
 		t_input_part tmp_p = (t_input_part)(tmp_r_par & 0xff);
 		tmp_w.data = QuantAct<t_input_part,c_scale,t_output>(tmp_p);
-		/* std::cout << (ap_int<32>)tmp_w.data << " "; */
 
 		if (s_par < (c_par-1))
 			tmp_w.last = false;
@@ -214,7 +212,6 @@ template <
 		tmp_r_par = tmp_r_par >> 8;
 
 	}
-	/* std::cout << std::endl; */	
 
 }
 

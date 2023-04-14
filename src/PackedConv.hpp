@@ -730,7 +730,6 @@ template <
 	}
 	s_output.data = QuantAct<t_acc,c_shift_l,c_shift_h,c_mask,t_output>(s_acc);
 	s_output.last = s_acc_struct.last;
-	std::cout << (ap_int<32>)s_output.data << " ";
 
 	o_data.write(s_output); 
 }
@@ -794,7 +793,6 @@ template <
 				o_data
 			);
 
-			std::cout << "- ";
 
 			QuantStream <
 				t_output_1x1_struct,
@@ -818,13 +816,9 @@ template <
 				o_data_1x1
 			);
 
-			std::cout << "- ";
 		}
 
-		if ((s_pipe_iter%c_och)==(c_och-1))
-			std::cout << std::endl;
 	}
-	std::cout << std::endl;
 
 }
 
@@ -853,7 +847,6 @@ template <
 	const int c_num_comp = c_oh*c_ow*c_och;
 	const int c_pipe_iter = c_num_comp;
 
-	std::cout << "STREAMOUTPUT" << " " << c_ich << " " << c_och << std::endl;
 	for (auto s_pipe_iter = 0; s_pipe_iter < c_pipe_iter; s_pipe_iter+=c_ops) {
 		for (auto s_ops = 0; s_ops < c_ops; s_ops++) {
 #pragma HLS pipeline style=frp
@@ -880,10 +873,7 @@ template <
 			);
 
 		}
-		if ((s_pipe_iter%c_och)==(c_och-c_ops))
-			std::cout << std::endl;
 	}
-	std::cout << std::endl;
 
 }
 
