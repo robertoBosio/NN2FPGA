@@ -139,5 +139,14 @@ def parse(name, node):
     pragma["options"] = options
     block["pragma"].append(pragma)
 
+    pragma = {}
+    pragma["name"] = "interface"
+    options = [
+        ["port", "i_%s" % (input_name)],
+        ["mode", "axis"],
+    ]
+    pragma["options"] = options
+    block["pragma"].append(pragma)
+
     return block
 

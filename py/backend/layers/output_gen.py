@@ -68,5 +68,14 @@ def parse(parsed_write, node_name):
 
     block["pragma"] = []
 
+    pragma = {}
+    pragma["name"] = "interface"
+    options = [
+        ["port", "o_%s" % (output_name)],
+        ["mode", "axis"],
+    ]
+    pragma["options"] = options
+    block["pragma"].append(pragma)
+
     return block
 
