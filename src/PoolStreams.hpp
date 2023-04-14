@@ -129,8 +129,6 @@ template <
 			s_acc = s_acc >> c_average_scale;
 
 		s_output_struct.data = QuantAct<t_acc,c_shift,t_output>(s_acc);
-		std::cout << (ap_int<32>)s_output_struct.data << " ";
-		std::cout << std::endl;
 		s_output_struct.last = s_last;
 		o_data.write(s_output_struct); 
 	}
