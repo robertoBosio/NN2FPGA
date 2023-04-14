@@ -16,9 +16,11 @@ compile_tb:
 	g++ -c ${CFLAGS} -Itb/ tb/${NAME}Tb.cpp -o ${NAME}Tb.o
 	g++ ${NAME}Tb.o ${NAME}.o ${MEM}.o -o ${NAME}Tb
 
-sim: generate compile compile_tb
+sim:
 	chmod +x ${NAME}Tb
 	./${NAME}Tb
+
+all: generate compile compile_tb sim
 
 run_model:
 	python py/utils/test_model.py
