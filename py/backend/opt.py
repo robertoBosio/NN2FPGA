@@ -114,6 +114,7 @@ def opt_skip(model, io_dict):
                 in_index = in_layer["output"].index(net_name)
                 in_scale = in_layer["scale_factor"][in_index]
                 in_clip  = in_layer["clip_factor"][in_index]
+                in_mask  = in_layer["mask_factor"][in_index]
 
                 # Reordering the layers to have correct actiations passthrough
                 ordered_layers = list(
@@ -136,6 +137,9 @@ def opt_skip(model, io_dict):
                         )
                         io_dict[layer_base_name]["clip_factor"].append(
                             in_clip
+                        )
+                        io_dict[layer_base_name]["mask_factor"].append(
+                            in_mask
                         )
                         skip_index = io_dict[layer_name]["input"].index(
                             net_name
@@ -203,6 +207,7 @@ def opt_merge_conv(model, io_dict):
                     output_tensor = []
                     scale_factor = []
                     clip_factor = []
+                    mask_factor = []
                     for layer_merge_name in layer_out_names:
                         if layer_base_name != layer_merge_name:
                             layer_merge = io_dict[layer_merge_name]
@@ -216,6 +221,8 @@ def opt_merge_conv(model, io_dict):
                                 scale_factor.append(scale_value)
                                 clip_value = layer_merge["clip_factor"][i]
                                 clip_factor.append(clip_value)
+                                mask_value = layer_merge["mask_factor"][i]
+                                mask_factor.append(mask_value)
                             
                     io_dict[layer_base_name]["merge_1x1"] = True
 
@@ -227,6 +234,7 @@ def opt_merge_conv(model, io_dict):
 
                     io_dict[layer_base_name]["scale_factor"] += scale_factor
                     io_dict[layer_base_name]["clip_factor"] += clip_factor
+                    io_dict[layer_base_name]["mask_factor"] += mask_factor
 
                     # Removing merged layer
                     for rem_name in rem_layer:
@@ -285,17 +293,35 @@ def opt_quant(model, io_dict, quant_info):
                 # must be saved
 
                 scale_factor = quant_info[net_name]["seq_scale"]
-                clip_factor = quant_info[net_name]["seq_clip"]
+                clip_factor = quant_info[net_name]["seq_clip"][0]
+                mask_factor = quant_info[net_name]["seq_mask"][0]
                 signed = quant_info[net_name]["signed"]
 
                 in_index = io_dict[layer_in_name]["output"].index(net_name)
 
                 if "quant" in io_dict[layer_in_name].keys():
+                    # The old clip must be saved to have coherent behavior
+                    # If a merged quantization has lower scaling factor then
+                    # quantization is clipping to a lower max value
                     old_clip = io_dict[layer_in_name]["clip_factor"][in_index]
                     if (old_clip < clip_factor):
                         io_dict[layer_in_name]["clip_factor"][in_index] = old_clip
+                    else:
+                        io_dict[layer_in_name]["clip_factor"][in_index] = clip_factor
                 else:
-                    io_dict[layer_in_name]["clip_factor"] = clip_factor
+                    io_dict[layer_in_name]["clip_factor"] = [clip_factor]
+
+                if "quant" in io_dict[layer_in_name].keys():
+                    # The old mask must be saved to have coherent behavior
+                    # If a merged quantization has higher scaling factor then
+                    # quantization is masking the LSBs
+                    old_mask = io_dict[layer_in_name]["mask_factor"][in_index]
+                    if (old_mask > mask_factor):
+                        io_dict[layer_in_name]["mask_factor"][in_index] = old_mask
+                    else:
+                        io_dict[layer_in_name]["mask_factor"][in_index] = mask_factor
+                else:
+                    io_dict[layer_in_name]["mask_factor"] = [mask_factor]
 
                 io_dict[layer_in_name]["quant"] = True
                 io_dict[layer_in_name]["scale_factor"] = scale_factor

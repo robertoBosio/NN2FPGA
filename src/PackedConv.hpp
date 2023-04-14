@@ -241,7 +241,7 @@ template <
 	hls::stream<t_weight_1x1> i_weights_1x1[1],
 	hls::stream<t_bias_1x1> i_bias_1x1[1],
 	hls::stream<t_acc_struct> o_acc_stream[c_ops],
-	hls::stream<t_acc_1x1_struct> o_acc_1x1_stream[1]
+	hls::stream<t_acc_1x1_struct> o_acc_1x1_stream[c_ops]
 ) {
 /* #pragma HLS inline */
 
@@ -708,6 +708,7 @@ template <
 	int c_ops,
 	int c_relu,
 	int c_quant,
+	int c_mask,
 	int c_shift_h,
 	int c_shift_l
 > void QuantStream(
@@ -727,7 +728,7 @@ template <
 	if (c_relu == 1) {
 		s_acc = ReluOp<t_acc>(s_acc);
 	}
-	s_output.data = QuantAct<t_acc,c_shift_l,c_shift_h,t_output>(s_acc);
+	s_output.data = QuantAct<t_acc,c_shift_l,c_shift_h,c_mask,t_output>(s_acc);
 	s_output.last = s_acc_struct.last;
 	std::cout << (ap_int<32>)s_output.data << " ";
 
@@ -751,13 +752,15 @@ template <
 	int c_ops,
 	int c_relu,
 	int c_quant,
+	int c_mask,
 	int c_shift_h,
 	int c_shift_l,
+	int c_mask_1x1,
 	int c_shift_h_1x1,
 	int c_shift_l_1x1
 > void StreamOutput(
 	hls::stream<t_acc_struct> i_acc[c_ops],
-	hls::stream<t_acc_1x1_struct> i_acc_1x1[1],
+	hls::stream<t_acc_1x1_struct> i_acc_1x1[c_ops],
 	hls::stream<t_output_struct> &o_data,
 	hls::stream<t_output_1x1_struct> &o_data_1x1
 ) {
@@ -766,7 +769,6 @@ template <
 	const int c_num_comp = c_oh*c_ow*c_och;
 	const int c_pipe_iter = c_num_comp;
 
-	std::cout << "STREAMOUTPUT" << std::endl;
 	for (auto s_pipe_iter = 0; s_pipe_iter < c_pipe_iter; s_pipe_iter+=c_ops) {
 		for (auto s_ops = 0; s_ops < c_ops; s_ops++) {
 #pragma HLS pipeline style=frp
@@ -783,6 +785,7 @@ template <
 				c_ops,
 				c_relu,
 				c_quant,
+				c_mask,
 				c_shift_h,
 				c_shift_l
 			> (
@@ -806,11 +809,12 @@ template <
 				1,
 				0,
 				c_quant,
+				c_mask_1x1,
 				c_shift_h_1x1,
 				c_shift_l_1x1
 			> (
 				i_acc_1x1,
-				0,
+				s_ops,
 				o_data_1x1
 			);
 
@@ -837,6 +841,7 @@ template <
 	int c_ops,
 	int c_relu,
 	int c_quant,
+	int c_mask,
 	int c_shift_h,
 	int c_shift_l
 > void StreamOutput(
@@ -865,6 +870,7 @@ template <
 				c_ops,
 				c_relu,
 				c_quant,
+				c_mask,
 				c_shift_h,
 				c_shift_l
 			> (

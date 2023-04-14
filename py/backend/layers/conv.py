@@ -94,9 +94,11 @@ def parse_wout(name, node):
     block["template"].append("c_%s_ops" % name)
     block["template"].append("c_%s_relu" % name)
     block["template"].append("c_%s_stride" % name)
+    block["template"].append("c_%s_mask" % output_name)
     block["template"].append("c_%s_shift_h" % output_name)
     block["template"].append("c_%s_shift_l" % output_name)
     if (node["merge_1x1"]):
+        block["template"].append("c_%s_mask" % output_1x1_name)
         block["template"].append("c_%s_shift_h" % output_1x1_name)
         block["template"].append("c_%s_shift_l" % output_1x1_name)
 
@@ -116,7 +118,7 @@ def parse_wout(name, node):
 
     if (node["merge_1x1"]):
         # TODO: implement array of signed values for multi-output conv
-        block["defines"]["t_%s" % output_1x1_name] = ["type", "uint8_t"]
+        block["defines"]["t_%s" % output_1x1_name] = ["type", "int8_t"]
         block["defines"]["t_%s_struct" % output_1x1_name] = [
             "struct",
             [["data", "t_%s" % output_1x1_name], ["last", "bool"]]
@@ -129,23 +131,29 @@ def parse_wout(name, node):
     if node["in_scale_factor"] is not None:
         actscale = node["in_scale_factor"]
 
-    diff_scale, reduced_clip = backend.quant.compute_out_quant(
+    diff_scale, reduced_clip, reduced_mask = backend.quant.compute_out_quant(
         actscale,
         node["wscale"][0],
         node["scale_factor"][0],
-        node["clip_factor"][0]
+        node["clip_factor"][0],
+        node["mask_factor"][0],
+        signed=signed
     )
 
+    block["defines"]["c_%s_mask" % output_name] = ["const", reduced_mask]
     block["defines"]["c_%s_shift_h" % output_name] = ["const", reduced_clip]
     block["defines"]["c_%s_shift_l" % output_name] = ["const", diff_scale]
 
     if (node["merge_1x1"]):
-        diff_scale, reduced_clip = backend.quant.compute_out_quant(
+        diff_scale, reduced_clip, reduced_mask = backend.quant.compute_out_quant(
             actscale,
             node["wscale"][1],
             node["scale_factor"][1],
-            node["clip_factor"][1]
+            node["clip_factor"][1],
+            node["mask_factor"][1],
+            signed=True
         )
+        block["defines"]["c_%s_mask" % output_1x1_name] = ["const", reduced_mask]
         block["defines"]["c_%s_shift_h" % output_1x1_name] = ["const", reduced_clip]
         block["defines"]["c_%s_shift_l" % output_1x1_name] = ["const", diff_scale]
 
@@ -347,7 +355,7 @@ def parse_comp(name, node):
         declare["name"] = "s_%s_acc" % output_1x1_name
         declare["type"] = "t_%s_acc_struct" % output_1x1_name
         declare["is_array"] = True
-        declare["dim"] = 1
+        declare["dim"] = node["ops"]
         block["declare"].append(declare)
 
     if (node["has_forward"]):

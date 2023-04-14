@@ -10,7 +10,9 @@ def compute_out_quant(
         actscale=None,
         wscale=None,
         scale_factor=None,
-        clip_factor=None
+        clip_factor=None,
+        mask_factor=None,
+        signed=False
     ):
 
         if (actscale is not None):
@@ -23,8 +25,14 @@ def compute_out_quant(
         reduced_clip = -1 * (clip_factor - actscale)
         reduced_clip = reduced_clip + 7
         reduced_clip = int(2**reduced_clip)-1
+        # TODO: Add bit width to generalize this computation
+        if signed and reduced_clip > 127:
+            reduced_clip = 127
 
-        return diff_scale, reduced_clip
+        reduced_mask = (mask_factor - scale_factor)
+        reduced_mask = 0xff-(int(2**reduced_mask)-1)
+
+        return diff_scale, reduced_clip, reduced_mask
 
 def compute_in_quant(
         actscale=None,
@@ -88,9 +96,11 @@ def merge_quant(io_dict, quant_info, inherit_quant=False):
             new_node.setdefault("seq_scale", [])
             new_node.setdefault("seq_out", [])
             new_node.setdefault("seq_clip", [])
+            new_node.setdefault("seq_mask", [])
             new_node.setdefault("changed", False)
             new_node.setdefault("removed", [])
             new_node.setdefault("clip", [])
+            new_node.setdefault("mask", [])
 
             # Looking for node with in input the previous output
             for i, output in enumerate(node["seq_out"]):
@@ -116,6 +126,14 @@ def merge_quant(io_dict, quant_info, inherit_quant=False):
                                 new_clip = old_clip
                             new_node["seq_clip"].append(new_clip)
 
+                            # Propagating mask, the higher one must be kept
+                            new_mask = quant_info[output]["seq_mask"][j]
+                            mask_index = node["seq_out"].index(output)
+                            old_mask = node["seq_mask"][mask_index]
+                            if old_mask > new_mask:
+                                new_mask = old_mask
+                            new_node["seq_mask"].append(new_mask)
+
                         new_node["removed"].append(quant_info[output]["seq"][0])
                         remove_node.append(output)
                     else:
@@ -133,6 +151,7 @@ def merge_quant(io_dict, quant_info, inherit_quant=False):
                 new_node["seq_scale"].append(quant_info[name]["seq_scale"][i])
                 new_node["seq_out"].append(quant_info[name]["seq_out"][i])
                 new_node["seq_clip"].append(quant_info[name]["seq_clip"][i])
+                new_node["seq_mask"].append(quant_info[name]["seq_mask"][i])
 
             quant_info[name] = new_node
 
@@ -156,6 +175,7 @@ def merge_quant(io_dict, quant_info, inherit_quant=False):
             new_output  = []
             new_scale   = []
             new_clip   = []
+            new_mask   = []
             # The quant_info database is already selecting the point where 
             # quant layers can be merged, for this reason only the changed layers
             # should be updated
@@ -166,10 +186,12 @@ def merge_quant(io_dict, quant_info, inherit_quant=False):
                     seq_out = quant_info[input_name]["seq_out"]
                     seq_scale = quant_info[input_name]["seq_scale"]
                     seq_clip = quant_info[input_name]["seq_clip"]
+                    seq_mask = quant_info[input_name]["seq_mask"]
                     for i, next_output in enumerate(seq_out):
                         new_output.append(next_output)
                         new_scale.append(seq_scale[i])
                         new_clip.append(seq_clip[i])
+                        new_mask.append(seq_mask[i])
                     for rem_name in quant_info[input_name]["removed"]:
                         remove_node.append(rem_name)
 
@@ -177,6 +199,7 @@ def merge_quant(io_dict, quant_info, inherit_quant=False):
                 io_dict[name]["output"] = new_output
                 io_dict[name]["scale"] = new_scale
                 io_dict[name]["clip"] = new_clip
+                io_dict[name]["mask"] = new_mask
 
     # print(remove_node)
     for name in remove_node:
@@ -201,6 +224,7 @@ def extract_quant_info(model, io_dict, init_info):
             scale_factor = numpy_helper.to_array(scale_info)
             scale_factor = np.log2(scale_factor)
             clip = node["clip"]
+            mask = node["mask"]
 
             signed = node["signed"]
 
@@ -214,12 +238,14 @@ def extract_quant_info(model, io_dict, init_info):
             quant_info[node["input"][0]].setdefault("removed", [])
             quant_info[node["input"][0]].setdefault("signed", signed)
             quant_info[node["input"][0]].setdefault("seq_clip", [])
+            quant_info[node["input"][0]].setdefault("seq_mask", [])
 
             quant_info[node["input"][0]][node["output"][0]] = node_name
             quant_info[node["input"][0]]["seq"].append(node_name)
             quant_info[node["input"][0]]["seq_scale"].append(scale_factor)
             quant_info[node["input"][0]]["seq_out"].append(node["output"][0])
             quant_info[node["input"][0]]["seq_clip"].append(clip)
+            quant_info[node["input"][0]]["seq_mask"].append(mask)
 
         else:
 

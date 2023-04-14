@@ -18,8 +18,28 @@ template <
 	if (c_scale <= 0)
 		return (i_data << c_scale_inv);
 	else {
-		t_input round = (i_data >> (c_scale-1)) & 0x1;
+		/* t_input round = (i_data >> (c_scale-1)) & 0x1; */
+		t_input round = 0;
 		return ((i_data >> c_scale) + round);
+	}
+}
+
+template <
+	class t_input,
+	int c_scale,
+	int c_mask
+> t_input QuantAct (
+	t_input i_data
+) {
+#pragma HLS inline
+	const int c_scale_inv = -1*c_scale;
+	t_input s_data = i_data;
+	/* std::cout << (ap_int<32>)i_data << " " << c_mask << " " << (ap_int<32>)s_data << std::endl; */
+	if (c_scale <= 0)
+		return (s_data << c_scale_inv);
+	else {
+		t_input round = (s_data >> (c_scale-1)) & 0x1;
+		return ((s_data >> c_scale) + round);
 	}
 }
 
@@ -30,7 +50,6 @@ template <
 > t_output QuantAct (
 	t_input i_data
 ) {
-	t_input s_data = QuantAct<t_input,c_scale>(i_data);
 	const t_output c_msb    = sizeof(t_output)*8-1;
 
 	const t_output c_max_0 = ~(t_output)(0);
@@ -40,6 +59,8 @@ template <
 	const t_output c_min_0 = ~(t_output)(0);
 	const t_output c_min_1 = (-1 << c_msb);
 	const t_output c_min   = (c_min_0 < 0) ? c_min_1 : 0;
+
+	t_input s_data = QuantAct<t_input,c_scale,c_max_0>(i_data);
 
 	if (s_data > c_max) {
 		return c_max;
@@ -60,6 +81,35 @@ template <
 ) {
 	t_input s_data = QuantAct<t_input,c_scale>(i_data);
 	const t_output c_msb    = sizeof(t_output)*8-1;
+
+	const t_output c_max = c_clip;
+
+	const t_output c_min_0 = ~(t_output)(0);
+	const t_output c_min_1 = (-1 << c_msb);
+	const t_output c_min   = (c_min_0 < 0) ? c_min_1 : 0;
+
+	if (s_data > c_max) {
+		return c_max;
+	}
+	if (s_data < c_min) {
+		return c_min;
+	}
+	return (t_output)(s_data);
+}
+
+template <
+	class t_input,
+	int c_scale,
+	int c_clip,
+	int c_mask,
+	class t_output
+> t_output QuantAct (
+	t_input i_data
+) {
+	const t_output c_msb    = sizeof(t_output)*8-1;
+	const t_output c_mask_pad = c_mask | (1 << c_msb); 
+
+	t_input s_data = QuantAct<t_input,c_scale,c_mask_pad>(i_data);
 
 	const t_output c_max = c_clip;
 
