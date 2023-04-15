@@ -88,7 +88,7 @@ def write_pragma(fd, pragma):
 
     fd.write("\n")
 
-def declare(file_name, parsed_write):
+def declare(file_name, parsed_write, inline=False):
 
     with open("src/%s.cpp" % file_name, "a") as fd:
         
@@ -96,6 +96,14 @@ def declare(file_name, parsed_write):
 
             for variable in layer["declare"]:
                 write_declare(fd, variable)
+
+            if inline:
+                # Adding inline option to put the module in dataflow
+                pragma = {}
+                pragma["name"] = "inline"
+                options = []
+                pragma["options"] = options
+                write_pragma(fd, pragma)
 
             for pragma in layer["pragma"]:
                 write_pragma(fd, pragma)

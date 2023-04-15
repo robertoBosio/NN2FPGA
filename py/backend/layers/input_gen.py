@@ -148,5 +148,12 @@ def parse(name, node):
     pragma["options"] = options
     block["pragma"].append(pragma)
 
+    # Adding here dataflow pragma for top dataflow
+    pragma = {}
+    pragma["name"] = "dataflow"
+    options = []
+    pragma["options"] = options
+    block["pragma"].append(pragma)
+
     return block
 
