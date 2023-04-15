@@ -552,13 +552,14 @@ template <
 	const int c_index = c_fh*c_fw;
 	const int c_ch = c_ich*c_och/c_ops;
 	const int c_o_index = c_oh*c_ow;
-	for (uint16_t s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
-		for (uint16_t s_ch = 0; s_ch < c_ch; s_ch++) {
+	for (auto s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
+		for (auto s_ch = 0; s_ch < c_ch; s_ch++) {
 #pragma HLS pipeline
-			for (uint8_t s_index = 0; s_index < c_index; s_index++) {
+			for (auto s_index = 0; s_index < c_index; s_index++) {
 				t_output s_output;
-				for (uint8_t s_ops = 0; s_ops < c_ops; s_ops++)
+				for (auto s_ops = 0; s_ops < c_ops; s_ops++) {
 					s_output[s_ops] = i_data[s_index][s_ch][s_ops];
+				}
 				o_data[s_index].write(s_output);
 			}
 		}

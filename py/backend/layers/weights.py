@@ -115,11 +115,7 @@ def extract_info(
     stride = node_info["stride"]
     pad    = node_info["pad"]
 
-    # bias must be always uploaded in parallel
-    if (is_bias):
-        ops = 1
-    else:
-        ops = node_info["ops"]
+    ops = node_info["ops"]
 
     signed = 1
     if (is_bias):
@@ -226,6 +222,7 @@ def parse_main(io_dict):
 
     block["declare"] = []
     block["pragma"] = []
+
     for name, node in io_dict.items():
         if 'const' == node["type"]:
             input_name = node["input"][0]
@@ -455,6 +452,6 @@ def write(io_dict, network_name):
     parsed_write = parse_all(io_dict)
 
     init("MemoryManagement", network_name, parsed_write)
-    declare("MemoryManagement", parsed_write)
+    declare("MemoryManagement", parsed_write, inline=True)
     body("MemoryManagement", parsed_write)
 

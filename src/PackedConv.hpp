@@ -144,6 +144,8 @@ template <
 	bool s_last = false;
 	int8_t s_weight[c_ops][c_index];
 #pragma HLS array_partition variable=s_weight type=complete
+	t_bias s_bias;
+#pragma HLS array_partition variable=s_bias type=complete
 
 		/* for (auto s_reuse = 0; s_reuse < c_reuse; s_reuse++) */
 		/* 	for (auto s_och = 0; s_och < c_och; s_och++) */
@@ -177,6 +179,8 @@ template <
 							s_weight[s_ops][s_index] = s_tmp_weight[s_ops];
 						}
 					}
+					if (s_ich == 0)
+						s_bias = i_bias[0].read();
 				}
 
 			/* TODO: try unroll and pipeline of the inner loop */
@@ -188,7 +192,7 @@ template <
 					s_acc_struct.last = s_last & (s_och == (c_och-1));
 
 					if (s_ich == 0)
-						s_acc = i_bias[0].read()[0];
+						s_acc = s_bias[s_ops];
 					else
 						s_acc = 0;
 
@@ -260,6 +264,10 @@ template <
 #pragma HLS array_partition variable=s_weight type=complete
 	int8_t s_weight_1x1[c_ops][1];
 #pragma HLS array_partition variable=s_weight_1x1 type=complete
+	t_bias s_bias;
+#pragma HLS array_partition variable=s_bias type=complete
+	t_bias_1x1 s_bias_1x1;
+#pragma HLS array_partition variable=s_bias_1x1 type=complete
 
 		/* for (auto s_reuse = 0; s_reuse < c_reuse; s_reuse++) */
 		/* 	for (auto s_och = 0; s_och < c_och; s_och++) */
@@ -298,6 +306,10 @@ template <
 						/* Input weights are reversed with respect to original order */
 						s_weight_1x1[s_ops][0] = s_tmp_weight_1x1[s_ops];
 					}
+					if (s_ich == 0)
+						s_bias = i_bias[0].read();
+					if (s_ich == 0)
+						s_bias_1x1 = i_bias_1x1[0].read();
 				}
 
 				COMPUTE: for (auto s_ops = 0; s_ops < c_ops; s_ops++) {
@@ -313,7 +325,7 @@ template <
 					s_acc_1x1_struct.last = s_last & (s_och == (c_och-1));
 
 					if (s_ich == 0)
-						s_acc = i_bias[0].read()[0];
+						s_acc = s_bias[s_ops];
 					else
 						s_acc = 0;
 
@@ -324,7 +336,7 @@ template <
 					}
 
 					if (s_ich == 0)
-						s_acc_1x1 = i_bias_1x1[0].read()[0];
+						s_acc_1x1 = s_bias_1x1[s_ops];
 					else
 						s_acc_1x1 = 0;
 
@@ -393,6 +405,8 @@ template <
 	bool s_last = false;
 	int8_t s_weight[c_ops][c_index];
 #pragma HLS array_partition variable=s_weight type=complete
+	t_bias s_bias;
+#pragma HLS array_partition variable=s_bias type=complete
 
 		/* for (auto s_reuse = 0; s_reuse < c_reuse; s_reuse++) */
 		/* 	for (auto s_och = 0; s_och < c_och; s_och++) */
@@ -426,6 +440,8 @@ template <
 							s_weight[s_ops][s_index] = s_tmp_weight[s_ops];
 						}
 					}
+					if (s_ich == 0)
+						s_bias = i_bias[0].read();
 				}
 
 			/* TODO: try unroll and pipeline of the inner loop */
@@ -437,7 +453,7 @@ template <
 					s_acc_struct.last = s_last & (s_och == (c_och-1));
 
 					if (s_ich == 0)
-						s_acc = i_bias[0].read()[0];
+						s_acc = s_bias[s_ops];
 					else
 						s_acc = 0;
 
@@ -515,6 +531,8 @@ template <
 	bool s_last = false;
 	int8_t s_weight[c_ops][c_index];
 #pragma HLS array_partition variable=s_weight type=complete
+	t_bias s_bias;
+#pragma HLS array_partition variable=s_bias type=complete
 
 		/* for (auto s_reuse = 0; s_reuse < c_reuse; s_reuse++) */
 		/* 	for (auto s_och = 0; s_och < c_och; s_och++) */
@@ -567,7 +585,9 @@ template <
 					s_acc_struct.last = s_last & (s_och == (c_och-1));
 
 					if (s_ich == s_och) { 
-						s_acc = ((t_acc)(s_add.data) << c_shift_l) + i_bias[0].read()[0];
+						if (s_ops == 0)
+							s_bias = i_bias[0].read();
+						s_acc = ((t_acc)(s_add.data) << c_shift_l) + s_bias[s_ops];
 					}
 					else
 						s_acc = 0;
@@ -626,6 +646,8 @@ template <
 #pragma HLS array_partition variable=s_acc_buff type=complete
 	t_input s_input[c_index];
 #pragma HLS array_partition variable=s_input type=complete
+	t_bias s_bias;
+#pragma HLS array_partition variable=s_bias type=complete
 	bool s_last;
 
 	for (uint32_t s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
@@ -663,13 +685,16 @@ template <
 			}
 		}
 
+		if (s_ich == 0)
+			s_bias = i_bias[0].read();
+
 	/* TODO: try unroll and pipeline of the inner loop */
 		COMPUTE: for (uint8_t s_ops = 0; s_ops < c_ops; s_ops++) {
 			uint8_t s_och = s_num_och*c_ops + s_ops;
 			t_acc s_acc;
 
 			if (s_ich == 0)
-				s_acc = i_bias[0].read()[0];
+				s_acc = s_bias[s_ops];
 			else
 				s_acc = 0;
 
