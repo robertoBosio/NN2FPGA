@@ -98,12 +98,17 @@ def parse_all_main(io_dict):
 
     return parsed_write, parsed_const
 
-def write(io_dict, file_name):
+def write(io_dict, file_name, off_chip_storage):
+
+    if off_chip_storage:
+        ap_ctrl = "ap_ctrl_chain"
+    else:
+        ap_ctrl = "ap_ctrl_none"
 
     parsed_write, parsed_const = parse_all_main(io_dict)
 
     init(file_name, parsed_write)
-    declare(file_name, parsed_write)
+    declare(file_name, parsed_write, ap_ctrl)
     body(file_name, parsed_write)
 
     parsed_write = parsed_write + parsed_const

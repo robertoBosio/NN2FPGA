@@ -73,7 +73,8 @@ def write_network(
 
     main.write(
         io_dict,
-        file_name
+        file_name,
+        off_chip_storage
     )
 
     weights.write(

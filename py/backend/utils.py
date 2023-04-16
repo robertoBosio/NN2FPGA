@@ -88,7 +88,7 @@ def write_pragma(fd, pragma):
 
     fd.write("\n")
 
-def declare(file_name, parsed_write, inline=False):
+def declare(file_name, parsed_write, ap_ctrl=None, inline=False):
 
     with open("src/%s.cpp" % file_name, "a") as fd:
         
@@ -104,6 +104,18 @@ def declare(file_name, parsed_write, inline=False):
                 options = []
                 pragma["options"] = options
                 write_pragma(fd, pragma)
+
+            if ap_ctrl is not None:
+                # Adding return port ap_ctrl definition
+                pragma = {}
+                pragma["name"] = "interface"
+                options = [
+                    ["mode", ap_ctrl],
+                    ["port", "return"],
+                ]
+                pragma["options"] = options
+                write_pragma(fd, pragma)
+
 
             for pragma in layer["pragma"]:
                 write_pragma(fd, pragma)

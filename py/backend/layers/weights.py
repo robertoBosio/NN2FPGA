@@ -452,6 +452,6 @@ def write(io_dict, network_name):
     parsed_write = parse_all(io_dict)
 
     init("MemoryManagement", network_name, parsed_write)
-    declare("MemoryManagement", parsed_write, inline=True)
+    declare("MemoryManagement", parsed_write, ap_ctrl=None, inline=True)
     body("MemoryManagement", parsed_write)
 
