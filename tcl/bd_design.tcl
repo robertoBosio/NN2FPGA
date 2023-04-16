@@ -20,7 +20,7 @@ set script_folder [_tcl::get_script_folder]
 ################################################################
 # Check if script is running in correct Vivado version.
 ################################################################
-set scripts_vivado_version 2022.1
+set scripts_vivado_version 2022.2
 set current_vivado_version [version -short]
 
 if { [string first $scripts_vivado_version $current_vivado_version] == -1 } {
@@ -43,8 +43,14 @@ if { [string first $scripts_vivado_version $current_vivado_version] == -1 } {
 
 set list_projs [get_projects -quiet]
 if { $list_projs eq "" } {
-   create_project project_1 myproj -part xczu3eg-sbva484-1-i
-   set_property BOARD_PART avnet.com:ultra96v2:part0:1.2 [current_project]
+   if {${BOARD} == "ULTRA96v2"} {
+		 create_project project_1 ULTRA96v2 -part xczu3eg-sbva484-1-i
+		 set_property BOARD_PART avnet.com:ultra96v2:part0:1.2 [current_project]
+	 }
+   if {${BOARD} == "KRIA"} {
+		 create_project project_1 KRIA -part xczu3eg-sbva484-1-i
+		 set_property BOARD_PART avnet.com:ultra96v2:part0:1.2 [current_project]
+	 }
 }
 
 

@@ -4,6 +4,7 @@ CC=gcc
 XILINC=/home/filippo/xilinx/Vitis_HLS/2022.2/include
 CFLAGS=-I${XILINC}
 DEPS=${NAME}.hpp
+BOARD=ULTRA96v2
 
 generate:
 	python py/code_gen_qonnx.py
