@@ -389,6 +389,22 @@ def parse_comp(name, node):
         pragma["options"] = options
         block["pragma"].append(pragma)
 
+    if (node["has_forward"]):
+        # First two lines
+        depth = (node["fh"]-1)*node["iw"]*node["ich"]
+        # first two pixels of the third line
+        depth += (node["fw"]-1)*node["ich"]
+        pragma = {}
+        pragma["name"] = "stream"
+        options = [
+            ["variable", "s_%s" % (forward_name)],
+            ["depth", depth],
+            ["type", "fifo"],
+        ]
+        pragma["options"] = options
+        block["pragma"].append(pragma)
+
+
     return [block]
 
 def parse_split(name, node):
