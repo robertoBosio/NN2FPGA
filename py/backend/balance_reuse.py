@@ -4,7 +4,7 @@ import pulp
 import math
 from primefac import primefac
 
-def reuse_number(layers_info, parallel_ops, clamp=16):
+def reuse_number(layers_info, clamp=16):
 
     MIN_REUSE = 1
     DELTA = 1
@@ -16,17 +16,16 @@ def reuse_number(layers_info, parallel_ops, clamp=16):
         layers_name = []
         offset = 0
         for i, layer_info in enumerate(layers_info):
-            if 'conv' in layer_info[0]:
-                divisors = 1
-                layers_offset.append(offset)
-                all_divisors.append(1)
-                for k in range(2, min([layer_info[3], clamp])+1):
-                    if (layer_info[3] % k) == 0:
-                        all_divisors.append(k)
-                        divisors = divisors + 1
-                layers_divisors.append(divisors)
-                offset = offset + divisors
-                layers_name.append(layer_info[0])
+            divisors = 1
+            layers_offset.append(offset)
+            all_divisors.append(1)
+            for k in range(2, min([layer_info[3], clamp])+1):
+                if (layer_info[3] % k) == 0:
+                    all_divisors.append(k)
+                    divisors = divisors + 1
+            layers_divisors.append(divisors)
+            offset = offset + divisors
+            layers_name.append(layer_info[0])
         return all_divisors, layers_divisors, layers_offset, layers_name
 
     def find_high_comp(layers_info, layers_name):
@@ -113,12 +112,29 @@ def reuse_number(layers_info, parallel_ops, clamp=16):
     
     return reuse
 
-def opt(layers_info, parallel_ops):
+def ilp(io_dict):
 
     clamp = 16
-    reuse = reuse_number(layers_info, parallel_ops, clamp)
+    layers_info = []
 
-    # for name, op in reuse.items():
-    #     reuse[name] = 1
+    for node_name, node_info in io_dict.items():
+        if ('const' == node_info["type"]):
+            if node_info["off_chip_memory"]:
+                layers_info.append(
+                    [
+                        node_name,
+                        node_info["total"],
+                        node_info["kernel"],
+                        node_info["img_ch"]
+                    ]
+                )
 
-    return reuse
+    print(layers_info)
+    reuse = reuse_number(layers_info, clamp)
+
+    print(reuse)
+
+    for node_name, value in reuse.items():
+        io_dict[node_name]["reuse"] = value
+
+    return io_dict

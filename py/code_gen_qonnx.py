@@ -24,6 +24,6 @@ def main():
     #write_network( inferred_model , off_chip_storage = False 1)
     inferred_model.set_tensor_datatype("global_in", DataType["UINT8"])
     #assert inferred_model.check_all_tensor_shapes_specified(), "There are still tensors that are not specified"
-    write_network( inferred_model , off_chip_storage = False )
+    write_network( inferred_model , off_chip_storage = True )
 if __name__ == '__main__':
     main()

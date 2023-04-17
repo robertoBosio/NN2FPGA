@@ -9,6 +9,7 @@ from backend.graph import *
 from backend.opt import *
 import backend.layers.weights as weights
 import backend.balance_computations as balance_computations
+import backend.balance_reuse as balance_reuse
 import backend.main as main
 
 from onnx import numpy_helper
@@ -61,6 +62,11 @@ def write_network(
         init_info,
         off_chip_storage
     )
+
+    if off_chip_storage:
+        io_dict = balance_reuse.ilp(
+            io_dict
+        )
 
     io_dict = rename_nodes(
         io_dict

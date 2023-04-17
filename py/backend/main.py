@@ -43,7 +43,7 @@ def init(file_name, parsed_write):
         for layer in parsed_write:
             if "MemoryManagement" == layer["func"]:
                 for name in layer["input"]:
-                    fd.write("\tap_int<READ_WIDTH> *i_data_%s,\n" % name)
+                    fd.write("\tap_int<c_%s_rw> *i_data_%s,\n" % (name, name))
 
         for layer in parsed_write:
             if "ConsumeStream" == layer["func"]:
