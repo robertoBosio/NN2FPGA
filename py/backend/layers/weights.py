@@ -149,6 +149,7 @@ def extract_info(
     new_node["kernel"]  = ih*iw
     new_node["total"]   = ich*och*ih*iw*oh*ow/stride
     new_node["img_ch"]  = ich*och
+    new_node["bits"] = bits
 
     dim = ich*och*ih*iw
 
@@ -294,6 +295,7 @@ def parse(name, node):
         block["output"] = []
 
         block["template"] = []
+        block["template"].append("t_%s_st" % (output_name))
         block["template"].append("t_%s" % (output_name))
         block["template"].append("c_%s_ich" % (name))
         block["template"].append("c_%s_och" % (name))
@@ -324,9 +326,18 @@ def parse(name, node):
         block["defines"]["c_%s_ops" % (output_name)]   = ["const", node["ops"]]
         block["defines"]["c_%s_bw" % (output_name)]    = ["const", node["bw"]]
         block["defines"]["c_%s_reuse" % (output_name)] = ["const", node["reuse"]]
-        block["defines"]["c_%s_rw" % (output_name)] = ["const", 128]
+        block["defines"]["c_%s_rw" % (output_name)] = ["const", node["bits"]]
 
-        block["declare"] = []
+        # Declare only in tb wrapper
+        block["tb_declare"] = []
+        tmp = {}
+        tmp["name"] = "c_%s" % output_name
+        tmp["type"] = "t_%s" % output_name
+        tmp["is_array"] = True
+        tmp["init"] = node["values"]
+
+        block["tb_declare"].append(tmp)
+
 
         block["declare"] = []
 
@@ -360,7 +371,7 @@ def parse(name, node):
         block["output"] = []
 
         block["template"] = []
-        block["template"].append("ap_int<c_%s_rw> " % (output_name))
+        block["template"].append("t_%s_st " % (output_name))
         block["template"].append("t_%s" % (output_name))
         block["template"].append("c_%s_ich" % (name))
         block["template"].append("c_%s_och" % (name))
@@ -482,7 +493,7 @@ def init(file_name, network_name, parsed_write):
 
         for layer in parsed_write:
             for name in layer["input"]:
-                fd.write("\tap_int<c_%s_rw> *i_data_%s,\n" % (name, name))
+                fd.write("\tconst t_%s_st *i_data_%s,\n" % (name, name))
 
         for i, layer in enumerate(parsed_write):
             for j, name in enumerate(layer["output"]):

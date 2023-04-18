@@ -11,6 +11,7 @@ import backend.layers.weights as weights
 import backend.balance_computations as balance_computations
 import backend.balance_reuse as balance_reuse
 import backend.main as main
+import backend.sim as sim
 
 from onnx import numpy_helper
 import numpy as np
@@ -87,3 +88,9 @@ def write_network(
         io_dict,
         file_name
     )
+
+    sim.write(
+        io_dict,
+        file_name
+    )
+

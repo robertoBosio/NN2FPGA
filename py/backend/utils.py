@@ -190,7 +190,7 @@ def defines(file_name, parsed_write):
         for layer in parsed_write:
             if "MemoryManagement" == layer["func"]:
                 for name in layer["input"]:
-                    fd.write("\tap_int<c_%s_rw> *i_data_%s,\n" % (name, name))
+                    fd.write("\tconst t_%s_st *i_data_%s,\n" % (name, name))
 
         for layer in parsed_write:
             if "ConsumeStream" == layer["func"]:
@@ -204,7 +204,7 @@ def defines(file_name, parsed_write):
         for layer in parsed_write:
             if 'is_const' in layer.keys():
                 for name in layer["input"]:
-                    fd.write("\tap_int<c_%s_rw> *i_data_%s,\n" % (name, name))
+                    fd.write("\tconst t_%s_st *i_data_%s,\n" % (name, name))
 
         for i, layer in enumerate(parsed_write):
             if 'is_const' in layer.keys():
