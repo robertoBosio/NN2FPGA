@@ -150,6 +150,7 @@ def extract_info(
     new_node["total"]   = ich*och*ih*iw*oh*ow/stride
     new_node["img_ch"]  = ich*och
     new_node["bits"] = bits
+    new_node["reuse"] = 1
 
     dim = ich*och*ih*iw
 
@@ -416,6 +417,7 @@ def parse(name, node):
         block["template"].append("c_%s_iw" % (output_name))
         block["template"].append("c_%s_ih" % (output_name))
         block["template"].append("c_%s_ops" % (output_name))
+        block["template"].append("c_%s_reuse" % (output_name))
 
         block["output"].append("%s" % output_name)
         block["args"].append("c_%s" % output_name)
@@ -441,6 +443,7 @@ def parse(name, node):
         block["defines"]["c_%s_iw" % (output_name)]    = ["const", node["iw"]]
         block["defines"]["c_%s_ih" % (output_name)]    = ["const", node["ih"]]
         block["defines"]["c_%s_ops" % (output_name)]   = ["const", node["ops"]]
+        block["defines"]["c_%s_reuse" % (output_name)] = ["const", node["reuse"]]
 
         pragma = {}
         pragma["name"] = "array_partition"

@@ -69,6 +69,17 @@ def write_network(
             io_dict
         )
 
+        # 2 times to be sure that both weights and conv are updated
+        io_dict = share_reuse(
+            inferred_model,
+            io_dict
+        )
+
+        io_dict = share_reuse(
+            inferred_model,
+            io_dict
+        )
+
     io_dict = rename_nodes(
         io_dict
     )

@@ -450,6 +450,26 @@ def opt_skip_quant(model, io_dict, quant_info, init_info):
 
     return io_dict
 
+def share_reuse(model, io_dict):
+    
+    io_connect = extract_connections(model, io_dict)
+
+    for net_name, layers in io_connect.items():
+        layer_in_name = layers[0][0]
+        layer_out_name = layers[1][0]
+
+        start_const = 'const' == io_dict[layer_in_name]["type"]
+
+        # If true the relu can be absorbed into convolution
+        if start_const:
+            reuse0 = io_dict[layer_in_name]["reuse"]
+            reuse1 = io_dict[layer_out_name]["reuse"]
+            reuse = max([reuse0, reuse1])
+            io_dict[layer_in_name]["reuse"] = reuse
+            io_dict[layer_out_name]["reuse"] = reuse
+
+    return io_dict
+
 def opt_steps(
     inferred_model,
     io_dict,
