@@ -6,7 +6,6 @@ from primefac import primefac
 
 def reuse_number(layers_info, clamp=16):
 
-    MIN_REUSE = 1
     DELTA = 1
 
     def find_divisors(layers_info):
@@ -68,7 +67,6 @@ def reuse_number(layers_info, clamp=16):
     )
 
     for j, offset in enumerate(layers_offset):
-        print(layers_divisors[j])
         prob += pulp.lpSum(
             [
                 choices[offset+i] for i in range(layers_divisors[j])
@@ -108,7 +106,8 @@ def reuse_number(layers_info, clamp=16):
         offset = layers_offset[i]
         for k in range(layers_divisors[i]):
             data = int(choices[offset+k].value())
-            reuse[name] = data
+            if (data == 1):
+                reuse[name] = all_divisors[offset+k]
     
     return reuse
 
