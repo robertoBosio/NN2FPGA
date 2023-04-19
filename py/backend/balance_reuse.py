@@ -113,7 +113,7 @@ def reuse_number(layers_info, clamp=16):
 
 def ilp(io_dict):
 
-    clamp = 16
+    clamp = 2
     layers_info = []
 
     for node_name, node_info in io_dict.items():
@@ -128,7 +128,6 @@ def ilp(io_dict):
                     ]
                 )
 
-    print(layers_info)
     reuse = reuse_number(layers_info, clamp)
 
     print(reuse)

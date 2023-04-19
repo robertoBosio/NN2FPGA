@@ -21,7 +21,9 @@ sim:
 	chmod +x ${NAME}Tb
 	./${NAME}Tb
 
-all: generate compile compile_tb sim
+compile_sim: compile compile_tb sim
+
+all: generate compile_sim
 
 run_model:
 	python py/utils/test_model.py
