@@ -59,7 +59,7 @@ template <
 					for (auto s_index = 0; s_index < c_index; s_index++) {
 						t_input_struct s_input_struct = i_input[s_index].read();
 						s_input[s_reuse][s_index] = s_input_struct.data;
-						/* Sending last only at the bottom left data */
+						/* Sending last only at the bottom right data */
 						if (s_index == 0)
 							s_last = s_input_struct.last;
 					}
@@ -163,7 +163,7 @@ template <
 					for (auto s_index = 0; s_index < c_index; s_index++) {
 						t_input_struct s_input_struct = i_input[s_index].read();
 						s_input[s_reuse][s_index] = s_input_struct.data;
-						/* Sending last only at the bottom left data */
+						/* Sending last only at the bottom right data */
 						if (s_index == 0)
 							s_last = s_input_struct.last;
 					}
@@ -285,7 +285,7 @@ template <
 					for (auto s_index = 0; s_index < c_index; s_index++) {
 						t_input_struct s_input_struct = i_input[s_index].read();
 						s_input[s_reuse][s_index] = s_input_struct.data;
-						/* Sending last only at the bottom left data */
+						/* Sending last only at the bottom right data */
 						if (s_index == 0)
 							s_last = s_input_struct.last;
 					}
@@ -412,6 +412,7 @@ template <
 		/* 	for (auto s_och = 0; s_och < c_och; s_och++) */
 		/* 		s_acc_buff[s_reuse][s_och] = 0; */
 
+	int i = 0;
 	for (auto s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
 		for (auto s_ich = 0; s_ich < c_ich; s_ich++) {
 			for (auto s_iter = 0; s_iter < c_iter; s_iter++) {
@@ -424,7 +425,7 @@ template <
 					for (auto s_index = 0; s_index < c_index; s_index++) {
 						t_input_struct s_input_struct = i_input[s_index].read();
 						s_input[s_reuse][s_index] = s_input_struct.data;
-						/* Sending last only at the bottom left data */
+						/* Sending last only at the bottom right data */
 						if (s_index == 0)
 							s_last = s_input_struct.last;
 					}
@@ -551,7 +552,7 @@ template <
 					for (auto s_index = 0; s_index < c_index; s_index++) {
 						t_input_struct s_input_struct = i_input[s_index].read();
 						s_input[s_reuse][s_index] = s_input_struct.data;
-						/* Sending last only at the bottom left data */
+						/* Sending last only at the bottom right data */
 						if (s_index == 0)
 							s_last = s_input_struct.last;
 					}
@@ -572,10 +573,9 @@ template <
 				// Done to avoid partitioning of the stream and resource wasting
 				// Theoretically with the add the input and output dimensions should
 				// be equal, so we could add the add in different iterations
-				if (s_iter == 0) {
+				if (s_num_och == 0) {
 					s_add = i_add.read();
 				}
-
 			/* TODO: try unroll and pipeline of the inner loop */
 				COMPUTE: for (auto s_ops = 0; s_ops < c_ops; s_ops++) {
 					auto s_och = s_num_och*c_ops + s_ops;
@@ -585,7 +585,7 @@ template <
 					s_acc_struct.last = s_last & (s_och == (c_och-1));
 
 					if (s_ich == s_och) { 
-						if (s_ops == 0)
+						if ((s_ops == 0) & (s_reuse == 0))
 							s_bias = i_bias[0].read();
 						s_acc = ((t_acc)(s_add.data) << c_shift_l) + s_bias[s_ops];
 					}
@@ -666,7 +666,7 @@ template <
 			for (uint8_t s_index = 0; s_index < c_index; s_index++) {
 				t_input_struct s_input_struct = i_input[s_index].read();
 				s_input[s_index] = s_input_struct.data;
-				/* Sending last only at the bottom left data */
+				/* Sending last only at the bottom right data */
 				if (s_index == 0)
 					s_last = s_input_struct.last;
 			}
