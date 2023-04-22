@@ -64,6 +64,9 @@ def parse_off_chip(
     dops = node_info["ops"]
     scale_factor = 2**node_info["scale_factor"]
 
+    limit_h = 2**(bits-signed)-1
+    limit_l = -1*signed*2**(bits-signed)
+
     values = np.zeros(
         [dih*diw*dich*doch]
     )
@@ -77,6 +80,12 @@ def parse_off_chip(
                     for ops in range(dops):
                         quant_value  = pre_values[off+ops][ich][ih][iw]
                         quant_value  = np.round(quant_value/scale_factor)
+                        if (limit_h < quant_value):
+                            quant_value = limit_h
+
+                        if (limit_l > quant_value):
+                            quant_value = limit_l
+
                         values[addr] = quant_value
                         addr         = addr + 1
     
@@ -121,9 +130,11 @@ def extract_info(
     if (is_bias):
         new_node["data_type"] = "int16_t"
         bits = 16
+        bw = 8
     else:
         new_node["data_type"] = "int8_t"
         bits = 8
+        bw = 16
     new_node["ich"]    = ich
     new_node["ih"]     = ih
     new_node["iw"]     = iw
@@ -135,12 +146,18 @@ def extract_info(
     new_node["ops"]    = ops
     new_node["is_bias"] = is_bias
     new_node["type"]    = 'const'
+    new_node["kernel"]  = ih*iw
+    new_node["total"]   = ich*och*ih*iw*oh*ow/stride
+    new_node["img_ch"]  = ich*och
+    new_node["bits"] = bits
+    new_node["reuse"] = 1
 
     dim = ich*och*ih*iw
 
-    new_node["off_chip_memory"] = off_chip_memory and (dim < 4096)
+    new_node["off_chip_memory"] = off_chip_memory and (dim > 4096)
 
     if new_node["off_chip_memory"]:
+        new_node["bw"]    = bw
         new_node["values"] = parse_off_chip(
             new_node,
             pre_values,
@@ -225,11 +242,24 @@ def parse_main(io_dict):
 
     for name, node in io_dict.items():
         if 'const' == node["type"]:
-            input_name = node["input"][0]
             output_name = node["output"][0]
             if node["off_chip_memory"]:
-                block["input"].append("i_data_%s" % input_name)
-                block["args"].append("i_data_%s" % input_name)
+                block["input"].append("%s" % output_name)
+                block["args"].append("i_data_%s" % output_name)
+
+                pragma = {}
+                pragma["name"] = "interface"
+                options = [
+                    ["port", "i_data_%s" % output_name],
+                    ["mode", "m_axi"],
+                ]
+                pragma["options"] = options
+                block["pragma"].append(pragma)
+
+    for name, node in io_dict.items():
+        if 'const' == node["type"]:
+            input_name = node["input"][0]
+            output_name = node["output"][0]
             block["args"].append("s_%s" % output_name)
 
             tmp = {}
@@ -266,6 +296,7 @@ def parse(name, node):
         block["output"] = []
 
         block["template"] = []
+        block["template"].append("t_%s_st" % (output_name))
         block["template"].append("t_%s" % (output_name))
         block["template"].append("c_%s_ich" % (name))
         block["template"].append("c_%s_och" % (name))
@@ -274,19 +305,63 @@ def parse(name, node):
         block["template"].append("c_%s_iw" % (output_name))
         block["template"].append("c_%s_ih" % (output_name))
         block["template"].append("c_%s_ops" % (output_name))
-        block["template"].append("READ_WIDTH")
+        block["template"].append("c_%s_rw" % (output_name))
         block["template"].append("c_%s_bw" % (output_name))
         block["template"].append("c_%s_reuse" % (output_name))
         block["template"].append("0")
 
-        block["input"].append("i_data_%s" % output_name)
+        block["input"].append("%s" % output_name)
         block["args"].append("s_o_%s" % output_name)
         block["args"].append("i_data_%s" % output_name)
 
+        block["defines"] = {}
+        block["defines"]["t_%s_st" % (output_name)]    = ["type", node["data_type"]]
+        output_type_name = "hls::vector<%s, %0d>" % (node["data_type"], node["ops"])
+        block["defines"]["t_%s" % (output_name)]       = ["type",  output_type_name]
+        block["defines"]["c_%s_ich" % (name)]          = ["const", node["ich"]]
+        block["defines"]["c_%s_och" % (name)]          = ["const", node["och"]]
+        block["defines"]["c_%s_ow" % (name)]           = ["const", node["ow"]]
+        block["defines"]["c_%s_oh" % (name)]           = ["const", node["oh"]]
+        block["defines"]["c_%s_iw" % (output_name)]    = ["const", node["iw"]]
+        block["defines"]["c_%s_ih" % (output_name)]    = ["const", node["ih"]]
+        block["defines"]["c_%s_ops" % (output_name)]   = ["const", node["ops"]]
+        block["defines"]["c_%s_bw" % (output_name)]    = ["const", node["bw"]]
+        block["defines"]["c_%s_reuse" % (output_name)] = ["const", node["reuse"]]
+        block["defines"]["c_%s_rw" % (output_name)] = ["const", node["bits"]]
+
+        # Declare only in tb wrapper
+        block["tb_declare"] = []
+        tmp = {}
+        tmp["name"] = "c_%s" % output_name
+        tmp["type"] = "t_%s" % output_name
+        tmp["is_array"] = True
+        tmp["init"] = node["values"]
+
+        block["tb_declare"].append(tmp)
+
+
         block["declare"] = []
 
-        block["pragma"] = []
+        declare = {}
+        declare["name"] = "s_o_%s" % output_name
+        declare["type"] = "t_%s" % output_name
+        declare["is_array"] = True
+        declare["dim"] = node["bw"]
+        block["declare"].append(declare)
 
+        block["pragma"] = []
+        pragma = {}
+        pragma["name"] = "stream"
+        options = [
+            ["variable", "s_o_%s" % (output_name)],
+            ["depth", 2],
+            ["type", "fifo"],
+        ]
+        pragma["options"] = options
+        block["pragma"].append(pragma)
+
+        block["size"] = node["iw"]*node["ih"]
+        block["is_const"] = True
         blocks.append(block)
 
         block = {}
@@ -297,7 +372,7 @@ def parse(name, node):
         block["output"] = []
 
         block["template"] = []
-        block["template"].append("ap_int<READ_WIDTH> ")
+        block["template"].append("t_%s_st " % (output_name))
         block["template"].append("t_%s" % (output_name))
         block["template"].append("c_%s_ich" % (name))
         block["template"].append("c_%s_och" % (name))
@@ -308,29 +383,20 @@ def parse(name, node):
         block["template"].append("c_%s_ops" % (output_name))
         block["template"].append("c_%s_bw" % (output_name))
         block["template"].append("c_%s_reuse" % (output_name))
-        block["template"].append("READ_WIDTH")
+        block["template"].append("c_%s_rw" % (output_name))
 
-        block["output"].append("s_%s" % output_name)
+        block["output"].append("%s" % output_name)
         block["args"].append("s_o_%s" % output_name)
         block["args"].append("s_%s" % output_name)
 
         block["defines"] = {}
-        output_type_name = "hls::vector<%s, %0d>" % (node["data_type"], node["ops"])
-        block["defines"]["t_%s_st" % (name)]       = ["type",  output_type_name]
-        block["defines"]["t_%s" % (name)]       = ["type",  output_type_name]
-        block["defines"]["c_%s_ich" % (name)]          = ["const", node["ich"]]
-        block["defines"]["c_%s_och" % (name)]          = ["const", node["och"]]
-        block["defines"]["c_%s_ow" % (name)]           = ["const", node["ow"]]
-        block["defines"]["c_%s_oh" % (name)]           = ["const", node["oh"]]
-        block["defines"]["c_%s_iw" % (output_name)]    = ["const", node["iw"]]
-        block["defines"]["c_%s_ih" % (output_name)]    = ["const", node["ih"]]
-        block["defines"]["c_%s_ops" % (output_name)]   = ["const", node["ops"]]
-        block["defines"]["c_%s_bw" % (output_name)]    = ["const", node["bw"]]
-        block["defines"]["c_%s_reuse" % (output_name)] = ["const", node["reuse"]]
 
         block["declare"] = []
 
         block["pragma"] = []
+        block["size"] = node["iw"]*node["ih"]
+        block["is_const"] = True
+        blocks.append(block)
 
     else:
 
@@ -351,6 +417,7 @@ def parse(name, node):
         block["template"].append("c_%s_iw" % (output_name))
         block["template"].append("c_%s_ih" % (output_name))
         block["template"].append("c_%s_ops" % (output_name))
+        block["template"].append("c_%s_reuse" % (output_name))
 
         block["output"].append("%s" % output_name)
         block["args"].append("c_%s" % output_name)
@@ -376,6 +443,7 @@ def parse(name, node):
         block["defines"]["c_%s_iw" % (output_name)]    = ["const", node["iw"]]
         block["defines"]["c_%s_ih" % (output_name)]    = ["const", node["ih"]]
         block["defines"]["c_%s_ops" % (output_name)]   = ["const", node["ops"]]
+        block["defines"]["c_%s_reuse" % (output_name)] = ["const", node["reuse"]]
 
         pragma = {}
         pragma["name"] = "array_partition"
@@ -389,9 +457,9 @@ def parse(name, node):
 
         block["pragma"] = []
         block["pragma"].append(pragma)
-    block["size"] = node["iw"]*node["ih"]
-    block["is_const"] = True
-    blocks.append(block)
+        block["size"] = node["iw"]*node["ih"]
+        block["is_const"] = True
+        blocks.append(block)
 
     return blocks
 
@@ -428,7 +496,7 @@ def init(file_name, network_name, parsed_write):
 
         for layer in parsed_write:
             for name in layer["input"]:
-                fd.write("\tap_int<READ_WIDTH> *i_data_%s,\n" % (name))
+                fd.write("\tconst t_%s_st *i_data_%s,\n" % (name, name))
 
         for i, layer in enumerate(parsed_write):
             for j, name in enumerate(layer["output"]):
@@ -452,6 +520,6 @@ def write(io_dict, network_name):
     parsed_write = parse_all(io_dict)
 
     init("MemoryManagement", network_name, parsed_write)
-    declare("MemoryManagement", parsed_write, inline=True)
+    declare("MemoryManagement", parsed_write, ap_ctrl=None, inline=True)
     body("MemoryManagement", parsed_write)
 

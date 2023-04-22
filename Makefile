@@ -4,6 +4,7 @@ CC=gcc
 XILINC=/home/filippo/xilinx/Vitis_HLS/2022.2/include
 CFLAGS=-I${XILINC}
 DEPS=${NAME}.hpp
+BOARD=ULTRA96v2
 
 syn:
 	vitis_hls -f tcl/synth.tcl
@@ -23,7 +24,9 @@ sim:
 	chmod +x ${NAME}Tb
 	./${NAME}Tb
 
-all: generate compile compile_tb sim
+compile_sim: compile compile_tb sim
+
+all: generate compile_sim
 
 run_model:
 	python py/utils/test_model.py

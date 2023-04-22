@@ -88,22 +88,33 @@ def write_pragma(fd, pragma):
 
     fd.write("\n")
 
-def declare(file_name, parsed_write, inline=False):
+def declare(file_name, parsed_write, ap_ctrl=None, inline=False):
 
     with open("src/%s.cpp" % file_name, "a") as fd:
         
+        if inline:
+            # Adding inline option to put the module in dataflow
+            pragma = {}
+            pragma["name"] = "inline"
+            options = []
+            pragma["options"] = options
+            write_pragma(fd, pragma)
+
+        if ap_ctrl is not None:
+            # Adding return port ap_ctrl definition
+            pragma = {}
+            pragma["name"] = "interface"
+            options = [
+                ["mode", ap_ctrl],
+                ["port", "return"],
+            ]
+            pragma["options"] = options
+            write_pragma(fd, pragma)
+
         for layer in parsed_write:
 
             for variable in layer["declare"]:
                 write_declare(fd, variable)
-
-            if inline:
-                # Adding inline option to put the module in dataflow
-                pragma = {}
-                pragma["name"] = "inline"
-                options = []
-                pragma["options"] = options
-                write_pragma(fd, pragma)
 
             for pragma in layer["pragma"]:
                 write_pragma(fd, pragma)
@@ -179,7 +190,7 @@ def defines(file_name, parsed_write):
         for layer in parsed_write:
             if "MemoryManagement" == layer["func"]:
                 for name in layer["input"]:
-                    fd.write("\tap_int<READ_WIDTH> *i_data_%s,\n" % name)
+                    fd.write("\tconst t_%s_st *i_data_%s,\n" % (name, name))
 
         for layer in parsed_write:
             if "ConsumeStream" == layer["func"]:
@@ -193,7 +204,7 @@ def defines(file_name, parsed_write):
         for layer in parsed_write:
             if 'is_const' in layer.keys():
                 for name in layer["input"]:
-                    fd.write("\tap_int<READ_WIDTH> *i_data_%s,\n" % (name))
+                    fd.write("\tconst t_%s_st *i_data_%s,\n" % (name, name))
 
         for i, layer in enumerate(parsed_write):
             if 'is_const' in layer.keys():

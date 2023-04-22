@@ -210,6 +210,7 @@ template <
 }
 
 template <
+	class t_input,
 	class t_output,
 	int c_ich,
 	int c_och,
@@ -224,7 +225,7 @@ template <
 	int c_start
 > void MemAlgo(
 	hls::stream<t_output> o_data[c_bw],
-	ap_int<c_bits> *i_data
+	const t_input *i_data
 ) {
 
 	const int c_bytes = c_bits/8;
