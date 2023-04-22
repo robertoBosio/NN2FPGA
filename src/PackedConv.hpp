@@ -410,7 +410,6 @@ template <
 		/* 	for (auto s_och = 0; s_och < c_och; s_och++) */
 		/* 		s_acc_buff[s_reuse][s_och] = 0; */
 
-	int i = 0;
 	for (auto s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
 		for (auto s_ich = 0; s_ich < c_ich; s_ich++) {
 			for (auto s_iter = 0; s_iter < c_iter; s_iter++) {

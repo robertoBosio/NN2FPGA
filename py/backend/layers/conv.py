@@ -537,9 +537,16 @@ def parse_nhwc(name, node):
     for output_name in node["output"]:
         output_type_name = output_name.replace("_skip", "")
 
-        arrange_name.append([output_name, output_type_name])
+        # For data forward there is one data coming out for every c_ich 
+        # operations
+        if "skip" in output_name:
+            ops = 1
+        else:
+            ops = None
 
-    for tensor_name, tensor_type_name in arrange_name:
+        arrange_name.append([output_name, output_type_name, ops])
+
+    for tensor_name, tensor_type_name, ops in arrange_name:
         block = {}
         block["func"] = "RearrangeOp"
 
@@ -552,7 +559,10 @@ def parse_nhwc(name, node):
         block["template"].append("c_%s_oh" % name)
         block["template"].append("c_%s_index" % name)
         block["template"].append("c_%s_stride" % name)
-        block["template"].append("c_%s_ops" % name)
+        if ops is not None:
+            block["template"].append("%d" % ops)
+        else:
+            block["template"].append("c_%s_ops" % name)
         block["template"].append("c_%s_reuse" % name)
 
         block["args"] = []

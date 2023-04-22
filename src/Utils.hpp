@@ -4,6 +4,7 @@
 #include "hls_math.h"
 #include "Debug.hpp"
 #include "LineBuffer.hpp"
+#include "ap_int.h"
 #include <etc/autopilot_ssdm_op.h>
 
 //////////////////////////// QUANT FUNCTIONS //////////////////////////////////
