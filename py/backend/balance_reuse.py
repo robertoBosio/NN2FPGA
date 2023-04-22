@@ -113,7 +113,7 @@ def reuse_number(layers_info, clamp=16):
 
 def ilp(io_dict):
 
-    clamp = 2
+    clamp = 16
     layers_info = []
 
     for node_name, node_info in io_dict.items():
@@ -131,8 +131,6 @@ def ilp(io_dict):
     reuse = reuse_number(layers_info, clamp)
 
     print(reuse)
-
-    reuse = {'Weight/layer2/layer2_0/conv1/weight_quant/export_handler/Constant_output_0': 2, 'Weight/layer2/layer2_0/conv2/weight_quant/export_handler/Constant_output_0': 2, 'Weight/layer2/layer2_1/conv1/weight_quant/export_handler/Constant_output_0': 2, 'Weight/layer2/layer2_1/conv2/weight_quant/export_handler/Constant_output_0': 1, 'Weight/layer2/layer2_2/conv1/weight_quant/export_handler/Constant_output_0': 1, 'Weight/layer2/layer2_2/conv2/weight_quant/export_handler/Constant_output_0': 1, 'Weight/layer3/layer3_0/conv1/weight_quant/export_handler/Constant_output_0': 1, 'Weight/layer3/layer3_0/conv2/weight_quant/export_handler/Constant_output_0': 1, 'Weight/layer3/layer3_1/conv1/weight_quant/export_handler/Constant_output_0': 1, 'Weight/layer3/layer3_1/conv2/weight_quant/export_handler/Constant_output_0': 1, 'Weight/layer3/layer3_2/conv1/weight_quant/export_handler/Constant_output_0': 1, 'Weight/layer3/layer3_2/conv2/weight_quant/export_handler/Constant_output_0': 1}
 
     for node_name, value in reuse.items():
         io_dict[node_name]["reuse"] = value
