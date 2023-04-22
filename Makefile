@@ -5,6 +5,9 @@ XILINC=/home/filippo/xilinx/Vitis_HLS/2022.2/include
 CFLAGS=-I${XILINC}
 DEPS=${NAME}.hpp
 
+syn:
+	vitis_hls -f tcl/synth.tcl
+
 generate:
 	python py/code_gen_qonnx.py
 
