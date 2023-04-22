@@ -233,9 +233,15 @@ def parse_wout(name, node):
             pragma_name = "s_%s_p_nchw" % (output_1x1_name)
         else:
             pragma_name = "s_%s" % (output_1x1_name)
+
+        if (node["reuse"] > 1):
+            depth = node["ow"]*node["och"]*(node["fh"]-2)
+        else:
+            depth = 2
+
         options = [
             ["variable", pragma_name],
-            ["depth", 2],
+            ["depth", depth],
             ["type", "fifo"],
         ]
         pragma["options"] = options
@@ -534,7 +540,7 @@ def parse_nhwc(name, node):
     blocks = []
     arrange_name = []
 
-    for output_name in node["output"]:
+    for i, output_name in enumerate(node["output"]):
         output_type_name = output_name.replace("_skip", "")
 
         # For data forward there is one data coming out for every c_ich 
@@ -544,9 +550,14 @@ def parse_nhwc(name, node):
         else:
             ops = None
 
-        arrange_name.append([output_name, output_type_name, ops])
+        if (i > 0) and (node["merge_1x1"]):
+            depth = 2
+        else:
+            depth = node["ow"]*node["och"]*(node["fh"]-2)
 
-    for tensor_name, tensor_type_name, ops in arrange_name:
+        arrange_name.append([output_name, output_type_name, ops, depth])
+
+    for tensor_name, tensor_type_name, ops, depth in arrange_name:
         block = {}
         block["func"] = "RearrangeOp"
 
@@ -583,7 +594,7 @@ def parse_nhwc(name, node):
         pragma["name"] = "stream"
         options = [
             ["variable", "s_%s" % tensor_name],
-            ["depth", "2"],
+            ["depth", "%0d" % depth],
             ["type", "fifo"],
         ]
         pragma["options"] = options

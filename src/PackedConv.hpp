@@ -571,6 +571,8 @@ template <
 				// Done to avoid partitioning of the stream and resource wasting
 				// Theoretically with the add the input and output dimensions should
 				// be equal, so we could perform the addition in different iterations
+				if (s_iter == 0)
+					s_add = i_add.read();
 
 				COMPUTE: for (auto s_ops = 0; s_ops < c_ops; s_ops++) {
 					auto s_och = s_num_och*c_ops + s_ops;
@@ -587,7 +589,6 @@ template <
 					}
 
 					if (s_ich == s_och) {
-						s_add = i_add.read();
 						s_acc += (t_acc)(s_add.data) << c_shift_l;
 					}
 
