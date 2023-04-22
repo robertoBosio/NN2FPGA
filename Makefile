@@ -6,6 +6,9 @@ CFLAGS=-I${XILINC}
 DEPS=${NAME}.hpp
 BOARD=ULTRA96v2
 
+syn:
+	vitis_hls -f tcl/synth.tcl
+
 generate:
 	python py/code_gen_qonnx.py
 

@@ -20,7 +20,7 @@ if {$board == "PYNQ"} {
 	set_part {xczu3eg-sbva484-1-i}
 }
 
-# add_files src/MemoryManagement.cpp
+add_files src/MemoryManagement.cpp
 add_files src/${TOP_NAME}.cpp
 add_files -tb tb/${TOP_NAME}Tb.cpp
 
