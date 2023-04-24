@@ -15,6 +15,7 @@ def parse(name, node):
 
     for fh in range(dfh):
         for fw in range(dfw):
+            
             index = fh*dfw+fw
             input_name  = node["input"][0]
             input_type_name = input_name.replace("_skip", "")
@@ -83,7 +84,8 @@ def parse(name, node):
                 pragma["name"] = "stream"
                 options = [
                     ["variable", "s_%s_compute" % output_name],
-                    ["depth", "2"],
+                    ["depth", node["fw"]*node["fh"]+1],
+                    # ["depth", "2"],
                     ["type", "fifo"],
                 ]
                 pragma["options"] = options
@@ -91,22 +93,22 @@ def parse(name, node):
 
             pragma = {}
 
-            if (index == 0):
-                depth = 2
-            elif (fw == 0):
+            if (fw == 2):
                 depth = node["iw"]*node["ich"]
             else:
                 depth = node["ich"]
 
-            pragma["name"] = "stream"
-            options = [
-                ["variable", "s_%s_data[%0d]" % (output_name, index)],
-                ["depth", depth],
-                ["type", "fifo"],
-            ]
-            pragma["options"] = options
+            if not((fh == (dfh-1)) and (fw == (dfw-1))):
 
-            block["pragma"].append(pragma)
+                pragma["name"] = "stream"
+                options = [
+                    ["variable", "s_%s_data[%0d]" % (output_name, index)],
+                    ["depth", depth],
+                    ["type", "fifo"],
+                ]
+                pragma["options"] = options
+
+                block["pragma"].append(pragma)
 
             line_buffer_blocks.append(block)
 
