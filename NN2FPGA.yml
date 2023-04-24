@@ -56,9 +56,9 @@ dependencies:
     - six==1.16.0
     - sympy==1.11.1
     - toposort==1.7
-    - torch==1.13.0+cu117
-    - torchaudio==0.13.0+cu117
-    - torchvision==0.14.0+cu117
+    - torch==1.13.0
+    - torchaudio==0.13.0
+    - torchvision==0.14.0
     - triton==2.0.0
     - typing-extensions==4.4.0
     - urllib3==1.26.13
