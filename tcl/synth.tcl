@@ -1,13 +1,10 @@
 set impl_sel "solution_0"
 
 set board "ULTRA"
+# set board "KRIA"
 
 set TOP_NAME Network
-if {$board == "PYNQ"} {
-	set PRJ_NAME ${TOP_NAME}PYNQ2
-} else {
-	set PRJ_NAME ${TOP_NAME}ULTRA
-}
+set PRJ_NAME ${TOP_NAME}${board}
 
 delete_project ${PRJ_NAME}_ip
 open_project ${PRJ_NAME}_ip
@@ -16,8 +13,14 @@ set_top ${TOP_NAME}
 open_solution solution_1
 if {$board == "PYNQ"} {
 	set_part {xc7z020clg400-1}
-} else {
+}
+
+if {$board == "ULTRA"} {
 	set_part {xczu3eg-sbva484-1-i}
+}
+
+if {$board == "KRIA"} {
+	set_part {xczu5eg-sfvc784-1-i}
 }
 
 add_files src/MemoryManagement.cpp

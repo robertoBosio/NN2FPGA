@@ -147,9 +147,15 @@ def parse(name, node):
     block["declare"].append(declare)
 
     pragma = {}
-    pragma["name"] = "s_%s" % output_name
-    pragma["depth"] = 2
+    pragma["name"] = "stream"
+    options = [
+        ["variable", "s_%s" % output_name],
+        ["depth", 2],
+        ["type", "fifo"],
+    ]
+    pragma["options"] = options
 
     block["pragma"] = []
+    block["pragma"].append(pragma)
 
     return block

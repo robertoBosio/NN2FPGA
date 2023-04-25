@@ -235,9 +235,10 @@ def parse_wout(name, node):
             pragma_name = "s_%s" % (output_1x1_name)
 
         if (node["reuse"] > 1):
-            depth = node["ow"]*node["och"]*(node["fh"]-2)
-        else:
             depth = 2
+        else:
+            # depth = node["ow"]*node["och"]*(node["fh"]-1)
+            depth = node["ow"]*node["och"]*(node["fh"])
 
         options = [
             ["variable", pragma_name],
