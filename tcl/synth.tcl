@@ -1,25 +1,25 @@
 set impl_sel "solution_0"
 
-set board "ULTRA"
+set BOARD $::env(BOARD)
 # set board "KRIA"
 
 set TOP_NAME Network
-set PRJ_NAME ${TOP_NAME}${board}
+set PRJ_NAME ${TOP_NAME}${BOARD}
 
 delete_project ${PRJ_NAME}_ip
 open_project ${PRJ_NAME}_ip
 set_top ${TOP_NAME}
 
 open_solution solution_1
-if {$board == "PYNQ"} {
+if {$BOARD == "PYNQ"} {
 	set_part {xc7z020clg400-1}
 }
 
-if {$board == "ULTRA"} {
+if {$BOARD == "ULTRA96v2"} {
 	set_part {xczu3eg-sbva484-1-i}
 }
 
-if {$board == "KRIA"} {
+if {$BOARD == "KRIA"} {
 	set_part {xczu5eg-sfvc784-1-i}
 }
 
@@ -47,3 +47,5 @@ config_interface -m_axi_latency 1
 csynth_design
 
 export_design
+
+exit

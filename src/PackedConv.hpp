@@ -50,7 +50,7 @@ template <
 	for (auto s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
 		for (auto s_ich = 0; s_ich < c_ich; s_ich++) {
 			for (auto s_iter = 0; s_iter < c_iter; s_iter++) {
-#pragma HLS pipeline style=frp
+#pragma HLS pipeline style=flp
 
 				auto s_reuse = s_iter % c_reuse;
 				auto s_num_och = s_iter / c_reuse;
@@ -153,7 +153,7 @@ template <
 	for (auto s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
 		for (auto s_ich = 0; s_ich < c_ich; s_ich++) {
 			for (auto s_iter = 0; s_iter < c_iter; s_iter++) {
-#pragma HLS pipeline style=frp
+#pragma HLS pipeline style=flp
 
 				auto s_reuse = s_iter % c_reuse;
 				auto s_num_och = s_iter / c_reuse;
@@ -178,9 +178,9 @@ template <
 							s_weight[s_ops][s_index] = s_tmp_weight[s_ops];
 						}
 					}
-					if (s_ich == 0)
-						s_bias = i_bias[0].read();
 				}
+        if ((s_ich == 0) & (s_reuse == 0))
+          s_bias = i_bias[0].read();
 
 				COMPUTE: for (auto s_ops = 0; s_ops < c_ops; s_ops++) {
 					auto s_och = s_num_och*c_ops + s_ops;
@@ -274,7 +274,7 @@ template <
 	for (auto s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
 		for (auto s_ich = 0; s_ich < c_ich; s_ich++) {
 			for (auto s_iter = 0; s_iter < c_iter; s_iter++) {
-#pragma HLS pipeline style=frp
+#pragma HLS pipeline style=flp
 
 				auto s_reuse = s_iter % c_reuse;
 				auto s_num_och = s_iter / c_reuse;
@@ -413,7 +413,7 @@ template <
 	for (auto s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
 		for (auto s_ich = 0; s_ich < c_ich; s_ich++) {
 			for (auto s_iter = 0; s_iter < c_iter; s_iter++) {
-#pragma HLS pipeline style=frp
+#pragma HLS pipeline style=flp
 
 				auto s_reuse = s_iter % c_reuse;
 				auto s_num_och = s_iter / c_reuse;
@@ -539,7 +539,7 @@ template <
 	for (auto s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
 		for (auto s_ich = 0; s_ich < c_ich; s_ich++) {
 			for (auto s_iter = 0; s_iter < c_iter; s_iter++) {
-#pragma HLS pipeline style=frp
+#pragma HLS pipeline style=flp
 
 				auto s_reuse = s_iter % c_reuse;
 				auto s_num_och = s_iter / c_reuse;
@@ -652,7 +652,7 @@ template <
 	bool s_last;
 
 	for (uint32_t s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
-#pragma HLS pipeline style=frp
+#pragma HLS pipeline style=flp
 
 		uint16_t s_pipe_iter = s_o_index % c_pipe_iter; 
 		uint8_t s_num_och = s_pipe_iter % c_num_och;
@@ -793,56 +793,53 @@ template <
 	const int c_num_comp = c_oh*c_ow*c_och;
 	const int c_pipe_iter = c_num_comp;
 
-	for (auto s_pipe_iter = 0; s_pipe_iter < c_pipe_iter; s_pipe_iter+=c_ops) {
-		for (auto s_ops = 0; s_ops < c_ops; s_ops++) {
+	for (auto s_pipe_iter = 0; s_pipe_iter < c_pipe_iter; s_pipe_iter++) {
 #pragma HLS pipeline style=frp
-			QuantStream <
-				t_output_struct,
-				t_output,
-				t_acc_struct,
-				t_acc,
-				c_ich,
-				c_och,
-				c_oh,
-				c_ow,
-				c_index,
-				c_ops,
-				c_relu,
-				c_quant,
-				c_mask,
-				c_shift_h,
-				c_shift_l
-			> (
-				i_acc,
-				s_ops,
-				o_data
-			);
+    auto s_ops = s_pipe_iter % c_ops;
+    QuantStream <
+      t_output_struct,
+      t_output,
+      t_acc_struct,
+      t_acc,
+      c_ich,
+      c_och,
+      c_oh,
+      c_ow,
+      c_index,
+      c_ops,
+      c_relu,
+      c_quant,
+      c_mask,
+      c_shift_h,
+      c_shift_l
+    > (
+      i_acc,
+      s_ops,
+      o_data
+    );
 
 
-			QuantStream <
-				t_output_1x1_struct,
-				t_output_1x1,
-				t_acc_1x1_struct,
-				t_acc_1x1,
-				c_ich,
-				c_och,
-				c_oh,
-				c_ow,
-				1,
-				1,
-				0,
-				c_quant,
-				c_mask_1x1,
-				c_shift_h_1x1,
-				c_shift_l_1x1
-			> (
-				i_acc_1x1,
-				s_ops,
-				o_data_1x1
-			);
-
-		}
-
+    QuantStream <
+      t_output_1x1_struct,
+      t_output_1x1,
+      t_acc_1x1_struct,
+      t_acc_1x1,
+      c_ich,
+      c_och,
+      c_oh,
+      c_ow,
+      1,
+      1,
+      0,
+      c_quant,
+      c_mask_1x1,
+      c_shift_h_1x1,
+      c_shift_l_1x1
+    > (
+      i_acc_1x1,
+      s_ops,
+      o_data_1x1
+    );
 	}
 
 }
@@ -872,32 +869,30 @@ template <
 	const int c_num_comp = c_oh*c_ow*c_och;
 	const int c_pipe_iter = c_num_comp;
 
-	for (auto s_pipe_iter = 0; s_pipe_iter < c_pipe_iter; s_pipe_iter+=c_ops) {
-		for (auto s_ops = 0; s_ops < c_ops; s_ops++) {
+	for (auto s_pipe_iter = 0; s_pipe_iter < c_pipe_iter; s_pipe_iter++) {
 #pragma HLS pipeline style=frp
-			QuantStream <
-				t_output_struct,
-				t_output,
-				t_acc_struct,
-				t_acc,
-				c_ich,
-				c_och,
-				c_oh,
-				c_ow,
-				c_index,
-				c_ops,
-				c_relu,
-				c_quant,
-				c_mask,
-				c_shift_h,
-				c_shift_l
-			> (
-				i_acc,
-				s_ops,
-				o_data
-			);
-
-		}
+    auto s_ops = s_pipe_iter % c_ops;
+    QuantStream <
+      t_output_struct,
+      t_output,
+      t_acc_struct,
+      t_acc,
+      c_ich,
+      c_och,
+      c_oh,
+      c_ow,
+      c_index,
+      c_ops,
+      c_relu,
+      c_quant,
+      c_mask,
+      c_shift_h,
+      c_shift_l
+    > (
+      i_acc,
+      s_ops,
+      o_data
+    );
 	}
 
 }

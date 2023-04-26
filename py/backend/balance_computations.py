@@ -83,7 +83,7 @@ def ilp(io_dict, off_chip_storage):
     if off_chip_storage:
         clamp = 8
     else:
-        clamp = 16
+        clamp = 8
 
     layers_info = []
 
