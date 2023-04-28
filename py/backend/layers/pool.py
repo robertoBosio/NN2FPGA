@@ -150,7 +150,7 @@ def parse(name, node):
     pragma["name"] = "stream"
     options = [
         ["variable", "s_%s" % output_name],
-        ["depth", 2],
+        ["depth", node["och"]],
         ["type", "fifo"],
     ]
     pragma["options"] = options

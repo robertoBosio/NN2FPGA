@@ -36,4 +36,6 @@ all_sim: generate compile_sim
 run_model:
 	python py/utils/test_model.py
 
-all: generate syn vivado_flow
+backend: syn vivado_flow
+
+all: generate backend

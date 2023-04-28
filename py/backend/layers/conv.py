@@ -212,6 +212,15 @@ def parse_wout(name, node):
 
     block["pragma"] = []
 
+    # FIX BUG HALF SPEED, WHEN CHANGING THE OUTPUT CHANNEL THE DEPTH MUST BE
+    # PROPORTIONAL TO THE SIZE OF THE CHANGE
+      # if (node["och"] > node["ich"]):
+    #   depth = node["och"]
+    # else:
+    #   depth = 2
+
+    depth = node["och"]
+
     pragma = {}
     pragma["name"] = "stream"
     if (node["reuse"] > 1):
@@ -220,7 +229,7 @@ def parse_wout(name, node):
         pragma_name = "s_%s" % (output_name)
     options = [
         ["variable", pragma_name],
-        ["depth", 2],
+        ["depth", depth],
         ["type", "fifo"],
     ]
     pragma["options"] = options
@@ -410,11 +419,12 @@ def parse_comp(name, node):
 
     block["pragma"] = []
 
+    depth = int(node["och"]/node["ops"] + 1)
     pragma = {}
     pragma["name"] = "stream"
     options = [
         ["variable", "s_%s_acc" % (output_name)],
-        ["depth", 2],
+        ["depth", depth],
         ["type", "fifo"],
     ]
     pragma["options"] = options
@@ -425,7 +435,7 @@ def parse_comp(name, node):
         pragma["name"] = "stream"
         options = [
             ["variable", "s_%s_acc" % (output_1x1_name)],
-            ["depth", 2],
+            ["depth", depth],
             ["type", "fifo"],
         ]
         pragma["options"] = options
@@ -436,6 +446,7 @@ def parse_comp(name, node):
         depth = (node["fh"]-1)*node["iw"]*node["ich"]
         # first two pixels of the third line
         depth += (node["fw"]-1)*node["ich"]
+        depth += node["och"]
         pragma = {}
         pragma["name"] = "stream"
         if (node["reuse"] > 1):
