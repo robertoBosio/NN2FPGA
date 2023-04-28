@@ -49,7 +49,13 @@ template <
 
 	for (auto s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
 		for (auto s_ich = 0; s_ich < c_ich; s_ich++) {
+/* #if c_iter==1 */
+/* #pragma HLS pipeline style=flp */
+/* #endif */
 			for (auto s_iter = 0; s_iter < c_iter; s_iter++) {
+/* #if c_iter>1 */
+/* #pragma HLS pipeline style=flp */
+/* #endif */
 #pragma HLS pipeline style=flp
 
 				auto s_reuse = s_iter % c_reuse;
