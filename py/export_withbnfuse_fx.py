@@ -30,7 +30,7 @@ parser.add_argument('--pretrain_dir', type=str, default='resnetq_8w8f_cifar_fx')
 parser.add_argument('--cifar', type=int, default=10)
 parser.add_argument('--lr', type=float, default=0.01)
 parser.add_argument('--wd', type=float, default=1e-4)
-parser.add_argument('--train_batch_size', type=int, default=200)
+parser.add_argument('--train_batch_size', type=int, default=256)
 parser.add_argument('--eval_batch_size', type=int, default=100)
 parser.add_argument('--max_epochs', type=int, default=250)
 parser.add_argument('--log_interval', type=int, default=40)
@@ -103,6 +103,7 @@ def main():
 
     def train(epoch):
         print('\nEpoch: %d' % epoch)
+        model.to('cuda:0')
         model.train()
         train_loss, correct, total = 0, 0 ,0
 
@@ -169,6 +170,7 @@ def main():
                 'epoch': epoch,
             }
             torch.save(state, os.path.join(cfg.ckpt_dir, f'checkpoint_quant_fx.t7'))
+            model.to('cpu')
             QONNXManager.export(model.module, input_shape=(1, 3, 32, 32), export_path='onnx/Brevonnx_resnet_final_fx.onnx')            
             best_acc = acc
 
