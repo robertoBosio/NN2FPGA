@@ -19,6 +19,7 @@ import brevitas
 from brevitas.core.restrict_val import RestrictValueType
 from brevitas.core.scaling import ScalingImplType
 import onnx
+from brevitas.export.onnx.qonnx.manager import QONNXManager
 parser = argparse.ArgumentParser(description='brevitas_resnet fx implementation')
 
 parser.add_argument('--root_dir', type=str, default='./')
@@ -29,7 +30,7 @@ parser.add_argument('--pretrain_dir', type=str, default='resnetq_8w8f_cifar_fx')
 parser.add_argument('--cifar', type=int, default=10)
 parser.add_argument('--lr', type=float, default=0.01)
 parser.add_argument('--wd', type=float, default=1e-4)
-parser.add_argument('--train_batch_size', type=int, default=256)
+parser.add_argument('--train_batch_size', type=int, default=200)
 parser.add_argument('--eval_batch_size', type=int, default=100)
 parser.add_argument('--max_epochs', type=int, default=250)
 parser.add_argument('--log_interval', type=int, default=40)
@@ -168,6 +169,7 @@ def main():
                 'epoch': epoch,
             }
             torch.save(state, os.path.join(cfg.ckpt_dir, f'checkpoint_quant_fx.t7'))
+            QONNXManager.export(model.module, input_shape=(1, 3, 32, 32), export_path='onnx/Brevonnx_resnet_final_fx.onnx')            
             best_acc = acc
 
 
@@ -197,17 +199,6 @@ def main():
                 outputs = model(inputs)
                 outputs = outputs.view(outputs.size(0),-1)
                 break
-            with open("tmp/resnet_act.txt", "w+") as fd:
-                for name, tensor in activation.items():
-                    shape = tensor.shape
-                    fd.write("%s\n" % name)
-                    for b in range(shape[0]):
-                        for ih in range(shape[2]):
-                            for iw in range(shape[3]):
-                                for ich in range(shape[1]):
-                                    value = tensor[b][ich][ih][iw]
-                                    fd.write("%f " % value)
-                                fd.write("\n")
 
     model.to('cuda:0')
     #print(model)
@@ -254,7 +245,7 @@ def main():
          test(start_epoch)
          print("\n-------------------RETRAINING-----------------\n") 
          retrain = 1
-         for epoch in range(start_epoch, start_epoch+1): 
+         for epoch in range(start_epoch, start_epoch+150): 
             if(not(post_quant)) :
                 train(epoch)
             test(epoch)
@@ -268,19 +259,13 @@ def main():
 
 
     model.to('cpu')
-    dummy_input = torch.randn(10, 3, 32, 32, device="cpu")
-    example_path = './onnx/'
-    path = example_path + 'Brevonnx_resnet_final_fx.onnx'   
-    os.makedirs(example_path, exist_ok=True)
-    from brevitas.export.onnx.qonnx.manager import QONNXManager 
-    QONNXManager.export(model.module, input_shape=(1, 3, 32, 32), export_path='onnx/Brevonnx_resnet_final_fx.onnx')
-    from qonnx.transformation import infer_shapes
-    import onnx
-    from onnx import helper, numpy_helper
+    # dummy_input = torch.randn(10, 3, 32, 32, device="cpu")
+    # example_path = './onnx/'
+    # path = example_path + 'Brevonnx_resnet_final_fx.onnx'   
+    # os.makedirs(example_path, exist_ok=True)
+    # QONNXManager.export(model.module, input_shape=(1, 3, 32, 32), export_path='onnx/Brevonnx_resnet_final_fx.onnx')
+    # from qonnx.transformation import infer_shapes
    
-    example_path = './onnx/'
-    path = example_path + 'Brevonnx_resnet_final_fx.onnx'                                       
-    
     #onnx.save(onnx_model, 'onnx/Brevonnx_resnet_final.onnx')                                                                        
     if (print_onnx) :   
         from qonnx.core.modelwrapper import ModelWrapper                                
