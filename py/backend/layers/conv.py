@@ -219,7 +219,8 @@ def parse_wout(name, node):
     # else:
     #   depth = 2
 
-    depth = node["och"]
+    # depth = node["och"] + 1
+    depth = node["och"] + node["och"]*int(node["och"]/node["ich"])
 
     pragma = {}
     pragma["name"] = "stream"
@@ -419,7 +420,8 @@ def parse_comp(name, node):
 
     block["pragma"] = []
 
-    depth = int(node["och"]/node["ops"] + 1)
+    # depth = int(node["och"]/node["ops"] + 1)
+    depth = 2
     pragma = {}
     pragma["name"] = "stream"
     options = [
@@ -446,7 +448,7 @@ def parse_comp(name, node):
         depth = (node["fh"]-1)*node["iw"]*node["ich"]
         # first two pixels of the third line
         depth += (node["fw"]-1)*node["ich"]
-        depth += node["och"]
+        depth += node["och"]+1
         pragma = {}
         pragma["name"] = "stream"
         if (node["reuse"] > 1):

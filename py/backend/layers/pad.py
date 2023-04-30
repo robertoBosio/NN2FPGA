@@ -41,11 +41,13 @@ def parse(name, node):
 
     block["declare"].append(declare)
 
+    # depth = node["och"] + node["och"]*int(node["och"]/node["ich"])*4
+    depth = node["och"] + node["och"]*int(node["och"]/node["ich"])*4
     pragma = {}
     pragma["name"] = "stream"
     options = [
         ["variable", "s_%s_padded" % (input_name)],
-        ["depth", 2],
+        ["depth", depth],
         ["type", "fifo"],
     ]
     pragma["options"] = options

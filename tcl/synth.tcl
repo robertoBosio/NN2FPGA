@@ -48,4 +48,6 @@ csynth_design
 
 export_design
 
+cosim_design
+
 exit

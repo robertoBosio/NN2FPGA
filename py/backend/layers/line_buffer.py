@@ -79,12 +79,14 @@ def parse(name, node):
 
             block["pragma"] = []
 
+            depth = node["fw"]*node["fh"]+1+node["och"]*8
+
             if (index == 0):
                 pragma = {}
                 pragma["name"] = "stream"
                 options = [
                     ["variable", "s_%s_compute" % output_name],
-                    ["depth", node["fw"]*node["fh"]+1],
+                    ["depth", depth],
                     # ["depth", "2"],
                     ["type", "fifo"],
                 ]

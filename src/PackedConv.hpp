@@ -743,12 +743,11 @@ template <
 	int c_shift_h,
 	int c_shift_l
 > void QuantStream(
-	hls::stream<t_acc_struct> i_acc[c_ops],
-	int s_ops,
+	t_acc_struct i_acc,
 	hls::stream<t_output_struct> &o_data
 ) {
 #pragma HLS inline
-	t_acc_struct s_acc_struct = i_acc[s_ops].read();
+	t_acc_struct s_acc_struct = i_acc;
 	t_acc s_acc = c_quant;
 
 	/* 1 subtraction for quantization */
@@ -796,12 +795,27 @@ template <
 ) {
 /* #pragma HLS inline */
 
-	const int c_num_comp = c_oh*c_ow*c_och;
-	const int c_pipe_iter = c_num_comp;
+	const auto c_num_comp = c_oh*c_ow*c_och;
+	const auto c_pipe_iter = c_num_comp;
+  const auto c_num_och = c_och/c_ops;
+
+  t_acc_struct s_acc[c_och];
+  t_acc_1x1_struct s_acc_1x1[c_och];
 
 	for (auto s_pipe_iter = 0; s_pipe_iter < c_pipe_iter; s_pipe_iter++) {
 #pragma HLS pipeline style=frp
     auto s_ops = s_pipe_iter % c_ops;
+    auto s_num_och = s_pipe_iter % c_num_och;
+    auto s_och = s_pipe_iter % c_och;
+
+    if (s_och < c_num_och) {
+      for (auto s_r_ops = 0; s_r_ops < c_ops; s_r_ops++){
+        auto s_r_och = s_num_och*c_ops + s_r_ops;
+        s_acc[s_r_och] = i_acc[s_r_ops].read();
+        s_acc_1x1[s_r_och] = i_acc_1x1[s_r_ops].read();
+      }
+    }
+
     QuantStream <
       t_output_struct,
       t_output,
@@ -819,8 +833,7 @@ template <
       c_shift_h,
       c_shift_l
     > (
-      i_acc,
-      s_ops,
+      s_acc[s_och],
       o_data
     );
 
@@ -842,8 +855,7 @@ template <
       c_shift_h_1x1,
       c_shift_l_1x1
     > (
-      i_acc_1x1,
-      s_ops,
+      s_acc_1x1[s_och],
       o_data_1x1
     );
 	}
@@ -872,12 +884,25 @@ template <
 ) {
 /* #pragma HLS inline */
 
-	const int c_num_comp = c_oh*c_ow*c_och;
-	const int c_pipe_iter = c_num_comp;
+	const auto c_num_comp = c_oh*c_ow*c_och;
+	const auto c_pipe_iter = c_num_comp;
+  const auto c_num_och = c_och/c_ops;
+
+  t_acc_struct s_acc[c_och];
 
 	for (auto s_pipe_iter = 0; s_pipe_iter < c_pipe_iter; s_pipe_iter++) {
 #pragma HLS pipeline style=frp
     auto s_ops = s_pipe_iter % c_ops;
+    auto s_num_och = s_pipe_iter % c_num_och;
+    auto s_och = s_pipe_iter % c_och;
+
+    if (s_och < c_num_och) {
+      for (auto s_r_ops = 0; s_r_ops < c_ops; s_r_ops++){
+        auto s_r_och = s_num_och*c_ops + s_r_ops;
+        s_acc[s_r_och] = i_acc[s_r_ops].read();
+      }
+    }
+
     QuantStream <
       t_output_struct,
       t_output,
@@ -895,8 +920,7 @@ template <
       c_shift_h,
       c_shift_l
     > (
-      i_acc,
-      s_ops,
+      s_acc[s_och],
       o_data
     );
 	}
