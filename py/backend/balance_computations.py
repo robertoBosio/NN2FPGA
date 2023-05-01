@@ -5,7 +5,7 @@ import math
 
 def parallel_ops_number(layers_info, clamp=None):
 
-    NUM_DSP = 1300
+    NUM_DSP = 400
     MIN_OP = 1
     DELTA = 1
 
