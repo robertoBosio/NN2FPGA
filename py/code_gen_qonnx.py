@@ -14,8 +14,8 @@ from qonnx.transformation.infer_datatypes import InferDataTypes
 from qonnx.util.cleanup import cleanup_model
 def main():
 
-    # onnx_path = "./onnx/Brevonnx_resnet_final_fx.onnx"
-    onnx_path = "./onnx/Brevonnx_resnet8_final_fx.onnx"
+    onnx_path = "./onnx/Brevonnx_resnet_final_fx.onnx"
+    # onnx_path = "./onnx/Brevonnx_resnet8_final_fx.onnx"
     # onnx_path = "./onnx/2layer.onnx"
     #onnx_path = "./onnx/CNV_2W2A.onnx"
     onnx_model = ModelWrapper(onnx_path)
