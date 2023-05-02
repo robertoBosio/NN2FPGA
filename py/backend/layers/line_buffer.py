@@ -45,7 +45,8 @@ def parse(name, node):
             block["args"] = []
 
             if index == 0:
-                block["args"].append("s_%s_padded" % input_name)
+                # block["args"].append("s_%s_padded" % input_name)
+                block["args"].append("s_%s[0]" % input_name)
             else:
                 block["args"].append(
                     "s_%s_data[%0d]" % (input_name, index-1)
@@ -105,8 +106,8 @@ def parse(name, node):
             else:
                 depth = node["ich"]
 
-            # if (fw == 0) and (fh == 0):
-            #     depth = node["iw"]*node["ich"]
+            if (fw == 0) and (fh == 0):
+                depth = node["ich"]*2 + 1
 
 
             if not((fh == (dfh-1)) and (fw == (dfw-1))):

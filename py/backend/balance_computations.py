@@ -3,9 +3,13 @@ import sys
 import pulp
 import math
 
-def parallel_ops_number(layers_info, clamp=None):
+def parallel_ops_number(layers_info, clamp=None, board="ULTRA96v2"):
 
-    NUM_DSP = 400
+    if (board == "ULTRA96v2"):
+        NUM_DSP = 400
+    elif (board == "KRIA"):
+        NUM_DSP = 1300
+
     MIN_OP = 1
     DELTA = 1
 
@@ -68,7 +72,7 @@ def parallel_ops_number(layers_info, clamp=None):
     
     return parallel_op
 
-def ilp(io_dict, off_chip_storage):
+def ilp(io_dict, off_chip_storage, board="ULTRA96v2"):
 
     if off_chip_storage:
         clamp = 8
@@ -100,7 +104,7 @@ def ilp(io_dict, off_chip_storage):
                 ]
             )
 
-    parallel_ops = parallel_ops_number(layers_info, clamp)
+    parallel_ops = parallel_ops_number(layers_info, clamp, board)
 
     print(parallel_ops)
 

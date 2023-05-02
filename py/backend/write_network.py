@@ -20,7 +20,8 @@ import numpy as np
 def write_network(
     model,
     file_name="Network",
-    off_chip_storage=False
+    off_chip_storage=False,
+    board="ULTRA96v2"
 ):
 
     read_width = 8
@@ -46,7 +47,8 @@ def write_network(
 
     io_dict = balance_computations.ilp(
         io_dict,
-        off_chip_storage
+        off_chip_storage,
+        board
     )
 
     io_dict = hw_quant(
