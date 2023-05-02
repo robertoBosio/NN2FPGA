@@ -24,20 +24,21 @@ def parse(name, node):
     block["template"].append("c_%s_iw" % name)
     block["template"].append("c_%s_fh" % name)
     block["template"].append("c_%s_fw" % name)
+    block["template"].append("c_%s_stride" % name)
     block["template"].append("c_%s_pad" % name)
 
     block["args"] = []
 
-    block["args"].append("s_%s[0]" % input_name)
-    block["args"].append("s_%s_padded" % input_name)
+    block["args"].append("s_%s_pre_pad" % input_name)
+    block["args"].append("s_%s_compute" % input_name)
 
     block["declare"] = []
 
     declare = {}
-    declare["name"] = "s_%s_padded" % input_name
+    declare["name"] = "s_%s_compute" % input_name
     declare["type"] = "t_%s_struct" % input_name
-    declare["is_array"] = False
-    declare["dim"] = 1
+    declare["is_array"] = True
+    declare["dim"] = node["fh"]*node["fw"]
 
     block["declare"].append(declare)
 
@@ -46,7 +47,7 @@ def parse(name, node):
     pragma = {}
     pragma["name"] = "stream"
     options = [
-        ["variable", "s_%s_padded" % (input_name)],
+        ["variable", "s_%s_compute" % (input_name)],
         ["depth", depth],
         ["type", "fifo"],
     ]

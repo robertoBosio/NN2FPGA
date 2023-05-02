@@ -75,10 +75,10 @@ def parse_all_main(io_dict):
 
         if 'conv' == node["type"]:
             if (not node["is_1x1"]):
-                # parsed_write.append(
-                #     pad.parse(name, node)
-                # )
                 parsed_write = parsed_write + line_buffer.parse(name, node)
+                parsed_write.append(
+                    pad.parse(name, node)
+                )
             parsed_write = parsed_write + conv.parse(name, node)
 
         if 'pool' == node["type"]:

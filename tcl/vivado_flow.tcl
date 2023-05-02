@@ -25,11 +25,11 @@ make_wrapper -files [get_files ${PRJ_ROOT}/${PRJ_NAME}/${PRJ_NAME}.srcs/sources_
 add_files -norecurse ${PRJ_ROOT}/${PRJ_NAME}/${PRJ_NAME}.gen/sources_1/bd/design_1/hdl/design_1_wrapper.v
 set_property top design_1_wrapper [current_fileset]; #
 
-launch_runs synth_1 -jobs 8
+launch_runs synth_1 -jobs 2
 wait_on_run synth_1
 open_run synth_1
 
-launch_runs impl_1 -jobs 8
+launch_runs impl_1 -jobs 2
 wait_on_run impl_1
 open_run impl_1
 

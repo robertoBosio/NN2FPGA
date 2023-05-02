@@ -445,6 +445,7 @@ def parse(name, node):
         block["defines"]["c_%s_ops" % (output_name)]   = ["const", node["ops"]]
         block["defines"]["c_%s_reuse" % (output_name)] = ["const", node["reuse"]]
 
+        block["pragma"] = []
         pragma = {}
         pragma["name"] = "array_partition"
         options = [
@@ -455,7 +456,17 @@ def parse(name, node):
         ]
         pragma["options"] = options
 
-        block["pragma"] = []
+        block["pragma"].append(pragma)
+        pragma = {}
+        pragma["name"] = "array_reshape"
+        options = [
+            ["variable", "c_%s" % (output_name)],
+            ["type", "cyclic"],
+            ["factor", node["ops"]],
+            ["dim", 3],
+        ]
+        pragma["options"] = options
+
         block["pragma"].append(pragma)
         block["size"] = node["iw"]*node["ih"]
         block["is_const"] = True

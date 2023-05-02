@@ -1018,7 +1018,7 @@ template <
 	hls::stream<t_input> &i_data,
 	hls::stream<t_input> &o_compute
 ) {
-#pragma HLS inline
+/* #pragma HLS inline */
 
 	const int c_pad_index_h = c_pad * (c_fh - 1) / 2;
 	const int c_pad_index_w = c_pad * (c_fw - 1) / 2;
@@ -1039,9 +1039,6 @@ template <
 	const int c_endh = c_ih_pad - c_pad_index_h;
 	const int c_endw = c_iw_pad - c_pad_index_w;
 
-	hls::stream<t_input> s_compute;
-	#pragma HLS stream variable=s_compute depth=2 type=fifo
-
 	for (auto s_index_h = c_starth; s_index_h < c_endh; s_index_h++) {
 		for (auto s_index_w = c_startw; s_index_w < c_endw; s_index_w++) {
 			for (auto s_index_ich = 0; s_index_ich < c_ich; s_index_ich++) {
@@ -1059,34 +1056,66 @@ template <
 
 				t_input s_input = i_data.read();
 				if (s_compute_write)
-					s_compute.write(s_input);
+					o_compute.write(s_input);
 			}
 		}
 	}
 
-  t_input s_write;
+}
 
-	const int c_wrstarth = (c_pos_h);
-	const int c_wrstartw = (c_pos_w);
-	const int c_wrendh = c_ih + c_wrstarth;
-	const int c_wrendw = c_iw + c_wrstartw;
+template <
+	class t_input,
+	int c_ich,
+	int c_iw,
+	int c_ih,
+	int c_fw,
+	int c_fh,
+  int c_str,
+	int c_pad
+> void PadInput(
+	hls::stream<t_input> i_data[c_fw*c_fh],
+	hls::stream<t_input> o_data[c_fw*c_fh]
+) {
+/* #pragma HLS inline */
 
-	for (auto s_index_h = c_wrstarth; s_index_h < c_wrendh; s_index_h+=c_str) {
-		for (auto s_index_w = c_wrstartw; s_index_w < c_wrendw; s_index_w+=c_str) {
+	/* This handles padding aware inputs */
+
+	const int c_pad_index_h = c_pad * (c_fh - 1) / 2;
+	const int c_pad_index_w = c_pad * (c_fw - 1) / 2;
+	const int c_ih_pad = c_ih + c_pad_index_h*2;
+	const int c_iw_pad = c_iw + c_pad_index_w*2;
+  const int c_index = c_fh*c_fw;
+
+  bool s_last;
+	for (auto s_index_h = 0; s_index_h < c_ih; s_index_h+=c_str) {
+		for (auto s_index_w = 0; s_index_w < c_iw; s_index_w+=c_str) {
 			for (auto s_index_ich = 0; s_index_ich < c_ich; s_index_ich++) {
 #pragma HLS pipeline style=frp
-				bool s_compute_read = true;
+        for (auto s_fh=0; s_fh < c_fh; s_fh++) {
+          for (auto s_fw=0; s_fw < c_fw; s_fw++) {
+            t_input s_write;
 
-				s_compute_read &= (s_index_h >= c_pad_index_h);
-				s_compute_read &= (s_index_h < (c_ih+c_pad_index_h));
-				s_compute_read &= (s_index_w >= c_pad_index_w);
-				s_compute_read &= (s_index_w < (c_iw+c_pad_index_w));
+            auto s_index = s_fh*c_fw+s_fw;
 
-        if (s_compute_read)
-          s_write = s_compute.read();
-        else
-          s_write.data = 0;
-        o_compute.write(s_write);
+            bool s_data_read = true;
+
+            s_data_read &= (s_index_h >= (c_pad_index_h-s_fh));
+            s_data_read &= (s_index_h < (c_ih+c_pad_index_h-s_fh));
+            s_data_read &= (s_index_w >= (c_pad_index_w-s_fw));
+            s_data_read &= (s_index_w < (c_iw+c_pad_index_w-s_fw));
+
+            if (s_data_read) {
+              s_write = i_data[c_index-s_index-1].read();
+              if (s_index == c_index-1)
+                s_last = s_write.last;
+            }
+            else {
+              s_write.data = 0;
+              s_write.last = s_last;
+            }
+            o_data[c_index - s_index - 1].write(s_write);
+          }
+        }
 			}
 		}
 	}
@@ -1112,7 +1141,7 @@ template <
 	hls::stream<t_input> &o_compute,
 	hls::stream<t_input> &o_data
 ) {
-#pragma HLS inline
+/* #pragma HLS inline */
 
 	const int c_pad_index_h = c_pad * (c_fh - 1) / 2;
 	const int c_pad_index_w = c_pad * (c_fw - 1) / 2;
@@ -1153,35 +1182,8 @@ template <
 
 				t_input s_input = i_data.read();
 				if (s_compute_write)
-					s_compute.write(s_input);
+					o_compute.write(s_input);
 				o_data.write(s_input);
-			}
-		}
-	}
-
-  t_input s_write;
-
-	const int c_wrstarth = (c_pos_h);
-	const int c_wrstartw = (c_pos_w);
-	const int c_wrendh = c_ih + c_wrstarth;
-	const int c_wrendw = c_iw + c_wrstartw;
-
-	for (auto s_index_h = c_wrstarth; s_index_h < c_wrendh; s_index_h+=c_str) {
-		for (auto s_index_w = c_wrstartw; s_index_w < c_wrendw; s_index_w+=c_str) {
-			for (auto s_index_ich = 0; s_index_ich < c_ich; s_index_ich++) {
-#pragma HLS pipeline style=frp
-				bool s_compute_read = true;
-
-				s_compute_read &= (s_index_h >= c_pad_index_h);
-				s_compute_read &= (s_index_h < (c_ih+c_pad_index_h));
-				s_compute_read &= (s_index_w >= c_pad_index_w);
-				s_compute_read &= (s_index_w < (c_iw+c_pad_index_w));
-
-        if (s_compute_read)
-          s_write = s_compute.read();
-        else
-          s_write.data = 0;
-        o_compute.write(s_write);
 			}
 		}
 	}

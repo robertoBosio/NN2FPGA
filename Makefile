@@ -1,12 +1,16 @@
 export MEM=MemoryManagement
 export NAME=Network
 export CC=gcc
-export XILINC=/tools/xilinx/Vitis_HLS/2022.2/include
+export XILINC=/tools/xilinx/Vitis_HLS/2022.2/include/
 export BOARD_PATH=/home/filippo/.Xilinx/Vivado/2022.2/xhub/board_store/xilinx_board_store
 export CFLAGS=-I${XILINC}
 export DEPS=${NAME}.hpp
+export COSIM=0
 # export BOARD=ULTRA96v2
 # export ONNX_PATH=./onnx/Brevonnx_resnet_final_fx.onnx
+
+restore_design:
+	vitis_hls -f tcl/restore_design.tcl
 
 syn:
 	vitis_hls -f tcl/synth.tcl

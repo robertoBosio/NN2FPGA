@@ -1,6 +1,7 @@
 set impl_sel "solution_0"
 
 set BOARD $::env(BOARD)
+set COSIM $::env(COSIM)
 # set board "KRIA"
 
 set TOP_NAME Network
@@ -48,6 +49,8 @@ csynth_design
 
 export_design
 
-cosim_design
+if {${COSIM} == 1} {
+  cosim_design
+}
 
 exit

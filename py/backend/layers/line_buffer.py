@@ -45,7 +45,6 @@ def parse(name, node):
             block["args"] = []
 
             if index == 0:
-                # block["args"].append("s_%s_padded" % input_name)
                 block["args"].append("s_%s[0]" % input_name)
             else:
                 block["args"].append(
@@ -53,7 +52,7 @@ def parse(name, node):
                 )
 
             block["args"].append(
-                "s_%s_compute[%0d]" % (input_name, index)
+                "s_%s_pre_pad[%0d]" % (input_name, index)
             )
 
             if index < (dindex-1):
@@ -72,7 +71,7 @@ def parse(name, node):
                 block["declare"].append(declare)
 
                 declare = {}
-                declare["name"] = "s_%s_compute" % output_name
+                declare["name"] = "s_%s_pre_pad" % output_name
                 declare["type"] = "t_%s_struct" % output_name
                 declare["is_array"] = True
                 declare["dim"] = dindex
@@ -83,17 +82,30 @@ def parse(name, node):
             output_ratio = int(node["och"]/node["ich"])
             if output_ratio > 1: 
                 depth = node["fw"]*node["fh"]+1+node["och"]*4+1
+                impl = "BRAM"
             else:
                 depth = node["fw"]*node["fh"]+1
+                impl = "AUTO"
             # depth = node["fw"]*node["fh"]+1+node["och"]*8
 
             if (index == 0):
                 pragma = {}
                 pragma["name"] = "stream"
                 options = [
-                    ["variable", "s_%s_compute" % output_name],
+                    ["variable", "s_%s_pre_pad" % output_name],
                     ["depth", depth],
                     # ["depth", "2"],
+                    ["type", "fifo"],
+                ]
+                pragma["options"] = options
+                block["pragma"].append(pragma)
+
+                pragma = {}
+                pragma["name"] = "bind_storage"
+                options = [
+                    ["variable", "s_%s_pre_pad" % output_name],
+                    # ["depth", "2"],
+                    ["impl", impl],
                     ["type", "fifo"],
                 ]
                 pragma["options"] = options
