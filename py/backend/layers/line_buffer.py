@@ -81,10 +81,11 @@ def parse(name, node):
 
             output_ratio = int(node["och"]/node["ich"])
             if output_ratio > 1: 
-                depth = node["fw"]*node["fh"]+1+node["och"]*4+1
-                impl = "BRAM"
+                depth = node["och"]*4+1
+                # impl = "BRAM"
+                impl = "AUTO"
             else:
-                depth = node["fw"]*node["fh"]+1
+                depth = 2
                 impl = "AUTO"
             # depth = node["fw"]*node["fh"]+1+node["och"]*8
 
@@ -133,6 +134,20 @@ def parse(name, node):
                 pragma["options"] = options
 
                 block["pragma"].append(pragma)
+
+                if (fh == 0) and (fw == 0):
+                  pragma = {}
+                  pragma["name"] = "bind_storage"
+                  options = [
+                      ["variable", "s_%s_data[0]" % output_name],
+                      # ["depth", "2"],
+                      # ["impl", "BRAM"],
+                      ["impl", "AUTO"],
+                      ["type", "fifo"],
+                  ]
+                  pragma["options"] = options
+                  block["pragma"].append(pragma)
+
 
             line_buffer_blocks.append(block)
 
