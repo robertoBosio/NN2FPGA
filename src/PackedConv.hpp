@@ -40,7 +40,7 @@ template <
 	t_input s_input[c_reuse][c_index];
 #pragma HLS array_partition variable=s_input type=complete
 	bool s_last = false;
-	int8_t s_weight[c_ops][c_index];
+	t_weight s_weight[c_index];
 #pragma HLS array_partition variable=s_weight type=complete
 
 		/* for (auto s_reuse = 0; s_reuse < c_reuse; s_reuse++) */
@@ -75,11 +75,8 @@ template <
 				/* TODO: Adjust for generic bit quantizations */
 				if (s_reuse == 0) {
 					for (auto s_index = 0; s_index < c_index; s_index++) {
-						t_weight s_tmp_weight = i_weights[s_index].read();
-						for (auto s_ops = 0; s_ops < c_ops; s_ops++) {
-							/* Input weights are reversed with respect to original order */
-							s_weight[s_ops][s_index] = s_tmp_weight[s_ops];
-						}
+            /* Input weights are reversed with respect to original order */
+            s_weight[s_index] = i_weights[s_index].read();
 					}
 				}
 
@@ -95,7 +92,7 @@ template <
 					s_acc_base = s_acc_buff[s_reuse][s_och];
 
 					for (auto s_index = 0; s_index < c_index; s_index++) {
-						s_acc += s_input[s_reuse][s_index] * s_weight[s_ops][s_index];
+						s_acc += s_input[s_reuse][s_index] * s_weight[s_index][s_ops];
 					}
 
 					if (s_ich != 0)
@@ -147,7 +144,7 @@ template <
 	t_input s_input[c_reuse][c_index];
 #pragma HLS array_partition variable=s_input type=complete
 	bool s_last = false;
-	int8_t s_weight[c_ops][c_index];
+	t_weight s_weight[c_index];
 #pragma HLS array_partition variable=s_weight type=complete
 	t_bias s_bias;
 #pragma HLS array_partition variable=s_bias type=complete
@@ -178,11 +175,8 @@ template <
 				/* TODO: Adjust for generic bit quantizations */
 				if (s_reuse == 0) {
 					for (auto s_index = 0; s_index < c_index; s_index++) {
-						t_weight s_tmp_weight = i_weights[s_index].read();
-						for (auto s_ops = 0; s_ops < c_ops; s_ops++) {
-							/* Input weights are reversed with respect to original order */
-							s_weight[s_ops][s_index] = s_tmp_weight[s_ops];
-						}
+            /* Input weights are reversed with respect to original order */
+            s_weight[s_index] = i_weights[s_index].read();
 					}
 				}
         if ((s_ich == 0) & (s_reuse == 0))
@@ -203,7 +197,7 @@ template <
 					s_acc_base = s_acc_buff[s_reuse][s_och];
 
 					for (auto s_index = 0; s_index < c_index; s_index++) {
-						s_acc += s_input[s_reuse][s_index] * s_weight[s_ops][s_index];
+						s_acc += s_input[s_reuse][s_index] * s_weight[s_index][s_ops];
 					}
 
 					if (s_ich != 0)
@@ -264,9 +258,9 @@ template <
 	t_input s_input[c_reuse][c_index];
 #pragma HLS array_partition variable=s_input type=complete
 	bool s_last = false;
-	int8_t s_weight[c_ops][c_index];
+	t_weight s_weight[c_index];
 #pragma HLS array_partition variable=s_weight type=complete
-	int8_t s_weight_1x1[c_ops][1];
+	t_weight_1x1 s_weight_1x1[1];
 #pragma HLS array_partition variable=s_weight_1x1 type=complete
 	t_bias s_bias;
 #pragma HLS array_partition variable=s_bias type=complete
@@ -299,17 +293,10 @@ template <
 				/* TODO: Adjust for generic bit quantizations */
 				if (s_reuse == 0) {
 					for (auto s_index = 0; s_index < c_index; s_index++) {
-						t_weight s_tmp_weight = i_weights[s_index].read();
-						for (auto s_ops = 0; s_ops < c_ops; s_ops++) {
-							/* Input weights are reversed with respect to original order */
-							s_weight[s_ops][s_index] = s_tmp_weight[s_ops];
-						}
+            /* Input weights are reversed with respect to original order */
+            s_weight[s_index] = i_weights[s_index].read();
 					}
-					t_weight_1x1 s_tmp_weight_1x1 = i_weights_1x1[0].read();
-					for (auto s_ops = 0; s_ops < c_ops; s_ops++) {
-						/* Input weights are reversed with respect to original order */
-						s_weight_1x1[s_ops][0] = s_tmp_weight_1x1[s_ops];
-					}
+					s_weight_1x1[0] = i_weights_1x1[0].read();
 					if (s_ich == 0)
 						s_bias = i_bias[0].read();
 					if (s_ich == 0)
@@ -336,7 +323,7 @@ template <
 					s_acc_base = s_acc_buff[s_reuse][s_och];
 
 					for (auto s_index = 0; s_index < c_index; s_index++) {
-						s_acc += s_input[s_reuse][s_index] * s_weight[s_ops][s_index];
+						s_acc += s_input[s_reuse][s_index] * s_weight[s_index][s_ops];
 					}
 
 					if (s_ich == 0)
@@ -346,7 +333,7 @@ template <
 
 					s_acc_1x1_base = s_acc_1x1_buff[s_reuse][s_och];
 
-					s_acc_1x1 += s_input[s_reuse][c_index/2] * s_weight_1x1[s_ops][0];
+					s_acc_1x1 += s_input[s_reuse][c_index/2] * s_weight_1x1[0][s_ops];
 
 					if (s_ich != 0)
 						s_acc += s_acc_base;
@@ -407,7 +394,7 @@ template <
 	t_input s_input[c_reuse][c_index];
 #pragma HLS array_partition variable=s_input type=complete
 	bool s_last = false;
-	int8_t s_weight[c_ops][c_index];
+	t_weight s_weight[c_index];
 #pragma HLS array_partition variable=s_weight type=complete
 	t_bias s_bias;
 #pragma HLS array_partition variable=s_bias type=complete
@@ -438,11 +425,8 @@ template <
 				/* TODO: Adjust for generic bit quantizations */
 				if (s_reuse == 0) {
 					for (auto s_index = 0; s_index < c_index; s_index++) {
-						t_weight s_tmp_weight = i_weights[s_index].read();
-						for (auto s_ops = 0; s_ops < c_ops; s_ops++) {
-							/* Input weights are reversed with respect to original order */
-							s_weight[s_ops][s_index] = s_tmp_weight[s_ops];
-						}
+            /* Input weights are reversed with respect to original order */
+            s_weight[s_index] = i_weights[s_index].read();
 					}
 					if (s_ich == 0)
 						s_bias = i_bias[0].read();
@@ -466,7 +450,7 @@ template <
 						t_input s_data = s_input[s_reuse][s_index];
 						if (c_shift_l != 0)
 							s_data = QuantAct<t_input,c_shift_l,c_shift_h,t_input>(s_data);
-						s_acc += s_data * s_weight[s_ops][s_index];
+						s_acc += s_data * s_weight[s_index][s_ops];
 					}
 
 					if (s_ich != 0)
@@ -532,7 +516,7 @@ template <
 	t_input s_input[c_reuse][c_index];
 #pragma HLS array_partition variable=s_input type=complete
 	bool s_last = false;
-	int8_t s_weight[c_ops][c_index];
+	t_weight s_weight[c_index];
 #pragma HLS array_partition variable=s_weight type=complete
 	t_bias s_bias;
 #pragma HLS array_partition variable=s_bias type=complete
@@ -564,11 +548,8 @@ template <
 				/* TODO: Adjust for generic bit quantizations */
 				if (s_reuse == 0) {
 					for (auto s_index = 0; s_index < c_index; s_index++) {
-						t_weight s_tmp_weight = i_weights[s_index].read();
-						for (auto s_ops = 0; s_ops < c_ops; s_ops++) {
-							/* Input weights are reversed with respect to original order */
-							s_weight[s_ops][s_index] = s_tmp_weight[s_ops];
-						}
+            /* Input weights are reversed with respect to original order */
+            s_weight[s_index] = i_weights[s_index].read();
 					}
 					if (s_ich == 0)
 						s_bias = i_bias[0].read();
@@ -601,7 +582,7 @@ template <
 					s_acc_base = s_acc_buff[s_reuse][s_och];
 
 					for (auto s_index = 0; s_index < c_index; s_index++) {
-						s_acc += s_input[s_reuse][s_index] * s_weight[s_ops][s_index];
+						s_acc += s_input[s_reuse][s_index] * s_weight[s_index][s_ops];
 					}
 
 					if (s_ich != 0)
@@ -684,13 +665,10 @@ template <
 		int8_t s_weight[c_ops][c_index];
 #pragma HLS array_partition variable=s_weight type=complete
 
-		for (uint8_t s_index = 0; s_index < c_index; s_index++) {
-			t_weight s_tmp_weight = i_weights[s_index].read();
-			for (uint8_t s_ops = 0; s_ops < c_ops; s_ops++) {
-				/* Input weights are reversed with respect to original order */
-				s_weight[s_ops][s_index] = s_tmp_weight[s_ops];
-			}
-		}
+    for (auto s_index = 0; s_index < c_index; s_index++) {
+      /* Input weights are reversed with respect to original order */
+      s_weight[s_index] = i_weights[s_index].read();
+    }
 
 		if (s_ich == 0)
 			s_bias = i_bias[0].read();

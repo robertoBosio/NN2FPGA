@@ -8,7 +8,7 @@ def parallel_ops_number(layers_info, clamp=None, board="ULTRA96v2"):
     if (board == "ULTRA96v2"):
         NUM_DSP = 400
     elif (board == "KRIA"):
-        NUM_DSP = 1000
+        NUM_DSP = 1300
 
     MIN_OP = 1
     DELTA = 1
@@ -77,7 +77,7 @@ def ilp(io_dict, off_chip_storage, board="ULTRA96v2"):
     if off_chip_storage:
         clamp = 8
     else:
-        clamp = 8
+        clamp = 16
 
     layers_info = []
 

@@ -40,6 +40,7 @@ config_interface -m_axi_alignment_byte_size 16
 config_interface -m_axi_max_read_burst_length 256
 config_interface -m_axi_num_read_outstanding 1
 config_interface -m_axi_latency 1
+config_compile -pipeline_style flp
 
 # Done to avoid forced pipelining of loops that could waste resources
 # config_compile -pipeline_loops 200000
