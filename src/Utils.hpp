@@ -19,8 +19,8 @@ template <
 	if (c_scale <= 0)
 		return (i_data << c_scale_inv);
 	else {
-		/* t_input round = (i_data >> (c_scale-1)) & 0x1; */
-		t_input round = 0;
+		t_input round = (i_data >> (c_scale-1)) & 0x1;
+		/* t_input round = 0; */
 		return ((i_data >> c_scale) + round);
 	}
 }
@@ -39,6 +39,7 @@ template <
 		return (s_data << c_scale_inv);
 	else {
 		t_input round = (s_data >> (c_scale-1)) & 0x1;
+		/* return (t_input)(((s_data >> c_scale) + round) & c_mask); */
 		return ((s_data >> c_scale) + round);
 	}
 }

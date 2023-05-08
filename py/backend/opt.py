@@ -165,11 +165,15 @@ def opt_merge_conv(model, io_dict):
         for layer_name, layer_info in io_dict.items():
 
             # Check if there are multiple layer connected to the net
-            layer_out_len = len(layer_info["output"])
+            output_name = layer_info["output"][0]
+            layer_out_len = len(io_connect[output_name][1])
             if layer_out_len > 1:
 
                 # Checking that the net level is the same
-                output_names = layer_info["output"]
+                # output_names = layer_info["output"]
+                output_names = []
+                for output_layer in io_connect[output_name][1]:
+                    output_names += io_dict[output_layer]["output"]
 
                 is_same_level = all(
                     [
@@ -178,9 +182,7 @@ def opt_merge_conv(model, io_dict):
                     ]
                 )
 
-                layer_out_names = [
-                    io_connect[output][1][0] for output in output_names
-                ]
+                layer_out_names = io_connect[output_name][1]
 
                 all_conv = all(
                     [
@@ -208,6 +210,7 @@ def opt_merge_conv(model, io_dict):
                     scale_factor = []
                     clip_factor = []
                     mask_factor = []
+                    in_scale_factor = []
                     for layer_merge_name in layer_out_names:
                         if layer_base_name != layer_merge_name:
                             layer_merge = io_dict[layer_merge_name]
@@ -223,11 +226,14 @@ def opt_merge_conv(model, io_dict):
                                 clip_factor.append(clip_value)
                                 mask_value = layer_merge["mask_factor"][i]
                                 mask_factor.append(mask_value)
+                                in_scale_value = layer_merge["in_scale_factor"][i]
+                                in_scale_factor.append(in_scale_value)
                             
                     io_dict[layer_base_name]["merge_1x1"] = True
 
-                    for input in input_tensor:
-                        io_dict[layer_base_name]["input"].append(input)
+                    for i, input in enumerate(input_tensor):
+                        if (i > 0):
+                          io_dict[layer_base_name]["input"].append(input)
 
                     for output in output_tensor:
                         io_dict[layer_base_name]["output"].append(output)
@@ -235,6 +241,7 @@ def opt_merge_conv(model, io_dict):
                     io_dict[layer_base_name]["scale_factor"] += scale_factor
                     io_dict[layer_base_name]["clip_factor"] += clip_factor
                     io_dict[layer_base_name]["mask_factor"] += mask_factor
+                    io_dict[layer_base_name]["in_scale_factor"] += in_scale_factor
 
                     # Removing merged layer
                     for rem_name in rem_layer:
@@ -338,11 +345,6 @@ def opt_quant(model, io_dict, quant_info):
 
                     removed_layers.append(layer_out_name)
 
-                    if "layer2_1" in layer_in_name:
-                        print("------------------------------------------------")
-                        print(net_name, layer_in_name, io_dict[layer_in_name])
-                        print(layer_out_name, io_dict[layer_out_name])
-                        print("------------------------------------------------")
                     del io_dict[layer_out_name]
                     change = True
 
@@ -401,6 +403,15 @@ def opt_skip_quant(model, io_dict, quant_info, init_info):
 
                 if all_quant:
                     parallel_quant_layers = io_connect[quant_input][1]
+
+                    # no_quant_dict = False
+                    # for quant_layer_name in parallel_quant_layers:
+                    #     if quant_layer_name not in io_dict.keys():
+                    #         no_quant_dict = True
+
+                    # if no_quant_dict:
+                    #     break
+
                     pre_scale_factor = [
                         io_dict[quant_layer_name]["scale_factor"] 
                         for quant_layer_name in parallel_quant_layers
@@ -426,9 +437,11 @@ def opt_skip_quant(model, io_dict, quant_info, init_info):
 
                     # The scale factor is stored and the activation is 
                     # requantized before performing convolution
-                    io_dict[layer_out_name]["in_scale_factor"] = scale_factor
+                    io_dict[layer_out_name]["in_scale_factor"] = [scale_factor]
                     io_dict[layer_out_name]["input"][0] = quant_input
+                    change = True
                     del io_dict[layer_in_name]
+                    break
 
                 if is_split and not_constant and is_regular:
 
@@ -439,6 +452,11 @@ def opt_skip_quant(model, io_dict, quant_info, init_info):
                     merging_layer = parallel_quant_layers[0]
                     for i, rem_name in enumerate(parallel_quant_layers):
                         if i > 0:
+                            # Keeping just one tensor
+                            rem_output = io_dict[rem_name]["output"][0]
+                            layer_out = io_connect[rem_output][1][0]
+                            io_dict[layer_out]["input"][0] = new_output
+                        else:
                             new_output = io_dict[rem_name]["output"][0]
                             io_dict[merging_layer]["output"].append(new_output)
 
@@ -522,9 +540,6 @@ def opt_steps(
             io_dict,
             init_info
         )
-
-        for name, info in io_dict.items():
-            print(name, info)
 
         io_dict = opt_skip_quant(
             inferred_model,

@@ -235,7 +235,11 @@ template <
 	int c_index,
 	int c_str,
 	int c_ops,
-	int c_reuse
+	int c_reuse,
+	int c_shift_h,
+	int c_shift_l,
+	int c_shift_h_1x1,
+	int c_shift_l_1x1
 > void ConvComp(
 	hls::stream<t_input_struct> i_input[c_index],
 	hls::stream<t_weight> i_weights[c_index],
@@ -323,7 +327,10 @@ template <
 					s_acc_base = s_acc_buff[s_reuse][s_och];
 
 					for (auto s_index = 0; s_index < c_index; s_index++) {
-						s_acc += s_input[s_reuse][s_index] * s_weight[s_index][s_ops];
+            t_input s_data = s_input[s_reuse][s_index];
+            if (c_shift_l != 0)
+              s_data = QuantAct<t_input,c_shift_l,c_shift_h,t_input>(s_data);
+						s_acc += s_data * s_weight[s_index][s_ops];
 					}
 
 					if (s_ich == 0)
@@ -333,7 +340,10 @@ template <
 
 					s_acc_1x1_base = s_acc_1x1_buff[s_reuse][s_och];
 
-					s_acc_1x1 += s_input[s_reuse][c_index/2] * s_weight_1x1[0][s_ops];
+          t_input s_data = s_input[s_reuse][c_index/2];
+          if (c_shift_l != 0)
+            s_data = QuantAct<t_input,c_shift_l_1x1,c_shift_h_1x1,t_input>(s_data);
+					s_acc_1x1 += s_data * s_weight_1x1[0][s_ops];
 
 					if (s_ich != 0)
 						s_acc += s_acc_base;

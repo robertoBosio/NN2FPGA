@@ -51,6 +51,9 @@ def write_network(
         board
     )
 
+    for name, info in io_dict.items():
+        print(name, info)
+
     io_dict = hw_quant(
         model,
         io_dict

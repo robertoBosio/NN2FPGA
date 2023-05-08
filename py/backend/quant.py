@@ -182,9 +182,6 @@ def merge_quant(io_dict, quant_info, inherit_quant=False):
             input_name = node["input"][0]
             if input_name in quant_info.keys():
                 if quant_info[input_name]["changed"]:
-                    if "layer2_1" in name:
-                        print("---------------------------------------------")
-                        print(input_name, quant_info[input_name])
                     seq = quant_info[input_name]["seq"]
                     seq_out = quant_info[input_name]["seq_out"]
                     seq_scale = quant_info[input_name]["seq_scale"]
@@ -203,9 +200,6 @@ def merge_quant(io_dict, quant_info, inherit_quant=False):
                 io_dict[name]["scale_factor"] = new_scale
                 io_dict[name]["clip"] = new_clip
                 io_dict[name]["mask"] = new_mask
-                if "layer2_1" in name:
-                    print(name, io_dict[name])
-                    print("---------------------------------------------")
 
     # print(remove_node)
     for name in remove_node:
