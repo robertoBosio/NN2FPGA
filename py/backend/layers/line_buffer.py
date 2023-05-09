@@ -85,7 +85,7 @@ def parse(name, node):
                 # impl = "BRAM"
                 impl = "AUTO"
             else:
-                depth = 2
+                depth = node["fh"]*node["fw"]+1
                 impl = "AUTO"
             # depth = node["fw"]*node["fh"]+1+node["och"]*8
 

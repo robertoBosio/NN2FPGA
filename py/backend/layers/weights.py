@@ -446,17 +446,33 @@ def parse(name, node):
         block["defines"]["c_%s_reuse" % (output_name)] = ["const", node["reuse"]]
 
         block["pragma"] = []
+        #######################################################################
+        # pragma = {}
+        # pragma["name"] = "array_partition"
+        # options = [
+        #     ["variable", "c_%s" % (output_name)],
+        #     ["type", "block"],
+        #     ["factor", 1],
+        #     ["dim", 1],
+        # ]
+        # pragma["options"] = options
+
+        # block["pragma"].append(pragma)
+        #######################################################################
+        #######################################################################
         pragma = {}
-        pragma["name"] = "array_partition"
+        pragma["name"] = "array_reshape"
         options = [
             ["variable", "c_%s" % (output_name)],
-            ["type", "block"],
-            ["factor", 1],
+            ["type", "complete"],
+            # ["factor", 1],
             ["dim", 1],
         ]
         pragma["options"] = options
 
         block["pragma"].append(pragma)
+        #######################################################################
+
         pragma = {}
         pragma["name"] = "array_reshape"
         options = [

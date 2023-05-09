@@ -44,6 +44,7 @@ def parse(name, node):
 
     # depth = node["och"]*int(node["och"]/node["ich"])*4
     depth = 2
+    # depth = node["fh"]*node["fw"]
     pragma = {}
     pragma["name"] = "stream"
     options = [
