@@ -79,15 +79,14 @@ def parse(name, node):
 
             block["pragma"] = []
 
-            output_ratio = int(node["och"]/node["ich"])
+            output_ratio = int((node["ih"]*node["iw"])/(node["oh"]*node["ow"]))
             if output_ratio > 1: 
-                depth = node["och"]*4+1
+                depth = node["och"]*output_ratio+1
                 # impl = "BRAM"
                 impl = "AUTO"
             else:
                 depth = node["fh"]*node["fw"]+1
                 impl = "AUTO"
-            # depth = node["fw"]*node["fh"]+1+node["och"]*8
 
             if (index == 0):
                 pragma = {}
@@ -118,10 +117,6 @@ def parse(name, node):
                 depth = node["iw"]*node["ich"]
             else:
                 depth = node["ich"]
-
-            if (fw == 0) and (fh == 0):
-                depth = node["ich"]*2 + 1
-
 
             if not((fh == (dfh-1)) and (fw == (dfw-1))):
 
