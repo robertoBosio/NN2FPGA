@@ -2,7 +2,7 @@ export MEM=MemoryManagement
 export NAME=Network
 export CC=gcc
 export CXX := g++
-export VITIS_HLS_ROOT := /tools/xilinx/Vitis_HLS/2022.2/include/
+export VITIS_HLS_ROOT := /eda/xilinx/Vitis_HLS/2022.2/include/
 export BOARD_PATH=/home/filippo/.Xilinx/Vivado/2022.2/xhub/board_store/xilinx_board_store
 export CFLAGS=-I$(VITIS_HLS_ROOT)
 export DEPS=$(NAME).hpp
@@ -17,7 +17,7 @@ syn:
 	vitis_hls -f tcl/synth.tcl
 
 vivado_flow:
-	rm -rf tmp/$(BOARD)_example
+	rm -rf /tmp/$(BOARD)_example
 	vivado -mode tcl -source tcl/vivado_flow.tcl -tclargs
 
 generate:

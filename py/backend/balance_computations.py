@@ -53,7 +53,7 @@ def parallel_ops_number(layers_info, clamp=None, board="ULTRA96v2"):
     if clamp is not None:
         prob += pulp.lpSum([choice]) <= clamp
 
-    prob.writeLP("tmp/parallel_ops.lp")
+    prob.writeLP("/tmp/parallel_ops.lp")
 
     prob.solve()
 
