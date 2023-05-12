@@ -1,6 +1,6 @@
 set BOARD $::env(BOARD)
 set BOARD_PATH $::env(BOARD_PATH)
-set PRJ_ROOT "./tmp/"
+set PRJ_ROOT "/tmp/"
 set PRJ_NAME ${BOARD}_example
 
 if {${BOARD} == "ULTRA96v2"} {
