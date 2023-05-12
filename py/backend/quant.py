@@ -22,7 +22,7 @@ def compute_out_quant(
 
         diff_scale = off + scale_factor
 
-        reduced_clip = -1 * (clip_factor - actscale)
+        reduced_clip = -1 * (clip_factor - scale_factor)
         reduced_clip = reduced_clip + 7
         reduced_clip = int(2**reduced_clip)-1
         # TODO: Add bit width to generalize this computation
@@ -30,7 +30,7 @@ def compute_out_quant(
             reduced_clip = 127
 
         reduced_mask = (mask_factor - scale_factor)
-        reduced_mask = 0xff-(int(2**reduced_mask)-1)
+        # reduced_mask = 0xff-(int(2**reduced_mask)-1)
 
         return diff_scale, reduced_clip, reduced_mask
 

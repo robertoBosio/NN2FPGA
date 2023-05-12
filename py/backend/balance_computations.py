@@ -8,7 +8,7 @@ def parallel_ops_number(layers_info, clamp=None, board="ULTRA96v2"):
     if (board == "ULTRA96v2"):
         NUM_DSP = 400
     elif (board == "KRIA"):
-        NUM_DSP = 1300
+        NUM_DSP = 1000
 
     MIN_OP = 1
     DELTA = 1
