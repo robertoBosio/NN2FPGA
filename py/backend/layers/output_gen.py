@@ -52,7 +52,7 @@ def parse(parsed_write, node_name):
 
     block["args"] = []
     block["args"].append("s_%s[0]" % input_name)
-    block["args"].append("o_%s" % output_name)
+    block["args"].append("o_outp1")
 
     block["defines"] = {}
     block["defines"]["c_%s" % (output_name)] = ["const", 8]
@@ -61,9 +61,10 @@ def parse(parsed_write, node_name):
         "ap_axis<c_%s, 0, 0, 0>" % output_name
     ]
 
+    block["defines"]["t_o_outp1"] = ["alias", "t_o_%s" % output_type_name]
     block["defines"]["t_o_data"] = ["alias", "t_o_%s" % output_type_name]
 
-    block["output"] = ["%s" % output_name]
+    block["output"] = ["outp1"]
     block["declare"] = []
 
     block["pragma"] = []
@@ -71,7 +72,7 @@ def parse(parsed_write, node_name):
     pragma = {}
     pragma["name"] = "interface"
     options = [
-        ["port", "o_%s" % (output_name)],
+        ["port", "o_outp1"],
         ["mode", "axis"],
     ]
     pragma["options"] = options

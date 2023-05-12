@@ -11,7 +11,8 @@ def parse_on_chip(
     node_info,
     pre_values,
     bits=8,
-    signed=1
+    signed=1,
+    narrow=1
 ):
 
     dich = node_info["ich"]
@@ -21,8 +22,15 @@ def parse_on_chip(
     dops = node_info["ops"]
     scale_factor = 2**node_info["scale_factor"]
 
-    limit_h = 2**(bits-signed)-1
-    limit_l = -1*signed*2**(bits-signed)
+    narrow_h = 0
+    if not signed and narrow:
+      narrow_h = 1
+    limit_h = 2**(bits-signed)-1-narrow_h
+
+    narrow_l = 0
+    if signed and narrow:
+      narrow_l = 1
+    limit_l = -1*signed*2**(bits-signed)+narrow_l
 
     doch_ops = int(doch/dops)
 
@@ -54,7 +62,8 @@ def parse_off_chip(
     node_info,
     pre_values,
     bits=8,
-    signed=True
+    signed=1,
+    narrow=1
 ):
 
     dich = node_info["ich"]
@@ -126,15 +135,20 @@ def extract_info(
 
     ops = node_info["ops"]
 
-    signed = 1
-    if (is_bias):
-        new_node["data_type"] = "int16_t"
-        bits = 16
-        bw = 8
+    signed = new_node["signed"]
+    bits   = new_node["bits"]
+    narrow = new_node["narrow"]
+    bw = int(128/bits)
+
+    if signed:
+        data_type = "int"
     else:
-        new_node["data_type"] = "int8_t"
-        bits = 8
-        bw = 16
+        data_type = "uint"
+
+    data_type = data_type + "%0d" % bits
+    data_type = data_type + "_t"
+    new_node["data_type"] = data_type
+
     new_node["ich"]    = ich
     new_node["ih"]     = ih
     new_node["iw"]     = iw
@@ -149,7 +163,6 @@ def extract_info(
     new_node["kernel"]  = ih*iw
     new_node["total"]   = ich*och*ih*iw*oh*ow/stride
     new_node["img_ch"]  = ich*och
-    new_node["bits"] = bits
     new_node["reuse"] = 1
 
     dim = ich*och*ih*iw
@@ -162,14 +175,16 @@ def extract_info(
             new_node,
             pre_values,
             bits,
-            signed
+            signed,
+            narrow
         )
     else:
         new_node["values"] = parse_on_chip(
             new_node,
             pre_values,
             bits,
-            signed
+            signed,
+            narrow
         )
 
     return new_node
@@ -210,6 +225,9 @@ def weights_info(
             new_nodes[new_node_name]["output"] = [node_info["output"][0]]
             new_nodes[new_node_name]["is_constant"] = True
             new_nodes[new_node_name]["scale_factor"] = node_info["scale_factor"]
+            new_nodes[new_node_name]["signed"] = node_info["signed"]
+            new_nodes[new_node_name]["bits"] = node_info["bits"]
+            new_nodes[new_node_name]["narrow"] = node_info["narrow"]
 
             new_nodes[new_node_name] = extract_info(
                 new_nodes[new_node_name],
