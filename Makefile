@@ -18,6 +18,9 @@ ifndef ONNX_PATH
 $(error ERROR | Please, provide the ONNX file path via ONNX_PATH)
 endif
 
+.PHONY: all
+all: generate backend
+
 restore_design:
 	vitis_hls -f tcl/restore_design.tcl
 
@@ -53,8 +56,6 @@ cosim: generate
 	make syn COSIM=1
 
 backend: syn vivado_flow
-
-all: generate backend
 
 .PHONY: clean
 clean:
