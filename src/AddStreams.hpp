@@ -1,28 +1,22 @@
 #ifndef __ADDSTREAM__
 #define __ADDSTREAM__
 
-#include "ap_int.h"
-#include "hls_stream.h"
+#include <ap_int.h>
+#include <hls_stream.h>
 
-template <class t_input, class t_output, const int c_ich, const int c_ih,
-          const int c_iw>
-void AddStreams(hls::stream<t_input> &i_data1, hls::stream<t_input> &i_data2,
-                hls::stream<t_output> &o_data) {
-  if (i_data1.empty() | i_data2.empty()) return;
+template <typename din_t, typename dout_t, unsigned C_ICH, unsigned C_IH,
+          unsigned C_IW>
+void AddStreams(hls::stream<din_t>& dinStream1, hls::stream<din_t>& dinStream2,
+                hls::stream<dout_t>& doutStream) {
+  if (dinStream1.empty() || dinStream2.empty()) return;
 
-  const int c_index = c_ich * c_ih * c_iw;
+  constexpr unsigned C_INDEX = C_ICH * C_IH * C_IW;
 
-  for (int s_index = 0; s_index < c_index; s_index++) {
-    t_input s_data1, s_data2;
-    t_output s_o_data;
-
-    i_data1.read(s_data1);
-    i_data2.read(s_data2);
-
-    s_o_data = s_data1 + s_data2;
-
-    o_data.write(s_o_data);
+  for (unsigned c = 0; c < C_INDEX; c++) {
+    auto din1 = dinStream1.read(s_data1), din2 = dinStream2.read();
+    dout_t dout = din1 + din2;
+    doutStream << dout;
   }
 }
 
-#endif
+#endif  // __ADDSTREAM__
