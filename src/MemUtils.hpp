@@ -4,221 +4,223 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "ap_int.h"
-#include "hls_burst_maxi.h"
-#include "hls_stream.h"
+#include <ap_int.h>
+#include <hls_burst_maxi.h>
+#include <hls_stream.h>
 
-template <int c_num_conv, int c_read_width>
-uint8_t RoundRobin(hls::stream<ap_uint<c_read_width>> o_streams[c_num_conv]) {
+template <unsigned NCONV, unsigned RDW>
+uint8_t RoundRobin(hls::stream<ap_uint<RDW>> dout[NCONV]) {
 #pragma HLS inline
 
   uint8_t s_sel = 0;
 
-  for (int8_t s_num_conv = c_num_conv - 1; s_num_conv > -1; s_num_conv--) {
-    if (o_streams[s_num_conv].size() == 0) s_sel = s_num_conv;
+  for (int8_t n = NCONV - 1; n >= 0; n--) {
+    if (dout[n].size() == 0) s_sel = n;
   }
 
   return s_sel;
 }
 
-template <int c_bits, int c_offset, int c_address>
-void FillStream(ap_uint<c_bits> *i_data, uint32_t &i_address,
-                hls::stream<ap_uint<c_bits>> &o_data) {
+template <unsigned BITW, int OFFSET, int ADDR>
+void FillStream(ap_uint<BITW>* din, uint32_t& addrIn,
+                hls::stream<ap_uint<BITW>>& doutStream) {
 #pragma HLS inline
-  while (!o_data.full()) {
-    o_data.write(i_data[i_address]);
-    i_address = i_address++;
-    i_address = (i_address == c_address) ? i_address : c_offset;
+  while (!doutStream.full()) {
+    doutStream << din[addrIn];
+    // addrIn = addrIn++;
+    addrIn++; 
+    // addrIn = (addrIn == ADDR) ? addrIn : OFFSET;
+    if (addrIn == ADDR) addrIn = OFFSET; 
   }
 }
 
-template <class t_input, class t_output, int c_ich, int c_och, int c_ow,
-          int c_oh, int c_fw, int c_fh, int c_ops, int c_bits>
-void ProduceStream(hls::stream<t_input> &i_data,
-                   hls::stream<t_output> o_data[c_fh * c_fw]) {
+template <typename din_t, typename dout_t, int C_ICH, int C_OCH, int C_OW,
+          int C_OH, int C_FW, int C_FH, int C_OPS, int BITW>
+void ProduceStream(hls::stream<din_t>& dinStream,
+                   hls::stream<dout_t> doutStream[C_FH * C_FW]) {
   /* #pragma HLS inline */
-  const int c_index = c_fh * c_fw;
-  const int c_ch = c_ich * c_och;
-  const int c_bytes = c_bits / (8);
-  const int c_pack_inv = c_bytes / (c_ops);
-  const int c_inv = (c_pack_inv == 0) ? 1 : c_pack_inv;
+  constexpr unsigned C_INDEX = C_FH * C_FW;
+  constexpr unsigned C_CH = C_ICH * C_OCH;
+  constexpr unsigned C_BYTES = BITW / (8);
+  constexpr unsigned C_PACK_INV = C_BYTES / (C_OPS);
+  constexpr unsigned C_INV = (C_PACK_INV == 0) ? 1 : C_PACK_INV;
 
-  const int c_pack = c_ops / (c_bytes);
-  const int c_read = (c_pack == 0) ? 1 : c_pack;
+  constexpr unsigned C_PACK = C_OPS / (C_BYTES);
+  constexpr unsigned C_READ = (C_PACK == 0) ? 1 : C_PACK;
 
-  const int c_o_index = c_oh * c_ow * c_ch / (c_ops);
-  const int c_r_index = c_index * c_oh * c_ow * c_ch / (c_ops);
-  const int c_buffer = c_bytes / (c_index * c_ops) + 1;
+  constexpr unsigned C_O_INDEX = C_OH * C_OW * C_CH / (C_OPS);
+  constexpr unsigned C_R_INDEX = C_INDEX * C_OH * C_OW * C_CH / (C_OPS);
+  constexpr unsigned C_BUFFER = C_BYTES / (C_INDEX * C_OPS) + 1;
 
-  /* const ap_uint<c_ops*8> c_mask = c_ops*256-1; */
+  /* const ap_uint<C_OPS*8> c_mask = C_OPS*256-1; */
 
   /* Maximum input bandwidth is 64bytes */
-  t_input s_tmp;
-  for (auto s_r_index = 0; s_r_index < c_r_index; s_r_index++) {
+  din_t tmp;
+  for (unsigned rIdx = 0; rIdx < C_R_INDEX; rIdx++) {
 #pragma HLS pipeline
-    uint8_t s_inv = s_r_index % c_inv;
-    uint8_t s_index = s_r_index % c_index;
-    if (s_inv == 0) s_tmp = i_data.read();
-    t_output s_data;
-    for (auto s_ops = 0; s_ops < c_ops; s_ops++) {
-      s_data[s_ops] = s_tmp & 0xff;
-      s_tmp >>= 8;
+    uint8_t inv = rIdx % C_INV;
+    uint8_t idx = rIdx % C_INDEX;
+    if (inv == 0) tmp = dinStream.read();
+    dout_t dout;
+    for (unsigned op = 0; op < C_OPS; op++) {
+      dout[op] = tmp & 0xff;
+      tmp >>= 8;
     }
-    o_data[s_index].write(s_data);
+    doutStream[idx] << dout;
   }
 }
 
-template <class t_output, int c_ich, int c_och, int c_ow, int c_oh, int c_fw,
-          int c_fh, int c_ops, int c_bits, int c_start>
-void MemAlgo(hls::stream<t_output> o_data[c_fh * c_fw],
-             ap_int<c_bits> *i_data) {
+template <class dout_t, int C_ICH, int C_OCH, int C_OW, int C_OH, int C_FW,
+          int C_FH, int C_OPS, int BITW, int C_START>
+void MemAlgo(hls::stream<dout_t> dout[C_FH * C_FW],
+             ap_int<BITW> *din) {
 #pragma HLS inline
 #pragma HLS dataflow
-  const int c_bytes = c_bits / 8;
-  const int c_words = 4096 / (c_bytes);
-  const int c_index = c_fh * c_fw;
-  const int c_f_index = c_start + c_index * c_och * c_ich;
-  const int c_w_index = c_och * c_ich / c_ops;
-  const int c_o_index = c_ow * c_oh;
+  const int C_BYTES = BITW / 8;
+  const int c_words = 4096 / (C_BYTES);
+  const int c_index = C_FH * C_FW;
+  const int c_f_index = C_START + c_index * C_OCH * C_ICH;
+  const int c_w_index = C_OCH * C_ICH / C_OPS;
+  const int C_O_INDEX = C_OW * C_OH;
 
-  hls::stream<t_output> s_data_stream("data_stream");
+  hls::stream<dout_t> s_data_stream("data_stream");
 #pragma HLS stream variable = s_data_stream depth = 1
-  for (auto s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
-    for (auto s_f_index = c_start; s_f_index < c_f_index; s_f_index += c_ops) {
+  for (auto s_o_index = 0; s_o_index < C_O_INDEX; s_o_index++) {
+    for (auto s_f_index = C_START; s_f_index < c_f_index; s_f_index += C_OPS) {
 #pragma HLS pipeline style = frp
-      t_output s_data;
-      for (auto s_ops = 0; s_ops < c_ops; s_ops++)
-        s_data[s_ops] = i_data[s_f_index + s_ops];
+      dout_t s_data;
+      for (auto s_ops = 0; s_ops < C_OPS; s_ops++)
+        s_data[s_ops] = din[s_f_index + s_ops];
       s_data_stream.write(s_data);
     }
   }
 
-  for (auto s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
+  for (auto s_o_index = 0; s_o_index < C_O_INDEX; s_o_index++) {
     for (auto s_w_index = 0; s_w_index < c_w_index; s_w_index++) {
-      for (auto s_index = 0; s_index < c_index; s_index++) {
+      for (auto idx = 0; idx < c_index; idx++) {
 #pragma HLS pipeline style = frp
-        o_data[s_index].write(s_data_stream.read());
+        dout[idx].write(s_data_stream.read());
       }
     }
   }
 }
 
-template <class t_output, int c_ich, int c_och, int c_ow, int c_oh, int c_fw,
-          int c_fh, int c_ops, int c_bits, int c_start>
-void MemAlgo(hls::stream<t_output> &o_data, ap_int<c_bits> *i_data) {
-  const int c_bytes = c_bits / 8;
-  const int c_words = 4096 / (c_bytes);
-  const int c_f_index = c_start + c_fh * c_fw * c_och * c_ich;
-  const int c_o_index = c_ow * c_oh;
+template <class dout_t, int C_ICH, int C_OCH, int C_OW, int C_OH, int C_FW,
+          int C_FH, int C_OPS, int BITW, int C_START>
+void MemAlgo(hls::stream<dout_t> &dout, ap_int<BITW> *din) {
+  const int C_BYTES = BITW / 8;
+  const int c_words = 4096 / (C_BYTES);
+  const int c_f_index = C_START + C_FH * C_FW * C_OCH * C_ICH;
+  const int C_O_INDEX = C_OW * C_OH;
 
-  for (auto s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
-    for (auto s_f_index = c_start; s_f_index < c_f_index; s_f_index += c_ops) {
+  for (auto s_o_index = 0; s_o_index < C_O_INDEX; s_o_index++) {
+    for (auto s_f_index = C_START; s_f_index < c_f_index; s_f_index += C_OPS) {
 #pragma HLS pipeline
-      t_output s_data;
-      for (auto s_ops = 0; s_ops < c_ops; s_ops++)
-        s_data[s_ops] = i_data[s_f_index + s_ops];
-      o_data.write(s_data);
+      dout_t s_data;
+      for (auto s_ops = 0; s_ops < C_OPS; s_ops++)
+        s_data[s_ops] = din[s_f_index + s_ops];
+      dout.write(s_data);
     }
   }
 }
 
-template <class t_input, class t_output, int c_ich, int c_och, int c_ow,
-          int c_oh, int c_fw, int c_fh, int c_ops, int c_bits>
-void ProduceStream(hls::stream<t_output> &i_data,
-                   hls::stream<t_output> o_data[c_fh * c_fw]) {
+template <class din_t, class dout_t, int C_ICH, int C_OCH, int C_OW,
+          int C_OH, int C_FW, int C_FH, int C_OPS, int BITW>
+void ProduceStream(hls::stream<dout_t> &din,
+                   hls::stream<dout_t> dout[C_FH * C_FW]) {
   /* #pragma HLS inline */
-  const int c_index = c_fh * c_fw;
-  const int c_ch = c_ich * c_och;
-  const int c_o_index = c_oh * c_ow * c_ch / (c_ops);
+  const int c_index = C_FH * C_FW;
+  const int C_CH = C_ICH * C_OCH;
+  const int C_O_INDEX = C_OH * C_OW * C_CH / (C_OPS);
 
-  /* const ap_uint<c_ops*8> c_mask = c_ops*256-1; */
+  /* const ap_uint<C_OPS*8> c_mask = C_OPS*256-1; */
 
   /* Maximum input bandwidth is 64bytes */
-  t_input s_tmp;
-  for (auto s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
-    for (auto s_index = 0; s_index < c_index; s_index++) {
+  din_t s_tmp;
+  for (auto s_o_index = 0; s_o_index < C_O_INDEX; s_o_index++) {
+    for (auto idx = 0; idx < c_index; idx++) {
 #pragma HLS pipeline
-      o_data[s_index].write(i_data.read());
+      dout[idx].write(din.read());
     }
   }
 }
 
-template <class t_input, class t_output, int c_ich, int c_och, int c_ow,
-          int c_oh, int c_fw, int c_fh, int c_ops, int c_bits, int c_bw,
-          int c_reuse, int c_start>
-void MemAlgo(hls::stream<t_output> o_data[c_bw], const t_input *i_data) {
-  const int c_bytes = c_bits / 8;
-  const int c_words = 4096 / (c_bytes);
-  const int c_f_index = c_start + c_fh * c_fw * c_och * c_ich;
-  const int c_o_index = c_ow * c_oh / c_reuse;
+template <class din_t, class dout_t, int C_ICH, int C_OCH, int C_OW,
+          int C_OH, int C_FW, int C_FH, int C_OPS, int BITW, int c_bw,
+          int c_reuse, int C_START>
+void MemAlgo(hls::stream<dout_t> dout[c_bw], const din_t *din) {
+  const int C_BYTES = BITW / 8;
+  const int c_words = 4096 / (C_BYTES);
+  const int c_f_index = C_START + C_FH * C_FW * C_OCH * C_ICH;
+  const int C_O_INDEX = C_OW * C_OH / c_reuse;
 
-  for (auto s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
-    for (auto s_f_index = c_start; s_f_index < c_f_index;
-         s_f_index += c_ops * c_bw) {
+  for (auto s_o_index = 0; s_o_index < C_O_INDEX; s_o_index++) {
+    for (auto s_f_index = C_START; s_f_index < c_f_index;
+         s_f_index += C_OPS * c_bw) {
 #pragma HLS pipeline
-      for (auto s_bw = 0; s_bw < c_bw * c_ops; s_bw += c_ops) {
-        t_output s_data;
-        for (auto s_ops = 0; s_ops < c_ops; s_ops++)
-          s_data[s_ops] = i_data[s_f_index + s_bw + s_ops];
-        o_data[s_bw / c_ops].write(s_data);
+      for (auto s_bw = 0; s_bw < c_bw * C_OPS; s_bw += C_OPS) {
+        dout_t s_data;
+        for (auto s_ops = 0; s_ops < C_OPS; s_ops++)
+          s_data[s_ops] = din[s_f_index + s_bw + s_ops];
+        dout[s_bw / C_OPS].write(s_data);
       }
     }
   }
 }
 
-template <class t_input, class t_output, int c_ich, int c_och, int c_ow,
-          int c_oh, int c_fw, int c_fh, int c_ops, int c_bw, int c_reuse,
-          int c_bits>
-void ProduceStream(hls::stream<t_output> i_data[c_bw],
-                   hls::stream<t_output> o_data[c_fh * c_fw]) {
+template <class din_t, class dout_t, int C_ICH, int C_OCH, int C_OW,
+          int C_OH, int C_FW, int C_FH, int C_OPS, int c_bw, int c_reuse,
+          int BITW>
+void ProduceStream(hls::stream<dout_t> dinStream[c_bw],
+                   hls::stream<dout_t> doutStream[C_FH * C_FW]) {
   /* #pragma HLS inline */
-  const int c_index = c_fh * c_fw;
-  const int c_ch = c_ich * c_och;
-  const int c_o_index = c_index * c_oh * c_ow * c_ch / (c_ops * c_reuse);
+  const int c_index = C_FH * C_FW;
+  const int C_CH = C_ICH * C_OCH;
+  const int C_O_INDEX = c_index * C_OH * C_OW * C_CH / (C_OPS * c_reuse);
 
-  /* const ap_uint<c_ops*8> c_mask = c_ops*256-1; */
+  /* const ap_uint<C_OPS*8> c_mask = C_OPS*256-1; */
 
   /* Maximum input bandwidth is 64bytes */
-  t_input s_tmp;
-  for (auto s_o_index = 0; s_o_index < c_o_index; s_o_index += c_bw) {
+  din_t s_tmp;
+  for (auto s_o_index = 0; s_o_index < C_O_INDEX; s_o_index += c_bw) {
 #pragma HLS pipeline
     for (auto s_bw = 0; s_bw < c_bw; s_bw++) {
-      auto s_index = (s_o_index + s_bw) % c_index;
-      o_data[s_index].write(i_data[s_bw].read());
+      auto idx = (s_o_index + s_bw) % c_index;
+      doutStream[idx].write(dinStream[s_bw].read());
     }
   }
 }
 
-template <int c_ich, int c_och, int c_ow, int c_oh, int c_fw, int c_fh,
-          int c_ops, int c_bits, int c_start>
-void MemAlgo(hls::stream<ap_uint<c_bits>> &o_data,
-             hls::burst_maxi<ap_uint<c_bits>> i_data) {
-  const int c_bytes = c_bits / 8;
-  const int c_words = 4096 / (c_bytes);
-  const int c_f_index = c_fh * c_fw * c_och * c_ich;
+template <int C_ICH, int C_OCH, int C_OW, int C_OH, int C_FW, int C_FH,
+          int C_OPS, int BITW, int C_START>
+void MemAlgo(hls::stream<ap_uint<BITW>> &dout,
+             hls::burst_maxi<ap_uint<BITW>> din) {
+  const int C_BYTES = BITW / 8;
+  const int c_words = 4096 / (C_BYTES);
+  const int c_f_index = C_FH * C_FW * C_OCH * C_ICH;
   const int c_b_index = c_f_index / 4096;
   const int c_b_rem = c_f_index % 4096;
-  const int c_start_w = c_start / c_bytes;
-  const int c_b_rem_words = c_b_rem / c_bytes;
-  const int c_o_index = c_ow * c_oh;
+  const int C_START_w = C_START / C_BYTES;
+  const int c_b_rem_words = c_b_rem / C_BYTES;
+  const int C_O_INDEX = C_OW * C_OH;
 
-  for (auto s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
+  for (auto s_o_index = 0; s_o_index < C_O_INDEX; s_o_index++) {
     for (auto s_b_index = 0; s_b_index < c_b_index; s_b_index++) {
-      uint32_t s_read = c_start_w + s_b_index * c_words;
-      i_data.read_request(s_read, c_words);
+      uint32_t s_read = C_START_w + s_b_index * c_words;
+      din.read_request(s_read, c_words);
       for (auto s_words = 0; s_words < c_words; s_words++) {
 #pragma HLS pipeline
-        ap_uint<c_bits> s_data = i_data.read();
-        o_data.write(s_data);
+        ap_uint<BITW> s_data = din.read();
+        dout.write(s_data);
       }
     }
     if (c_b_rem != 0) {
-      uint32_t c_rem_start = c_start_w + c_b_index * c_words;
-      i_data.read_request(c_rem_start, c_b_rem_words);
+      uint32_t c_rem_start = C_START_w + c_b_index * c_words;
+      din.read_request(c_rem_start, c_b_rem_words);
       for (auto s_words = 0; s_words < c_b_rem_words; s_words++) {
 #pragma HLS pipeline
-        ap_uint<c_bits> s_data = i_data.read();
-        o_data.write(s_data);
+        ap_uint<BITW> s_data = din.read();
+        dout.write(s_data);
       }
     }
   }

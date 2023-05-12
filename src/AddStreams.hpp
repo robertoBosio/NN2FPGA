@@ -13,7 +13,7 @@ void AddStreams(hls::stream<din_t>& dinStream1, hls::stream<din_t>& dinStream2,
   constexpr int C_INDEX = C_ICH * C_IH * C_IW;
 
   for (int c = 0; c < C_INDEX; c++) {
-    auto din1 = dinStream1.read(s_data1), din2 = dinStream2.read();
+    auto din1 = dinStream1.read(), din2 = dinStream2.read();
     dout_t dout = din1 + din2;
     doutStream << dout;
   }
