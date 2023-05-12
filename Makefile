@@ -10,6 +10,14 @@ export COSIM=0
 # export BOARD=ULTRA96v2
 # export ONNX_PATH=./onnx/Brevonnx_resnet_final_fx.onnx
 
+ifndef BOARD
+$(error ERROR | Please, provide the target board via BOARD)
+endif
+
+ifndef ONNX_PATH
+$(error ERROR | Please, provide the ONNX file path via ONNX_PATH)
+endif
+
 restore_design:
 	vitis_hls -f tcl/restore_design.tcl
 
@@ -17,7 +25,6 @@ syn:
 	vitis_hls -f tcl/synth.tcl
 
 vivado_flow:
-	rm -rf /tmp/$(BOARD)_example
 	vivado -mode tcl -source tcl/vivado_flow.tcl -tclargs
 
 generate:
@@ -48,3 +55,7 @@ cosim: generate
 backend: syn vivado_flow
 
 all: generate backend
+
+.PHONY: clean
+clean:
+	rm -rf /tmp/$(BOARD)_example
