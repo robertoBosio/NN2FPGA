@@ -3,7 +3,10 @@ import sys
 
 def write_func(fd, info):
 
-    fd.write("\t%s" % info["func"])
+    if info["func"] != "memory_management":
+        fd.write("\tnn2fpga::%s" % info["func"])
+    else:
+        fd.write("\t%s" % info["func"])
     if "template" in info.keys():
         fd.write(" <\n")
         for i, template in enumerate(info["template"]):
@@ -26,7 +29,7 @@ def write_func(fd, info):
 
 def body(file_name, parsed_write, prj_root="."):
 
-    with open(prj_root + ("/cc/src/%s.cpp" % file_name), "a") as fd:
+    with open(prj_root + ("/cc/src/%s.cc" % file_name), "a") as fd:
         
         for layer in parsed_write:
 
@@ -90,7 +93,7 @@ def write_pragma(fd, pragma):
 
 def declare(file_name, parsed_write, ap_ctrl=None, inline=False, prj_root="."):
 
-    with open(prj_root + ("/cc/src/%s.cpp" % file_name), "a") as fd:
+    with open(prj_root + ("/cc/src/%s.cc" % file_name), "a") as fd:
         
         if inline:
             # Adding inline option to put the module in dataflow
@@ -188,7 +191,7 @@ def defines(file_name, parsed_write, prj_root="."):
                     fd.write("\thls::stream<t_%s> &%s,\n" % (name, name))
 
         for layer in parsed_write:
-            if "MemoryManagement" == layer["func"]:
+            if "memory_management" == layer["func"]:
                 for name in layer["input"]:
                     fd.write("\tconst t_%s_st *i_data_%s,\n" % (name, name))
 
@@ -199,7 +202,7 @@ def defines(file_name, parsed_write, prj_root="."):
 
         fd.write(");\n")
 
-        fd.write("void MemoryManagement(\n")
+        fd.write("void memory_management(\n")
 
         for layer in parsed_write:
             if 'is_const' in layer.keys():
