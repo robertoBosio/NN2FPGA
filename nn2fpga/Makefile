@@ -31,15 +31,16 @@ generate:
 	cd $(PRJ_ROOT) && python $(NN2FPGA_ROOT)/py/code_gen_qonnx.py
 
 compile:
-	$(CXX) -c $(CXXFLAGS) -I$(NN2FPGA_CC_ROOT)/include \
-		$(NN2FPGA_CC_ROOT)/src/$(NAME).cpp -o $(NAME).o
-	$(CXX) -c $(CXXFLAGS) -I$(NN2FPGA_CC_ROOT)/include \
-		$(NN2FPGA_CC_ROOT)/src/$(MEM).cpp -o $(MEM).o
+	$(CXX) -c $(CXXFLAGS) -I$(PRJ_ROOT)/include \
+		$(PRJ_ROOT)/src/$(NAME).cpp -o $(PRJ_ROOT)/$(NAME).o
+	$(CXX) -c $(CXXFLAGS) -I$(PRJ_ROOT)/include \
+		$(PRJ_ROOT)/src/$(MEM).cpp -o $(PRJ_ROOT)/$(MEM).o
 
 compile_tb:
-	$(CXX) -c $(CXXFLAGS) -I$(NN2FPGA_CC_ROOT)/tb/ tb/$(NAME)Tb.cpp \
-		-o $(NAME)Tb.o
-	$(CXX) $(NAME)Tb.o $(NAME).o $(MEM).o -o $(NAME)Tb
+	$(CXX) -c $(CXXFLAGS) -I$(PRJ_ROOT)/include $(PRJ_ROOT)/src/$(NAME)Tb.cpp \
+		-o $(PRJ_ROOT)/$(NAME)Tb.o
+	$(CXX) $(PRJ_ROOT)/$(NAME)Tb.o $(PRJ_ROOT)/$(NAME).o $(PRJ_ROOT)/$(MEM).o \
+		-o $(PRJ_ROOT)/$(NAME)Tb
 
 sim:
 	cd $(PRJ_ROOT) && chmod u+x $(NAME)Tb && ./$(NAME)Tb
