@@ -1,10 +1,7 @@
+set NN2FPGA_ROOT [lindex $argv 2]
+source "${NN2FPGA_ROOT}/tcl/settings.tcl"
+
 set impl_sel "solution_0"
-
-set BOARD $::env(BOARD)
-set COSIM $::env(COSIM)
-# set board "KRIA"
-
-set TOP_NAME Network
 set PRJ_NAME ${TOP_NAME}${BOARD}
 
 delete_project ${PRJ_NAME}_ip
@@ -12,21 +9,14 @@ open_project ${PRJ_NAME}_ip
 set_top ${TOP_NAME}
 
 open_solution solution_1
-if {$BOARD == "PYNQ"} {
-	set_part {xc7z020clg400-1}
-}
+set_part ${FPGA_PART}
 
-if {$BOARD == "ULTRA96v2"} {
-	set_part {xczu3eg-sbva484-1-i}
-}
-
-if {$BOARD == "KRIA"} {
-	set_part {xczu5eg-sfvc784-1-i}
-}
-
-add_files src/MemoryManagement.cpp
-add_files src/${TOP_NAME}.cpp
-add_files -tb tb/${TOP_NAME}Tb.cpp
+add_files -cflags "-Icc/include -I${NN2FPGA_ROOT}/cc/include" \
+  cc/src/MemoryManagement.cpp
+add_files -cflags "-Icc/include -I${NN2FPGA_ROOT}/cc/include" \
+  cc/src/${TOP_NAME}.cpp
+add_files -cflags "-Icc/include -I${NN2FPGA_ROOT}/cc/include" \
+  -tb cc/${TOP_NAME}Tb.cpp
 
 create_clock -period 5
 
