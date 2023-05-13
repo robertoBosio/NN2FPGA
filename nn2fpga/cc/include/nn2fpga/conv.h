@@ -49,6 +49,6 @@ void conv(din_t* din, weight_t* win, dout_t* dout) {
   }
 }
 
-} // namespace nn2fpga
- 
+}  // namespace nn2fpga
+
 #endif  // NN2FPGA_CONV_H_

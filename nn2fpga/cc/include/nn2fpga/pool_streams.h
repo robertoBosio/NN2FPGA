@@ -1,10 +1,10 @@
 #ifndef __POOLSTREAM__
 #define __POOLSTREAM__
 
-#include "nn2fpga/debug.h"
 #include "ap_int.h"
 #include "hls_math.h"
 #include "hls_stream.h"
+#include "nn2fpga/debug.h"
 
 namespace nn2fpga {
 
@@ -54,7 +54,7 @@ template <class t_input_struct, class t_input, class t_output_struct,
           int c_oh, int c_ow, int c_fh, int c_fw, int c_str, int c_pad,
           int c_pool, int c_shift>
 void pool_op(hls::stream<t_input_struct> &i_data,
-            hls::stream<t_output_struct> &o_data) {
+             hls::stream<t_output_struct> &o_data) {
   const int c_index = c_fh * c_fw;
   const int c_o_index = c_oh * c_ow * c_index;
   const uint8_t c_average_scale = (uint8_t)(log2(c_fh * c_fw));
@@ -97,7 +97,7 @@ template <class t_input, class t_acc, class t_output, int c_ich, int c_och,
           int c_ih, int c_iw, int c_oh, int c_ow, int c_fh, int c_fw, int c_str,
           int c_pad, int c_bypass, int c_pool>
 void pool_op(hls::stream<t_input> i_data[c_fh * c_fw],
-            hls::stream<t_output> &o_data) {
+             hls::stream<t_output> &o_data) {
   const int c_index = c_fh * c_fw;
   const int c_o_index = c_oh * c_ow;
   const uint8_t c_average_scale = (uint8_t)(log2(c_fh * c_fw));
@@ -146,25 +146,25 @@ void pool_kernel(hls::stream<t_input> &i_data, hls::stream<t_output> &o_data) {
 
     /* Generic case implements the line buffer */
     shift_op<t_input, c_ich, c_och, c_ih, c_iw, c_oh, c_ow, c_fh, c_fw, c_str,
-            c_pad, (c_fh - 1), (c_fw - 1)>(i_data, s_compute[0], s_data[0]);
+             c_pad, (c_fh - 1), (c_fw - 1)>(i_data, s_compute[0], s_data[0]);
 
     for (uint8_t s_index = 1; s_index < c_index - 1; s_index++) {
 #pragma HLS unroll
       shift_op<t_input, c_ich, c_och, c_ih, c_iw, c_oh, c_ow, c_fh, c_fw, c_str,
-              c_pad>(s_data[s_index - 1], s_compute[s_index], s_data[s_index],
-                     c_fh - s_index / c_fh - 1, c_fw - s_index % c_fw - 1);
+               c_pad>(s_data[s_index - 1], s_compute[s_index], s_data[s_index],
+                      c_fh - s_index / c_fh - 1, c_fw - s_index % c_fw - 1);
     }
 
     shift_op<t_input, c_ich, c_och, c_ih, c_iw, c_oh, c_ow, c_fh, c_fw, c_str,
-            c_pad, 0, 0>(s_data[c_index - 2], s_compute[c_index - 1]);
+             c_pad, 0, 0>(s_data[c_index - 2], s_compute[c_index - 1]);
 
-    pool_op<t_input, t_acc, t_output, c_ich, c_och, c_ih, c_iw, c_oh, c_ow, c_fh,
-           c_fw, c_str, c_pad, 0, c_pool>(s_compute, o_data);
+    pool_op<t_input, t_acc, t_output, c_ich, c_och, c_ih, c_iw, c_oh, c_ow,
+            c_fh, c_fw, c_str, c_pad, 0, c_pool>(s_compute, o_data);
 
   } else {
     /* Global case does not need line buffer */
-    pool_op<t_input, t_acc, t_output, c_ich, c_och, c_ih, c_iw, c_oh, c_ow, c_fh,
-           c_fw, c_str, c_pad, 0, c_pool>(i_data, o_data);
+    pool_op<t_input, t_acc, t_output, c_ich, c_och, c_ih, c_iw, c_oh, c_ow,
+            c_fh, c_fw, c_str, c_pad, 0, c_pool>(i_data, o_data);
   }
 }
 
@@ -177,9 +177,9 @@ void pool_streams(hls::stream<t_input> &i_data, hls::stream<t_output> &o_data) {
 #pragma HLS inline
 
   pool_kernel<t_input, t_acc, t_output, c_ich, c_och, c_ih, c_iw, c_oh, c_ow,
-             c_fh, c_fw, c_str, c_pad, c_pool>(i_data, o_data);
+              c_fh, c_fw, c_str, c_pad, c_pool>(i_data, o_data);
 }
 
-} // namespace nn2fpga
- 
+}  // namespace nn2fpga
+
 #endif

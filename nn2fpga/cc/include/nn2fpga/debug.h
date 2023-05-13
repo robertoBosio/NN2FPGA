@@ -6,7 +6,7 @@
 /* #define DEBUG_ACC */
 /* #define DEBUG_LINE */
 /* #define DEBUG_POOL */
-#endif // __SYNTHESIS__
+#endif  // __SYNTHESIS__
 
 namespace nn2fpga {
 
@@ -23,10 +23,10 @@ void empty_stream(hls::stream<T>& dinStream) {
   }
 #ifdef DEBUG
   std::cout << "LEFT: " << s_left << std::endl;
-#endif // DEBUG
-#endif // __SYNTHESIS__
+#endif  // DEBUG
+#endif  // __SYNTHESIS__
 }
 
-} // namespace nn2fpga
- 
-#endif // NN2FPGA_DEBUG_H_
+}  // namespace nn2fpga
+
+#endif  // NN2FPGA_DEBUG_H_

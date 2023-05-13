@@ -1,9 +1,10 @@
 #ifndef NN2FPGA_LINE_BUFFER_H_
 #define NN2FPGA_LINE_BUFFER_H_
 
-#include "nn2fpga/debug.h"
 #include <ap_int.h>
 #include <hls_stream.h>
+
+#include "nn2fpga/debug.h"
 
 namespace nn2fpga {
 
@@ -157,6 +158,6 @@ class LineBuffer {
 #endif  // __SYNTHESIS__
 };
 
-} // namespace nn2fpga
+}  // namespace nn2fpga
 
 #endif  // NN2FPGA_LINE_BUFFER_H_

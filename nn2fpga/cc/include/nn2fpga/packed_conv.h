@@ -1,11 +1,11 @@
 #ifndef __PACKEDCONV__
 #define __PACKEDCONV__
 
+#include "ap_int.h"
+#include "hls_stream.h"
 #include "nn2fpga/activation_streams.h"
 #include "nn2fpga/debug.h"
 #include "nn2fpga/utils.h"
-#include "ap_int.h"
-#include "hls_stream.h"
 
 namespace nn2fpga {
 
@@ -16,8 +16,8 @@ template <class t_input_struct, class t_input, class t_weight,
           class t_acc_struct, class t_acc, int c_ich, int c_och, int c_oh,
           int c_ow, int c_index, int c_str, int c_ops, int c_reuse>
 void conv_comp(hls::stream<t_input_struct> i_input[c_index],
-              hls::stream<t_weight> i_weights[c_index],
-              hls::stream<t_acc_struct> o_acc_stream[c_ops]) {
+               hls::stream<t_weight> i_weights[c_index],
+               hls::stream<t_acc_struct> o_acc_stream[c_ops]) {
   /* #pragma HLS inline */
 
   const auto c_o_index = c_oh * c_ow / c_reuse;
@@ -103,9 +103,9 @@ template <class t_input_struct, class t_input, class t_weight, class t_bias,
           class t_acc_struct, class t_acc, int c_ich, int c_och, int c_oh,
           int c_ow, int c_index, int c_str, int c_ops, int c_reuse>
 void conv_comp(hls::stream<t_input_struct> i_input[c_index],
-              hls::stream<t_weight> i_weights[c_index],
-              hls::stream<t_bias> i_bias[1],
-              hls::stream<t_acc_struct> o_acc_stream[c_ops]) {
+               hls::stream<t_weight> i_weights[c_index],
+               hls::stream<t_bias> i_bias[1],
+               hls::stream<t_acc_struct> o_acc_stream[c_ops]) {
   /* #pragma HLS inline */
 
   const auto c_o_index = c_oh * c_ow / c_reuse;
@@ -193,12 +193,12 @@ template <class t_input_struct, class t_input, class t_weight, class t_bias,
           int c_oh, int c_ow, int c_index, int c_str, int c_ops, int c_reuse,
           int c_shift_h, int c_shift_l, int c_shift_h_1x1, int c_shift_l_1x1>
 void conv_comp(hls::stream<t_input_struct> i_input[c_index],
-              hls::stream<t_weight> i_weights[c_index],
-              hls::stream<t_bias> i_bias[1],
-              hls::stream<t_weight_1x1> i_weights_1x1[1],
-              hls::stream<t_bias_1x1> i_bias_1x1[1],
-              hls::stream<t_acc_struct> o_acc_stream[c_ops],
-              hls::stream<t_acc_1x1_struct> o_acc_1x1_stream[c_ops]) {
+               hls::stream<t_weight> i_weights[c_index],
+               hls::stream<t_bias> i_bias[1],
+               hls::stream<t_weight_1x1> i_weights_1x1[1],
+               hls::stream<t_bias_1x1> i_bias_1x1[1],
+               hls::stream<t_acc_struct> o_acc_stream[c_ops],
+               hls::stream<t_acc_1x1_struct> o_acc_1x1_stream[c_ops]) {
   /* #pragma HLS inline */
 
   const auto c_o_index = c_oh * c_ow / c_reuse;
@@ -277,7 +277,8 @@ void conv_comp(hls::stream<t_input_struct> i_input[c_index],
           for (auto s_index = 0; s_index < c_index; s_index++) {
             t_input s_data = s_input[s_reuse][s_index];
             if (c_shift_l != 0)
-              s_data = quant_act<t_input, c_shift_l, c_shift_h, t_input>(s_data);
+              s_data =
+                  quant_act<t_input, c_shift_l, c_shift_h, t_input>(s_data);
             s_acc += s_data * s_weight[s_index][s_ops];
           }
 
@@ -320,10 +321,10 @@ template <class t_input_struct, class t_input, class t_weight, class t_bias,
           int c_ow, int c_index, int c_str, int c_ops, int c_reuse,
           int c_shift_h, int c_shift_l>
 void conv_comp(hls::stream<t_input_struct> i_input[c_index],
-              hls::stream<t_weight> i_weights[c_index],
-              hls::stream<t_bias> i_bias[1],
-              hls::stream<t_input_struct> &o_forward,
-              hls::stream<t_acc_struct> o_acc_stream[c_ops]) {
+               hls::stream<t_weight> i_weights[c_index],
+               hls::stream<t_bias> i_bias[1],
+               hls::stream<t_input_struct> &o_forward,
+               hls::stream<t_acc_struct> o_acc_stream[c_ops]) {
   /* #pragma HLS inline */
 
   const auto c_o_index = c_oh * c_ow / c_reuse;
@@ -389,7 +390,8 @@ void conv_comp(hls::stream<t_input_struct> i_input[c_index],
           for (auto s_index = 0; s_index < c_index; s_index++) {
             t_input s_data = s_input[s_reuse][s_index];
             if (c_shift_l != 0)
-              s_data = quant_act<t_input, c_shift_l, c_shift_h, t_input>(s_data);
+              s_data =
+                  quant_act<t_input, c_shift_l, c_shift_h, t_input>(s_data);
             s_acc += s_data * s_weight[s_index][s_ops];
           }
 
@@ -424,9 +426,9 @@ template <class t_input_struct, class t_input, class t_weight, class t_bias,
           int c_och, int c_oh, int c_ow, int c_index, int c_str, int c_ops,
           int c_reuse, int c_shift_l>
 void conv_comp(hls::stream<t_input_struct> i_input[c_index],
-              hls::stream<t_weight> i_weights[c_index],
-              hls::stream<t_bias> i_bias[1], hls::stream<t_add_struct> &i_add,
-              hls::stream<t_acc_struct> o_acc_stream[c_ops]) {
+               hls::stream<t_weight> i_weights[c_index],
+               hls::stream<t_bias> i_bias[1], hls::stream<t_add_struct> &i_add,
+               hls::stream<t_acc_struct> o_acc_stream[c_ops]) {
   /* #pragma HLS inline */
 
   const auto c_o_index = c_oh * c_ow / c_reuse;
@@ -523,9 +525,9 @@ template <class t_input_struct, class t_input, class t_weight, class t_bias,
           class t_acc_struct, class t_acc, int c_ich, int c_och, int c_oh,
           int c_ow, int c_index, int c_str, int c_ops>
 void conv_comp(hls::stream<t_input_struct> i_input[c_index],
-              hls::stream<t_weight> i_weights[c_index],
-              hls::stream<t_bias> i_bias[1],
-              hls::stream<t_acc_struct> o_acc_stream[c_ops]) {
+               hls::stream<t_weight> i_weights[c_index],
+               hls::stream<t_bias> i_bias[1],
+               hls::stream<t_acc_struct> o_acc_stream[c_ops]) {
   /* #pragma HLS inline */
 
   const int c_num_comp = c_ich * c_och;
@@ -634,9 +636,9 @@ template <class t_output_struct, class t_output, class t_output_1x1_struct,
           int c_mask, int c_shift_h, int c_shift_l, int c_mask_1x1,
           int c_shift_h_1x1, int c_shift_l_1x1>
 void stream_output(hls::stream<t_acc_struct> i_acc[c_ops],
-                  hls::stream<t_acc_1x1_struct> i_acc_1x1[c_ops],
-                  hls::stream<t_output_struct> &o_data,
-                  hls::stream<t_output_1x1_struct> &o_data_1x1) {
+                   hls::stream<t_acc_1x1_struct> i_acc_1x1[c_ops],
+                   hls::stream<t_output_struct> &o_data,
+                   hls::stream<t_output_1x1_struct> &o_data_1x1) {
   /* #pragma HLS inline */
 
   const auto c_num_comp = c_oh * c_ow * c_och;
@@ -661,12 +663,12 @@ void stream_output(hls::stream<t_acc_struct> i_acc[c_ops],
     }
 
     quant_stream<t_output_struct, t_output, t_acc_struct, t_acc, c_ich, c_och,
-                c_oh, c_ow, c_index, c_ops, c_relu, c_quant, c_mask, c_shift_h,
-                c_shift_l>(s_acc[s_och], o_data);
+                 c_oh, c_ow, c_index, c_ops, c_relu, c_quant, c_mask, c_shift_h,
+                 c_shift_l>(s_acc[s_och], o_data);
 
     quant_stream<t_output_1x1_struct, t_output_1x1, t_acc_1x1_struct, t_acc_1x1,
-                c_ich, c_och, c_oh, c_ow, 1, 1, 0, c_quant, c_mask_1x1,
-                c_shift_h_1x1, c_shift_l_1x1>(s_acc_1x1[s_och], o_data_1x1);
+                 c_ich, c_och, c_oh, c_ow, 1, 1, 0, c_quant, c_mask_1x1,
+                 c_shift_h_1x1, c_shift_l_1x1>(s_acc_1x1[s_och], o_data_1x1);
   }
 }
 
@@ -675,7 +677,7 @@ template <class t_output_struct, class t_output, class t_acc_struct,
           int c_ops, int c_relu, int c_quant, int c_mask, int c_shift_h,
           int c_shift_l>
 void stream_output(hls::stream<t_acc_struct> i_acc[c_ops],
-                  hls::stream<t_output_struct> &o_data) {
+                   hls::stream<t_output_struct> &o_data) {
   /* #pragma HLS inline */
 
   const auto c_num_comp = c_oh * c_ow * c_och;
@@ -698,11 +700,11 @@ void stream_output(hls::stream<t_acc_struct> i_acc[c_ops],
     }
 
     quant_stream<t_output_struct, t_output, t_acc_struct, t_acc, c_ich, c_och,
-                c_oh, c_ow, c_index, c_ops, c_relu, c_quant, c_mask, c_shift_h,
-                c_shift_l>(s_acc[s_och], o_data);
+                 c_oh, c_ow, c_index, c_ops, c_relu, c_quant, c_mask, c_shift_h,
+                 c_shift_l>(s_acc[s_och], o_data);
   }
 }
 
-} // namespace nn2fpga
- 
+}  // namespace nn2fpga
+
 #endif
