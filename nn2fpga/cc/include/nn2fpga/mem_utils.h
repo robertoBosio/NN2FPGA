@@ -71,17 +71,17 @@ void produce_stream(hls::stream<din_t> &dinStream,
   }
 }
 
-template <class dout_t, int C_ICH, int C_OCH, int C_OW, int C_OH, int C_FW,
+template <typename dout_t, int C_ICH, int C_OCH, int C_OW, int C_OH, int C_FW,
           int C_FH, int C_OPS, int BITW, int C_START>
 void mem_algo(hls::stream<dout_t> dout[C_FH * C_FW], ap_int<BITW> *din) {
 #pragma HLS inline
 #pragma HLS dataflow
-  const int C_BYTES = BITW / 8;
-  const int c_words = 4096 / (C_BYTES);
-  const int c_index = C_FH * C_FW;
-  const int c_f_index = C_START + c_index * C_OCH * C_ICH;
-  const int c_w_index = C_OCH * C_ICH / C_OPS;
-  const int C_O_INDEX = C_OW * C_OH;
+  constexpr int C_BYTES = BITW / 8;
+  constexpr int c_words = 4096 / (C_BYTES);
+  constexpr int c_index = C_FH * C_FW;
+  constexpr int c_f_index = C_START + c_index * C_OCH * C_ICH;
+  constexpr int c_w_index = C_OCH * C_ICH / C_OPS;
+  constexpr int C_O_INDEX = C_OW * C_OH;
 
   hls::stream<dout_t> s_data_stream("data_stream");
 #pragma HLS stream variable = s_data_stream depth = 1
@@ -105,13 +105,13 @@ void mem_algo(hls::stream<dout_t> dout[C_FH * C_FW], ap_int<BITW> *din) {
   }
 }
 
-template <class dout_t, int C_ICH, int C_OCH, int C_OW, int C_OH, int C_FW,
+template <typename dout_t, int C_ICH, int C_OCH, int C_OW, int C_OH, int C_FW,
           int C_FH, int C_OPS, int BITW, int C_START>
 void mem_algo(hls::stream<dout_t> &dout, ap_int<BITW> *din) {
-  const int C_BYTES = BITW / 8;
-  const int c_words = 4096 / (C_BYTES);
-  const int c_f_index = C_START + C_FH * C_FW * C_OCH * C_ICH;
-  const int C_O_INDEX = C_OW * C_OH;
+  constexpr int C_BYTES = BITW / 8;
+  constexpr int c_words = 4096 / (C_BYTES);
+  constexpr int c_f_index = C_START + C_FH * C_FW * C_OCH * C_ICH;
+  constexpr int C_O_INDEX = C_OW * C_OH;
 
   for (auto s_o_index = 0; s_o_index < C_O_INDEX; s_o_index++) {
     for (auto s_f_index = C_START; s_f_index < c_f_index; s_f_index += C_OPS) {
@@ -124,14 +124,14 @@ void mem_algo(hls::stream<dout_t> &dout, ap_int<BITW> *din) {
   }
 }
 
-template <class din_t, class dout_t, int C_ICH, int C_OCH, int C_OW, int C_OH,
-          int C_FW, int C_FH, int C_OPS, int BITW>
+template <typename din_t, typename dout_t, int C_ICH, int C_OCH, int C_OW,
+          int C_OH, int C_FW, int C_FH, int C_OPS, int BITW>
 void produce_stream(hls::stream<dout_t> &din,
                     hls::stream<dout_t> dout[C_FH * C_FW]) {
   /* #pragma HLS inline */
-  const int c_index = C_FH * C_FW;
-  const int C_CH = C_ICH * C_OCH;
-  const int C_O_INDEX = C_OH * C_OW * C_CH / (C_OPS);
+  constexpr int c_index = C_FH * C_FW;
+  constexpr int C_CH = C_ICH * C_OCH;
+  constexpr int C_O_INDEX = C_OH * C_OW * C_CH / (C_OPS);
 
   /* const ap_uint<C_OPS*8> c_mask = C_OPS*256-1; */
 
@@ -145,14 +145,14 @@ void produce_stream(hls::stream<dout_t> &din,
   }
 }
 
-template <class din_t, class dout_t, int C_ICH, int C_OCH, int C_OW, int C_OH,
-          int C_FW, int C_FH, int C_OPS, int BITW, int c_bw, int c_reuse,
-          int C_START>
+template <typename din_t, typename dout_t, int C_ICH, int C_OCH, int C_OW,
+          int C_OH, int C_FW, int C_FH, int C_OPS, int BITW, int c_bw,
+          int c_reuse, int C_START>
 void mem_algo(hls::stream<dout_t> dout[c_bw], const din_t *din) {
-  const int C_BYTES = BITW / 8;
-  const int c_words = 4096 / (C_BYTES);
-  const int c_f_index = C_START + C_FH * C_FW * C_OCH * C_ICH;
-  const int C_O_INDEX = C_OW * C_OH / c_reuse;
+  constexpr int C_BYTES = BITW / 8;
+  constexpr int c_words = 4096 / (C_BYTES);
+  constexpr int c_f_index = C_START + C_FH * C_FW * C_OCH * C_ICH;
+  constexpr int C_O_INDEX = C_OW * C_OH / c_reuse;
 
   for (auto s_o_index = 0; s_o_index < C_O_INDEX; s_o_index++) {
     for (auto s_f_index = C_START; s_f_index < c_f_index;
@@ -168,14 +168,15 @@ void mem_algo(hls::stream<dout_t> dout[c_bw], const din_t *din) {
   }
 }
 
-template <class din_t, class dout_t, int C_ICH, int C_OCH, int C_OW, int C_OH,
-          int C_FW, int C_FH, int C_OPS, int c_bw, int c_reuse, int BITW>
+template <typename din_t, typename dout_t, int C_ICH, int C_OCH, int C_OW,
+          int C_OH, int C_FW, int C_FH, int C_OPS, int c_bw, int c_reuse,
+          int BITW>
 void produce_stream(hls::stream<dout_t> dinStream[c_bw],
                     hls::stream<dout_t> doutStream[C_FH * C_FW]) {
   /* #pragma HLS inline */
-  const int c_index = C_FH * C_FW;
-  const int C_CH = C_ICH * C_OCH;
-  const int C_O_INDEX = c_index * C_OH * C_OW * C_CH / (C_OPS * c_reuse);
+  constexpr int c_index = C_FH * C_FW;
+  constexpr int C_CH = C_ICH * C_OCH;
+  constexpr int C_O_INDEX = c_index * C_OH * C_OW * C_CH / (C_OPS * c_reuse);
 
   /* const ap_uint<C_OPS*8> c_mask = C_OPS*256-1; */
 
@@ -194,14 +195,14 @@ template <int C_ICH, int C_OCH, int C_OW, int C_OH, int C_FW, int C_FH,
           int C_OPS, int BITW, int C_START>
 void mem_algo(hls::stream<ap_uint<BITW>> &dout,
               hls::burst_maxi<ap_uint<BITW>> din) {
-  const int C_BYTES = BITW / 8;
-  const int c_words = 4096 / (C_BYTES);
-  const int c_f_index = C_FH * C_FW * C_OCH * C_ICH;
-  const int c_b_index = c_f_index / 4096;
-  const int c_b_rem = c_f_index % 4096;
-  const int C_START_w = C_START / C_BYTES;
-  const int c_b_rem_words = c_b_rem / C_BYTES;
-  const int C_O_INDEX = C_OW * C_OH;
+  constexpr int C_BYTES = BITW / 8;
+  constexpr int c_words = 4096 / (C_BYTES);
+  constexpr int c_f_index = C_FH * C_FW * C_OCH * C_ICH;
+  constexpr int c_b_index = c_f_index / 4096;
+  constexpr int c_b_rem = c_f_index % 4096;
+  constexpr int C_START_w = C_START / C_BYTES;
+  constexpr int c_b_rem_words = c_b_rem / C_BYTES;
+  constexpr int C_O_INDEX = C_OW * C_OH;
 
   for (auto s_o_index = 0; s_o_index < C_O_INDEX; s_o_index++) {
     for (auto s_b_index = 0; s_b_index < c_b_index; s_b_index++) {
