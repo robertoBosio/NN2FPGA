@@ -38,8 +38,8 @@ def tb_declare(fd, layer_tb_declare):
 
     fd.write("\n")
 
-def init(file_name, parsed_write):
-    with open("src/%sSim.hpp" % file_name, "w+") as fd:
+def init(file_name, parsed_write, prj_root="."):
+    with open(prj_root + "/cc/include/%sSim.hpp" % file_name, "w+") as fd:
 
         libraries = [
             "Network.hpp"
@@ -69,7 +69,7 @@ def init(file_name, parsed_write):
 
 
 def body(file_name, parsed_write):
-    with open("src/%sSim.hpp" % file_name, "a") as fd:
+    with open(prj_root + "/cc/include/%sSim.hpp" % file_name, "a") as fd:
 
         for layer in parsed_write:
 
@@ -97,7 +97,7 @@ def body(file_name, parsed_write):
 
 
 def footer(file_name, parsed_write):
-    with open("src/%sSim.hpp" % file_name, "a") as fd:
+    with open(prj_root + "/cc/include/%sSim.hpp" % file_name, "a") as fd:
         fd.write("}\n")
         fd.write("\n")
         fd.write("#endif")

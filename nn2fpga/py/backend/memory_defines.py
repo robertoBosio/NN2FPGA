@@ -7,7 +7,8 @@ import numpy as np
 def write(
     additional_ports,
     additional_ports_info,
-    read_width
+    read_width, 
+    prj_root="."
 ):
 
     def write_header(fd):
@@ -83,7 +84,7 @@ def write(
         pass
 
 
-    with open("src/MemoryManagement.hpp", "w+") as fd:
+    with open(prj_root + "/cc/include/MemoryManagement.hpp", "w+") as fd:
         write_header(fd)
         write_body(fd)
         write_footer(fd)

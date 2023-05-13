@@ -5,13 +5,15 @@ from onnx import numpy_helper
 
 def write(
     additional_ports,
-    additional_ports_info
+    additional_ports_info, 
+    prj_root=".", 
+    nn2fpga_root="."
 ):
 
     read_width = 128
 
-    os.system("cp tcl/bd_design.tcl tmp/bd_design.tcl")
-    with open("tmp/bd_design.tcl", "a") as fd:
+    os.system("cp {}/bd_design.tcl {}/bd_design.tcl".format(nn2fpga_root, prj_root))
+    with open("{}/bd_design.tcl".format(prj_root), "a") as fd:
         
         inv = []
         inv.append(["empty", "Network_0"])

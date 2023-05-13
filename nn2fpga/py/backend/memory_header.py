@@ -7,7 +7,8 @@ import numpy as np
 def write(
     additional_ports,
     weights_export,
-    read_width
+    read_width, 
+    prj_root="."
 ):
 
     def write_header(fd):
@@ -49,7 +50,7 @@ def write(
         pass
 
 
-    with open("src/MemoryWeights.hpp", "w+") as fd:
+    with open(prj_root + "/cc/include/MemoryWeights.hpp", "w+") as fd:
         write_header(fd)
         write_body(fd)
         write_footer(fd)

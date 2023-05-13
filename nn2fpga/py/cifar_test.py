@@ -141,12 +141,12 @@ def main():
         summary_writer.add_scalar('cls_loss', loss.item(), step)
         summary_writer.add_scalar('learning rate', optimizer.param_groups[0]['lr'], step)
 
-  def test(epoch):
+  def test(epoch, prj_root="."):
     # pass
     model.eval()
     correct = 0
     model.show = True
-    with open("tmp/log.txt", "w+") as fd:
+    with open("{}/log.txt".format(prj_root), "w+") as fd:
         for batch_idx, (inputs, targets) in enumerate(eval_loader):
           if (CUDA):
             inputs, targets = inputs.cuda(), targets.cuda()

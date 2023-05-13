@@ -6,7 +6,8 @@ from onnx import numpy_helper
 def write(
     additional_ports,
     additional_ports_info,
-    read_width
+    read_width,
+    prj_root=".",
 ):
 
     def write_header(fd):
@@ -147,7 +148,7 @@ def write(
         pass
 
 
-    with open("src/MemoryManagement.cpp", "w+") as fd:
+    with open(prj_root + "/cc/src/MemoryManagement.cpp", "w+") as fd:
         write_header(fd)
         write_body(fd)
         write_footer(fd)

@@ -19,7 +19,8 @@ def write(
     additional_ports,
     parallel_ops,
     read_width,
-    reuse
+    reuse, 
+    prj_root="."
 ):
 
     def write_header(fd):
@@ -502,7 +503,7 @@ def write(
         # End of main file
         fd.write("#endif")
 
-    with open("src/Network.hpp", "w+") as fd:
+    with open(prj_root + "/cc/include/Network.hpp", "w+") as fd:
 
         write_header(fd)
 
