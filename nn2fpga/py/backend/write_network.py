@@ -19,7 +19,7 @@ import numpy as np
 # Expects an ONNX model
 def write_network(
     model,
-    file_name="Network",
+    file_name="network",
     off_chip_storage=False,
     board="ULTRA96v2",
     prj_root=".",
