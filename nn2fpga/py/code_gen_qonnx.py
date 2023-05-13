@@ -12,8 +12,14 @@ from qonnx.transformation import infer_shapes
 from qonnx.core.datatype import DataType
 from qonnx.transformation.infer_datatypes import InferDataTypes
 from qonnx.util.cleanup import cleanup_model
+
 def main():
 
+    if "TOP_NAME" not in os.environ:
+        print("ERROR: The name of the top entity is not defined.")
+        sys.exit(1)
+
+    top_name = str(os.environ.get("TOP_NAME"))
 
     if "BOARD" not in os.environ:
         print("BOARD PLATFORM NOT DEFINED")
@@ -55,7 +61,7 @@ def main():
 
     write_network(
         inferred_model,
-        file_name = "Network",
+        file_name = top_name,
         off_chip_storage=False,
         board=board, 
         prj_root=PRJ_ROOT
