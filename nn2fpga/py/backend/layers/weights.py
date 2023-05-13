@@ -250,7 +250,7 @@ def weights_info(
 def parse_main(io_dict):
     
     block = {}
-    block["func"] = "MemoryManagement"
+    block["func"] = "memory_management"
     block["args"] = []
     block["input"] = []
     block["output"] = []
@@ -530,14 +530,14 @@ def init(file_name, network_name, parsed_write, prj_root="."):
         "hls_stream.h",
     ]
 
-    with open(prj_root + ("/cc/src/%s.cpp" % file_name), "w+") as fd:
+    with open(prj_root + ("/cc/src/%s.cc" % file_name), "w+") as fd:
         # Write header with network definitions
         for lib in libraries:
             fd.write("#include \"%s\"\n" % lib)
         fd.write("\n")
 
         # Handle internal or external parameters
-        fd.write("void MemoryManagement(\n")
+        fd.write("void memory_management(\n")
 
         for layer in parsed_write:
             for name in layer["input"]:
@@ -564,7 +564,7 @@ def write(io_dict, network_name, prj_root="."):
 
     parsed_write = parse_all(io_dict)
 
-    init("MemoryManagement", network_name, parsed_write, prj_root)
-    declare("MemoryManagement", parsed_write, ap_ctrl=None, inline=True, prj_root=prj_root)
-    body("MemoryManagement", parsed_write, prj_root)
+    init("memory_management", network_name, parsed_write, prj_root)
+    declare("memory_management", parsed_write, ap_ctrl=None, inline=True, prj_root=prj_root)
+    body("memory_management", parsed_write, prj_root)
 
