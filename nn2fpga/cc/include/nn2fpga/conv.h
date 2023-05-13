@@ -27,8 +27,8 @@ void conv(din_t* din, weight_t* win, dout_t* dout) {
         for (unsigned s_ich = 0; s_ich < ICH; s_ich++) {
           for (unsigned s_fh = 0; s_fh < FH; s_fh++) {
             for (unsigned s_fw = 0; s_fw < FW; s_fw++) {
-              unsigned s_ih = s_oh + s_fh - s_oh_pad / 2;
-              unsigned s_iw = s_ow + s_fw - s_ow_pad / 2;
+              int s_ih = int(s_oh) + s_fh - s_oh_pad / 2;
+              int s_iw = int(s_ow) + s_fw - s_ow_pad / 2;
 
               unsigned s_i_index = s_ih * IW * ICH + s_iw * ICH + s_ich;
               unsigned s_w_index =
