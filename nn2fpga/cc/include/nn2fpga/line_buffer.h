@@ -1,7 +1,7 @@
-#ifndef __LINEBUFFER__
-#define __LINEBUFFER__
+#ifndef NN2FPGA_LINE_BUFFER_H_
+#define NN2FPGA_LINE_BUFFER_H_
 
-#include "Debug.hpp"
+#include "nn2fpga/debug.h"
 #include <ap_int.h>
 #include <hls_stream.h>
 
@@ -155,4 +155,4 @@ class LineBuffer {
 #endif  // __SYNTHESIS__
 };
 
-#endif  // __LINEBUFFER__
+#endif  // NN2FPGA_LINE_BUFFER_H_

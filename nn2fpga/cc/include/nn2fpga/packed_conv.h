@@ -1,9 +1,9 @@
 #ifndef __PACKEDCONV__
 #define __PACKEDCONV__
 
-#include "ActivationStreams.hpp"
-#include "Debug.hpp"
-#include "Utils.hpp"
+#include "nn2fpga/activation_streams.h"
+#include "nn2fpga/debug.h"
+#include "nn2fpga/utils.h"
 #include "ap_int.h"
 #include "hls_stream.h"
 
@@ -13,7 +13,7 @@
 template <class t_input_struct, class t_input, class t_weight,
           class t_acc_struct, class t_acc, int c_ich, int c_och, int c_oh,
           int c_ow, int c_index, int c_str, int c_ops, int c_reuse>
-void ConvComp(hls::stream<t_input_struct> i_input[c_index],
+void conv_comp(hls::stream<t_input_struct> i_input[c_index],
               hls::stream<t_weight> i_weights[c_index],
               hls::stream<t_acc_struct> o_acc_stream[c_ops]) {
   /* #pragma HLS inline */
@@ -100,7 +100,7 @@ void ConvComp(hls::stream<t_input_struct> i_input[c_index],
 template <class t_input_struct, class t_input, class t_weight, class t_bias,
           class t_acc_struct, class t_acc, int c_ich, int c_och, int c_oh,
           int c_ow, int c_index, int c_str, int c_ops, int c_reuse>
-void ConvComp(hls::stream<t_input_struct> i_input[c_index],
+void conv_comp(hls::stream<t_input_struct> i_input[c_index],
               hls::stream<t_weight> i_weights[c_index],
               hls::stream<t_bias> i_bias[1],
               hls::stream<t_acc_struct> o_acc_stream[c_ops]) {
@@ -190,7 +190,7 @@ template <class t_input_struct, class t_input, class t_weight, class t_bias,
           class t_acc_1x1_struct, class t_acc_1x1, int c_ich, int c_och,
           int c_oh, int c_ow, int c_index, int c_str, int c_ops, int c_reuse,
           int c_shift_h, int c_shift_l, int c_shift_h_1x1, int c_shift_l_1x1>
-void ConvComp(hls::stream<t_input_struct> i_input[c_index],
+void conv_comp(hls::stream<t_input_struct> i_input[c_index],
               hls::stream<t_weight> i_weights[c_index],
               hls::stream<t_bias> i_bias[1],
               hls::stream<t_weight_1x1> i_weights_1x1[1],
@@ -275,7 +275,7 @@ void ConvComp(hls::stream<t_input_struct> i_input[c_index],
           for (auto s_index = 0; s_index < c_index; s_index++) {
             t_input s_data = s_input[s_reuse][s_index];
             if (c_shift_l != 0)
-              s_data = QuantAct<t_input, c_shift_l, c_shift_h, t_input>(s_data);
+              s_data = quant_act<t_input, c_shift_l, c_shift_h, t_input>(s_data);
             s_acc += s_data * s_weight[s_index][s_ops];
           }
 
@@ -288,7 +288,7 @@ void ConvComp(hls::stream<t_input_struct> i_input[c_index],
 
           t_input s_data = s_input[s_reuse][c_index / 2];
           if (c_shift_l != 0)
-            s_data = QuantAct<t_input, c_shift_l_1x1, c_shift_h_1x1, t_input>(
+            s_data = quant_act<t_input, c_shift_l_1x1, c_shift_h_1x1, t_input>(
                 s_data);
           s_acc_1x1 += s_data * s_weight_1x1[0][s_ops];
 
@@ -317,7 +317,7 @@ template <class t_input_struct, class t_input, class t_weight, class t_bias,
           class t_acc_struct, class t_acc, int c_ich, int c_och, int c_oh,
           int c_ow, int c_index, int c_str, int c_ops, int c_reuse,
           int c_shift_h, int c_shift_l>
-void ConvComp(hls::stream<t_input_struct> i_input[c_index],
+void conv_comp(hls::stream<t_input_struct> i_input[c_index],
               hls::stream<t_weight> i_weights[c_index],
               hls::stream<t_bias> i_bias[1],
               hls::stream<t_input_struct> &o_forward,
@@ -387,7 +387,7 @@ void ConvComp(hls::stream<t_input_struct> i_input[c_index],
           for (auto s_index = 0; s_index < c_index; s_index++) {
             t_input s_data = s_input[s_reuse][s_index];
             if (c_shift_l != 0)
-              s_data = QuantAct<t_input, c_shift_l, c_shift_h, t_input>(s_data);
+              s_data = quant_act<t_input, c_shift_l, c_shift_h, t_input>(s_data);
             s_acc += s_data * s_weight[s_index][s_ops];
           }
 
@@ -421,7 +421,7 @@ template <class t_input_struct, class t_input, class t_weight, class t_bias,
           class t_add_struct, class t_acc_struct, class t_acc, int c_ich,
           int c_och, int c_oh, int c_ow, int c_index, int c_str, int c_ops,
           int c_reuse, int c_shift_l>
-void ConvComp(hls::stream<t_input_struct> i_input[c_index],
+void conv_comp(hls::stream<t_input_struct> i_input[c_index],
               hls::stream<t_weight> i_weights[c_index],
               hls::stream<t_bias> i_bias[1], hls::stream<t_add_struct> &i_add,
               hls::stream<t_acc_struct> o_acc_stream[c_ops]) {
@@ -520,7 +520,7 @@ void ConvComp(hls::stream<t_input_struct> i_input[c_index],
 template <class t_input_struct, class t_input, class t_weight, class t_bias,
           class t_acc_struct, class t_acc, int c_ich, int c_och, int c_oh,
           int c_ow, int c_index, int c_str, int c_ops>
-void ConvComp(hls::stream<t_input_struct> i_input[c_index],
+void conv_comp(hls::stream<t_input_struct> i_input[c_index],
               hls::stream<t_weight> i_weights[c_index],
               hls::stream<t_bias> i_bias[1],
               hls::stream<t_acc_struct> o_acc_stream[c_ops]) {
@@ -619,7 +619,7 @@ void QuantStream(t_acc_struct i_acc, hls::stream<t_output_struct> &o_data) {
     s_acc = ReluOp<t_acc>(s_acc);
   }
   s_output.data =
-      QuantAct<t_acc, c_shift_l, c_shift_h, c_mask, t_output>(s_acc);
+      quant_act<t_acc, c_shift_l, c_shift_h, c_mask, t_output>(s_acc);
   s_output.last = s_acc_struct.last;
 
   o_data.write(s_output);

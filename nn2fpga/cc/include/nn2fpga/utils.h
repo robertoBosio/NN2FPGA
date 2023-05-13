@@ -3,15 +3,15 @@
 
 #include <etc/autopilot_ssdm_op.h>
 
-#include "Debug.hpp"
-#include "LineBuffer.hpp"
+#include "nn2fpga/debug.h"
+#include "nn2fpga/line_buffer.h"
 #include "ap_int.h"
 #include "hls_math.h"
 
 //////////////////////////// QUANT FUNCTIONS //////////////////////////////////
 
 template <class t_input, int c_scale>
-t_input QuantAct(t_input i_data) {
+t_input quant_act(t_input i_data) {
   const int c_scale_inv = -1 * c_scale;
   if (c_scale <= 0)
     return (i_data << c_scale_inv);
@@ -23,7 +23,7 @@ t_input QuantAct(t_input i_data) {
 }
 
 template <class t_input, int c_scale, int c_mask>
-t_input QuantAct(t_input i_data) {
+t_input quant_act(t_input i_data) {
 #pragma HLS inline
 	const int c_scale_inv = -1*c_scale;
 	t_input s_data = i_data;
@@ -44,7 +44,7 @@ t_input QuantAct(t_input i_data) {
 }
 
 template <class t_input, int c_scale, class t_output>
-t_output QuantAct(t_input i_data) {
+t_output quant_act(t_input i_data) {
   const t_output c_msb = sizeof(t_output) * 8 - 1;
 
   const t_output c_max_0 = ~(t_output)(0);
@@ -55,7 +55,7 @@ t_output QuantAct(t_input i_data) {
   const t_output c_min_1 = (-1 << c_msb);
   const t_output c_min = (c_min_0 < 0) ? c_min_1 : 0;
 
-  t_input s_data = QuantAct<t_input, c_scale, c_max_0>(i_data);
+  t_input s_data = quant_act<t_input, c_scale, c_max_0>(i_data);
 
   if (s_data > c_max) {
     return c_max;
@@ -67,8 +67,8 @@ t_output QuantAct(t_input i_data) {
 }
 
 template <class t_input, int c_scale, int c_clip, class t_output>
-t_output QuantAct(t_input i_data) {
-  t_input s_data = QuantAct<t_input, c_scale>(i_data);
+t_output quant_act(t_input i_data) {
+  t_input s_data = quant_act<t_input, c_scale>(i_data);
   const t_output c_msb = sizeof(t_output) * 8 - 1;
 
   const t_output c_max = c_clip;
@@ -92,11 +92,11 @@ template <
 	int c_clip,
 	int c_mask,
 	class t_output
-> t_output QuantAct (
+> t_output quant_act (
 	t_input i_data
 ) {
 
-	t_input s_data = QuantAct<t_input,c_scale,c_mask>(i_data);
+	t_input s_data = quant_act<t_input,c_scale,c_mask>(i_data);
 
 	const t_output c_msb = sizeof(t_output)*8-1;
 	const t_output c_max = c_clip;
@@ -123,7 +123,7 @@ template <
 /* 	int c_ich, */
 /* 	int c_iw, */
 /* 	int c_ih */
-/* > void ProduceStream( */
+/* > void produce_stream( */
 /* 	t_input *i_data, */
 /* 	hls::stream<t_output> &s_i_data */
 /* ) { */
@@ -137,7 +137,7 @@ template <
 /* } */
 
 template <class t_input, class t_output, int c_ich, int c_iw, int c_ih>
-void ProduceStream(t_input i_data[c_ich * c_ih * c_iw],
+void produce_stream(t_input i_data[c_ich * c_ih * c_iw],
                    hls::stream<ap_uint<1>> &i_last,
                    hls::stream<t_output> &o_data) {
   const int c_index = c_ich * c_ih * c_iw;
@@ -156,7 +156,7 @@ PRODSTR:
 template <class t_input, class t_input_part, class t_output_struct,
           class t_output, int c_ich, int c_iw, int c_ih, int c_bits,
           int c_scale>
-void ProduceStream(hls::stream<t_input> &i_data,
+void produce_stream(hls::stream<t_input> &i_data,
                    hls::stream<t_output_struct> &o_data) {
   const int c_par = c_bits / 8;
   const int c_index = (c_ich * c_ih * c_iw);
@@ -175,7 +175,7 @@ PRODSTR:
 
     t_output_struct tmp_w;
     t_input_part tmp_p = (t_input_part)(tmp_r_par & 0xff);
-    tmp_w.data = QuantAct<t_input_part, c_scale, t_output>(tmp_p);
+    tmp_w.data = quant_act<t_input_part, c_scale, t_output>(tmp_p);
 
     if (s_par < (c_par - 1))
       tmp_w.last = false;
@@ -188,7 +188,7 @@ PRODSTR:
 
 template <class t_input, class t_output, int c_ich, int c_iw, int c_ih,
           int c_bits>
-void ProduceStream(hls::stream<t_input> &i_data,
+void produce_stream(hls::stream<t_input> &i_data,
                    hls::stream<ap_uint<1>> &o_last,
                    hls::stream<t_output> &o_data) {
   const int c_par = c_bits / 8;
@@ -216,7 +216,7 @@ PRODSTR:
 
 // For output activations
 template <class t_input, class t_output, int c_och, int c_ow, int c_oh>
-void ConsumeStream(hls::stream<t_input> &i_data,
+void consume_stream(hls::stream<t_input> &i_data,
                    t_output o_data[c_och * c_ow * c_oh]) {
   t_input s_read;
   const int c_index = c_och * c_oh * c_ow;
@@ -228,7 +228,7 @@ void ConsumeStream(hls::stream<t_input> &i_data,
 }
 
 template <class t_input, class t_output, int c_och, int c_ow, int c_oh>
-void ConsumeStream(hls::stream<t_input> &i_data,
+void consume_stream(hls::stream<t_input> &i_data,
                    hls::stream<t_output> &o_data) {
   const int c_index = c_och * c_oh * c_ow;
 
@@ -243,7 +243,7 @@ void ConsumeStream(hls::stream<t_input> &i_data,
 }
 
 template <class t_input, class t_output, int c_och, int c_ow, int c_oh>
-void ConsumeStream(hls::stream<t_input> &i_data,
+void consume_stream(hls::stream<t_input> &i_data,
                    hls::stream<ap_uint<1>> &i_last,
                    hls::stream<t_output> &o_data) {
   const int c_index = c_och * c_oh * c_ow;
@@ -267,7 +267,7 @@ void ConsumeStream(hls::stream<t_input> &i_data,
 
 template <class t_input, class t_output, int c_och, int c_ow, int c_oh,
           int c_bits>
-void ConsumeStream(hls::stream<t_input> &i_data,
+void consume_stream(hls::stream<t_input> &i_data,
                    hls::stream<ap_uint<1>> &i_last,
                    hls::stream<t_output> &o_data) {
   const int c_par = c_bits / 8;
@@ -305,7 +305,7 @@ void ConsumeStream(hls::stream<t_input> &i_data,
 // For input weights
 template <class t_input, class t_output, int c_ich, int c_och, int c_iw,
           int c_ih, int c_ow, int c_oh, int c_str>
-void ProduceStream(t_input *i_data, hls::stream<t_output> &s_i_data) {
+void produce_stream(t_input *i_data, hls::stream<t_output> &s_i_data) {
   const int c_index = c_och * c_ich * c_ih * c_iw;
 
   for (int s_oh = 0; s_oh < c_oh; s_oh++) {
@@ -321,7 +321,7 @@ void ProduceStream(t_input *i_data, hls::stream<t_output> &s_i_data) {
 // For input weights
 template <class t_input, class t_output, int c_ich, int c_och, int c_iw,
           int c_ih, int c_ow, int c_oh>
-void ProduceStream(const t_input i_data[c_och * c_ich * c_iw * c_ih],
+void produce_stream(const t_input i_data[c_och * c_ich * c_iw * c_ih],
                    hls::stream<t_output> o_data[c_ih * c_iw]) {
   const int c_index = c_oh * c_ow;
   const int c_stream_sel = c_ih * c_iw;
@@ -344,7 +344,7 @@ void ProduceStream(const t_input i_data[c_och * c_ich * c_iw * c_ih],
 
 template <class t_input, class t_output, int c_ich, int c_och, int c_iw,
           int c_ih, int c_ow, int c_oh, int c_ops>
-void ProduceStream(const t_input i_data[c_och * c_ich * c_iw * c_ih],
+void produce_stream(const t_input i_data[c_och * c_ich * c_iw * c_ih],
                    hls::stream<t_output> o_data[c_ih * c_iw]) {
   const int c_index = c_oh * c_ow;
   const int c_stream_sel = c_ih * c_iw;
@@ -369,7 +369,7 @@ void ProduceStream(const t_input i_data[c_och * c_ich * c_iw * c_ih],
 
 template <class t_input, class t_output, int c_ich, int c_och, int c_ow,
           int c_oh>
-void ProduceStream(const t_input i_data[c_och * c_ich],
+void produce_stream(const t_input i_data[c_och * c_ich],
                    hls::stream<t_output> &o_data) {
   const int c_index = c_oh * c_ow;
   const int c_ch = c_ich * c_och;
@@ -384,7 +384,7 @@ void ProduceStream(const t_input i_data[c_och * c_ich],
 
 template <class t_input, class t_output, int c_ich, int c_och, int c_ow,
           int c_oh, int c_ops>
-void ProduceStream(const t_input i_data[c_och * c_ich],
+void produce_stream(const t_input i_data[c_och * c_ich],
                    hls::stream<t_output> &o_data) {
   const int c_index = c_oh * c_ow;
   const int c_ch = c_ich * c_och / c_ops;
@@ -405,7 +405,7 @@ void ProduceStream(const t_input i_data[c_och * c_ich],
 
 template <class t_input, class t_output, int c_ich, int c_och, int c_ow,
           int c_oh, int c_fw, int c_fh, int c_ops, int c_reuse>
-void ProduceStream(
+void produce_stream(
     const t_input i_data[c_fh * c_fw][c_och * c_ich / c_ops][c_ops],
     hls::stream<t_output> o_data[c_fh * c_fw]) {
   const int c_index = c_fh * c_fw;
@@ -427,7 +427,7 @@ void ProduceStream(
 
 template <class t_input, class t_output, int c_ich, int c_och, int c_ow,
           int c_oh, int c_fw, int c_fh, int c_ops>
-void ProduceStream(hls::stream<t_input> i_data[c_fh * c_fw],
+void produce_stream(hls::stream<t_input> i_data[c_fh * c_fw],
                    hls::stream<t_output> o_data[c_fh * c_fw]) {
   const int c_index = c_fh * c_fw;
   const int c_ch = c_ich * c_och / c_ops;
@@ -457,7 +457,7 @@ void ProduceStream(hls::stream<t_input> i_data[c_fh * c_fw],
 
 template <class t_input, class t_output, int c_ich, int c_och, int c_iw,
           int c_ih, int c_ow, int c_oh, int c_pad>
-void PadStream(hls::stream<t_input> &i_data, hls::stream<t_output> &o_data) {
+void pad_stream(hls::stream<t_input> &i_data, hls::stream<t_output> &o_data) {
   if (c_pad == 0) {
     for (uint8_t s_ih = 0; s_ih < c_ih; s_ih++) {
       for (uint8_t s_iw = 0; s_iw < c_iw; s_iw++) {
@@ -491,7 +491,7 @@ void PadStream(hls::stream<t_input> &i_data, hls::stream<t_output> &o_data) {
 
 template <class t_input, int c_ich, int c_iw, int c_ih, int c_fw, int c_fh,
           int c_pad>
-void PadInput(hls::stream<t_input> &i_data, hls::stream<t_input> &o_data) {
+void pad_input(hls::stream<t_input> &i_data, hls::stream<t_input> &o_data) {
   /* #pragma HLS inline */
 
   /* This handles padding aware inputs */
@@ -534,7 +534,7 @@ void PadInput(hls::stream<t_input> &i_data, hls::stream<t_input> &o_data) {
 
 template <class t_input, int c_ich, int c_iw, int c_ih, int c_fw, int c_fh,
           int c_pad>
-void ForwardStream(hls::stream<t_input> &i_data) {
+void forward_stream(hls::stream<t_input> &i_data) {
   const int c_pad_index_h = c_pad * (c_fh - 1);
   const int c_pad_index_w = c_pad * (c_fw - 1);
   const int c_ih_end = c_ih + c_pad_index_h;
@@ -551,7 +551,7 @@ void ForwardStream(hls::stream<t_input> &i_data) {
 
 template <class t_input, int c_ich, int c_iw, int c_ih, int c_fw, int c_fh,
           int c_pad>
-void ForwardStream(hls::stream<t_input> &i_data,
+void forward_stream(hls::stream<t_input> &i_data,
                    hls::stream<t_input> &o_forward) {
   const int c_pad_index_h = c_pad * (c_fh - 1) / 2;
   const int c_pad_index_w = c_pad * (c_fw - 1) / 2;
@@ -572,7 +572,7 @@ void ForwardStream(hls::stream<t_input> &i_data,
 }
 
 template <int c_split>
-void SplitStream(hls::stream<ap_uint<1>> &i_data,
+void split_stream(hls::stream<ap_uint<1>> &i_data,
                  hls::stream<ap_uint<1>> o_data[c_split]) {
   ap_uint<1> s_data = i_data.read();
   for (uint8_t s_split = 0; s_split < c_split; s_split++) {
@@ -582,7 +582,7 @@ void SplitStream(hls::stream<ap_uint<1>> &i_data,
 }
 
 template <class t_output, int c_och, int c_ow, int c_oh, int c_split>
-void SplitStream(hls::stream<t_output> &i_data,
+void split_stream(hls::stream<t_output> &i_data,
                  hls::stream<t_output> o_data[c_split]) {
   for (uint8_t s_oh = 0; s_oh < c_oh; s_oh++) {
     for (uint8_t s_ow = 0; s_ow < c_ow; s_ow++) {
@@ -601,7 +601,7 @@ void SplitStream(hls::stream<t_output> &i_data,
 /* Rearranging activations for weights reusage generation */
 
 template <class t_data, int c_och, int c_ops, int c_reuse>
-void StoreNCHW(hls::stream<t_data> &i_data, t_data o_data[c_reuse][c_och]) {
+void store_NCHW(hls::stream<t_data> &i_data, t_data o_data[c_reuse][c_och]) {
   const int c_och_ops = c_och / c_ops;
   for (auto s_och = 0; s_och < c_och_ops; s_och++) {
     for (auto s_reuse = 0; s_reuse < c_reuse; s_reuse++) {
@@ -627,7 +627,7 @@ void StreamNHWC(t_data i_data[c_reuse][c_och], hls::stream<t_data> &o_data) {
 
 template <class t_data, int c_ich, int c_och, int c_oh, int c_ow, int c_index,
           int c_str, int c_ops, int c_reuse>
-void RearrangeOp(hls::stream<t_data> &i_data, hls::stream<t_data> &o_data) {
+void rearrange_op(hls::stream<t_data> &i_data, hls::stream<t_data> &o_data) {
   /* #pragma HLS inline */
 
   /* Fix c_ops different than 1 case */
@@ -640,14 +640,14 @@ void RearrangeOp(hls::stream<t_data> &i_data, hls::stream<t_data> &o_data) {
 #pragma HLS array_partition variable = s_reuse_buffer type = complete dim = 1
 #pragma HLS stream variable = s_reuse_buffer type = shared
 
-    StoreNCHW<t_data, c_och, c_ops, c_reuse>(i_data, s_reuse_buffer);
+    store_NCHW<t_data, c_och, c_ops, c_reuse>(i_data, s_reuse_buffer);
 
     StreamNHWC<t_data, c_och, c_ops, c_reuse>(s_reuse_buffer, o_data);
   }
 }
 
 template <class t_data, int c_ich, int c_index, int c_reuse>
-void StoreNHWC(hls::stream<t_data> i_data[c_index],
+void store_NHWC(hls::stream<t_data> i_data[c_index],
                t_data o_data[c_reuse][c_ich][c_index]) {
   for (auto s_reuse = 0; s_reuse < c_reuse; s_reuse++) {
     for (auto s_ich = 0; s_ich < c_ich; s_ich++) {
@@ -661,7 +661,7 @@ void StoreNHWC(hls::stream<t_data> i_data[c_index],
 }
 
 template <class t_data, int c_ich, int c_index, int c_reuse>
-void StreamNCHW(t_data i_data[c_reuse][c_ich][c_index],
+void stream_NCHW(t_data i_data[c_reuse][c_ich][c_index],
                 hls::stream<t_data> o_data[c_index]) {
   for (auto s_ich = 0; s_ich < c_ich; s_ich++) {
     for (auto s_reuse = 0; s_reuse < c_reuse; s_reuse++) {
@@ -676,7 +676,7 @@ void StreamNCHW(t_data i_data[c_reuse][c_ich][c_index],
 
 template <class t_data, int c_ich, int c_och, int c_oh, int c_ow, int c_index,
           int c_str, int c_ops, int c_reuse>
-void ArrangeOp(hls::stream<t_data> i_data[c_index],
+void arrange_op(hls::stream<t_data> i_data[c_index],
                hls::stream<t_data> o_data[c_index]) {
   /* #pragma HLS inline */
 
@@ -690,9 +690,9 @@ void ArrangeOp(hls::stream<t_data> i_data[c_index],
 #pragma HLS stream variable = s_reuse_buffer type = shared
 #pragma HLS array_partition variable = s_reuse_buffer type = complete dim = 3
 
-    StoreNHWC<t_data, c_ich, c_index, c_reuse>(i_data, s_reuse_buffer);
+    store_NHWC<t_data, c_ich, c_index, c_reuse>(i_data, s_reuse_buffer);
 
-    StreamNCHW<t_data, c_ich, c_index, c_reuse>(s_reuse_buffer, o_data);
+    stream_NCHW<t_data, c_ich, c_index, c_reuse>(s_reuse_buffer, o_data);
   }
 }
 
@@ -701,7 +701,7 @@ void ArrangeOp(hls::stream<t_data> i_data[c_index],
 template <class t_input, int c_ich, int c_och, int c_ih, int c_iw, int c_oh,
           int c_ow, int c_fh, int c_fw, int c_str, int c_pad, int c_pos_h,
           int c_pos_w>
-void ShiftOp(hls::stream<t_input> &i_data, hls::stream<t_input> &o_compute) {
+void shift_op(hls::stream<t_input> &i_data, hls::stream<t_input> &o_compute) {
   /* #pragma HLS inline */
 
   const int c_pad_index_h = c_pad * (c_fh - 1) / 2;
@@ -747,7 +747,7 @@ void ShiftOp(hls::stream<t_input> &i_data, hls::stream<t_input> &o_compute) {
 
 template <class t_input, int c_ich, int c_iw, int c_ih, int c_fw, int c_fh,
           int c_str, int c_pad>
-void PadInput(hls::stream<t_input> i_data[c_fw * c_fh],
+void pad_input(hls::stream<t_input> i_data[c_fw * c_fh],
               hls::stream<t_input> o_data[c_fw * c_fh]) {
   /* #pragma HLS inline */
 
@@ -795,7 +795,7 @@ void PadInput(hls::stream<t_input> i_data[c_fw * c_fh],
 template <class t_input, int c_ich, int c_och, int c_ih, int c_iw, int c_oh,
           int c_ow, int c_fh, int c_fw, int c_str, int c_pad, int c_pos_h,
           int c_pos_w>
-void ShiftOp(hls::stream<t_input> &i_data, hls::stream<t_input> &o_compute,
+void shift_op(hls::stream<t_input> &i_data, hls::stream<t_input> &o_compute,
              hls::stream<t_input> &o_data) {
   /* #pragma HLS inline */
 
@@ -855,7 +855,7 @@ void ShiftOp(hls::stream<t_input> &i_data, hls::stream<t_input> &o_compute,
 /* 	int c_fw, */
 /* 	int c_str, */
 /* 	int c_pad */
-/* > void ShiftOp( */
+/* > void shift_op( */
 /* 	hls::stream<t_input> &i_data, */
 /* 	hls::stream<t_input> o_compute[c_fh*c_fw] */
 /* ) { */
