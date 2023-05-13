@@ -59,7 +59,7 @@ def hw_quant(model, io_dict):
         is_weight = 'quant' in layer_in_name.lower()
         is_not_bias = 'bias' not in io_dict[layer_in_name]["input"][0].lower()
 
-        if layer_out_name != "ConsumeStream":
+        if layer_out_name != "consume_stream":
             is_quant1 = 'quant' in io_dict[layer_out_name].keys()
             if is_quant0 and is_quant1:
                 in_scale_factors = io_dict[layer_in_name]["scale_factor"]

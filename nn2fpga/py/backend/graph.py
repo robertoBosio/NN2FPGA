@@ -31,7 +31,7 @@ def net_distance(io_dict, io_connect):
     
     for net_name, net_info in io_connect.items():
         for node_name in net_info[1]: 
-            if 'ConsumeStream' not in node_name:
+            if 'consume_stream' not in node_name:
                 node_level = 0
                 for input in io_dict[node_name]["input"]:
                     node_level = max([node_level, net_levels[input][0]])
@@ -65,11 +65,11 @@ def extract_connections(model, io_dict):
     for node_name, io_info in io_dict.items():
         for input_name in io_info["input"]:
         
-            is_produce_stream = "ProduceStream" == node_name
+            is_produce_stream = "produce_stream" == node_name
             if (not is_produce_stream) and (input_name in io_connect.keys()):
                     io_connect[input_name][1].append(node_name)
 
-    io_connect[graph_output_name][1] = ["ConsumeStream"]
+    io_connect[graph_output_name][1] = ["consume_stream"]
 
     return io_connect
 
@@ -230,7 +230,7 @@ def rename_edges(model, io_dict):
         in_pos = io_dict[layer_in_name]["output"].index(net_name)
         io_dict[layer_in_name]["output"][in_pos] = new_net_name 
 
-        if layer_out_name != "ConsumeStream":
+        if layer_out_name != "consume_stream":
             out_pos = io_dict[layer_out_name]["input"].index(net_name)
             io_dict[layer_out_name]["input"][out_pos] = new_net_name 
 

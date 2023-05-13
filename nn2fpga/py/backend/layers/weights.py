@@ -308,7 +308,7 @@ def parse(name, node):
     blocks = []
     if node["off_chip_memory"]:
         block = {}
-        block["func"] = "MemAlgo"
+        block["func"] = "mem_algo"
         block["args"] = []
         block["input"] = []
         block["output"] = []
@@ -384,7 +384,7 @@ def parse(name, node):
 
         block = {}
 
-        block["func"] = "ProduceStream"
+        block["func"] = "produce_stream"
         block["args"] = []
         block["input"] = []
         block["output"] = []
@@ -420,7 +420,7 @@ def parse(name, node):
 
         block = {}
 
-        block["func"] = "ProduceStream"
+        block["func"] = "produce_stream"
         block["args"] = []
         block["input"] = []
         block["output"] = []
@@ -523,10 +523,10 @@ def init(file_name, network_name, parsed_write, prj_root="."):
 
 
     libraries = [
-        "%s.hpp" % network_name,
+        "%s.h" % network_name,
         "ap_int.h",
-        "nn2fpga/MemUtils.hpp",
-        "nn2fpga/Utils.hpp",
+        "nn2fpga/mem_utils.h",
+        "nn2fpga/utils.h",
         "hls_stream.h",
     ]
 

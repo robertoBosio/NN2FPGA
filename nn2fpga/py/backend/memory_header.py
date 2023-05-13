@@ -50,7 +50,7 @@ def write(
         pass
 
 
-    with open(prj_root + "/cc/include/MemoryWeights.hpp", "w+") as fd:
+    with open(prj_root + "/cc/include/MemoryWeights.h", "w+") as fd:
         write_header(fd)
         write_body(fd)
         write_footer(fd)

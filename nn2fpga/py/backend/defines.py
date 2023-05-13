@@ -503,7 +503,7 @@ def write(
         # End of main file
         fd.write("#endif")
 
-    with open(prj_root + "/cc/include/Network.hpp", "w+") as fd:
+    with open(prj_root + "/cc/include/Network.h", "w+") as fd:
 
         write_header(fd)
 

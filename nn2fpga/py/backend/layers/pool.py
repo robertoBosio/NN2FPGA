@@ -73,7 +73,7 @@ def parse(name, node):
     signed = node["signed"]
 
     block = {}
-    block["func"] = "PoolOp"
+    block["func"] = "pool_op"
 
     # Template parameters
     block["template"] = []

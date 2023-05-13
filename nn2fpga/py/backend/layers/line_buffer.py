@@ -24,7 +24,7 @@ def parse(name, node):
             output_type_name = output_name.replace("_skip", "")
 
             block = {}
-            block["func"] = "ShiftOp"
+            block["func"] = "shift_op"
 
             # Template parameters
             block["template"] = []

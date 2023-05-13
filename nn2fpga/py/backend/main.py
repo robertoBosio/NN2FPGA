@@ -16,14 +16,14 @@ def init(file_name, parsed_write, prj_root="."):
 
 
     libraries = [
-        "%s.hpp" % file_name,
+        "%s.h" % file_name,
         "ap_int.h",
         "hls_stream.h",
-        "nn2fpga/PackedConv.hpp",
-        "nn2fpga/ActivationStreams.hpp",
-        "nn2fpga/AddStreams.hpp",
-        "nn2fpga/PoolStreams.hpp",
-        "nn2fpga/Utils.hpp",
+        "nn2fpga/packed_conv.h",
+        "nn2fpga/activation_streams.h",
+        "nn2fpga/add_streams.h",
+        "nn2fpga/pool_streams.h",
+        "nn2fpga/utils.h",
     ]
 
     with open(prj_root + ("/cc/src/%s.cpp" % file_name), "w+") as fd:
@@ -36,7 +36,7 @@ def init(file_name, parsed_write, prj_root="."):
         fd.write("void %s(\n" % file_name)
 
         for layer in parsed_write:
-            if "ProduceStream" == layer["func"]:
+            if "produce_stream" == layer["func"]:
                 for name in layer["input"]:
                     fd.write("\thls::stream<t_%s> &i_%s,\n" % (name, name))
 
@@ -46,7 +46,7 @@ def init(file_name, parsed_write, prj_root="."):
                     fd.write("\tconst t_%s_st *i_data_%s,\n" % (name, name))
 
         for layer in parsed_write:
-            if "ConsumeStream" == layer["func"]:
+            if "consume_stream" == layer["func"]:
                 for name in layer["output"]:
                     fd.write("\thls::stream<t_o_%s> &o_%s\n" % (name, name))
 

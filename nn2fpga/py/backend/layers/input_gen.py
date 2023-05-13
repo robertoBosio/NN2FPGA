@@ -8,7 +8,7 @@ import numpy as np
 def info(io_dict, tensors_info, model):
 
 
-    node_name = "ProduceStream"
+    node_name = "produce_stream"
 
     graph_input_name = model.graph.input[0].name
     input_shape = tensors_info[graph_input_name].tensor_type.shape
@@ -40,7 +40,7 @@ def parse(name, node):
     signed = node["signed"]
 
     block = {}
-    block["func"] = "ProduceStream"
+    block["func"] = "produce_stream"
 
     # Template parameters
     block["template"] = []
@@ -85,15 +85,15 @@ def parse(name, node):
         [["data", output_type], ["last", "bool"]]
     ]
 
-    block["defines"]["c_ProduceStream_ich"] = [
+    block["defines"]["c_produce_stream_ich"] = [
         "const",
         node["ich"]
     ]
-    block["defines"]["c_ProduceStream_iw"] = [
+    block["defines"]["c_produce_stream_iw"] = [
         "const",
         node["iw"]
     ]
-    block["defines"]["c_ProduceStream_ih"] = [
+    block["defines"]["c_produce_stream_ih"] = [
         "const",
         node["ih"]
     ]

@@ -22,7 +22,7 @@ def round_robin(
         "#pragma HLS pipeline style=frp\n"
     )
 
-    fd.write("\t\tuint8_t s_sel = RoundRobin <\n")
+    fd.write("\t\tuint8_t s_sel = round_robin <\n")
     fd.write("\t\t\t%0d,\n" % len(ports))
     fd.write("\t\t\tREAD_WIDTH\n")
     fd.write("\t\t> (\n")
@@ -94,7 +94,7 @@ def write(
             "};\n"
         )
 
-        fd.write("void MemAlgo(\n")
+        fd.write("void mem_algo(\n")
         fd.write(
             "\thls::stream<ap_uint<READ_WIDTH>> o_streams[%0d],\n" % (
                 len(additional_ports)

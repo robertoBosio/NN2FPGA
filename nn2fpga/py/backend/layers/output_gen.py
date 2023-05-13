@@ -8,7 +8,7 @@ import numpy as np
 def info(io_dict, tensors_info, model):
 
 
-    node_name = "ProduceStream"
+    node_name = "produce_stream"
 
     graph_output_name = model.graph.output[0].name
     output_shape = tensors_info[graph_output_name].tensor_type.shape
@@ -40,7 +40,7 @@ def parse(parsed_write, node_name):
     output_type_name = input_type_name
 
     block = {}
-    block["func"] = "ConsumeStream"
+    block["func"] = "consume_stream"
 
     # Template parameters
     block["template"] = []

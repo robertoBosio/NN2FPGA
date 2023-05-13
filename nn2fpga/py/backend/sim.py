@@ -39,10 +39,10 @@ def tb_declare(fd, layer_tb_declare):
     fd.write("\n")
 
 def init(file_name, parsed_write, prj_root="."):
-    with open(prj_root + "/cc/include/%sSim.hpp" % file_name, "w+") as fd:
+    with open(prj_root + "/cc/include/%sSim.h" % file_name, "w+") as fd:
 
         libraries = [
-            "Network.hpp"
+            "Network.h"
         ]
 
         fd.write("#ifndef __NETWORKSIM__\n")
@@ -56,12 +56,12 @@ def init(file_name, parsed_write, prj_root="."):
         fd.write("void %sSim(\n" % file_name)
 
         for layer in parsed_write:
-            if "ProduceStream" == layer["func"]:
+            if "produce_stream" == layer["func"]:
                 for name in layer["input"]:
                     fd.write("\thls::stream<t_%s> &%s,\n" % (name, name))
 
         for layer in parsed_write:
-            if "ConsumeStream" == layer["func"]:
+            if "consume_stream" == layer["func"]:
                 for name in layer["output"]:
                     fd.write("\thls::stream<t_o_%s> &o_%s\n" % (name, name))
 
@@ -69,7 +69,7 @@ def init(file_name, parsed_write, prj_root="."):
 
 
 def body(file_name, parsed_write, prj_root="."):
-    with open(prj_root + "/cc/include/%sSim.hpp" % file_name, "a") as fd:
+    with open(prj_root + "/cc/include/%sSim.h" % file_name, "a") as fd:
 
         for layer in parsed_write:
 
@@ -79,7 +79,7 @@ def body(file_name, parsed_write, prj_root="."):
         fd.write("\t%s(\n" % file_name)
 
         for layer in parsed_write:
-            if "ProduceStream" == layer["func"]:
+            if "produce_stream" == layer["func"]:
                 for name in layer["input"]:
                     fd.write("\t\t%s,\n" % (name))
 
@@ -89,7 +89,7 @@ def body(file_name, parsed_write, prj_root="."):
                     fd.write("\t\tc_%s,\n" % (name))
 
         for layer in parsed_write:
-            if "ConsumeStream" == layer["func"]:
+            if "consume_stream" == layer["func"]:
                 for name in layer["output"]:
                     fd.write("\t\to_%s\n" % (name))
 
@@ -97,7 +97,7 @@ def body(file_name, parsed_write, prj_root="."):
 
 
 def footer(file_name, parsed_write, prj_root="."):
-    with open(prj_root + "/cc/include/%sSim.hpp" % file_name, "a") as fd:
+    with open(prj_root + "/cc/include/%sSim.h" % file_name, "a") as fd:
         fd.write("}\n")
         fd.write("\n")
         fd.write("#endif")

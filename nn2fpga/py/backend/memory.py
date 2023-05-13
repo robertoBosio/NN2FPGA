@@ -11,10 +11,10 @@ def write(
 ):
 
     def write_header(fd):
-        fd.write("#include \"Network.hpp\"\n")
-        fd.write("#include \"MemUtils.hpp\"\n")
+        fd.write("#include \"Network.h\"\n")
+        fd.write("#include \"mem_utils.h\"\n")
         fd.write("#include \"ap_int.h\"\n")
-        fd.write("#include \"MemoryManagement.hpp\"\n")
+        fd.write("#include \"MemoryManagement.h\"\n")
         fd.write("#include \"hls_stream.h\"\n")
         fd.write("\n")
 
@@ -34,7 +34,7 @@ def write(
             fd.write("\thls::stream<t_%s> o_data[c_%s_bw],\n" % (name, name))
             fd.write("\tap_int<READ_WIDTH> *i_data \n")
             fd.write(") {\n")
-            fd.write("\tMemAlgo< \n")
+            fd.write("\tmem_algo< \n")
             fd.write("\t\tt_%s,\n" % (name))
             fd.write("\t\tc_%s_ich,\n" % (node_name))
             fd.write("\t\tc_%s_och,\n" % (node_name))
@@ -61,7 +61,7 @@ def write(
             fd.write("\thls::stream<t_%s> i_data[c_%s_bw],\n" % (name, name))
             fd.write("\thls::stream<t_%s> o_data[c_%s_index] \n" % (name, name))
             fd.write(") {\n")
-            fd.write("\tProduceStream< \n")
+            fd.write("\tproduce_stream< \n")
             fd.write("\t\tap_int<READ_WIDTH>, \n")
             fd.write("\t\tt_%s,\n" % (name))
             fd.write("\t\tc_%s_ich,\n" % (node_name))

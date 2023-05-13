@@ -313,7 +313,7 @@ def parse_comp(name, node):
         output_1x1_type_name = output_1x1_name.replace("_skip", "")
 
     block = {}
-    block["func"] = "ConvComp"
+    block["func"] = "conv_comp"
 
     # Template parameters
     block["template"] = []
@@ -530,7 +530,7 @@ def parse_nchw(name, node):
 
     for tensor_name, tensor_type_name, dim, is_add, is_1x1 in arrange_name:
         block = {}
-        block["func"] = "ArrangeOp"
+        block["func"] = "arrange_op"
 
         # Template parameters
         block["template"] = []
@@ -603,7 +603,7 @@ def parse_nhwc(name, node):
 
     for tensor_name, tensor_type_name, ops, depth in arrange_name:
         block = {}
-        block["func"] = "RearrangeOp"
+        block["func"] = "rearrange_op"
 
         # Template parameters
         block["template"] = []

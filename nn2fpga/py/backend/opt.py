@@ -284,7 +284,7 @@ def opt_quant(model, io_dict, quant_info):
                 for search_name in search_layers
             )
 
-            if (layer_out_name == "ConsumeStream"):
+            if (layer_out_name == "consume_stream"):
                 continue
 
             end_quant = 'quant' == io_dict[layer_out_name]["type"]

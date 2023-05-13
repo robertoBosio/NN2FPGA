@@ -165,7 +165,7 @@ def defines(file_name, parsed_write, prj_root="."):
         "ap_axi_sdata.h",
     ]
 
-    with open(prj_root + ("/cc/include/%s.hpp" % file_name), "w+") as fd:
+    with open(prj_root + ("/cc/include/%s.h" % file_name), "w+") as fd:
         
         fd.write("#ifndef __NETWORK__\n")
         fd.write("#define __NETWORK__\n")
@@ -183,7 +183,7 @@ def defines(file_name, parsed_write, prj_root="."):
         fd.write("void %s(\n" % file_name)
 
         for layer in parsed_write:
-            if "ProduceStream" == layer["func"]:
+            if "produce_stream" == layer["func"]:
                 for name in layer["input"]:
                     fd.write("\thls::stream<t_%s> &%s,\n" % (name, name))
 
@@ -193,7 +193,7 @@ def defines(file_name, parsed_write, prj_root="."):
                     fd.write("\tconst t_%s_st *i_data_%s,\n" % (name, name))
 
         for layer in parsed_write:
-            if "ConsumeStream" == layer["func"]:
+            if "consume_stream" == layer["func"]:
                 for name in layer["output"]:
                     fd.write("\thls::stream<t_o_%s> &o_%s\n" % (name, name))
 

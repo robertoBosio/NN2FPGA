@@ -14,7 +14,7 @@ def parse(name, node):
     output_type_name = output_name.replace("_skip", "")
 
     block = {}
-    block["func"] = "PadInput"
+    block["func"] = "pad_input"
 
     # Template parameters
     block["template"] = []
