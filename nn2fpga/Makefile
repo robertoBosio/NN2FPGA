@@ -32,18 +32,18 @@ generate:
 
 compile:
 	$(CXX) -c $(CXXFLAGS) -I$(PRJ_ROOT)/include \
-		$(PRJ_ROOT)/src/$(NAME).cpp -o $(PRJ_ROOT)/$(NAME).o
+		$(PRJ_ROOT)/src/$(NAME).cc -o $(PRJ_ROOT)/$(NAME).o
 	$(CXX) -c $(CXXFLAGS) -I$(PRJ_ROOT)/include \
-		$(PRJ_ROOT)/src/$(MEM).cpp -o $(PRJ_ROOT)/$(MEM).o
+		$(PRJ_ROOT)/src/$(MEM).cc -o $(PRJ_ROOT)/$(MEM).o
 
 compile_tb:
 	$(CXX) -c $(CXXFLAGS) -I$(PRJ_ROOT)/include $(PRJ_ROOT)/src/$(NAME)Tb.cpp \
-		-o $(PRJ_ROOT)/$(NAME)Tb.o
-	$(CXX) $(PRJ_ROOT)/$(NAME)Tb.o $(PRJ_ROOT)/$(NAME).o $(PRJ_ROOT)/$(MEM).o \
-		-o $(PRJ_ROOT)/$(NAME)Tb
+		-o $(PRJ_ROOT)/$(NAME)_tb.o
+	$(CXX) $(PRJ_ROOT)/$(NAME)_tb.o $(PRJ_ROOT)/$(NAME).o $(PRJ_ROOT)/$(MEM).o \
+		-o $(PRJ_ROOT)/$(NAME)_tb
 
 sim:
-	cd $(PRJ_ROOT) && chmod u+x $(NAME)Tb && ./$(NAME)Tb
+	cd $(PRJ_ROOT) && chmod u+x $(NAME)_tb && ./$(NAME)_tb
 
 compile_sim: compile compile_tb sim
 
