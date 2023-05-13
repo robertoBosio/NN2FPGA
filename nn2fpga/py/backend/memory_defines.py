@@ -63,7 +63,7 @@ def write(
     def write_footer(fd):
         # End of main file
 
-        fd.write("void MemoryManagement(\n")
+        fd.write("void memory_management(\n")
         for name in additional_ports:
             fd.write(
                 "\thls::stream<t_%s> s_%s[c_%s_index],\n" % (
@@ -84,7 +84,7 @@ def write(
         pass
 
 
-    with open(prj_root + "/cc/include/MemoryManagement.h", "w+") as fd:
+    with open(prj_root + "/cc/include/memory_management.h", "w+") as fd:
         write_header(fd)
         write_body(fd)
         write_footer(fd)
