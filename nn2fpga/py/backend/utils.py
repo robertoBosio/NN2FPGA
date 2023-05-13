@@ -24,9 +24,9 @@ def write_func(fd, info):
     fd.write("\n")
 
 
-def body(file_name, parsed_write):
+def body(file_name, parsed_write, prj_root="."):
 
-    with open("src/%s.cpp" % file_name, "a") as fd:
+    with open(prj_root + ("/cc/src/%s.cpp" % file_name), "a") as fd:
         
         for layer in parsed_write:
 
@@ -88,9 +88,9 @@ def write_pragma(fd, pragma):
 
     fd.write("\n")
 
-def declare(file_name, parsed_write, ap_ctrl=None, inline=False):
+def declare(file_name, parsed_write, ap_ctrl=None, inline=False, prj_root="."):
 
-    with open("src/%s.cpp" % file_name, "a") as fd:
+    with open(prj_root + ("/cc/src/%s.cpp" % file_name), "a") as fd:
         
         if inline:
             # Adding inline option to put the module in dataflow
@@ -155,7 +155,7 @@ def write_defines(fd, values):
                 )
             )
 
-def defines(file_name, parsed_write):
+def defines(file_name, parsed_write, prj_root="."):
 
     libraries = [
         "ap_int.h",
@@ -165,7 +165,7 @@ def defines(file_name, parsed_write):
         "ap_axi_sdata.h",
     ]
 
-    with open("src/%s.hpp" % file_name, "w+") as fd:
+    with open(prj_root + ("/cc/include/%s.hpp" % file_name), "w+") as fd:
         
         fd.write("#ifndef __NETWORK__\n")
         fd.write("#define __NETWORK__\n")

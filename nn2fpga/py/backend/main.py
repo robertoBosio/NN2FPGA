@@ -12,21 +12,21 @@ import backend.layers.input_gen as input_gen
 import backend.layers.output_gen as output_gen
 from backend.utils import *
 
-def init(file_name, parsed_write):
+def init(file_name, parsed_write, prj_root="."):
 
 
     libraries = [
         "%s.hpp" % file_name,
         "ap_int.h",
         "hls_stream.h",
-        "PackedConv.hpp",
-        "ActivationStreams.hpp",
-        "AddStreams.hpp",
-        "PoolStreams.hpp",
-        "Utils.hpp",
+        "nn2fpga/PackedConv.hpp",
+        "nn2fpga/ActivationStreams.hpp",
+        "nn2fpga/AddStreams.hpp",
+        "nn2fpga/PoolStreams.hpp",
+        "nn2fpga/Utils.hpp",
     ]
 
-    with open("src/%s.cpp" % file_name, "w+") as fd:
+    with open(prj_root + ("/cc/src/%s.cpp" % file_name), "w+") as fd:
         # Write header with network definitions
         for lib in libraries:
             fd.write("#include \"%s\"\n" % lib)
@@ -98,7 +98,7 @@ def parse_all_main(io_dict):
 
     return parsed_write, parsed_const
 
-def write(io_dict, file_name, off_chip_storage):
+def write(io_dict, file_name, off_chip_storage, prj_root="."):
 
     if off_chip_storage:
         ap_ctrl = "ap_ctrl_chain"
@@ -107,10 +107,10 @@ def write(io_dict, file_name, off_chip_storage):
 
     parsed_write, parsed_const = parse_all_main(io_dict)
 
-    init(file_name, parsed_write)
-    declare(file_name, parsed_write, ap_ctrl)
-    body(file_name, parsed_write)
+    init(file_name, parsed_write, prj_root)
+    declare(file_name, parsed_write, ap_ctrl, prj_root)
+    body(file_name, parsed_write, prj_root)
 
     parsed_write = parsed_write + parsed_const
 
-    defines(file_name, parsed_write)
+    defines(file_name, parsed_write, prj_root)

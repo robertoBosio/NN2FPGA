@@ -519,18 +519,18 @@ def parse_all(io_dict):
 
     return parsed_write
 
-def init(file_name, network_name, parsed_write):
+def init(file_name, network_name, parsed_write, prj_root="."):
 
 
     libraries = [
         "%s.hpp" % network_name,
         "ap_int.h",
-        "MemUtils.hpp",
-        "Utils.hpp",
+        "nn2fpga/MemUtils.hpp",
+        "nn2fpga/Utils.hpp",
         "hls_stream.h",
     ]
 
-    with open("src/%s.cpp" % file_name, "w+") as fd:
+    with open(prj_root + ("/cc/src/%s.cpp" % file_name), "w+") as fd:
         # Write header with network definitions
         for lib in libraries:
             fd.write("#include \"%s\"\n" % lib)
@@ -560,11 +560,11 @@ def init(file_name, network_name, parsed_write):
 
         fd.write("\n")
 
-def write(io_dict, network_name):
+def write(io_dict, network_name, prj_root="."):
 
     parsed_write = parse_all(io_dict)
 
-    init("MemoryManagement", network_name, parsed_write)
-    declare("MemoryManagement", parsed_write, ap_ctrl=None, inline=True)
-    body("MemoryManagement", parsed_write)
+    init("MemoryManagement", network_name, parsed_write, prj_root)
+    declare("MemoryManagement", parsed_write, ap_ctrl=None, inline=True, prj_root=prj_root)
+    body("MemoryManagement", parsed_write, prj_root)
 

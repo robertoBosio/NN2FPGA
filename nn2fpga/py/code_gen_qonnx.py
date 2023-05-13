@@ -18,15 +18,21 @@ def main():
     if "BOARD" not in os.environ:
         print("BOARD PLATFORM NOT DEFINED")
         print("ALLOWED OPTIONS: ULTRA96v2, KRIA")
-        sys.exit(0)
+        sys.exit(1)
 
-    board = os.environ["BOARD"]
+    board = str(os.environ.get("BOARD"))
 
     if "ONNX_PATH" not in os.environ:
         print("PATH TO ONNX NOT DEFINED")
+        sys.exit(1)
+
+    onnx_path = str(os.environ.get("ONNX_PATH"))
+
+    if "PRJ_ROOT" not in os.environ:
+        print("PROJECT ROOT NOT DEFINED")
         sys.exit(0)
 
-    onnx_path = os.environ["ONNX_PATH"]
+    PRJ_ROOT = str(os.environ.get("PRJ_ROOT"))
 
     # onnx_path = "./onnx/Brevonnx_resnet_final_fx.onnx"
     # onnx_path = "./onnx/Brevonnx_resnet8_final_fx.onnx"
@@ -49,8 +55,10 @@ def main():
 
     write_network(
         inferred_model,
+        file_name = "Network",
         off_chip_storage=False,
-        board=board
+        board=board, 
+        prj_root=PRJ_ROOT
     )
 
 if __name__ == '__main__':
