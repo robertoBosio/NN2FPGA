@@ -11,10 +11,10 @@ def write(
 ):
 
     def write_header(fd):
-        fd.write("#include \"Network.h\"\n")
+        fd.write("#include \"network.h\"\n")
         fd.write("#include \"mem_utils.h\"\n")
         fd.write("#include \"ap_int.h\"\n")
-        fd.write("#include \"MemoryManagement.h\"\n")
+        fd.write("#include \"memory_management.h\"\n")
         fd.write("#include \"hls_stream.h\"\n")
         fd.write("\n")
 
@@ -81,7 +81,7 @@ def write(
             fd.write("} \n")
             fd.write("\n")
 
-        fd.write("void MemoryManagement(\n")
+        fd.write("void memory_management(\n")
         for name in additional_ports:
             fd.write(
                 "\thls::stream<t_%s> s_%s[c_%s_index],\n" % (
@@ -148,7 +148,7 @@ def write(
         pass
 
 
-    with open(prj_root + "/cc/src/MemoryManagement.cpp", "w+") as fd:
+    with open(prj_root + "/cc/src/memory_management.cc", "w+") as fd:
         write_header(fd)
         write_body(fd)
         write_footer(fd)
