@@ -39,10 +39,10 @@ def tb_declare(fd, layer_tb_declare):
     fd.write("\n")
 
 def init(file_name, parsed_write, prj_root="."):
-    with open(prj_root + "/cc/include/%sSim.h" % file_name, "w+") as fd:
+    with open(prj_root + "/cc/include/%s_sim.h" % file_name, "w+") as fd:
 
         libraries = [
-            "Network.h"
+            "network.h"
         ]
 
         fd.write("#ifndef __NETWORKSIM__\n")
@@ -69,7 +69,7 @@ def init(file_name, parsed_write, prj_root="."):
 
 
 def body(file_name, parsed_write, prj_root="."):
-    with open(prj_root + "/cc/include/%sSim.h" % file_name, "a") as fd:
+    with open(prj_root + "/cc/include/%s_sim.h" % file_name, "a") as fd:
 
         for layer in parsed_write:
 
@@ -84,7 +84,7 @@ def body(file_name, parsed_write, prj_root="."):
                     fd.write("\t\t%s,\n" % (name))
 
         for layer in parsed_write:
-            if "MemoryManagement" == layer["func"]:
+            if "memory_management" == layer["func"]:
                 for name in layer["input"]:
                     fd.write("\t\tc_%s,\n" % (name))
 
@@ -97,7 +97,7 @@ def body(file_name, parsed_write, prj_root="."):
 
 
 def footer(file_name, parsed_write, prj_root="."):
-    with open(prj_root + "/cc/include/%sSim.h" % file_name, "a") as fd:
+    with open(prj_root + "/cc/include/%s_sim.h" % file_name, "a") as fd:
         fd.write("}\n")
         fd.write("\n")
         fd.write("#endif")
