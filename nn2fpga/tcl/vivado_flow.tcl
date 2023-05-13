@@ -6,8 +6,8 @@ set PRJ_NAME ${BOARD}_example
 create_project ${PRJ_NAME} ${PRJ_NAME} -force -part ${FPGA_PART}
 
 set_param board.repoPaths [list ${BOARD_PATH}]
-set_property ip_repo_paths ${PRJ_ROOT}/Network${BOARD}_ip/solution_1/impl/ip \
-  [current_project]
+set_property ip_repo_paths \
+  ${PRJ_ROOT}/${TOP_NAME}_${BOARD}_ip/solution_1/impl/ip [current_project]
 update_ip_catalog
 
 source ${NN2FPGA_ROOT}/tcl/bd_design.tcl 

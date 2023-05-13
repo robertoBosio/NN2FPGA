@@ -2,7 +2,7 @@ set NN2FPGA_ROOT [lindex $argv 2]
 source "${NN2FPGA_ROOT}/tcl/settings.tcl"
 
 set impl_sel "solution_0"
-set PRJ_NAME ${TOP_NAME}${BOARD}
+set PRJ_NAME ${TOP_NAME}_${BOARD}
 
 delete_project ${PRJ_NAME}_ip
 open_project ${PRJ_NAME}_ip
@@ -12,11 +12,11 @@ open_solution solution_1
 set_part ${FPGA_PART}
 
 add_files -cflags "-Icc/include -I${NN2FPGA_ROOT}/cc/include" \
-  cc/src/MemoryManagement.cpp
+  cc/src/memory_management.cc
 add_files -cflags "-Icc/include -I${NN2FPGA_ROOT}/cc/include" \
-  cc/src/${TOP_NAME}.cpp
+  cc/src/${TOP_NAME}.cc
 add_files -cflags "-Icc/include -I${NN2FPGA_ROOT}/cc/include" \
-  -tb cc/${TOP_NAME}Tb.cpp
+  -tb cc/${TOP_NAME}_tb.cc
 
 create_clock -period 5
 
