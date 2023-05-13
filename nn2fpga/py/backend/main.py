@@ -26,7 +26,7 @@ def init(file_name, parsed_write, prj_root="."):
         "nn2fpga/utils.h",
     ]
 
-    with open(prj_root + ("/cc/src/%s.cpp" % file_name), "w+") as fd:
+    with open(prj_root + ("/cc/src/%s.cc" % file_name), "w+") as fd:
         # Write header with network definitions
         for lib in libraries:
             fd.write("#include \"%s\"\n" % lib)
@@ -41,7 +41,7 @@ def init(file_name, parsed_write, prj_root="."):
                     fd.write("\thls::stream<t_%s> &i_%s,\n" % (name, name))
 
         for layer in parsed_write:
-            if "MemoryManagement" == layer["func"]:
+            if "memory_management" == layer["func"]:
                 for name in layer["input"]:
                     fd.write("\tconst t_%s_st *i_data_%s,\n" % (name, name))
 
