@@ -8,6 +8,8 @@
 #include <hls_burst_maxi.h>
 #include <hls_stream.h>
 
+namespace nn2fpga {
+
 template <unsigned NCONV, unsigned RDW>
 uint8_t round_robin(hls::stream<ap_uint<RDW>> dout[NCONV]) {
 #pragma HLS inline
@@ -225,5 +227,7 @@ void mem_algo(hls::stream<ap_uint<BITW>> &dout,
     }
   }
 }
+
+} // namespace nn2fpga
 
 #endif

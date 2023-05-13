@@ -8,8 +8,10 @@
 /* #define DEBUG_POOL */
 #endif // __SYNTHESIS__
 
+namespace nn2fpga {
+
 template <typename T>
-void EmptyStream(hls::stream<T>& dinStream) {
+void empty_stream(hls::stream<T>& dinStream) {
 #pragma HLS inline
   /* This handles padding aware inputs */
 
@@ -25,4 +27,6 @@ void EmptyStream(hls::stream<T>& dinStream) {
 #endif // __SYNTHESIS__
 }
 
+} // namespace nn2fpga
+ 
 #endif // NN2FPGA_DEBUG_H_

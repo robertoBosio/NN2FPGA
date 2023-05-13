@@ -5,15 +5,17 @@
 #include <ap_int.h>
 #include <hls_stream.h>
 
+namespace nn2fpga {
+
 template <typename T>
-T ReluOp(T val) {
+T relu_op(T val) {
 #pragma HLS inline
   return val > 0 ? val : 0; 
 }
 
 template <typename din_t, typename dout_t, unsigned ICH, unsigned IH,
           unsigned IW>
-void ReluStreams(hls::stream<din_t>& dinStream,
+void relu_streams(hls::stream<din_t>& dinStream,
                  hls::stream<dout_t>& doutStream) {
   if (dinStream.empty()) return;
 
@@ -28,5 +30,7 @@ void ReluStreams(hls::stream<din_t>& dinStream,
     doutStream << dout;
   }
 }
+
+} // namespace nn2fpga
 
 #endif // NN2FPGA_ACTIVATION_STREAMS_H_

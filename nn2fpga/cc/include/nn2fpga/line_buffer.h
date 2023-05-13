@@ -5,6 +5,8 @@
 #include <ap_int.h>
 #include <hls_stream.h>
 
+namespace nn2fpga {
+
 template <typename T, int DEPTH>
 class LineStream {
  public:
@@ -57,7 +59,7 @@ class LineBuffer {
 
   LineBuffer() {}
 
-  bool FullLineBuffer(ap_uint<2> i_fh, ap_uint<2> i_fw) {
+  bool full(ap_uint<2> i_fh, ap_uint<2> i_fw) {
     if (i_fh == 3) return 0;
 
     if (i_fw(1, 1) == 1)
@@ -67,22 +69,22 @@ class LineBuffer {
   }
 
   /* Fill the buffer for init */
-  void FillLineBuffer(hls::stream<T>& din) {
+  void fill(hls::stream<T>& din) {
     for (uint8_t s_index = C_INDEX - 1; s_index > 0; s_index--) {
       ap_uint<4> s_addr = C_ADDR[s_index](3, 0);
       do {
         SetLineBuffer(s_addr(3, 2), s_addr(1, 0), din.read());
-      } while (!FullLineBuffer(s_addr(3, 2), s_addr(1, 0)));
+      } while (!full(s_addr(3, 2), s_addr(1, 0)));
     }
   }
 
   /* Fill and retrieve */
-  T PopFirst() { return s_stream_c[C_FH - 1][C_FW - 2].read(); }
+  T pop_first() { return s_stream_c[C_FH - 1][C_FW - 2].read(); }
 
-  void PushFirst(T din) { s_stream_c[0][0].write(din); }
+  void push_first(T din) { s_stream_c[0][0].write(din); }
 
   /* Fill and retrieve */
-  T GetLineBuffer(ap_uint<2> i_fh, ap_uint<2> i_fw) {
+  T get(ap_uint<2> i_fh, ap_uint<2> i_fw) {
 #pragma HLS inline
     if (i_fh == 3) return 0;
 
@@ -92,7 +94,7 @@ class LineBuffer {
       return s_stream_c[i_fh][i_fw].read();
   }
 
-  bool EmptyLineBuffer(ap_uint<2> i_fh, ap_uint<2> i_fw) {
+  bool empty(ap_uint<2> i_fh, ap_uint<2> i_fw) {
     if (i_fh == 3) return 0;
 
     if (i_fw(1, 1) == 1)
@@ -101,7 +103,7 @@ class LineBuffer {
       return s_stream_c[i_fh][i_fw].empty();
   }
 
-  void SetLineBuffer(ap_uint<2> i_fh, ap_uint<2> i_fw, T din) {
+  void set(ap_uint<2> i_fh, ap_uint<2> i_fw, T din) {
 #pragma HLS inline
     if (i_fh == 3) return;
 
@@ -111,36 +113,36 @@ class LineBuffer {
       s_stream_c[i_fh][i_fw] << din;
   }
 
-  T ShiftLineBuffer(uint8_t idx) {
+  T shift(uint8_t idx) {
 #pragma HLS inline
     ap_uint<8> s_addr = C_ADDR[idx - 1];
-    T s_stream = GetLineBuffer(s_addr(3, 2), s_addr(1, 0));
-    SetLineBuffer(s_addr(7, 6), s_addr(5, 4), s_stream);
+    T s_stream = get(s_addr(3, 2), s_addr(1, 0));
+    set(s_addr(7, 6), s_addr(5, 4), s_stream);
 
     return s_stream;
   }
 
   /* Empty the buffer */
-  void EmptyLineBuffer(hls::stream<T>& dout) {
+  void empty(hls::stream<T>& dout) {
     for (uint8_t s_index = C_INDEX - 1; s_index > 0; s_index--) {
       ap_uint<4> s_addr = C_ADDR[s_index](3, 0);
       do {
-        dout << GetLineBuffer(s_addr(3, 2), s_addr(1, 0));
-      } while (!EmptyLineBuffer(s_addr(3, 2), s_addr(1, 0)));
+        dout << get(s_addr(3, 2), s_addr(1, 0));
+      } while (!empty(s_addr(3, 2), s_addr(1, 0)));
     }
   }
 
-  void EmptyLineBuffer() {
+  void empty() {
     for (uint8_t s_index = C_INDEX - 1; s_index > 0; s_index--) {
       ap_uint<4> s_addr = C_ADDR[s_index](3, 0);
       do {
-        GetLineBuffer(s_addr(3, 2), s_addr(1, 0));
-      } while (!EmptyLineBuffer(s_addr(3, 2), s_addr(1, 0)));
+        get(s_addr(3, 2), s_addr(1, 0));
+      } while (!empty(s_addr(3, 2), s_addr(1, 0)));
     }
   }
 
 #ifndef __SYNTHESIS__
-  void PrintNumData() {
+  void print_num_data() {
     std::cout << "-----------------------------" << std::endl;
     for (ap_int<4> s_fh = C_FH - 1; s_fh > -1; s_fh--) {
       for (ap_int<4> s_fw = C_FW - 2; s_fw > -1; s_fw--) {
@@ -154,5 +156,7 @@ class LineBuffer {
   }
 #endif  // __SYNTHESIS__
 };
+
+} // namespace nn2fpga
 
 #endif  // NN2FPGA_LINE_BUFFER_H_

@@ -4,10 +4,12 @@
 // Vitis HLS dependencies.
 #include <ap_int.h>
 
+namespace nn2fpga {
+
 template <typename din_t, typename weight_t, typename dout_t, typename acc_t,
           unsigned ICH, unsigned OCH, unsigned IW, unsigned IH, unsigned OW,
           unsigned OH, unsigned FW, unsigned FH, unsigned PAD, unsigned STRIDE>
-void Conv(din_t* din, weight_t* win, dout_t* dout) {
+void conv(din_t* din, weight_t* win, dout_t* dout) {
   unsigned s_oh_pad = 0;
   unsigned s_ow_pad = 0;
 
@@ -47,4 +49,6 @@ void Conv(din_t* din, weight_t* win, dout_t* dout) {
   }
 }
 
+} // namespace nn2fpga
+ 
 #endif  // NN2FPGA_CONV_H_

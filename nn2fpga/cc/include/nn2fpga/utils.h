@@ -8,6 +8,8 @@
 #include "ap_int.h"
 #include "hls_math.h"
 
+namespace nn2fpga {
+
 //////////////////////////// QUANT FUNCTIONS //////////////////////////////////
 
 template <class t_input, int c_scale>
@@ -615,7 +617,7 @@ void store_NCHW(hls::stream<t_data> &i_data, t_data o_data[c_reuse][c_och]) {
 }
 
 template <class t_data, int c_och, int c_ops, int c_reuse>
-void StreamNHWC(t_data i_data[c_reuse][c_och], hls::stream<t_data> &o_data) {
+void stream_NHWC(t_data i_data[c_reuse][c_och], hls::stream<t_data> &o_data) {
   for (auto s_reuse = 0; s_reuse < c_reuse; s_reuse++) {
     for (auto s_och = 0; s_och < c_och; s_och++) {
 #pragma HLS pipeline style = frp
@@ -642,7 +644,7 @@ void rearrange_op(hls::stream<t_data> &i_data, hls::stream<t_data> &o_data) {
 
     store_NCHW<t_data, c_och, c_ops, c_reuse>(i_data, s_reuse_buffer);
 
-    StreamNHWC<t_data, c_och, c_ops, c_reuse>(s_reuse_buffer, o_data);
+    stream_NHWC<t_data, c_och, c_ops, c_reuse>(s_reuse_buffer, o_data);
   }
 }
 
@@ -901,5 +903,7 @@ void shift_op(hls::stream<t_input> &i_data, hls::stream<t_input> &o_compute,
 /* 	} */
 
 /* } */
+
+} // namespace nn2fpga
 
 #endif

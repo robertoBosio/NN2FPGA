@@ -7,6 +7,8 @@
 #include "ap_int.h"
 #include "hls_stream.h"
 
+namespace nn2fpga {
+
 //////////////////////////////////////////////////////////////////////////////
 /* Version for Off-Chip memory weights */
 
@@ -605,7 +607,7 @@ template <class t_output_struct, class t_output, class t_acc_struct,
           class t_acc, int c_ich, int c_och, int c_oh, int c_ow, int c_index,
           int c_ops, int c_relu, int c_quant, int c_mask, int c_shift_h,
           int c_shift_l>
-void QuantStream(t_acc_struct i_acc, hls::stream<t_output_struct> &o_data) {
+void quant_stream(t_acc_struct i_acc, hls::stream<t_output_struct> &o_data) {
 #pragma HLS inline
   t_acc_struct s_acc_struct = i_acc;
   t_acc s_acc = c_quant;
@@ -616,7 +618,7 @@ void QuantStream(t_acc_struct i_acc, hls::stream<t_output_struct> &o_data) {
   t_output_struct s_output;
 
   if (c_relu == 1) {
-    s_acc = ReluOp<t_acc>(s_acc);
+    s_acc = relu_op<t_acc>(s_acc);
   }
   s_output.data =
       quant_act<t_acc, c_shift_l, c_shift_h, c_mask, t_output>(s_acc);
@@ -631,7 +633,7 @@ template <class t_output_struct, class t_output, class t_output_1x1_struct,
           int c_oh, int c_ow, int c_index, int c_ops, int c_relu, int c_quant,
           int c_mask, int c_shift_h, int c_shift_l, int c_mask_1x1,
           int c_shift_h_1x1, int c_shift_l_1x1>
-void StreamOutput(hls::stream<t_acc_struct> i_acc[c_ops],
+void stream_output(hls::stream<t_acc_struct> i_acc[c_ops],
                   hls::stream<t_acc_1x1_struct> i_acc_1x1[c_ops],
                   hls::stream<t_output_struct> &o_data,
                   hls::stream<t_output_1x1_struct> &o_data_1x1) {
@@ -658,11 +660,11 @@ void StreamOutput(hls::stream<t_acc_struct> i_acc[c_ops],
       }
     }
 
-    QuantStream<t_output_struct, t_output, t_acc_struct, t_acc, c_ich, c_och,
+    quant_stream<t_output_struct, t_output, t_acc_struct, t_acc, c_ich, c_och,
                 c_oh, c_ow, c_index, c_ops, c_relu, c_quant, c_mask, c_shift_h,
                 c_shift_l>(s_acc[s_och], o_data);
 
-    QuantStream<t_output_1x1_struct, t_output_1x1, t_acc_1x1_struct, t_acc_1x1,
+    quant_stream<t_output_1x1_struct, t_output_1x1, t_acc_1x1_struct, t_acc_1x1,
                 c_ich, c_och, c_oh, c_ow, 1, 1, 0, c_quant, c_mask_1x1,
                 c_shift_h_1x1, c_shift_l_1x1>(s_acc_1x1[s_och], o_data_1x1);
   }
@@ -672,7 +674,7 @@ template <class t_output_struct, class t_output, class t_acc_struct,
           class t_acc, int c_ich, int c_och, int c_oh, int c_ow, int c_index,
           int c_ops, int c_relu, int c_quant, int c_mask, int c_shift_h,
           int c_shift_l>
-void StreamOutput(hls::stream<t_acc_struct> i_acc[c_ops],
+void stream_output(hls::stream<t_acc_struct> i_acc[c_ops],
                   hls::stream<t_output_struct> &o_data) {
   /* #pragma HLS inline */
 
@@ -695,10 +697,12 @@ void StreamOutput(hls::stream<t_acc_struct> i_acc[c_ops],
       }
     }
 
-    QuantStream<t_output_struct, t_output, t_acc_struct, t_acc, c_ich, c_och,
+    quant_stream<t_output_struct, t_output, t_acc_struct, t_acc, c_ich, c_och,
                 c_oh, c_ow, c_index, c_ops, c_relu, c_quant, c_mask, c_shift_h,
                 c_shift_l>(s_acc[s_och], o_data);
   }
 }
 
+} // namespace nn2fpga
+ 
 #endif

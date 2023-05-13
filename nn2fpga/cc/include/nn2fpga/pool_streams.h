@@ -6,6 +6,8 @@
 #include "hls_math.h"
 #include "hls_stream.h"
 
+namespace nn2fpga {
+
 /* For global case to save line buffer logic */
 template <class t_input, class t_acc, class t_output, int c_ich, int c_och,
           int c_ih, int c_iw, int c_oh, int c_ow, int c_fh, int c_fw, int c_str,
@@ -178,4 +180,6 @@ void pool_streams(hls::stream<t_input> &i_data, hls::stream<t_output> &o_data) {
              c_fh, c_fw, c_str, c_pad, c_pool>(i_data, o_data);
 }
 
+} // namespace nn2fpga
+ 
 #endif
