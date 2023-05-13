@@ -72,7 +72,7 @@ def parse_wout(name, node):
         output_1x1_type_name = output_1x1_name.replace("_skip", "")
 
     block = {}
-    block["func"] = "StreamOutput"
+    block["func"] = "stream_output"
 
     # Template parameters
     block["template"] = []

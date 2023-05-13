@@ -493,7 +493,7 @@ def write(
     def write_footer(fd):
 
         # Adding prototype declaration
-        fd.write("void Network(\n")
+        fd.write("void network(\n")
         fd.write("\thls::stream<t_i_data> &i_data,\n")
         for i, name in enumerate(additional_ports):
             fd.write("\tap_int<READ_WIDTH> *i_data_%s,\n" % name)
@@ -503,7 +503,7 @@ def write(
         # End of main file
         fd.write("#endif")
 
-    with open(prj_root + "/cc/include/Network.h", "w+") as fd:
+    with open(prj_root + "/cc/include/network.h", "w+") as fd:
 
         write_header(fd)
 

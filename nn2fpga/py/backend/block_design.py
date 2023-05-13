@@ -7,7 +7,7 @@ def write(
     additional_ports,
     additional_ports_info, 
     prj_root=".", 
-    nn2fpga_root="."
+    top_name="network"
 ):
 
     read_width = 128
@@ -16,14 +16,14 @@ def write(
     with open("{}/bd_design.tcl".format(prj_root), "a") as fd:
         
         inv = []
-        inv.append(["empty", "Network_0"])
-        inv.append(["full", "MemoryManagement_0"])
+        inv.append(["empty", "{}_0".format(top_name)])
+        inv.append(["full", "memory_management_0"])
 
         en = []
-        en.append(["write", "wr_en", "MemoryManagement_0"])
-        en.append(["read", "rd_en", "Network_0"])
-        en.append(["dout", "dout", "Network_0"])
-        en.append(["din", "din", "MemoryManagement_0"])
+        en.append(["write", "wr_en", "memory_management_0"])
+        en.append(["read", "rd_en", "{}_0".format(top_name)])
+        en.append(["dout", "dout", "{}_0".format(top_name)])
+        en.append(["din", "din", "memory_management_0"])
 
         for port in additional_ports:
             for index in range(additional_ports_info[port][0]):
