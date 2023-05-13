@@ -10,7 +10,10 @@ $(error ERROR! Please, provide the ONNX file path via ONNX_PATH)
 endif
 
 .PHONY: all
-all: generate backend
+all: check_prj_root generate backend
+
+check_prj_root:
+	$(NN2FPGA_ROOT)/scripts/check_settings.sh
 
 restore_design:
 	cd $(PRJ_ROOT) && vitis_hls -f $(NN2FPGA_ROOT)/tcl/restore_design.tcl \
