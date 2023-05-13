@@ -1,56 +1,52 @@
-export MEM=MemoryManagement
-export NAME=Network
-export CC=gcc
-export CXX := g++
-export VITIS_HLS_ROOT := /eda/xilinx/Vitis_HLS/2022.2/include/
-export BOARD_PATH=/home/filippo/.Xilinx/Vivado/2022.2/xhub/board_store/xilinx_board_store
-export CFLAGS=-I$(VITIS_HLS_ROOT)
-export DEPS=$(NAME).hpp
-export COSIM=0
-# export BOARD=ULTRA96v2
-# export ONNX_PATH=./onnx/Brevonnx_resnet_final_fx.onnx
+# Including the settings.
+include settings.mk
 
 ifndef BOARD
-$(error ERROR | Please, provide the target board via BOARD)
+$(error ERROR! Please, provide the target board via BOARD)
 endif
 
 ifndef ONNX_PATH
-$(error ERROR | Please, provide the ONNX file path via ONNX_PATH)
+$(error ERROR! Please, provide the ONNX file path via ONNX_PATH)
 endif
 
 .PHONY: all
 all: generate backend
 
 restore_design:
-	vitis_hls -f tcl/restore_design.tcl
+	cd $(PRJ_ROOT) && vitis_hls -f $(NN2FPGA_ROOT)/tcl/restore_design.tcl \
+		$(NN2FPGA_ROOT)
 
 syn:
-	vitis_hls -f tcl/synth.tcl
+	cd $(PRJ_ROOT) && vitis_hls -f $(NN2FPGA_ROOT)/tcl/synth.tcl \
+		$(NN2FPGA_ROOT)
 
 vivado_flow:
-	vivado -mode tcl -source tcl/vivado_flow.tcl -tclargs
+	cd $(PRJ_ROOT) && vivado -mode tcl -source \
+		$(NN2FPGA_ROOT)/tcl/vivado_flow.tcl -tclargs $(NN2FPGA_ROOT)
 
 generate:
-	python py/code_gen_qonnx.py
+	cd $(PRJ_ROOT) && python $(NN2FPGA_ROOT)/py/code_gen_qonnx.py
 
 compile:
-	$(CXX) -c $(CFLAGS) -Isrc/ src/$(NAME).cpp -o $(NAME).o
-	$(CXX) -c $(CFLAGS) -Isrc/ src/$(MEM).cpp -o $(MEM).o
+	$(CXX) -c $(CXXFLAGS) -I$(NN2FPGA_CC_ROOT)/include \
+		$(NN2FPGA_CC_ROOT)/src/$(NAME).cpp -o $(NAME).o
+	$(CXX) -c $(CXXFLAGS) -I$(NN2FPGA_CC_ROOT)/include \
+		$(NN2FPGA_CC_ROOT)/src/$(MEM).cpp -o $(MEM).o
 
 compile_tb:
-	$(CXX) -c $(CFLAGS) -Itb/ tb/$(NAME)Tb.cpp -o $(NAME)Tb.o
+	$(CXX) -c $(CXXFLAGS) -I$(NN2FPGA_CC_ROOT)/tb/ tb/$(NAME)Tb.cpp \
+		-o $(NAME)Tb.o
 	$(CXX) $(NAME)Tb.o $(NAME).o $(MEM).o -o $(NAME)Tb
 
 sim:
-	chmod u+x $(NAME)Tb
-	./$(NAME)Tb
+	cd $(PRJ_ROOT) && chmod u+x $(NAME)Tb && ./$(NAME)Tb
 
 compile_sim: compile compile_tb sim
 
 all_sim: generate compile_sim
 
 run_model:
-	python py/utils/test_model.py
+	cd $(PRJ_ROOT) && python $(NN2FPGA_ROOT)/py/utils/test_model.py
 
 cosim: generate
 	make syn COSIM=1
@@ -59,4 +55,4 @@ backend: syn vivado_flow
 
 .PHONY: clean
 clean:
-	rm -rf /tmp/$(BOARD)_example
+	rm -rf $(PRJ_ROOT)/$(BOARD)_example
