@@ -68,7 +68,7 @@ def init(file_name, parsed_write, prj_root="."):
         fd.write(") {\n")
 
 
-def body(file_name, parsed_write):
+def body(file_name, parsed_write, prj_root="."):
     with open(prj_root + "/cc/include/%sSim.hpp" % file_name, "a") as fd:
 
         for layer in parsed_write:
@@ -96,18 +96,18 @@ def body(file_name, parsed_write):
         fd.write("\t);\n")
 
 
-def footer(file_name, parsed_write):
+def footer(file_name, parsed_write, prj_root="."):
     with open(prj_root + "/cc/include/%sSim.hpp" % file_name, "a") as fd:
         fd.write("}\n")
         fd.write("\n")
         fd.write("#endif")
 
-def write(io_dict, file_name):
+def write(io_dict, file_name, prj_root="."):
 
     parsed_write, parsed_const = parse_all_main(io_dict)
     parsed_write = parsed_write + parsed_const
 
-    init(file_name, parsed_write)
-    body(file_name, parsed_write)
-    footer(file_name, parsed_write)
+    init(file_name, parsed_write, prj_root=prj_root)
+    body(file_name, parsed_write, prj_root=prj_root)
+    footer(file_name, parsed_write, prj_root=prj_root)
 
