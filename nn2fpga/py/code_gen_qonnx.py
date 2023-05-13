@@ -30,7 +30,7 @@ def main():
 
     if "PRJ_ROOT" not in os.environ:
         print("PROJECT ROOT NOT DEFINED")
-        sys.exit(0)
+        sys.exit(1)
 
     PRJ_ROOT = str(os.environ.get("PRJ_ROOT"))
 
