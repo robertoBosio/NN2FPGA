@@ -12,7 +12,7 @@ void store_NCHW(hls::stream<t_data> &din, t_data o_data[c_reuse][OCH]) {
   for (auto s_och = 0; s_och < c_och_ops; s_och++) {
     for (auto s_reuse = 0; s_reuse < c_reuse; s_reuse++) {
       for (auto s_ops = 0; s_ops < c_ops; s_ops++) {
-#pragma HLS pipeline style = frp
+#pragma HLS pipeline style = flp
         t_data s_data = din.read();
         o_data[s_reuse][s_och * c_ops + s_ops] = s_data;
       }
@@ -24,7 +24,7 @@ template <typename t_data, int OCH, int c_ops, int c_reuse>
 void stream_NHWC(t_data din[c_reuse][OCH], hls::stream<t_data> &o_data) {
   for (auto s_reuse = 0; s_reuse < c_reuse; s_reuse++) {
     for (auto s_och = 0; s_och < OCH; s_och++) {
-#pragma HLS pipeline style = frp
+#pragma HLS pipeline style = flp
       t_data s_data = din[s_reuse][s_och];
       o_data.write(s_data);
     }
@@ -58,7 +58,7 @@ void store_NHWC(hls::stream<t_data> din[c_index],
   for (auto s_reuse = 0; s_reuse < c_reuse; s_reuse++) {
     for (auto s_ich = 0; s_ich < ICH; s_ich++) {
       for (auto s_index = 0; s_index < c_index; s_index++) {
-#pragma HLS pipeline style = frp
+#pragma HLS pipeline style = flp
         t_data s_data = din[s_index].read();
         o_data[s_reuse][s_ich][s_index] = s_data;
       }
@@ -72,7 +72,7 @@ void stream_NCHW(t_data din[c_reuse][ICH][c_index],
   for (auto s_ich = 0; s_ich < ICH; s_ich++) {
     for (auto s_reuse = 0; s_reuse < c_reuse; s_reuse++) {
       for (auto s_index = 0; s_index < c_index; s_index++) {
-#pragma HLS pipeline style = frp
+#pragma HLS pipeline style = flp
         t_data s_data = din[s_reuse][s_ich][s_index];
         o_data[s_index].write(s_data);
       }

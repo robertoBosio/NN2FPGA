@@ -38,7 +38,7 @@ void produce_stream(hls::stream<din_t> &din,
   ap_uint<BITS> tmp_r_par;
 PRODSTR:
   for (unsigned i = 0; i < ISZ; i++) {
-#pragma HLS pipeline style = frp
+#pragma HLS pipeline style = flp
     uint8_t s_par = i % PAR;
 
     if (s_par == 0) {

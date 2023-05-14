@@ -39,11 +39,11 @@ void conv_comp(hls::stream<t_input_struct> i_input[c_index],
   for (auto s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
     for (auto s_ich = 0; s_ich < c_ich; s_ich++) {
       /* #if c_iter==1 */
-      /* #pragma HLS pipeline style=flp */
+      /* #pragma HLS pipeline style=frp */
       /* #endif */
       for (auto s_iter = 0; s_iter < c_iter; s_iter++) {
 /* #if c_iter>1 */
-/* #pragma HLS pipeline style=flp */
+/* #pragma HLS pipeline style=frp */
 /* #endif */
 #pragma HLS pipeline style = flp
 
@@ -649,7 +649,7 @@ void stream_output(hls::stream<t_acc_struct> i_acc[c_ops],
   t_acc_1x1_struct s_acc_1x1[c_och];
 
   for (auto s_pipe_iter = 0; s_pipe_iter < c_pipe_iter; s_pipe_iter++) {
-#pragma HLS pipeline style = frp
+#pragma HLS pipeline style = flp
     auto s_ops = s_pipe_iter % c_ops;
     auto s_num_och = s_pipe_iter % c_num_och;
     auto s_och = s_pipe_iter % c_och;
@@ -687,7 +687,7 @@ void stream_output(hls::stream<t_acc_struct> i_acc[c_ops],
   t_acc_struct s_acc[c_och];
 
   for (auto s_pipe_iter = 0; s_pipe_iter < c_pipe_iter; s_pipe_iter++) {
-#pragma HLS pipeline style = frp
+#pragma HLS pipeline style = flp
     auto s_ops = s_pipe_iter % c_ops;
     auto s_num_och = s_pipe_iter % c_num_och;
     auto s_och = s_pipe_iter % c_och;

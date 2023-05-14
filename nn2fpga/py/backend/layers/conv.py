@@ -246,7 +246,7 @@ def parse_wout(name, node):
 
     # depth = node["och"]*(node["ow"]+node["fw"]-1)
     # depth = node["och"] + node["och"]*int(node["och"]/node["ich"])
-    depth = 2
+    depth = node["och"] + 1
 
     pragma = {}
     pragma["name"] = "stream"
@@ -451,7 +451,7 @@ def parse_comp(name, node):
     block["pragma"] = []
 
     # depth = int(node["och"]/node["ops"] + 1)
-    depth = 2
+    depth = 3
     pragma = {}
     pragma["name"] = "stream"
     options = [
