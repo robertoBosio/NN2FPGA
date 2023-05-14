@@ -526,7 +526,7 @@ def init(file_name, network_name, parsed_write, prj_root="."):
         "%s.h" % network_name,
         "ap_int.h",
         "nn2fpga/mem_utils.h",
-        "nn2fpga/utils.h",
+        "nn2fpga/weights_utils.h",
         "hls_stream.h",
     ]
 
