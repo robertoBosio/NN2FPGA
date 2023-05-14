@@ -5,7 +5,7 @@
 #include "hls_stream.h"
 #include "nn2fpga/activation_streams.h"
 #include "nn2fpga/debug.h"
-#include "nn2fpga/utils.h"
+#include "nn2fpga/quantisation.h"
 
 namespace nn2fpga {
 

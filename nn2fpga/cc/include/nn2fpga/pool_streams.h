@@ -5,6 +5,7 @@
 #include "hls_math.h"
 #include "hls_stream.h"
 #include "nn2fpga/debug.h"
+#include "nn2fpga/line_buffer_utils.h"
 
 namespace nn2fpga {
 
