@@ -33,8 +33,6 @@ namespace nn2fpga {
 
 /* } */
 
-
-
 ///////////////////////////// FROM STREAM TO POINTER //////////////////////////
 
 ///////////////////////////// FOR INPUT WEIGHTS //////////////////////////
@@ -145,4 +143,4 @@ void pad_stream(hls::stream<din_t> &din, hls::stream<dout_t> &o_data) {
 
 }  // namespace nn2fpga
 
-#endif // NN2FPGA_UTILS_H_
+#endif  // NN2FPGA_UTILS_H_

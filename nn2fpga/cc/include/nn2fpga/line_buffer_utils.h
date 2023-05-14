@@ -3,7 +3,6 @@
 
 #include "ap_int.h"
 #include "hls_stream.h"
-
 #include "nn2fpga/line_buffer.h"
 
 namespace nn2fpga {
@@ -152,6 +151,6 @@ void shift_op(hls::stream<din_t> &din, hls::stream<din_t> &o_compute,
   }
 }
 
-} // namespace nn2fpga
+}  // namespace nn2fpga
 
-#endif // NN2FPGA_LINE_BUFFER_UTILS_H_
+#endif  // NN2FPGA_LINE_BUFFER_UTILS_H_

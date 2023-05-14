@@ -85,8 +85,6 @@ void consume_stream(hls::stream<din_t> &din, hls::stream<ap_uint<1>> &i_last,
   o_data.write(tmp);
 }
 
+}  // namespace nn2fpga
 
-
-} // namespace nn2fpga
- 
-#endif // NN2FPGA_STREAM_TO_PT_H_
+#endif  // NN2FPGA_STREAM_TO_PT_H_

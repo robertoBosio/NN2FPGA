@@ -102,6 +102,6 @@ void arrange_op(hls::stream<t_data> din[c_index],
   }
 }
 
-} // namespace nn2fpga
+}  // namespace nn2fpga
 
-#endif // NN2FPGA_ACTIVATIONS_UTILS_H_
+#endif  // NN2FPGA_ACTIVATIONS_UTILS_H_

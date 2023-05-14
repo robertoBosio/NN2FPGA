@@ -3,10 +3,9 @@
 
 #include "ap_int.h"
 #include "hls_stream.h"
-
 #include "nn2fpga/block_interface.h"
-#include "nn2fpga/quantisation.h"
 #include "nn2fpga/line_buffer_utils.h"
+#include "nn2fpga/quantisation.h"
 
 namespace nn2fpga {
 
@@ -84,6 +83,6 @@ PRODSTR:
   o_last.write(tmp_r.last);
 }
 
-} // namespace nn2fpga
+}  // namespace nn2fpga
 
-#endif // NN2FGPA_PT_TO_STREAM_H_
+#endif  // NN2FGPA_PT_TO_STREAM_H_

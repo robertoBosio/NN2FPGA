@@ -2,8 +2,8 @@
 #define NN2FPGA_WEIGHTS_UTILS_H_
 
 #include "ap_int.h"
-#include "hls_stream.h"
 #include "hls_math.h"
+#include "hls_stream.h"
 
 namespace nn2fpga {
 
@@ -152,6 +152,6 @@ void produce_stream(hls::stream<din_t> din[c_fh * c_fw],
   }
 }
 
-} // namespace nn2fpga
- 
-#endif // NN2FPGA_WEIGHTS_UTILS_H_
+}  // namespace nn2fpga
+
+#endif  // NN2FPGA_WEIGHTS_UTILS_H_

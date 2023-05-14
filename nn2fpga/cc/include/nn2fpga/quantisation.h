@@ -103,6 +103,6 @@ dout_t quant_act(din_t din) {
   return dout_t(val);
 }
 
-} // namespace nn2fpga
+}  // namespace nn2fpga
 
-#endif // NN2FPGA_QUANTISATION_H_
+#endif  // NN2FPGA_QUANTISATION_H_

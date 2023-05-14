@@ -113,6 +113,6 @@ void split_stream(hls::stream<dout_t> &din,
   }
 }
 
-} // namespace nn2fpga
+}  // namespace nn2fpga
 
-#endif // NN2FPGA_BLOCK_INTERFACE_H_
+#endif  // NN2FPGA_BLOCK_INTERFACE_H_
