@@ -23,6 +23,12 @@ source tcl/bd_design.tcl
 
 make_wrapper -files [get_files ${PRJ_ROOT}/${PRJ_NAME}/${PRJ_NAME}.srcs/sources_1/bd/design_1/design_1.bd] -top
 add_files -norecurse ${PRJ_ROOT}/${PRJ_NAME}/${PRJ_NAME}.gen/sources_1/bd/design_1/hdl/design_1_wrapper.v
+
+if {${BOARD} == "ULTRA96v2"} {
+  set_property STEPS.SYNTH_DESIGN.ARGS.FLATTEN_HIERARCHY full [get_runs synth_1]
+  # set_property strategy Flow_AreaMapLargeShiftRegToBRAM [get_runs synth_1]
+}
+
 set_property top design_1_wrapper [current_fileset]; #
 
 launch_runs synth_1 -jobs 2

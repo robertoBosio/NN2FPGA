@@ -201,7 +201,7 @@ template <
 	t_input tmp_r;
 	ap_uint<c_bits> tmp_r_par;
 	PRODSTR: for (int s_index = 0; s_index < c_index; s_index++) {
-#pragma HLS pipeline style=frp
+#pragma HLS pipeline style=flp
 		uint8_t s_par = s_index % c_par;
 
 		if (s_par == 0) {
@@ -598,7 +598,7 @@ template <
 	const int c_o_index = c_oh*c_ow*c_ch;
 	t_input s_data[c_index];
 	for (uint32_t s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
-#pragma HLS pipeline style=frp
+#pragma HLS pipeline style=flp
 		uint8_t s_iter = s_o_index % c_iter;
 		if (s_iter == 0) {
 			for (uint8_t s_index = 0; s_index < c_index; s_index++)
@@ -837,7 +837,7 @@ template <
 	for (auto s_och = 0; s_och < c_och_ops; s_och++) {
 		for (auto s_reuse = 0; s_reuse < c_reuse; s_reuse++) {
 			for (auto s_ops = 0; s_ops < c_ops; s_ops++) {
-#pragma HLS pipeline style=frp
+#pragma HLS pipeline style=flp
 				t_data s_data = i_data.read();
 				o_data[s_reuse][s_och*c_ops+s_ops] = s_data;
 			}
@@ -856,7 +856,7 @@ template <
 ) {
 	for (auto s_reuse = 0; s_reuse < c_reuse; s_reuse++) {
 		for (auto s_och = 0; s_och < c_och; s_och++) {
-#pragma HLS pipeline style=frp
+#pragma HLS pipeline style=flp
 			t_data s_data = i_data[s_reuse][s_och];
 			o_data.write(s_data);
 		}
@@ -926,7 +926,7 @@ template <
 	for (auto s_reuse = 0; s_reuse < c_reuse; s_reuse++) {
 		for (auto s_ich = 0; s_ich < c_ich; s_ich++) {
 			for (auto s_index = 0; s_index < c_index; s_index++) {
-#pragma HLS pipeline style=frp
+#pragma HLS pipeline style=flp
 				t_data s_data = i_data[s_index].read();
 				o_data[s_reuse][s_ich][s_index] = s_data;
 			}
@@ -948,7 +948,7 @@ template <
 	for (auto s_ich = 0; s_ich < c_ich; s_ich++) {
 		for (auto s_reuse = 0; s_reuse < c_reuse; s_reuse++) {
 			for (auto s_index = 0; s_index < c_index; s_index++) {
-#pragma HLS pipeline style=frp
+#pragma HLS pipeline style=flp
 				t_data s_data = i_data[s_reuse][s_ich][s_index];
 				o_data[s_index].write(s_data);
 			}
@@ -1050,7 +1050,7 @@ template <
 	for (auto s_index_h = c_starth; s_index_h < c_endh; s_index_h++) {
 		for (auto s_index_w = c_startw; s_index_w < c_endw; s_index_w++) {
 			for (auto s_index_ich = 0; s_index_ich < c_ich; s_index_ich++) {
-#pragma HLS pipeline style=frp
+#pragma HLS pipeline style=flp
 				bool s_compute_write = true;
 				uint16_t s_index_h_str = s_index_h % c_str;
 				uint16_t s_index_w_str = s_index_w % c_str;
@@ -1098,7 +1098,7 @@ template <
 	for (auto s_index_h = 0; s_index_h < c_ih; s_index_h+=c_str) {
 		for (auto s_index_w = 0; s_index_w < c_iw; s_index_w+=c_str) {
 			for (auto s_index_ich = 0; s_index_ich < c_ich; s_index_ich++) {
-#pragma HLS pipeline style=frp
+#pragma HLS pipeline style=flp
         for (auto s_fh=0; s_fh < c_fh; s_fh++) {
           for (auto s_fw=0; s_fw < c_fw; s_fw++) {
             t_input s_write;
@@ -1176,7 +1176,7 @@ template <
 	for (auto s_index_h = c_starth; s_index_h < c_endh; s_index_h++) {
 		for (auto s_index_w = c_startw; s_index_w < c_endw; s_index_w++) {
 			for (auto s_index_ich = 0; s_index_ich < c_ich; s_index_ich++) {
-#pragma HLS pipeline style=frp
+#pragma HLS pipeline style=flp
 				bool s_compute_write = true;
 				uint16_t s_index_h_str = s_index_h % c_str;
 				uint16_t s_index_w_str = s_index_w % c_str;
@@ -1237,7 +1237,7 @@ template <
 /* 	for (auto s_index_h = 0; s_index_h < c_ih; s_index_h++) { */
 /* 		for (auto s_index_w = 0; s_index_w < c_iw; s_index_w++) { */
 /* 			for (auto s_index_ich = 0; s_index_ich < c_ich; s_index_ich++) { */
-/* #pragma HLS pipeline style=frp */
+/* #pragma HLS pipeline style=flp */
 /* 				for (auto s_fh=0; s_fh<c_fh; s_fh++) { */
 /*           auto s_addr_h = s_address+s_fh*c_iw*c_ich */
 /* 					for (auto s_fw=0; s_fw<c_fw; s_fw++) { */
