@@ -2,17 +2,19 @@
 #define NN2FPGA_ACTIVATION_STREAMS_H_
 
 // Vitis HLS dependencies.
-#include <ap_int.h>
-#include <hls_stream.h>
+#include "ap_int.h"
+#include "hls_stream.h"
 
 namespace nn2fpga {
 
+// Apply ReLU to a single value.
 template <typename T>
 T relu_op(T val) {
 #pragma HLS inline
   return val > 0 ? val : 0;
 }
 
+// Apply ReLU to input stream.
 template <typename din_t, typename dout_t, unsigned ICH, unsigned IH,
           unsigned IW>
 void relu_streams(hls::stream<din_t>& dinStream,
