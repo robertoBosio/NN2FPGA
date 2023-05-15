@@ -2,8 +2,8 @@
 #define NN2FPGA_ADD_STREAMS_H_
 
 // Vitis HLS dependencies.
-#include <ap_int.h>
-#include <hls_stream.h>
+#include "ap_int.h"
+#include "hls_stream.h"
 
 namespace nn2fpga {
 
