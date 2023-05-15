@@ -1,5 +1,5 @@
-#ifndef __PACKEDCONV__
-#define __PACKEDCONV__
+#ifndef NN2FPGA_PACKED_CONV_H_
+#define NN2FPGA_PACKED_CONV_H_
 
 #include "ap_int.h"
 #include "hls_stream.h"
@@ -707,4 +707,4 @@ void stream_output(hls::stream<t_acc_struct> i_acc[c_ops],
 
 }  // namespace nn2fpga
 
-#endif
+#endif // NN2FPGA_PACKED_CONV_H_

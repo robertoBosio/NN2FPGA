@@ -1,5 +1,5 @@
-#ifndef __MEM_UTILS__
-#define __MEM_UTILS__
+#ifndef NN2FPGA_MEM_UTILS_H_
+#define NN2FPGA_MEM_UTILS_H_
 
 #include <ap_int.h>
 #include <hls_burst_maxi.h>
@@ -228,4 +228,4 @@ void mem_algo(hls::stream<ap_uint<BITW>> &dout,
 
 }  // namespace nn2fpga
 
-#endif
+#endif // NN2FPGA_MEM_UTILS_H_

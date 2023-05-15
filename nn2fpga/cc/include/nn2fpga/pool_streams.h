@@ -1,5 +1,5 @@
-#ifndef __POOLSTREAM__
-#define __POOLSTREAM__
+#ifndef NN2FPGA_POOL_STREAM_H_
+#define NN2FPGA_POOL_STREAM_H_
 
 #include "ap_int.h"
 #include "hls_math.h"
@@ -183,4 +183,4 @@ void pool_streams(hls::stream<t_input> &i_data, hls::stream<t_output> &o_data) {
 
 }  // namespace nn2fpga
 
-#endif
+#endif // NN2FPGA_POOL_STREAM_H_
