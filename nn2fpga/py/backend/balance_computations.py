@@ -3,7 +3,7 @@ import sys
 import pulp
 import math
 
-def parallel_ops_number(layers_info, clamp=None, board="ULTRA96v2"):
+def parallel_ops_number(layers_info, clamp=None, board="ULTRA96v2", prj_root="/tmp"):
 
     if (board == "ULTRA96v2"):
         NUM_DSP = 400
@@ -53,7 +53,7 @@ def parallel_ops_number(layers_info, clamp=None, board="ULTRA96v2"):
     if clamp is not None:
         prob += pulp.lpSum([choice]) <= clamp
 
-    prob.writeLP("/tmp/parallel_ops.lp")
+    prob.writeLP(prj_root + "/parallel_ops.lp")
 
     prob.solve()
 
