@@ -49,7 +49,8 @@ def write_network(
     io_dict = balance_computations.ilp(
         io_dict,
         off_chip_storage,
-        board
+        board, 
+        prj_root=prj_root
     )
 
     io_dict = hw_quant(
@@ -93,18 +94,18 @@ def write_network(
         io_dict,
         file_name,
         off_chip_storage,
-        prj_root
+        prj_root=prj_root
     )
 
     weights.write(
         io_dict,
         file_name,
-        prj_root
+        prj_root=prj_root
     )
 
     sim.write(
         io_dict,
         file_name,
-        prj_root
+        prj_root=prj_root
     )
 

@@ -114,10 +114,10 @@ def write(io_dict, file_name, off_chip_storage, prj_root="/tmp"):
 
     parsed_write, parsed_const = parse_all_main(io_dict)
 
-    init(file_name, parsed_write, prj_root)
-    declare(file_name, parsed_write, ap_ctrl, prj_root)
-    body(file_name, parsed_write, prj_root)
+    init(file_name, parsed_write, prj_root=prj_root)
+    declare(file_name, parsed_write, ap_ctrl, prj_root=prj_root)
+    body(file_name, parsed_write, prj_root=prj_root)
 
     parsed_write = parsed_write + parsed_const
 
-    defines(file_name, parsed_write, prj_root)
+    defines(file_name, parsed_write, prj_root=prj_root)

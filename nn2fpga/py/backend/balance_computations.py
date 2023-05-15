@@ -72,7 +72,7 @@ def parallel_ops_number(layers_info, clamp=None, board="ULTRA96v2", prj_root="/t
     
     return parallel_op
 
-def ilp(io_dict, off_chip_storage, board="ULTRA96v2"):
+def ilp(io_dict, off_chip_storage, board="ULTRA96v2", prj_root="/tmp"):
 
     if off_chip_storage:
         clamp = 8
@@ -104,7 +104,7 @@ def ilp(io_dict, off_chip_storage, board="ULTRA96v2"):
                 ]
             )
 
-    parallel_ops = parallel_ops_number(layers_info, clamp, board)
+    parallel_ops = parallel_ops_number(layers_info, clamp, board, prj_root=prj_root)
 
     print(parallel_ops)
 

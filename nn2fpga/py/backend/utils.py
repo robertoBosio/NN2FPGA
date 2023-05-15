@@ -170,8 +170,8 @@ def defines(file_name, parsed_write, prj_root="/tmp"):
 
     with open(prj_root + ("/cc/include/%s.h" % file_name), "w+") as fd:
         
-        fd.write("#ifndef __NETWORK__\n")
-        fd.write("#define __NETWORK__\n")
+        fd.write("#ifndef NN2FPGA_NETWORK_H_\n")
+        fd.write("#define NN2FPGA_NETWORK_H_\n")
 
         for lib in libraries:
             fd.write("#include \"%s\"\n" % lib)
