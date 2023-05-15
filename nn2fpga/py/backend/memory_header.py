@@ -8,7 +8,7 @@ def write(
     additional_ports,
     weights_export,
     read_width, 
-    prj_root="."
+    prj_root="/tmp"
 ):
 
     def write_header(fd):
@@ -50,7 +50,7 @@ def write(
         pass
 
 
-    with open(prj_root + "/cc/include/MemoryWeights.h", "w+") as fd:
+    with open(prj_root + "/cc/include/memory_weights.h", "w+") as fd:
         write_header(fd)
         write_body(fd)
         write_footer(fd)

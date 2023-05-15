@@ -8,7 +8,7 @@ def write(
     additional_ports,
     additional_ports_info,
     read_width, 
-    prj_root="."
+    prj_root="/tmp"
 ):
 
     def write_header(fd):

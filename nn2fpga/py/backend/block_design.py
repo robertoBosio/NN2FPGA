@@ -6,7 +6,7 @@ from onnx import numpy_helper
 def write(
     additional_ports,
     additional_ports_info, 
-    prj_root=".", 
+    prj_root="/tmp", 
     top_name="network"
 ):
 

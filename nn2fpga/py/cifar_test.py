@@ -141,7 +141,7 @@ def main():
         summary_writer.add_scalar('cls_loss', loss.item(), step)
         summary_writer.add_scalar('learning rate', optimizer.param_groups[0]['lr'], step)
 
-  def test(epoch, prj_root="."):
+  def test(epoch, prj_root="/tmp"):
     # pass
     model.eval()
     correct = 0

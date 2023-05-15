@@ -7,7 +7,7 @@ def write(
     additional_ports,
     additional_ports_info,
     read_width,
-    prj_root=".",
+    prj_root="/tmp",
 ):
 
     def write_header(fd):
@@ -16,6 +16,8 @@ def write(
         fd.write("#include \"ap_int.h\"\n")
         fd.write("#include \"memory_management.h\"\n")
         fd.write("#include \"hls_stream.h\"\n")
+        fd.write("#include \"nn2fpga/weights_utils.h\"\n")
+        fd.write("#include \"nn2fpga/pt_to_stream.h\"\n")
         fd.write("\n")
 
         fd.write("\n")
@@ -61,7 +63,7 @@ def write(
             fd.write("\thls::stream<t_%s> i_data[c_%s_bw],\n" % (name, name))
             fd.write("\thls::stream<t_%s> o_data[c_%s_index] \n" % (name, name))
             fd.write(") {\n")
-            fd.write("\tproduce_stream< \n")
+            fd.write("\tnn2fpga::produce_stream< \n")
             fd.write("\t\tap_int<READ_WIDTH>, \n")
             fd.write("\t\tt_%s,\n" % (name))
             fd.write("\t\tc_%s_ich,\n" % (node_name))

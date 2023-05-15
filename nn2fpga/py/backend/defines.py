@@ -20,7 +20,7 @@ def write(
     parallel_ops,
     read_width,
     reuse, 
-    prj_root="."
+    prj_root="/tmp"
 ):
 
     def write_header(fd):

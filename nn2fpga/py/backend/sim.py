@@ -38,7 +38,7 @@ def tb_declare(fd, layer_tb_declare):
 
     fd.write("\n")
 
-def init(file_name, parsed_write, prj_root="."):
+def init(file_name, parsed_write, prj_root="/tmp"):
     with open(prj_root + "/cc/include/%s_sim.h" % file_name, "w+") as fd:
 
         libraries = [
@@ -68,7 +68,7 @@ def init(file_name, parsed_write, prj_root="."):
         fd.write(") {\n")
 
 
-def body(file_name, parsed_write, prj_root="."):
+def body(file_name, parsed_write, prj_root="/tmp"):
     with open(prj_root + "/cc/include/%s_sim.h" % file_name, "a") as fd:
 
         for layer in parsed_write:
@@ -96,13 +96,13 @@ def body(file_name, parsed_write, prj_root="."):
         fd.write("\t);\n")
 
 
-def footer(file_name, parsed_write, prj_root="."):
+def footer(file_name, parsed_write, prj_root="/tmp"):
     with open(prj_root + "/cc/include/%s_sim.h" % file_name, "a") as fd:
         fd.write("}\n")
         fd.write("\n")
         fd.write("#endif")
 
-def write(io_dict, file_name, prj_root="."):
+def write(io_dict, file_name, prj_root="/tmp"):
 
     parsed_write, parsed_const = parse_all_main(io_dict)
     parsed_write = parsed_write + parsed_const

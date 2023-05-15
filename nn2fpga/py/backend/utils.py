@@ -27,7 +27,7 @@ def write_func(fd, info):
     fd.write("\n")
 
 
-def body(file_name, parsed_write, prj_root="."):
+def body(file_name, parsed_write, prj_root="/tmp"):
 
     with open(prj_root + ("/cc/src/%s.cc" % file_name), "a") as fd:
         
@@ -91,7 +91,7 @@ def write_pragma(fd, pragma):
 
     fd.write("\n")
 
-def declare(file_name, parsed_write, ap_ctrl=None, inline=False, prj_root="."):
+def declare(file_name, parsed_write, ap_ctrl=None, inline=False, prj_root="/tmp"):
 
     with open(prj_root + ("/cc/src/%s.cc" % file_name), "a") as fd:
         
@@ -158,7 +158,7 @@ def write_defines(fd, values):
                 )
             )
 
-def defines(file_name, parsed_write, prj_root="."):
+def defines(file_name, parsed_write, prj_root="/tmp"):
 
     libraries = [
         "ap_int.h",

@@ -519,7 +519,7 @@ def parse_all(io_dict):
 
     return parsed_write
 
-def init(file_name, network_name, parsed_write, prj_root="."):
+def init(file_name, network_name, parsed_write, prj_root="/tmp"):
 
 
     libraries = [
@@ -560,7 +560,7 @@ def init(file_name, network_name, parsed_write, prj_root="."):
 
         fd.write("\n")
 
-def write(io_dict, network_name, prj_root="."):
+def write(io_dict, network_name, prj_root="/tmp"):
 
     parsed_write = parse_all(io_dict)
 

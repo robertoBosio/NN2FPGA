@@ -12,7 +12,7 @@ import backend.layers.input_gen as input_gen
 import backend.layers.output_gen as output_gen
 from backend.utils import *
 
-def init(file_name, parsed_write, prj_root="."):
+def init(file_name, parsed_write, prj_root="/tmp"):
 
 
     libraries = [
@@ -105,7 +105,7 @@ def parse_all_main(io_dict):
 
     return parsed_write, parsed_const
 
-def write(io_dict, file_name, off_chip_storage, prj_root="."):
+def write(io_dict, file_name, off_chip_storage, prj_root="/tmp"):
 
     if off_chip_storage:
         ap_ctrl = "ap_ctrl_chain"

@@ -22,7 +22,7 @@ def write_network(
     file_name="network",
     off_chip_storage=False,
     board="ULTRA96v2",
-    prj_root=".",
+    prj_root="/tmp",
 ):
 
     read_width = 8
