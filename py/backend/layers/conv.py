@@ -274,7 +274,7 @@ def parse_wout(name, node):
             depth = 2
         else:
             # depth = node["ow"]*node["och"]*(node["fh"]-1)
-            depth = node["ow"]*node["och"]*(node["fh"])
+            depth = node["ow"]*node["och"]*(node["fh"]-1)-node["ich"]
 
         options = [
             ["variable", pragma_name],
