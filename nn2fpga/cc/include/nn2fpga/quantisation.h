@@ -6,18 +6,21 @@
 
 namespace nn2fpga {
 
+// Scale a value by a SCALE factor which is a power of 2.
 template <typename din_t, int SCALE>
 din_t quant_act(din_t din) {
   constexpr int SCALE_INV = -1 * SCALE;
-  if (SCALE <= 0)
+  if (SCALE <= 0) // Left shifting.
     return (din << SCALE_INV);
-  else {
+  else { // Right shifting and LSB rounding.
     din_t round = (din >> (SCALE - 1)) & 0x1;
-    /* din_t round = 0; */
     return ((din >> SCALE) + round);
   }
 }
 
+
+// Scale a value with a SCALE factor, with additional MASK factor (to be 
+// implemented in the future).
 template <typename din_t, int SCALE, int MASK>
 din_t quant_act(din_t din) {
 #pragma HLS inline
@@ -39,12 +42,16 @@ din_t quant_act(din_t din) {
   }
 }
 
-template <typename din_t, int SCALE, typename dout_t>
+
+// Scale a factor by a factor SCALE (power of 2) and clipping it on a different
+// bitwidth provided by dout_t.
+template <typename din_t, typename dout_t, int SCALE>
 dout_t quant_act(din_t din) {
   constexpr dout_t MSB = sizeof(dout_t) * 8 - 1;
 
   constexpr dout_t MAX_0 = ~(dout_t(0));
-  const dout_t MAX_1 = MAX_0 ^ (-1 << MSB);
+  const dout_t MAX_1 = MAX_0 ^ (-1 << MSB); // How does a negative value shift 
+                                            // work?
   const dout_t MAX = (MAX_0 < 0) ? MAX_1 : MAX_0;
 
   constexpr dout_t MIN_0 = ~(dout_t(0));
@@ -62,7 +69,9 @@ dout_t quant_act(din_t din) {
   return dout_t(val);
 }
 
-template <typename din_t, int SCALE, int CLIP, typename dout_t>
+
+// Scaling and clipping a value on a different bitwidth provided by dout_t.
+template <typename din_t, typename dout_t, int SCALE, int CLIP>
 dout_t quant_act(din_t din) {
   din_t val = quant_act<din_t, SCALE>(din);
   constexpr dout_t MSB = sizeof(dout_t) * 8 - 1;
@@ -81,8 +90,10 @@ dout_t quant_act(din_t din) {
   }
   return dout_t(val);
 }
+ 
 
-template <typename din_t, int SCALE, int CLIP, int MASK, typename dout_t>
+// Scaling, clipping on dout_t, masking.
+template <typename din_t, typename dout_t, int SCALE, int CLIP, int MASK>
 dout_t quant_act(din_t din) {
   din_t val = quant_act<din_t, SCALE, MASK>(din);
 
