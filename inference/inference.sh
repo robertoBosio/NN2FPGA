@@ -13,8 +13,8 @@ elif [ $1 = "ultra96" ]; then
     user="root"
     path="~/"
     # ip="192.168.1.63"
-    ip="192.168.1.84"
-    # ip="192.168.3.1"
+    # ip="192.168.1.84"
+    ip="192.168.3.1"
     device="${user}@${ip}"
 		export prj_name="ULTRA96v2"
 else
@@ -37,6 +37,8 @@ mkdir overlay
 cp ./tmp/design_1.bit overlay/design_1.bit
 cp ./tmp/design_1.hwh overlay/design_1.hwh
 cp ./inference/inference.py overlay/inference.py
+cp ./inference/boards.py overlay/boards.py
+cp ./inference/datasets.py overlay/datasets.py
 
 # upload bitstream to sdcard
 # scp -r overlay root@${ip}:/home/xilinx/
@@ -44,10 +46,12 @@ scp -r overlay ${device}:${path}
 
 # execute kernel
 #cat ./host.py | ssh root@192.168.3.1 'python3 -'
-ssh ${device} "cd ${path} && source /etc/profile && python3 ${path}overlay/inference.py ${path}overlay/"
+ssh ${device} "cd ${path} && source /etc/profile && python3 ${path}overlay/inference.py $1 cifar10"
 #>> ${res_file}
 
 # cleanup
 scp ${device}:${path}overlay/results.txt ./${res_file}
-ssh ${device} "rm -r ${path}overlay && xmutil unloadapp k26-starter-kits && xmutil loadapp k26-starter-kits"
+if [ $1 = "kria" ]; then
+		ssh ${device} "rm -r ${path}overlay && xmutil unloadapp k26-starter-kits && xmutil loadapp k26-starter-kits"
+fi
 rm -r overlay
