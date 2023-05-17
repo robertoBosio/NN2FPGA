@@ -40,7 +40,7 @@ template <
 	t_input s_input[c_reuse][c_index];
 #pragma HLS array_partition variable=s_input type=complete
 	bool s_last = false;
-	int8_t s_weight[c_ops][c_index];
+	t_weight s_weight[c_index];
 #pragma HLS array_partition variable=s_weight type=complete
 
 		/* for (auto s_reuse = 0; s_reuse < c_reuse; s_reuse++) */
@@ -49,8 +49,14 @@ template <
 
 	for (auto s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
 		for (auto s_ich = 0; s_ich < c_ich; s_ich++) {
+/* #if c_iter==1 */
+/* #pragma HLS pipeline style=flp */
+/* #endif */
 			for (auto s_iter = 0; s_iter < c_iter; s_iter++) {
-#pragma HLS pipeline style=frp
+/* #if c_iter>1 */
+/* #pragma HLS pipeline style=flp */
+/* #endif */
+#pragma HLS pipeline style=flp
 
 				auto s_reuse = s_iter % c_reuse;
 				auto s_num_och = s_iter / c_reuse;
@@ -69,11 +75,8 @@ template <
 				/* TODO: Adjust for generic bit quantizations */
 				if (s_reuse == 0) {
 					for (auto s_index = 0; s_index < c_index; s_index++) {
-						t_weight s_tmp_weight = i_weights[s_index].read();
-						for (auto s_ops = 0; s_ops < c_ops; s_ops++) {
-							/* Input weights are reversed with respect to original order */
-							s_weight[s_ops][s_index] = s_tmp_weight[s_ops];
-						}
+            /* Input weights are reversed with respect to original order */
+            s_weight[s_index] = i_weights[s_index].read();
 					}
 				}
 
@@ -89,7 +92,7 @@ template <
 					s_acc_base = s_acc_buff[s_reuse][s_och];
 
 					for (auto s_index = 0; s_index < c_index; s_index++) {
-						s_acc += s_input[s_reuse][s_index] * s_weight[s_ops][s_index];
+						s_acc += s_input[s_reuse][s_index] * s_weight[s_index][s_ops];
 					}
 
 					if (s_ich != 0)
@@ -141,7 +144,7 @@ template <
 	t_input s_input[c_reuse][c_index];
 #pragma HLS array_partition variable=s_input type=complete
 	bool s_last = false;
-	int8_t s_weight[c_ops][c_index];
+	t_weight s_weight[c_index];
 #pragma HLS array_partition variable=s_weight type=complete
 	t_bias s_bias;
 #pragma HLS array_partition variable=s_bias type=complete
@@ -153,7 +156,7 @@ template <
 	for (auto s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
 		for (auto s_ich = 0; s_ich < c_ich; s_ich++) {
 			for (auto s_iter = 0; s_iter < c_iter; s_iter++) {
-#pragma HLS pipeline style=frp
+#pragma HLS pipeline style=flp
 
 				auto s_reuse = s_iter % c_reuse;
 				auto s_num_och = s_iter / c_reuse;
@@ -172,15 +175,12 @@ template <
 				/* TODO: Adjust for generic bit quantizations */
 				if (s_reuse == 0) {
 					for (auto s_index = 0; s_index < c_index; s_index++) {
-						t_weight s_tmp_weight = i_weights[s_index].read();
-						for (auto s_ops = 0; s_ops < c_ops; s_ops++) {
-							/* Input weights are reversed with respect to original order */
-							s_weight[s_ops][s_index] = s_tmp_weight[s_ops];
-						}
+            /* Input weights are reversed with respect to original order */
+            s_weight[s_index] = i_weights[s_index].read();
 					}
-					if (s_ich == 0)
-						s_bias = i_bias[0].read();
 				}
+        if ((s_ich == 0) & (s_reuse == 0))
+          s_bias = i_bias[0].read();
 
 				COMPUTE: for (auto s_ops = 0; s_ops < c_ops; s_ops++) {
 					auto s_och = s_num_och*c_ops + s_ops;
@@ -197,7 +197,7 @@ template <
 					s_acc_base = s_acc_buff[s_reuse][s_och];
 
 					for (auto s_index = 0; s_index < c_index; s_index++) {
-						s_acc += s_input[s_reuse][s_index] * s_weight[s_ops][s_index];
+						s_acc += s_input[s_reuse][s_index] * s_weight[s_index][s_ops];
 					}
 
 					if (s_ich != 0)
@@ -235,7 +235,11 @@ template <
 	int c_index,
 	int c_str,
 	int c_ops,
-	int c_reuse
+	int c_reuse,
+	int c_shift_h,
+	int c_shift_l,
+	int c_shift_h_1x1,
+	int c_shift_l_1x1
 > void ConvComp(
 	hls::stream<t_input_struct> i_input[c_index],
 	hls::stream<t_weight> i_weights[c_index],
@@ -258,9 +262,9 @@ template <
 	t_input s_input[c_reuse][c_index];
 #pragma HLS array_partition variable=s_input type=complete
 	bool s_last = false;
-	int8_t s_weight[c_ops][c_index];
+	t_weight s_weight[c_index];
 #pragma HLS array_partition variable=s_weight type=complete
-	int8_t s_weight_1x1[c_ops][1];
+	t_weight_1x1 s_weight_1x1[1];
 #pragma HLS array_partition variable=s_weight_1x1 type=complete
 	t_bias s_bias;
 #pragma HLS array_partition variable=s_bias type=complete
@@ -274,7 +278,7 @@ template <
 	for (auto s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
 		for (auto s_ich = 0; s_ich < c_ich; s_ich++) {
 			for (auto s_iter = 0; s_iter < c_iter; s_iter++) {
-#pragma HLS pipeline style=frp
+#pragma HLS pipeline style=flp
 
 				auto s_reuse = s_iter % c_reuse;
 				auto s_num_och = s_iter / c_reuse;
@@ -293,17 +297,10 @@ template <
 				/* TODO: Adjust for generic bit quantizations */
 				if (s_reuse == 0) {
 					for (auto s_index = 0; s_index < c_index; s_index++) {
-						t_weight s_tmp_weight = i_weights[s_index].read();
-						for (auto s_ops = 0; s_ops < c_ops; s_ops++) {
-							/* Input weights are reversed with respect to original order */
-							s_weight[s_ops][s_index] = s_tmp_weight[s_ops];
-						}
+            /* Input weights are reversed with respect to original order */
+            s_weight[s_index] = i_weights[s_index].read();
 					}
-					t_weight_1x1 s_tmp_weight_1x1 = i_weights_1x1[0].read();
-					for (auto s_ops = 0; s_ops < c_ops; s_ops++) {
-						/* Input weights are reversed with respect to original order */
-						s_weight_1x1[s_ops][0] = s_tmp_weight_1x1[s_ops];
-					}
+					s_weight_1x1[0] = i_weights_1x1[0].read();
 					if (s_ich == 0)
 						s_bias = i_bias[0].read();
 					if (s_ich == 0)
@@ -330,7 +327,10 @@ template <
 					s_acc_base = s_acc_buff[s_reuse][s_och];
 
 					for (auto s_index = 0; s_index < c_index; s_index++) {
-						s_acc += s_input[s_reuse][s_index] * s_weight[s_ops][s_index];
+            t_input s_data = s_input[s_reuse][s_index];
+            if (c_shift_l != 0)
+              s_data = QuantAct<t_input,c_shift_l,c_shift_h,t_input>(s_data);
+						s_acc += s_data * s_weight[s_index][s_ops];
 					}
 
 					if (s_ich == 0)
@@ -340,7 +340,10 @@ template <
 
 					s_acc_1x1_base = s_acc_1x1_buff[s_reuse][s_och];
 
-					s_acc_1x1 += s_input[s_reuse][c_index/2] * s_weight_1x1[s_ops][0];
+          t_input s_data = s_input[s_reuse][c_index/2];
+          if (c_shift_l != 0)
+            s_data = QuantAct<t_input,c_shift_l_1x1,c_shift_h_1x1,t_input>(s_data);
+					s_acc_1x1 += s_data * s_weight_1x1[0][s_ops];
 
 					if (s_ich != 0)
 						s_acc += s_acc_base;
@@ -401,7 +404,7 @@ template <
 	t_input s_input[c_reuse][c_index];
 #pragma HLS array_partition variable=s_input type=complete
 	bool s_last = false;
-	int8_t s_weight[c_ops][c_index];
+	t_weight s_weight[c_index];
 #pragma HLS array_partition variable=s_weight type=complete
 	t_bias s_bias;
 #pragma HLS array_partition variable=s_bias type=complete
@@ -413,7 +416,7 @@ template <
 	for (auto s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
 		for (auto s_ich = 0; s_ich < c_ich; s_ich++) {
 			for (auto s_iter = 0; s_iter < c_iter; s_iter++) {
-#pragma HLS pipeline style=frp
+#pragma HLS pipeline style=flp
 
 				auto s_reuse = s_iter % c_reuse;
 				auto s_num_och = s_iter / c_reuse;
@@ -432,11 +435,8 @@ template <
 				/* TODO: Adjust for generic bit quantizations */
 				if (s_reuse == 0) {
 					for (auto s_index = 0; s_index < c_index; s_index++) {
-						t_weight s_tmp_weight = i_weights[s_index].read();
-						for (auto s_ops = 0; s_ops < c_ops; s_ops++) {
-							/* Input weights are reversed with respect to original order */
-							s_weight[s_ops][s_index] = s_tmp_weight[s_ops];
-						}
+            /* Input weights are reversed with respect to original order */
+            s_weight[s_index] = i_weights[s_index].read();
 					}
 					if (s_ich == 0)
 						s_bias = i_bias[0].read();
@@ -460,7 +460,7 @@ template <
 						t_input s_data = s_input[s_reuse][s_index];
 						if (c_shift_l != 0)
 							s_data = QuantAct<t_input,c_shift_l,c_shift_h,t_input>(s_data);
-						s_acc += s_data * s_weight[s_ops][s_index];
+						s_acc += s_data * s_weight[s_index][s_ops];
 					}
 
 					if (s_ich != 0)
@@ -526,7 +526,7 @@ template <
 	t_input s_input[c_reuse][c_index];
 #pragma HLS array_partition variable=s_input type=complete
 	bool s_last = false;
-	int8_t s_weight[c_ops][c_index];
+	t_weight s_weight[c_index];
 #pragma HLS array_partition variable=s_weight type=complete
 	t_bias s_bias;
 #pragma HLS array_partition variable=s_bias type=complete
@@ -539,7 +539,7 @@ template <
 	for (auto s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
 		for (auto s_ich = 0; s_ich < c_ich; s_ich++) {
 			for (auto s_iter = 0; s_iter < c_iter; s_iter++) {
-#pragma HLS pipeline style=frp
+#pragma HLS pipeline style=flp
 
 				auto s_reuse = s_iter % c_reuse;
 				auto s_num_och = s_iter / c_reuse;
@@ -558,11 +558,8 @@ template <
 				/* TODO: Adjust for generic bit quantizations */
 				if (s_reuse == 0) {
 					for (auto s_index = 0; s_index < c_index; s_index++) {
-						t_weight s_tmp_weight = i_weights[s_index].read();
-						for (auto s_ops = 0; s_ops < c_ops; s_ops++) {
-							/* Input weights are reversed with respect to original order */
-							s_weight[s_ops][s_index] = s_tmp_weight[s_ops];
-						}
+            /* Input weights are reversed with respect to original order */
+            s_weight[s_index] = i_weights[s_index].read();
 					}
 					if (s_ich == 0)
 						s_bias = i_bias[0].read();
@@ -595,7 +592,7 @@ template <
 					s_acc_base = s_acc_buff[s_reuse][s_och];
 
 					for (auto s_index = 0; s_index < c_index; s_index++) {
-						s_acc += s_input[s_reuse][s_index] * s_weight[s_ops][s_index];
+						s_acc += s_input[s_reuse][s_index] * s_weight[s_index][s_ops];
 					}
 
 					if (s_ich != 0)
@@ -652,7 +649,7 @@ template <
 	bool s_last;
 
 	for (uint32_t s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
-#pragma HLS pipeline style=frp
+#pragma HLS pipeline style=flp
 
 		uint16_t s_pipe_iter = s_o_index % c_pipe_iter; 
 		uint8_t s_num_och = s_pipe_iter % c_num_och;
@@ -678,13 +675,10 @@ template <
 		int8_t s_weight[c_ops][c_index];
 #pragma HLS array_partition variable=s_weight type=complete
 
-		for (uint8_t s_index = 0; s_index < c_index; s_index++) {
-			t_weight s_tmp_weight = i_weights[s_index].read();
-			for (uint8_t s_ops = 0; s_ops < c_ops; s_ops++) {
-				/* Input weights are reversed with respect to original order */
-				s_weight[s_ops][s_index] = s_tmp_weight[s_ops];
-			}
-		}
+    for (auto s_index = 0; s_index < c_index; s_index++) {
+      /* Input weights are reversed with respect to original order */
+      s_weight[s_index] = i_weights[s_index].read();
+    }
 
 		if (s_ich == 0)
 			s_bias = i_bias[0].read();
@@ -737,12 +731,11 @@ template <
 	int c_shift_h,
 	int c_shift_l
 > void QuantStream(
-	hls::stream<t_acc_struct> i_acc[c_ops],
-	int s_ops,
+	t_acc_struct i_acc,
 	hls::stream<t_output_struct> &o_data
 ) {
 #pragma HLS inline
-	t_acc_struct s_acc_struct = i_acc[s_ops].read();
+	t_acc_struct s_acc_struct = i_acc;
 	t_acc s_acc = c_quant;
 
 	/* 1 subtraction for quantization */
@@ -790,59 +783,69 @@ template <
 ) {
 /* #pragma HLS inline */
 
-	const int c_num_comp = c_oh*c_ow*c_och;
-	const int c_pipe_iter = c_num_comp;
+	const auto c_num_comp = c_oh*c_ow*c_och;
+	const auto c_pipe_iter = c_num_comp;
+  const auto c_num_och = c_och/c_ops;
 
-	for (auto s_pipe_iter = 0; s_pipe_iter < c_pipe_iter; s_pipe_iter+=c_ops) {
-		for (auto s_ops = 0; s_ops < c_ops; s_ops++) {
-#pragma HLS pipeline style=frp
-			QuantStream <
-				t_output_struct,
-				t_output,
-				t_acc_struct,
-				t_acc,
-				c_ich,
-				c_och,
-				c_oh,
-				c_ow,
-				c_index,
-				c_ops,
-				c_relu,
-				c_quant,
-				c_mask,
-				c_shift_h,
-				c_shift_l
-			> (
-				i_acc,
-				s_ops,
-				o_data
-			);
+  t_acc_struct s_acc[c_och];
+  t_acc_1x1_struct s_acc_1x1[c_och];
+
+	for (auto s_pipe_iter = 0; s_pipe_iter < c_pipe_iter; s_pipe_iter++) {
+#pragma HLS pipeline style=flp
+    auto s_ops = s_pipe_iter % c_ops;
+    auto s_num_och = s_pipe_iter % c_num_och;
+    auto s_och = s_pipe_iter % c_och;
+
+    if (s_och < c_num_och) {
+      for (auto s_r_ops = 0; s_r_ops < c_ops; s_r_ops++){
+        auto s_r_och = s_num_och*c_ops + s_r_ops;
+        s_acc[s_r_och] = i_acc[s_r_ops].read();
+        s_acc_1x1[s_r_och] = i_acc_1x1[s_r_ops].read();
+      }
+    }
+
+    QuantStream <
+      t_output_struct,
+      t_output,
+      t_acc_struct,
+      t_acc,
+      c_ich,
+      c_och,
+      c_oh,
+      c_ow,
+      c_index,
+      c_ops,
+      c_relu,
+      c_quant,
+      c_mask,
+      c_shift_h,
+      c_shift_l
+    > (
+      s_acc[s_och],
+      o_data
+    );
 
 
-			QuantStream <
-				t_output_1x1_struct,
-				t_output_1x1,
-				t_acc_1x1_struct,
-				t_acc_1x1,
-				c_ich,
-				c_och,
-				c_oh,
-				c_ow,
-				1,
-				1,
-				0,
-				c_quant,
-				c_mask_1x1,
-				c_shift_h_1x1,
-				c_shift_l_1x1
-			> (
-				i_acc_1x1,
-				s_ops,
-				o_data_1x1
-			);
-
-		}
-
+    QuantStream <
+      t_output_1x1_struct,
+      t_output_1x1,
+      t_acc_1x1_struct,
+      t_acc_1x1,
+      c_ich,
+      c_och,
+      c_oh,
+      c_ow,
+      1,
+      1,
+      0,
+      c_quant,
+      c_mask_1x1,
+      c_shift_h_1x1,
+      c_shift_l_1x1
+    > (
+      s_acc_1x1[s_och],
+      o_data_1x1
+    );
 	}
 
 }
@@ -869,35 +872,45 @@ template <
 ) {
 /* #pragma HLS inline */
 
-	const int c_num_comp = c_oh*c_ow*c_och;
-	const int c_pipe_iter = c_num_comp;
+	const auto c_num_comp = c_oh*c_ow*c_och;
+	const auto c_pipe_iter = c_num_comp;
+  const auto c_num_och = c_och/c_ops;
 
-	for (auto s_pipe_iter = 0; s_pipe_iter < c_pipe_iter; s_pipe_iter+=c_ops) {
-		for (auto s_ops = 0; s_ops < c_ops; s_ops++) {
-#pragma HLS pipeline style=frp
-			QuantStream <
-				t_output_struct,
-				t_output,
-				t_acc_struct,
-				t_acc,
-				c_ich,
-				c_och,
-				c_oh,
-				c_ow,
-				c_index,
-				c_ops,
-				c_relu,
-				c_quant,
-				c_mask,
-				c_shift_h,
-				c_shift_l
-			> (
-				i_acc,
-				s_ops,
-				o_data
-			);
+  t_acc_struct s_acc[c_och];
 
-		}
+	for (auto s_pipe_iter = 0; s_pipe_iter < c_pipe_iter; s_pipe_iter++) {
+#pragma HLS pipeline style=flp
+    auto s_ops = s_pipe_iter % c_ops;
+    auto s_num_och = s_pipe_iter % c_num_och;
+    auto s_och = s_pipe_iter % c_och;
+
+    if (s_och < c_num_och) {
+      for (auto s_r_ops = 0; s_r_ops < c_ops; s_r_ops++){
+        auto s_r_och = s_num_och*c_ops + s_r_ops;
+        s_acc[s_r_och] = i_acc[s_r_ops].read();
+      }
+    }
+
+    QuantStream <
+      t_output_struct,
+      t_output,
+      t_acc_struct,
+      t_acc,
+      c_ich,
+      c_och,
+      c_oh,
+      c_ow,
+      c_index,
+      c_ops,
+      c_relu,
+      c_quant,
+      c_mask,
+      c_shift_h,
+      c_shift_l
+    > (
+      s_acc[s_och],
+      o_data
+    );
 	}
 
 }

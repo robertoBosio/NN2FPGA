@@ -45,14 +45,14 @@ def parse(name, node):
             block["args"] = []
 
             if index == 0:
-                block["args"].append("s_%s_padded" % input_name)
+                block["args"].append("s_%s[0]" % input_name)
             else:
                 block["args"].append(
                     "s_%s_data[%0d]" % (input_name, index-1)
                 )
 
             block["args"].append(
-                "s_%s_compute[%0d]" % (input_name, index)
+                "s_%s_pre_pad[%0d]" % (input_name, index)
             )
 
             if index < (dindex-1):
@@ -71,7 +71,7 @@ def parse(name, node):
                 block["declare"].append(declare)
 
                 declare = {}
-                declare["name"] = "s_%s_compute" % output_name
+                declare["name"] = "s_%s_pre_pad" % output_name
                 declare["type"] = "t_%s_struct" % output_name
                 declare["is_array"] = True
                 declare["dim"] = dindex
@@ -79,13 +79,33 @@ def parse(name, node):
 
             block["pragma"] = []
 
+            output_ratio = int((node["ih"]*node["iw"])/(node["oh"]*node["ow"]))
+            if output_ratio > 1: 
+                depth = node["och"]*output_ratio+1
+                # impl = "BRAM"
+                impl = "AUTO"
+            else:
+                depth = node["fh"]*node["fw"]+1
+                impl = "AUTO"
+
             if (index == 0):
                 pragma = {}
                 pragma["name"] = "stream"
                 options = [
-                    ["variable", "s_%s_compute" % output_name],
-                    ["depth", node["fw"]*node["fh"]+1],
+                    ["variable", "s_%s_pre_pad" % output_name],
+                    ["depth", depth],
                     # ["depth", "2"],
+                    ["type", "fifo"],
+                ]
+                pragma["options"] = options
+                block["pragma"].append(pragma)
+
+                pragma = {}
+                pragma["name"] = "bind_storage"
+                options = [
+                    ["variable", "s_%s_pre_pad" % output_name],
+                    # ["depth", "2"],
+                    ["impl", impl],
                     ["type", "fifo"],
                 ]
                 pragma["options"] = options
@@ -109,6 +129,20 @@ def parse(name, node):
                 pragma["options"] = options
 
                 block["pragma"].append(pragma)
+
+                if (fh == 0) and (fw == 0):
+                  pragma = {}
+                  pragma["name"] = "bind_storage"
+                  options = [
+                      ["variable", "s_%s_data[0]" % output_name],
+                      # ["depth", "2"],
+                      # ["impl", "BRAM"],
+                      ["impl", "AUTO"],
+                      ["type", "fifo"],
+                  ]
+                  pragma["options"] = options
+                  block["pragma"].append(pragma)
+
 
             line_buffer_blocks.append(block)
 

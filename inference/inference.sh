@@ -26,8 +26,6 @@ res_file=results_${1}_$(date +%m%d%H%M).csv
 #echo "exec_time_avg,exec_time_std,power_avg,power_std,energy_avg,energy_std" > ${res_file}
 scp_folder="workspace/NN2FPGA/"
 
-#project=subiso_bd
-
 if [ -d overlay ]; then
     rm overlay -r
 fi
@@ -47,11 +45,9 @@ scp -r overlay ${device}:${path}
 # execute kernel
 #cat ./host.py | ssh root@192.168.3.1 'python3 -'
 ssh ${device} "cd ${path} && source /etc/profile && python3 ${path}overlay/inference.py $1 cifar10"
-#>> ${res_file}
 
 # cleanup
 scp ${device}:${path}overlay/results.txt ./${res_file}
 if [ $1 = "kria" ]; then
 		ssh ${device} "rm -r ${path}overlay && xmutil unloadapp k26-starter-kits && xmutil loadapp k26-starter-kits"
 fi
-rm -r overlay

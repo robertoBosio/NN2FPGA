@@ -176,10 +176,16 @@ def graph_info(model, init_info):
             scale_factor = np.log2(scale_factor)
 
             attributes = getattr(node, "attribute" )
+            narrow = attributes[0].i
             signed = attributes[2].i
+
+            bits_name   = io_dict[node_name]["input"][3]
+            bits = init_info[bits_name]
 
             io_dict[node_name]["scale_factor"] = scale_factor
             io_dict[node_name]["signed"] = signed
+            io_dict[node_name]["narrow"] = narrow
+            io_dict[node_name]["bits"] = numpy_helper.to_array(bits)
             io_dict[node_name]["type"] = "quant"
             io_dict[node_name]["clip"] = scale_factor
             io_dict[node_name]["mask"] = scale_factor

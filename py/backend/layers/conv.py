@@ -29,7 +29,7 @@ def info(io_dict, node, node_name, init_info, tensors_info):
     reuse    = 1
     relu     = False
     add      = False
-    in_scale_factor = None
+    in_scale_factor = [None]
 
     io_dict[node_name]["ich"]    = ich
     io_dict[node_name]["ih"]     = ih
@@ -128,8 +128,8 @@ def parse_wout(name, node):
     # If there is a need for in place quantization, the activation scale
     # is the input scale factor
     actscale = node["actscale"][0]
-    if node["in_scale_factor"] is not None:
-        actscale = node["in_scale_factor"]
+    if node["in_scale_factor"][0] is not None:
+        actscale = node["in_scale_factor"][0]
 
     diff_scale, reduced_clip, reduced_mask = backend.quant.compute_out_quant(
         actscale,
@@ -145,6 +145,10 @@ def parse_wout(name, node):
     block["defines"]["c_%s_shift_l" % output_name] = ["const", diff_scale]
 
     if (node["merge_1x1"]):
+        actscale = node["actscale"][0]
+        if node["in_scale_factor"][1] is not None:
+          actscale = node["in_scale_factor"][1]
+
         diff_scale, reduced_clip, reduced_mask = backend.quant.compute_out_quant(
             actscale,
             node["wscale"][1],
@@ -157,14 +161,35 @@ def parse_wout(name, node):
         block["defines"]["c_%s_shift_h" % output_1x1_name] = ["const", reduced_clip]
         block["defines"]["c_%s_shift_l" % output_1x1_name] = ["const", diff_scale]
 
-    if (node["in_scale_factor"] is not None):
+    if (node["in_scale_factor"][0] is not None):
         diff_scale, reduced_clip = backend.quant.compute_in_quant(
             node["actscale"][0],
-            node["in_scale_factor"]
+            node["in_scale_factor"][0]
         )
 
-        block["defines"]["c_%s_in_shift_h" % input_name] = ["const", reduced_clip]
-        block["defines"]["c_%s_in_shift_l" % input_name] = ["const", diff_scale]
+    else:
+        reduced_clip = 255
+        diff_scale = 0
+    block["defines"]["c_%s_in_shift_h" % input_name] = ["const", reduced_clip]
+    block["defines"]["c_%s_in_shift_l" % input_name] = ["const", diff_scale]
+
+    if (node["merge_1x1"]):
+      if (node["in_scale_factor"][1] is not None):
+          if len(node["actscale"]) == 1:
+              actscale = node["actscale"][0]
+          else:
+              actscale = node["actscale"][1]
+
+          diff_scale, reduced_clip = backend.quant.compute_in_quant(
+              actscale,
+              node["in_scale_factor"][1]
+          )
+
+      else:
+          reduced_clip = 255
+          diff_scale = 0
+      block["defines"]["c_%s_in_shift_h_1x1" % input_name] = ["const", reduced_clip]
+      block["defines"]["c_%s_in_shift_l_1x1" % input_name] = ["const", diff_scale]
 
     block["args"] = []
     block["args"].append("s_%s_acc" % output_name)
@@ -212,6 +237,17 @@ def parse_wout(name, node):
 
     block["pragma"] = []
 
+    # FIX BUG HALF SPEED, WHEN CHANGING THE OUTPUT CHANNEL THE DEPTH MUST BE
+    # PROPORTIONAL TO THE SIZE OF THE CHANGE
+      # if (node["och"] > node["ich"]):
+    #   depth = node["och"]
+    # else:
+    #   depth = 2
+
+    # depth = node["och"]*(node["ow"]+node["fw"]-1)
+    # depth = node["och"] + node["och"]*int(node["och"]/node["ich"])
+    depth = node["och"] + 1
+
     pragma = {}
     pragma["name"] = "stream"
     if (node["reuse"] > 1):
@@ -220,7 +256,7 @@ def parse_wout(name, node):
         pragma_name = "s_%s" % (output_name)
     options = [
         ["variable", pragma_name],
-        ["depth", 2],
+        ["depth", depth],
         ["type", "fifo"],
     ]
     pragma["options"] = options
@@ -235,9 +271,10 @@ def parse_wout(name, node):
             pragma_name = "s_%s" % (output_1x1_name)
 
         if (node["reuse"] > 1):
-            depth = node["ow"]*node["och"]*(node["fh"]-2)
-        else:
             depth = 2
+        else:
+            # depth = node["ow"]*node["och"]*(node["fh"]-1)
+            depth = node["ow"]*node["och"]*(node["fh"])
 
         options = [
             ["variable", pragma_name],
@@ -304,9 +341,13 @@ def parse_comp(name, node):
     block["template"].append("c_%s_ops" % name)
     block["template"].append("c_%s_reuse" % name)
 
-    if (node["in_scale_factor"] is not None):
+    if (node["in_scale_factor"][0] is not None) or (node["merge_1x1"]):
         block["template"].append("c_%s_in_shift_h" % input_name)
         block["template"].append("c_%s_in_shift_l" % input_name)
+
+    if (node["merge_1x1"]):
+        block["template"].append("c_%s_in_shift_h_1x1" % input_name)
+        block["template"].append("c_%s_in_shift_l_1x1" % input_name)
 
     if (node["add"]):
         block["template"].append("c_%s_add_shift_l" % add_name)
@@ -409,11 +450,13 @@ def parse_comp(name, node):
 
     block["pragma"] = []
 
+    # depth = int(node["och"]/node["ops"] + 1)
+    depth = 3
     pragma = {}
     pragma["name"] = "stream"
     options = [
         ["variable", "s_%s_acc" % (output_name)],
-        ["depth", 2],
+        ["depth", depth],
         ["type", "fifo"],
     ]
     pragma["options"] = options
@@ -424,7 +467,7 @@ def parse_comp(name, node):
         pragma["name"] = "stream"
         options = [
             ["variable", "s_%s_acc" % (output_1x1_name)],
-            ["depth", 2],
+            ["depth", depth],
             ["type", "fifo"],
         ]
         pragma["options"] = options
@@ -435,6 +478,7 @@ def parse_comp(name, node):
         depth = (node["fh"]-1)*node["iw"]*node["ich"]
         # first two pixels of the third line
         depth += (node["fw"]-1)*node["ich"]
+        depth += node["och"]+1
         pragma = {}
         pragma["name"] = "stream"
         if (node["reuse"] > 1):

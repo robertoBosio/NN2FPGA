@@ -1,23 +1,27 @@
 set impl_sel "solution_0"
 
-set board "ULTRA"
+set BOARD $::env(BOARD)
+set COSIM $::env(COSIM)
+# set board "KRIA"
 
 set TOP_NAME Network
-if {$board == "PYNQ"} {
-	set PRJ_NAME ${TOP_NAME}PYNQ2
-} else {
-	set PRJ_NAME ${TOP_NAME}ULTRA
-}
+set PRJ_NAME ${TOP_NAME}${BOARD}
 
 delete_project ${PRJ_NAME}_ip
 open_project ${PRJ_NAME}_ip
 set_top ${TOP_NAME}
 
 open_solution solution_1
-if {$board == "PYNQ"} {
+if {$BOARD == "PYNQ"} {
 	set_part {xc7z020clg400-1}
-} else {
+}
+
+if {$BOARD == "ULTRA96v2"} {
 	set_part {xczu3eg-sbva484-1-i}
+}
+
+if {$BOARD == "KRIA"} {
+	set_part {xczu5eg-sfvc784-1-i}
 }
 
 add_files src/MemoryManagement.cpp
@@ -36,6 +40,7 @@ config_interface -m_axi_alignment_byte_size 16
 config_interface -m_axi_max_read_burst_length 256
 config_interface -m_axi_num_read_outstanding 1
 config_interface -m_axi_latency 1
+config_compile -pipeline_style flp
 
 # Done to avoid forced pipelining of loops that could waste resources
 # config_compile -pipeline_loops 200000
@@ -44,3 +49,9 @@ config_interface -m_axi_latency 1
 csynth_design
 
 export_design
+
+if {${COSIM} == 1} {
+  cosim_design
+}
+
+exit

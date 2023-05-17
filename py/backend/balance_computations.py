@@ -3,9 +3,13 @@ import sys
 import pulp
 import math
 
-def parallel_ops_number(layers_info, clamp=None):
+def parallel_ops_number(layers_info, clamp=None, board="ULTRA96v2"):
 
-    NUM_DSP = 400
+    if (board == "ULTRA96v2"):
+        NUM_DSP = 400
+    elif (board == "KRIA"):
+        NUM_DSP = 1000
+
     MIN_OP = 1
     DELTA = 1
 
@@ -22,7 +26,7 @@ def parallel_ops_number(layers_info, clamp=None):
         return best_one, best_index
 
     def happiness(choices, elem, layers_info):
-        return choices[elem] * layers_info[elem][1] * layers_info[elem][2]
+        return choice[0] * layers_info[elem][1] * layers_info[elem][2]
 
     num_layers = len(layers_info)
 
@@ -35,32 +39,19 @@ def parallel_ops_number(layers_info, clamp=None):
 
     prob = pulp.LpProblem("Parallel ops", pulp.LpMaximize)
 
-    choices = pulp.LpVariable.dicts("Layers parallel comp.", range(num_layers), cat="Integer")
+    choice = pulp.LpVariable.dicts("Layers parallel comp.", range(1), cat="Integer")
     # choices = pulp.LpVariable.dicts("Layers parallel comp.", range(num_layers), cat="Continuous")
 
-    prob += pulp.lpSum(happiness(choices, best_index, layers_info))
+    prob += pulp.lpSum(happiness(choice, best_index, layers_info))
 
     # for i in range(num_layers - 1):
     #     prob += happiness(choices, i, layers_info) == happiness(choices, i+1, layers_info)
 
-    for i in range(num_layers):
-        prob += happiness(choices, i, layers_info) >= happiness(choices, best_index, layers_info)
-
-    prob += pulp.lpSum([choices[i]*layers_info[i][2] for i in range(num_layers)]) <= NUM_DSP
-
-    for i in range(num_layers):
-        prob += pulp.lpSum([choices[i]]) >= MIN_OP
+    prob += pulp.lpSum([choice[0]*layers_info[i][2]/layers_info[i][5] for i in range(num_layers)]) <= NUM_DSP
 
     # TODO: Do architectural changes to avoid limiting the parallel ops
     if clamp is not None:
-        for i in range(num_layers):
-            prob += pulp.lpSum([choices[i]]) <= clamp
-
-    # Have equal allocations for same number of operations
-    for i in range(num_layers):
-        for j in range(num_layers):
-            if layers_info[i][1] == layers_info[j][1]:
-                prob += choices[i] == choices[j]
+        prob += pulp.lpSum([choice]) <= clamp
 
     prob.writeLP("tmp/parallel_ops.lp")
 
@@ -69,16 +60,19 @@ def parallel_ops_number(layers_info, clamp=None):
     print("Status:", pulp.LpStatus[prob.status])
 
     parallel_op = {}
+    max_exp = int(math.log2(choice[0].value()))
+    max_data = 2**max_exp
     for i in range(num_layers):
         # Returning the layers name together with the computed number of 
         # operations that should be executed in parallel
-        exp = int(math.log2(choices[i].value()))
-        data = 2**exp
-        parallel_op[layers_info[i][0]] = int(data)
+        data = int(max_data/layers_info[i][5])
+        if data == 0:
+          data = 1
+        parallel_op[layers_info[i][0]] = data
     
     return parallel_op
 
-def ilp(io_dict, off_chip_storage):
+def ilp(io_dict, off_chip_storage, board="ULTRA96v2"):
 
     if off_chip_storage:
         clamp = 8
@@ -87,19 +81,30 @@ def ilp(io_dict, off_chip_storage):
 
     layers_info = []
 
+    max_total = 1
     for node_name, node_info in io_dict.items():
         if 'conv' in node_info["type"]:
+            if max_total > node_info["total"]:
+                max_total = node_info["total"]
+
+    for node_name, node_info in io_dict.items():
+        if 'conv' in node_info["type"]:
+
+            value = int(math.log2(node_info["total"]/max_total))
+            value = 2**value
+
             layers_info.append(
                 [
                     node_name,
                     node_info["total"],
                     node_info["kernel"],
                     node_info["img_ch"],
-                    node_info["merge_1x1"]
+                    node_info["merge_1x1"],
+                    value
                 ]
             )
 
-    parallel_ops = parallel_ops_number(layers_info, clamp)
+    parallel_ops = parallel_ops_number(layers_info, clamp, board)
 
     print(parallel_ops)
 
