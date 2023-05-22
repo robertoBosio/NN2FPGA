@@ -28,6 +28,11 @@ def main():
 
     onnx_path = os.environ["ONNX_PATH"]
 
+    if "OFF_CHIP_STORAGE" in os.environ:
+        off_chip_storage = True
+    else:
+        off_chip_storage = False
+
     # onnx_path = "./onnx/Brevonnx_resnet_final_fx.onnx"
     # onnx_path = "./onnx/Brevonnx_resnet8_final_fx.onnx"
     # onnx_path = "./onnx/2layer.onnx"
@@ -49,7 +54,7 @@ def main():
 
     write_network(
         inferred_model,
-        off_chip_storage=False,
+        off_chip_storage=off_chip_storage,
         board=board
     )
 
