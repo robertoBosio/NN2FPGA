@@ -21,7 +21,8 @@ def write_network(
     model,
     file_name="Network",
     off_chip_storage=False,
-    board="ULTRA96v2"
+    board="ULTRA96v2",
+    uram_storage=False,
 ):
 
     read_width = 8
@@ -91,16 +92,19 @@ def write_network(
     main.write(
         io_dict,
         file_name,
-        off_chip_storage
+        off_chip_storage,
+        uram_storage
     )
 
     weights.write(
         io_dict,
-        file_name
+        file_name,
+        uram_storage
     )
 
     sim.write(
         io_dict,
-        file_name
+        file_name,
+        uram_storage
     )
 

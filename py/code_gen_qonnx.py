@@ -28,6 +28,11 @@ def main():
 
     onnx_path = os.environ["ONNX_PATH"]
 
+    if "URAM_STORAGE" in os.environ:
+        uram_storage = True
+    else:
+        uram_storage = False
+
     if "OFF_CHIP_STORAGE" in os.environ:
         off_chip_storage = True
     else:
@@ -55,7 +60,8 @@ def main():
     write_network(
         inferred_model,
         off_chip_storage=off_chip_storage,
-        board=board
+        board=board,
+        uram_storage=uram_storage,
     )
 
 if __name__ == '__main__':

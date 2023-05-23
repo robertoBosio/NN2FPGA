@@ -54,7 +54,7 @@ def init(file_name, parsed_write):
 
         fd.write("\n")
 
-def parse_all_main(io_dict):
+def parse_all_main(io_dict, uram_storage):
 
     parsed_write = []
     parsed_write.append(
@@ -88,7 +88,11 @@ def parse_all_main(io_dict):
 
         # Just for the sake of constant definition
         if 'const' == node["type"]:
-            parsed_const = parsed_const + weights.parse(name, node)
+            parsed_const = parsed_const + weights.parse(
+                name,
+                node,
+                uram_storage
+            )
 
         last_node_name = name
 
@@ -98,14 +102,14 @@ def parse_all_main(io_dict):
 
     return parsed_write, parsed_const
 
-def write(io_dict, file_name, off_chip_storage):
+def write(io_dict, file_name, off_chip_storage, uram_storage):
 
     if off_chip_storage:
         ap_ctrl = "ap_ctrl_chain"
     else:
         ap_ctrl = "ap_ctrl_none"
 
-    parsed_write, parsed_const = parse_all_main(io_dict)
+    parsed_write, parsed_const = parse_all_main(io_dict, uram_storage)
 
     init(file_name, parsed_write)
     declare(file_name, parsed_write, ap_ctrl)

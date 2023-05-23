@@ -1257,4 +1257,62 @@ template <
 
 /* } */
 
+//////////////////////////////////////////////////////////////////////////////
+// Bigger networks weights loader
+
+template <
+	class t_input,
+	class t_init,
+	class t_output,
+	int c_ich,
+	int c_och,
+	int c_ow,
+	int c_oh,
+	int c_fw,
+	int c_fh,
+	int c_ops,
+	int c_reuse
+> void ProduceStream(
+	t_input i_data[c_fh*c_fw][c_och*c_ich/c_ops][c_ops],
+	hls::stream<t_init> &i_data,
+	hls::stream<t_output> o_data[c_fh*c_fw]
+) {
+
+	const int c_index = c_fh*c_fw;
+	const int c_ch = c_ich*c_och/c_ops;
+	const int c_o_index = c_oh*c_ow*c_ch/c_reuse;
+
+  bool s_init = false;
+#pragma HLS reset variable=<a> off
+
+  t_init s_data;
+#pragma HLS array_partition type=block factor=complete variable=s_data
+
+	for (auto s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
+#pragma HLS pipeline
+		auto s_ch = s_o_index % c_ch;
+		for (auto s_index = 0; s_index < c_index; s_index++) {
+			t_output s_output;
+			for (auto s_ops = 0; s_ops < c_ops; s_ops++) {
+
+        /* At first iteration the weights array must be filled up */
+        if ((!s_init) & (s_ops == 0)) {
+          s_data = i_data.read();
+        }
+
+        if (!s_init) {
+          i_data[s_index][s_ch][s_ops] = s_data[s_ops]
+          s_output[s_ops] = s_data[s_ops];
+        } else {
+          s_output[s_ops] = i_data[s_index][s_ch][s_ops];
+        }
+			}
+			o_data[s_index].write(s_output);
+		}
+	}
+
+  s_init = true;
+
+}
+
 #endif

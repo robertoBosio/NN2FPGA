@@ -102,9 +102,9 @@ def footer(file_name, parsed_write):
         fd.write("\n")
         fd.write("#endif")
 
-def write(io_dict, file_name):
+def write(io_dict, file_name, uram_storage):
 
-    parsed_write, parsed_const = parse_all_main(io_dict)
+    parsed_write, parsed_const = parse_all_main(io_dict, uram_storage)
     parsed_write = parsed_write + parsed_const
 
     init(file_name, parsed_write)

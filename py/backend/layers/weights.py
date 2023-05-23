@@ -300,226 +300,286 @@ def parse_main(io_dict):
 
     return block
 
-def parse(name, node):
-    
-    input_name = node["input"][0]
-    output_name = node["output"][0]
+def off_chip_ddr(
+    name,
+    node,
+    input_name,
+    output_name
+):
+    blocks = []
+    block = {}
+    block["func"] = "MemAlgo"
+    block["args"] = []
+    block["input"] = []
+    block["output"] = []
+
+    block["template"] = []
+    block["template"].append("t_%s_st" % (output_name))
+    block["template"].append("t_%s" % (output_name))
+    block["template"].append("c_%s_ich" % (name))
+    block["template"].append("c_%s_och" % (name))
+    block["template"].append("c_%s_ow" % (name))
+    block["template"].append("c_%s_oh" % (name))
+    block["template"].append("c_%s_iw" % (output_name))
+    block["template"].append("c_%s_ih" % (output_name))
+    block["template"].append("c_%s_ops" % (output_name))
+    block["template"].append("c_%s_rw" % (output_name))
+    block["template"].append("c_%s_bw" % (output_name))
+    block["template"].append("c_%s_reuse" % (output_name))
+    block["template"].append("0")
+
+    block["input"].append("%s" % output_name)
+    block["args"].append("s_o_%s" % output_name)
+    block["args"].append("i_data_%s" % output_name)
+
+    block["defines"] = {}
+    block["defines"]["t_%s_st" % (output_name)]    = ["type", node["data_type"]]
+    output_type_name = "hls::vector<%s, %0d>" % (node["data_type"], node["ops"])
+    block["defines"]["t_%s" % (output_name)]       = ["type",  output_type_name]
+    block["defines"]["c_%s_ich" % (name)]          = ["const", node["ich"]]
+    block["defines"]["c_%s_och" % (name)]          = ["const", node["och"]]
+    block["defines"]["c_%s_ow" % (name)]           = ["const", node["ow"]]
+    block["defines"]["c_%s_oh" % (name)]           = ["const", node["oh"]]
+    block["defines"]["c_%s_iw" % (output_name)]    = ["const", node["iw"]]
+    block["defines"]["c_%s_ih" % (output_name)]    = ["const", node["ih"]]
+    block["defines"]["c_%s_ops" % (output_name)]   = ["const", node["ops"]]
+    block["defines"]["c_%s_bw" % (output_name)]    = ["const", node["bw"]]
+    block["defines"]["c_%s_reuse" % (output_name)] = ["const", node["reuse"]]
+    block["defines"]["c_%s_rw" % (output_name)] = ["const", node["bits"]]
+
+    # Declare only in tb wrapper
+    block["tb_declare"] = []
+    tmp = {}
+    tmp["name"] = "c_%s" % output_name
+    tmp["type"] = "t_%s" % output_name
+    tmp["is_array"] = True
+    tmp["init"] = node["values"]
+
+    block["tb_declare"].append(tmp)
+
+
+    block["declare"] = []
+
+    declare = {}
+    declare["name"] = "s_o_%s" % output_name
+    declare["type"] = "t_%s" % output_name
+    declare["is_array"] = True
+    declare["dim"] = node["bw"]
+    block["declare"].append(declare)
+
+    block["pragma"] = []
+    pragma = {}
+    pragma["name"] = "stream"
+    options = [
+        ["variable", "s_o_%s" % (output_name)],
+        ["depth", 2],
+        ["type", "fifo"],
+    ]
+    pragma["options"] = options
+    block["pragma"].append(pragma)
+
+    block["size"] = node["iw"]*node["ih"]
+    block["is_const"] = True
+    blocks.append(block)
+
+    block = {}
+
+    block["func"] = "ProduceStream"
+    block["args"] = []
+    block["input"] = []
+    block["output"] = []
+
+    block["template"] = []
+    block["template"].append("t_%s_st " % (output_name))
+    block["template"].append("t_%s" % (output_name))
+    block["template"].append("c_%s_ich" % (name))
+    block["template"].append("c_%s_och" % (name))
+    block["template"].append("c_%s_ow" % (name))
+    block["template"].append("c_%s_oh" % (name))
+    block["template"].append("c_%s_iw" % (output_name))
+    block["template"].append("c_%s_ih" % (output_name))
+    block["template"].append("c_%s_ops" % (output_name))
+    block["template"].append("c_%s_bw" % (output_name))
+    block["template"].append("c_%s_reuse" % (output_name))
+    block["template"].append("c_%s_rw" % (output_name))
+
+    block["output"].append("%s" % output_name)
+    block["args"].append("s_o_%s" % output_name)
+    block["args"].append("s_%s" % output_name)
+
+    block["defines"] = {}
+
+    block["declare"] = []
+
+    block["pragma"] = []
+    block["size"] = node["iw"]*node["ih"]
+    block["is_const"] = True
+    blocks.append(block)
+
+    return blocks
+
+def on_chip_rom(
+    name,
+    node,
+    input_name,
+    output_name,
+    uram_storage
+):
 
     blocks = []
-    if node["off_chip_memory"]:
-        block = {}
-        block["func"] = "MemAlgo"
-        block["args"] = []
-        block["input"] = []
-        block["output"] = []
+    block = {}
 
-        block["template"] = []
-        block["template"].append("t_%s_st" % (output_name))
-        block["template"].append("t_%s" % (output_name))
-        block["template"].append("c_%s_ich" % (name))
-        block["template"].append("c_%s_och" % (name))
-        block["template"].append("c_%s_ow" % (name))
-        block["template"].append("c_%s_oh" % (name))
-        block["template"].append("c_%s_iw" % (output_name))
-        block["template"].append("c_%s_ih" % (output_name))
-        block["template"].append("c_%s_ops" % (output_name))
-        block["template"].append("c_%s_rw" % (output_name))
-        block["template"].append("c_%s_bw" % (output_name))
-        block["template"].append("c_%s_reuse" % (output_name))
-        block["template"].append("0")
+    block["func"] = "ProduceStream"
+    block["args"] = []
+    block["input"] = []
+    block["output"] = []
 
-        block["input"].append("%s" % output_name)
-        block["args"].append("s_o_%s" % output_name)
-        block["args"].append("i_data_%s" % output_name)
+    block["template"] = []
+    block["template"].append("t_%s_st" % (output_name))
+    if uram_storage:
+        block["template"].append("t_%s_init" % (output_name))
+    block["template"].append("t_%s" % (output_name))
+    block["template"].append("c_%s_ich" % (name))
+    block["template"].append("c_%s_och" % (name))
+    block["template"].append("c_%s_ow" % (name))
+    block["template"].append("c_%s_oh" % (name))
+    block["template"].append("c_%s_iw" % (output_name))
+    block["template"].append("c_%s_ih" % (output_name))
+    block["template"].append("c_%s_ops" % (output_name))
+    block["template"].append("c_%s_reuse" % (output_name))
 
-        block["defines"] = {}
-        block["defines"]["t_%s_st" % (output_name)]    = ["type", node["data_type"]]
-        output_type_name = "hls::vector<%s, %0d>" % (node["data_type"], node["ops"])
-        block["defines"]["t_%s" % (output_name)]       = ["type",  output_type_name]
-        block["defines"]["c_%s_ich" % (name)]          = ["const", node["ich"]]
-        block["defines"]["c_%s_och" % (name)]          = ["const", node["och"]]
-        block["defines"]["c_%s_ow" % (name)]           = ["const", node["ow"]]
-        block["defines"]["c_%s_oh" % (name)]           = ["const", node["oh"]]
-        block["defines"]["c_%s_iw" % (output_name)]    = ["const", node["iw"]]
-        block["defines"]["c_%s_ih" % (output_name)]    = ["const", node["ih"]]
-        block["defines"]["c_%s_ops" % (output_name)]   = ["const", node["ops"]]
-        block["defines"]["c_%s_bw" % (output_name)]    = ["const", node["bw"]]
-        block["defines"]["c_%s_reuse" % (output_name)] = ["const", node["reuse"]]
-        block["defines"]["c_%s_rw" % (output_name)] = ["const", node["bits"]]
+    block["output"].append("%s" % output_name)
+    block["args"].append("c_%s" % output_name)
+    if uram_storage:
+        block["args"].append("s_%s_init" % output_name)
+    block["args"].append("s_%s" % output_name)
 
-        # Declare only in tb wrapper
-        block["tb_declare"] = []
+    block["declare"] = []
+    tmp = {}
+    tmp["name"] = "c_%s" % output_name
+    tmp["type"] = "t_%s" % output_name
+    tmp["is_array"] = True
+    tmp["init"] = node["values"]
+
+    block["declare"].append(tmp)
+
+    if uram_storage:
         tmp = {}
-        tmp["name"] = "c_%s" % output_name
-        tmp["type"] = "t_%s" % output_name
-        tmp["is_array"] = True
-        tmp["init"] = node["values"]
+        tmp["name"] = "s_%s_init" % output_name
+        tmp["type"] = "t_%s_init" % output_name
+        tmp["is_array"] = False
+        tmp["dim"] = 1
 
-        block["tb_declare"].append(tmp)
+        block["declare"].append(tmp)
 
+    block["defines"] = {}
+    block["defines"]["t_%s_st" % (output_name)]    = ["type", node["data_type"]]
+    output_type_name = "hls::vector<%s, %0d>" % (node["data_type"], node["ops"])
+    if uram_storage:
+        block["defines"]["t_%s_init" % (output_name)]    = ["type", output_type_name]
+    block["defines"]["t_%s" % (output_name)]       = ["type",  output_type_name]
+    block["defines"]["c_%s_ich" % (name)]          = ["const", node["ich"]]
+    block["defines"]["c_%s_och" % (name)]          = ["const", node["och"]]
+    block["defines"]["c_%s_ow" % (name)]           = ["const", node["ow"]]
+    block["defines"]["c_%s_oh" % (name)]           = ["const", node["oh"]]
+    block["defines"]["c_%s_iw" % (output_name)]    = ["const", node["iw"]]
+    block["defines"]["c_%s_ih" % (output_name)]    = ["const", node["ih"]]
+    block["defines"]["c_%s_ops" % (output_name)]   = ["const", node["ops"]]
+    block["defines"]["c_%s_reuse" % (output_name)] = ["const", node["reuse"]]
 
-        block["declare"] = []
+    block["pragma"] = []
+    #######################################################################
+    # pragma = {}
+    # pragma["name"] = "array_partition"
+    # options = [
+    #     ["variable", "c_%s" % (output_name)],
+    #     ["type", "block"],
+    #     ["factor", 1],
+    #     ["dim", 1],
+    # ]
+    # pragma["options"] = options
 
-        declare = {}
-        declare["name"] = "s_o_%s" % output_name
-        declare["type"] = "t_%s" % output_name
-        declare["is_array"] = True
-        declare["dim"] = node["bw"]
-        block["declare"].append(declare)
+    # block["pragma"].append(pragma)
+    #######################################################################
+    #######################################################################
+    pragma = {}
+    pragma["name"] = "array_reshape"
+    options = [
+        ["variable", "c_%s" % (output_name)],
+        ["type", "complete"],
+        # ["factor", 1],
+        ["dim", 1],
+    ]
+    pragma["options"] = options
 
-        block["pragma"] = []
+    block["pragma"].append(pragma)
+    #######################################################################
+
+    pragma = {}
+    pragma["name"] = "array_reshape"
+    options = [
+        ["variable", "c_%s" % (output_name)],
+        ["type", "cyclic"],
+        ["factor", node["ops"]],
+        ["dim", 3],
+    ]
+    pragma["options"] = options
+    block["pragma"].append(pragma)
+
+    if uram_storage:
         pragma = {}
         pragma["name"] = "stream"
         options = [
-            ["variable", "s_o_%s" % (output_name)],
-            ["depth", 2],
+            ["variable", "s_%s_init" % output_name],
+            ["depth", "2"],
             ["type", "fifo"],
         ]
         pragma["options"] = options
         block["pragma"].append(pragma)
 
-        block["size"] = node["iw"]*node["ih"]
-        block["is_const"] = True
-        blocks.append(block)
-
-        block = {}
-
-        block["func"] = "ProduceStream"
-        block["args"] = []
-        block["input"] = []
-        block["output"] = []
-
-        block["template"] = []
-        block["template"].append("t_%s_st " % (output_name))
-        block["template"].append("t_%s" % (output_name))
-        block["template"].append("c_%s_ich" % (name))
-        block["template"].append("c_%s_och" % (name))
-        block["template"].append("c_%s_ow" % (name))
-        block["template"].append("c_%s_oh" % (name))
-        block["template"].append("c_%s_iw" % (output_name))
-        block["template"].append("c_%s_ih" % (output_name))
-        block["template"].append("c_%s_ops" % (output_name))
-        block["template"].append("c_%s_bw" % (output_name))
-        block["template"].append("c_%s_reuse" % (output_name))
-        block["template"].append("c_%s_rw" % (output_name))
-
-        block["output"].append("%s" % output_name)
-        block["args"].append("s_o_%s" % output_name)
-        block["args"].append("s_%s" % output_name)
-
-        block["defines"] = {}
-
-        block["declare"] = []
-
-        block["pragma"] = []
-        block["size"] = node["iw"]*node["ih"]
-        block["is_const"] = True
-        blocks.append(block)
-
-    else:
-
-        block = {}
-
-        block["func"] = "ProduceStream"
-        block["args"] = []
-        block["input"] = []
-        block["output"] = []
-
-        block["template"] = []
-        block["template"].append("t_%s_st" % (output_name))
-        block["template"].append("t_%s" % (output_name))
-        block["template"].append("c_%s_ich" % (name))
-        block["template"].append("c_%s_och" % (name))
-        block["template"].append("c_%s_ow" % (name))
-        block["template"].append("c_%s_oh" % (name))
-        block["template"].append("c_%s_iw" % (output_name))
-        block["template"].append("c_%s_ih" % (output_name))
-        block["template"].append("c_%s_ops" % (output_name))
-        block["template"].append("c_%s_reuse" % (output_name))
-
-        block["output"].append("%s" % output_name)
-        block["args"].append("c_%s" % output_name)
-        block["args"].append("s_%s" % output_name)
-
-        block["declare"] = []
-        tmp = {}
-        tmp["name"] = "c_%s" % output_name
-        tmp["type"] = "t_%s" % output_name
-        tmp["is_array"] = True
-        tmp["init"] = node["values"]
-
-        block["declare"].append(tmp)
-
-        block["defines"] = {}
-        block["defines"]["t_%s_st" % (output_name)]    = ["type", node["data_type"]]
-        output_type_name = "hls::vector<%s, %0d>" % (node["data_type"], node["ops"])
-        block["defines"]["t_%s" % (output_name)]       = ["type",  output_type_name]
-        block["defines"]["c_%s_ich" % (name)]          = ["const", node["ich"]]
-        block["defines"]["c_%s_och" % (name)]          = ["const", node["och"]]
-        block["defines"]["c_%s_ow" % (name)]           = ["const", node["ow"]]
-        block["defines"]["c_%s_oh" % (name)]           = ["const", node["oh"]]
-        block["defines"]["c_%s_iw" % (output_name)]    = ["const", node["iw"]]
-        block["defines"]["c_%s_ih" % (output_name)]    = ["const", node["ih"]]
-        block["defines"]["c_%s_ops" % (output_name)]   = ["const", node["ops"]]
-        block["defines"]["c_%s_reuse" % (output_name)] = ["const", node["reuse"]]
-
-        block["pragma"] = []
-        #######################################################################
-        # pragma = {}
-        # pragma["name"] = "array_partition"
-        # options = [
-        #     ["variable", "c_%s" % (output_name)],
-        #     ["type", "block"],
-        #     ["factor", 1],
-        #     ["dim", 1],
-        # ]
-        # pragma["options"] = options
-
-        # block["pragma"].append(pragma)
-        #######################################################################
-        #######################################################################
-        pragma = {}
-        pragma["name"] = "array_reshape"
-        options = [
-            ["variable", "c_%s" % (output_name)],
-            ["type", "complete"],
-            # ["factor", 1],
-            ["dim", 1],
-        ]
-        pragma["options"] = options
-
-        block["pragma"].append(pragma)
-        #######################################################################
-
-        pragma = {}
-        pragma["name"] = "array_reshape"
-        options = [
-            ["variable", "c_%s" % (output_name)],
-            ["type", "cyclic"],
-            ["factor", node["ops"]],
-            ["dim", 3],
-        ]
-        pragma["options"] = options
-
-        block["pragma"].append(pragma)
-        block["size"] = node["iw"]*node["ih"]
-        block["is_const"] = True
-        blocks.append(block)
+    block["size"] = node["iw"]*node["ih"]
+    block["is_const"] = True
+    blocks.append(block)
 
     return blocks
 
-def parse_all(io_dict):
+def parse(name, node, uram_storage):
+    
+    input_name = node["input"][0]
+    output_name = node["output"][0]
+
+    if node["off_chip_memory"]:
+        blocks = off_chip_ddr(
+            name,
+            node,
+            input_name,
+            output_name
+        )
+
+    else:
+
+        blocks = on_chip_rom(
+            name,
+            node,
+            input_name,
+            output_name,
+            uram_storage
+        )
+      
+    return blocks
+
+def parse_all(io_dict, uram_storage):
 
     parsed_write = []
 
     for name, node in io_dict.items():
 
         if 'const' == node["type"]:
-            parsed_write = parsed_write + parse(name, node)
+            parsed_write = parsed_write + parse(name, node, uram_storage)
 
     return parsed_write
 
-def init(file_name, network_name, parsed_write):
+def init(file_name, network_name, parsed_write, uram_storage):
 
 
     libraries = [
@@ -543,6 +603,9 @@ def init(file_name, network_name, parsed_write):
             for name in layer["input"]:
                 fd.write("\tconst t_%s_st *i_data_%s,\n" % (name, name))
 
+        if uram_storage:
+            fd.write("\tconst t_weights *i_weights,\n")
+
         for i, layer in enumerate(parsed_write):
             for j, name in enumerate(layer["output"]):
                 fd.write(
@@ -560,11 +623,11 @@ def init(file_name, network_name, parsed_write):
 
         fd.write("\n")
 
-def write(io_dict, network_name):
+def write(io_dict, network_name, uram_storage):
 
-    parsed_write = parse_all(io_dict)
+    parsed_write = parse_all(io_dict, uram_storage)
 
-    init("MemoryManagement", network_name, parsed_write)
+    init("MemoryManagement", network_name, parsed_write, uram_storage)
     declare("MemoryManagement", parsed_write, ap_ctrl=None, inline=True)
     body("MemoryManagement", parsed_write)
 
