@@ -39,6 +39,7 @@ dependencies:
     - lit==15.0.7
     - markupsafe==2.1.2
     - mpmath==1.2.1
+    - nanobind==1.1.1
     - networkx==3.0
     - numpy==1.24.1
     - od==2.0.2
@@ -55,10 +56,10 @@ dependencies:
     - six==1.16.0
     - sympy==1.11.1
     - toposort==1.7
-    - torch==1.13.0+cu117
-    - torchaudio==0.13.0+cu117
-    - torchvision==0.14.0+cu117
+    - torch==1.13.0
+    - torchaudio==0.13.0
+    - torchvision==0.14.0
     - triton==2.0.0
     - typing-extensions==4.4.0
     - urllib3==1.26.13
-prefix: /home/filippo/anaconda3/envs/nn2fpga
+    - primefac==3.0.23
