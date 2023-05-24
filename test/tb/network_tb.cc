@@ -1,9 +1,9 @@
 #include <ap_utils.h>
 #include <unistd.h>
 
-#include "../cifar-10/include/cifar/cifar10_reader.hpp"
-#include "../src/Debug.hpp"
-#include "../src/Network.hpp"
+#include "../../work/cifar-10/include/cifar/cifar10_reader.hpp"
+#include "../../nn2fpga/cc/include/nn2fpga/debug.h"
+#include "../../work/cc/include/network_sim.h"
 #include "hls_stream.h"
 /* #include "MemoryWeights.hpp" */
 /* #include "../src/MemoryManagement.hpp" */
@@ -20,7 +20,7 @@ int main() {
 
   const int c_par = c_inp_1 / 8;
   const int c_index =
-      (c_ProduceStream_ich * c_ProduceStream_ih * c_ProduceStream_iw) / c_par;
+      (c_produce_stream_ich * c_produce_stream_ih * c_produce_stream_iw) / c_par;
   const int c_labels = 1;
 
   char cwd[100];
@@ -32,7 +32,7 @@ int main() {
   /* 	std::cout << dataset.test_images.at(i) << ' '; */
   /* } */
   /* const int c_batch = dataset.test_images.size(); */
-  const int c_batch = 4;
+  const int c_batch = 1;
   const int n_bytes = c_index * c_par;
   std::cout << "SENDING " << c_batch << " IMAGES" << std::endl;
   std::cout << "SENDING " << n_bytes << " BYTES" << std::endl;
@@ -75,7 +75,7 @@ int main() {
 
     /* std::cout << "--------------------- KERNEL -----------------------" <<
      * "\n"; */
-    Network(i_data,
+    networkSim(i_data,
             /* weights_conv0_weight, */
             /* weights_conv1_weight, */
             /* weights_conv2_weight, */

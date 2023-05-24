@@ -20,16 +20,12 @@ def init(file_name, parsed_write, prj_root="/tmp"):
         "ap_int.h",
         "hls_stream.h",
         "nn2fpga/packed_conv.h",
-        "nn2fpga/activation_streams.h",
-        "nn2fpga/add_streams.h",
         "nn2fpga/pool_streams.h",
         "nn2fpga/utils.h",
         "nn2fpga/activations_utils.h",
         "nn2fpga/block_interface.h",
         "nn2fpga/line_buffer_utils.h",
-        "nn2fpga/pt_to_stream.h",
         "nn2fpga/quantisation.h",
-        "nn2fpga/stream_to_pt.h",
         "nn2fpga/weights_utils.h",
     ]
 

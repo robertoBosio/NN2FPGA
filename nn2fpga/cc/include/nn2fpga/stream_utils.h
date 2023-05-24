@@ -1,6 +1,8 @@
 #ifndef NN2FPGA_STREAM_UTILS_H_
 #define NN2FPGA_STREAM_UTILS_H_
 
+#include "nn2fpga/quantisation.h"
+
 namespace nn2fpga {
 
 // Read a stream, quantise it, stream it out.
@@ -12,28 +14,30 @@ void produce_stream(hls::stream<din_wrap_t>& dinStream,
   constexpr auto PAR = BITS / 8;
   constexpr auto ISZ = (ICH * IH * IW);
 
-  din_t din;
   din_wrap_t dinWrap;
+	ap_uint<BITS> din_par;
 PRODSTR:
   for (auto i = 0; i < ISZ; i++) {
 #pragma HLS pipeline style = flp
     auto par = i % PAR;
 
+    din_t din;
     if (par == 0) {
-      dinWrap = din.read();
-      din = dinWrap.data & 0xff;
+      dinWrap = dinStream.read();
+      din_par = dinWrap.data;
     }
 
     dout_wrap_t doutWrap;
+    din = (din_t)(din_par & 0xff);
     doutWrap.data = quant_act<din_t, dout_t, SCALE>(din);
 
     if (par < (PAR - 1)) {
-      dout.last = false;
+      doutWrap.last = false;
     } else {
-      dout.last = dinWrap.last;
+      doutWrap.last = dinWrap.last;
     }
     doutStream << doutWrap;
-    din >>= 8;
+    din_par >>= 8;
   }
 }
 
@@ -54,10 +58,10 @@ void consume_stream(hls::stream<din_wrap_t>& dinStream,
 
   for (auto i = 0; i < OSZ; i++) {
     auto wrap = dinStream.read();
-    dout_t dout;
-    dout.data = val.data;
-    dout.last = val.last;
-    val.keep = -1;
+    dout_wrap_t dout;
+    dout.data = wrap.data;
+    dout.last = wrap.last;
+    dout.keep = -1;
     doutStream << dout;
   }
 }

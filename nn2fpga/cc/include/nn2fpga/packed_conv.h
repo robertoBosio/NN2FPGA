@@ -3,8 +3,9 @@
 
 #include "ap_int.h"
 #include "hls_stream.h"
-#include "nn2fpga/activation_streams.h"
 #include "nn2fpga/debug.h"
+#include "nn2fpga/activations_utils.h"
+#include "nn2fpga/stream_utils.h"
 #include "nn2fpga/quantisation.h"
 
 namespace nn2fpga {
@@ -278,7 +279,7 @@ void conv_comp(hls::stream<t_input_struct> i_input[c_index],
             t_input s_data = s_input[s_reuse][s_index];
             if (c_shift_l != 0)
               s_data =
-                  quant_act<t_input, c_shift_l, c_shift_h, t_input>(s_data);
+                  quant_act<t_input, t_input, c_shift_l, c_shift_h>(s_data);
             s_acc += s_data * s_weight[s_index][s_ops];
           }
 
@@ -291,7 +292,7 @@ void conv_comp(hls::stream<t_input_struct> i_input[c_index],
 
           t_input s_data = s_input[s_reuse][c_index / 2];
           if (c_shift_l != 0)
-            s_data = quant_act<t_input, c_shift_l_1x1, c_shift_h_1x1, t_input>(
+            s_data = quant_act<t_input, t_input, c_shift_l_1x1, c_shift_h_1x1>(
                 s_data);
           s_acc_1x1 += s_data * s_weight_1x1[0][s_ops];
 
@@ -391,7 +392,7 @@ void conv_comp(hls::stream<t_input_struct> i_input[c_index],
             t_input s_data = s_input[s_reuse][s_index];
             if (c_shift_l != 0)
               s_data =
-                  quant_act<t_input, c_shift_l, c_shift_h, t_input>(s_data);
+                  quant_act<t_input, t_input, c_shift_l, c_shift_h>(s_data);
             s_acc += s_data * s_weight[s_index][s_ops];
           }
 
@@ -623,7 +624,7 @@ void quant_stream(t_acc_struct i_acc, hls::stream<t_output_struct> &o_data) {
     s_acc = relu_op<t_acc>(s_acc);
   }
   s_output.data =
-      quant_act<t_acc, c_shift_l, c_shift_h, c_mask, t_output>(s_acc);
+      quant_act<t_acc, t_output, c_shift_l, c_shift_h, c_mask>(s_acc);
   s_output.last = s_acc_struct.last;
 
   o_data.write(s_output);

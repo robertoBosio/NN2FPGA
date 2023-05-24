@@ -8,6 +8,8 @@
 /* #define DEBUG_POOL */
 #endif  // __SYNTHESIS__
 
+#include "hls_stream.h"
+
 namespace nn2fpga {
 
 template <typename T>

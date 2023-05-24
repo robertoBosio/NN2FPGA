@@ -86,7 +86,7 @@ void pool_op(hls::stream<t_input_struct> &i_data,
         t_acc s_acc = s_acc_buff[s_och];
         if (c_pool == 0)  // Average Pool
           s_acc = s_acc >> c_average_scale;
-        s_output_struct.data = quant_act<t_acc, c_shift, t_output>(s_acc);
+        s_output_struct.data = quant_act<t_acc, t_output, c_shift>(s_acc);
         s_output_struct.last = s_last;
         o_data.write(s_output_struct);
       }

@@ -102,11 +102,7 @@ def footer(file_name, parsed_write, prj_root="/tmp"):
         fd.write("\n")
         fd.write("#endif")
 
-<<<<<<< HEAD:nn2fpga/py/backend/sim.py
-def write(io_dict, file_name, prj_root="/tmp"):
-=======
-def write(io_dict, file_name, uram_storage):
->>>>>>> e4677997cb0b8ed71f0a8f85b7247136bd7e8823:py/backend/sim.py
+def write(io_dict, file_name, uram_storage, prj_root="/tmp"):
 
     parsed_write, parsed_const = parse_all_main(io_dict, uram_storage)
     parsed_write = parsed_write + parsed_const

@@ -384,7 +384,7 @@ def off_chip_ddr(
 
     block = {}
 
-    block["func"] = "ProduceStream"
+    block["func"] = "produce_stream"
     block["args"] = []
     block["input"] = []
     block["output"] = []
@@ -429,7 +429,7 @@ def on_chip_rom(
     blocks = []
     block = {}
 
-    block["func"] = "ProduceStream"
+    block["func"] = "produce_stream"
     block["args"] = []
     block["input"] = []
     block["output"] = []
