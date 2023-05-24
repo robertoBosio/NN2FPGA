@@ -8,7 +8,7 @@ def parallel_ops_number(layers_info, clamp=None, board="ULTRA96v2", prj_root="/t
     if (board == "ULTRA96v2"):
         NUM_DSP = 400
     elif (board == "KRIA"):
-        NUM_DSP = 1000
+        NUM_DSP = 1300
 
     MIN_OP = 1
     DELTA = 1
@@ -72,7 +72,7 @@ def parallel_ops_number(layers_info, clamp=None, board="ULTRA96v2", prj_root="/t
     
     return parallel_op
 
-def ilp(io_dict, off_chip_storage, board="ULTRA96v2", prj_root="/tmp"):
+def ilp(io_dict, off_chip_storage, board="ULTRA96v2", double_packing=True, prj_root="/tmp"):
 
     if off_chip_storage:
         clamp = 8
@@ -110,5 +110,44 @@ def ilp(io_dict, off_chip_storage, board="ULTRA96v2", prj_root="/tmp"):
 
     for node_name, ops in parallel_ops.items():
         io_dict[node_name]["ops"] = ops
+        io_dict[node_name]["dp"] = False
+
+    # if double_packing:
+    #     for node_name, ops in parallel_ops.items():
+    #         if io_dict[node_name]["fh"]*io_dict[node_name]["fw"] > 1:
+    #             io_dict[node_name]["reuse"] = 2
+    #             io_dict[node_name]["dp"] = True
+
+    # if (board == "ULTRA96v2"):
+    #     NUM_BRAM = 216
+    # elif (board == "KRIA"):
+    #     NUM_BRAM = 144
+
+    # tot_bram = 0
+    # for node_name, ops in parallel_ops.items():
+    #     node = io_dict[node_name]
+    #     och = node["och"]
+    #     if (och < ops):
+    #         # Add reuse allows performance boost without pipelining ich loop
+    #         # And without increasing needed weights bandwitdth
+    #         node["ops"] = och
+    #         node["reuse"] = int(ops / och)
+    #     else:
+    #         node["ops"] = ops
+    #         node["reuse"] = 1
+
+    #     par_read = node["ops"]*node["fh"]*node["fw"]
+    #     node_bram = int(par_read/8)
+    #     if (par_read % 8):
+    #         node_bram = node_bram + 1
+
+    # if tot_bram > NUM_BRAM:
+    #     mult_reuse = int(tot_bram/NUM_BRAM) + 1 
+    # else:
+    #     mult_reuse = 1
+
+    # for node_name, ops in parallel_ops.items():
+    #     io_dict[node_name]["ops"] = int(io_dict[node_name]["ops"] / mult_reuse)
+    #     io_dict[node_name]["reuse"] = io_dict[node_name]["reuse"] * mult_reuse
 
     return io_dict

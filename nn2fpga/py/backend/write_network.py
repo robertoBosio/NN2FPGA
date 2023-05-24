@@ -22,6 +22,7 @@ def write_network(
     file_name="network",
     off_chip_storage=False,
     board="ULTRA96v2",
+    uram_storage=False,
     prj_root="/tmp",
 ):
 
@@ -70,16 +71,16 @@ def write_network(
             io_dict
         )
 
-        # 2 times to be sure that both weights and conv are updated
-        io_dict = share_reuse(
-            inferred_model,
-            io_dict
-        )
+    # 2 times to be sure that both weights and conv are updated
+    io_dict = share_reuse(
+        inferred_model,
+        io_dict
+    )
 
-        io_dict = share_reuse(
-            inferred_model,
-            io_dict
-        )
+    io_dict = share_reuse(
+        inferred_model,
+        io_dict
+    )
 
     io_dict = rename_nodes(
         io_dict
@@ -94,18 +95,21 @@ def write_network(
         io_dict,
         file_name,
         off_chip_storage,
-        prj_root=prj_root
+        uram_storage,
+        prj_root=prj_root,
     )
 
     weights.write(
         io_dict,
         file_name,
+        uram_storage,
         prj_root=prj_root
     )
 
     sim.write(
         io_dict,
         file_name,
+        uram_storage,
         prj_root=prj_root
     )
 

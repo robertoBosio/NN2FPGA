@@ -274,7 +274,7 @@ def parse_wout(name, node):
             depth = 2
         else:
             # depth = node["ow"]*node["och"]*(node["fh"]-1)
-            depth = node["ow"]*node["och"]*(node["fh"])
+            depth = node["ow"]*node["och"]*(node["fh"]-1)-node["ich"]
 
         options = [
             ["variable", pragma_name],
@@ -599,6 +599,9 @@ def parse_nhwc(name, node):
         else:
             depth = node["ow"]*node["och"]*(node["fh"]-2)
 
+        if depth < 0:
+            depth = 2
+
         arrange_name.append([output_name, output_type_name, ops, depth])
 
     for tensor_name, tensor_type_name, ops, depth in arrange_name:
@@ -624,6 +627,9 @@ def parse_nhwc(name, node):
 
         block["args"].append("s_%s_p_nchw[0]" % tensor_name)
         block["args"].append("s_%s[0]" % tensor_name)
+
+        block["output"] = []
+        block["output"].append("s_%s" % tensor_name)
 
         block["declare"] = []
         declare = {}
