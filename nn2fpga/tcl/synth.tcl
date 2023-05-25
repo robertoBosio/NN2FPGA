@@ -16,7 +16,11 @@ add_files -cflags "-Icc/include -I${NN2FPGA_ROOT}/cc/include" \
 add_files -cflags "-Icc/include -I${NN2FPGA_ROOT}/cc/include" \
   cc/src/${TOP_NAME}.cc
 add_files -cflags "-Icc/include -I${NN2FPGA_ROOT}/cc/include" \
-  -tb cc/${TOP_NAME}_tb.cc
+  -tb ${TB_ROOT}/${TOP_NAME}_tb.cc
+
+if {${COSIM} == 1} {
+  csim_design
+}
 
 create_clock -period 5
 

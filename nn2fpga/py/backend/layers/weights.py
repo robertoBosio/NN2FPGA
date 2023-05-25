@@ -105,7 +105,8 @@ def extract_info(
     weight_name,
     node_info,
     init_info,
-    off_chip_memory
+    off_chip_memory,
+    uram_storage
 ):
     pre_values = numpy_helper.to_array(init_info[weight_name]) 
     shape = pre_values.shape
@@ -162,6 +163,8 @@ def extract_info(
     new_node["type"]    = 'const'
     new_node["kernel"]  = ih*iw
     new_node["total"]   = ich*och*ih*iw*oh*ow/stride
+    new_node["n_weights"] = ich*och*ih*iw
+    new_node["uram_storage"] = uram_storage
     new_node["img_ch"]  = ich*och
     new_node["reuse"] = 1
 
@@ -193,7 +196,8 @@ def weights_info(
     model,
     io_dict,
     init_info,
-    off_chip_memory=False
+    off_chip_memory=False,
+    uram_storage=False
 ):
     new_nodes = {}
     rem_nodes = []
@@ -234,7 +238,8 @@ def weights_info(
                 tensor_name,
                 conv_info,
                 init_info,
-                off_chip_memory
+                off_chip_memory,
+                uram_storage
             )
 
             rem_nodes.append(node_name)
@@ -258,6 +263,8 @@ def parse_main(io_dict):
     block["declare"] = []
     block["pragma"] = []
 
+    uram_storage = False
+
     for name, node in io_dict.items():
         if 'const' == node["type"]:
             output_name = node["output"][0]
@@ -273,6 +280,19 @@ def parse_main(io_dict):
                 ]
                 pragma["options"] = options
                 block["pragma"].append(pragma)
+
+    if uram_storage:
+        block["input"].append("weights")
+
+        pragma = {}
+        pragma["name"] = "interface"
+        options = [
+            ["port", "i_data_weights"],
+            ["mode", "m_axi"],
+        ]
+        pragma["options"] = options
+        block["pragma"].append(pragma)
+ 
 
     for name, node in io_dict.items():
         if 'const' == node["type"]:
@@ -422,16 +442,18 @@ def on_chip_rom(
     name,
     node,
     input_name,
-    output_name,
-    uram_storage
+    output_name
 ):
 
     blocks = []
     block = {}
 
+    uram_storage = node["uram_storage"]
+
     block["func"] = "produce_stream"
     block["args"] = []
     block["input"] = []
+    block["uram_input"] = []
     block["output"] = []
 
     block["template"] = []
@@ -454,14 +476,19 @@ def on_chip_rom(
         block["args"].append("s_%s_init" % output_name)
     block["args"].append("s_%s" % output_name)
 
-    block["declare"] = []
-    tmp = {}
-    tmp["name"] = "c_%s" % output_name
-    tmp["type"] = "t_%s" % output_name
-    tmp["is_array"] = True
-    tmp["init"] = node["values"]
+    block["uram_input"].append("s_%s_init" % output_name)
+    block["uram_total"] = [node["n_weights"]]
 
-    block["declare"].append(tmp)
+    block["declare"] = []
+
+    if not uram_storage:
+        tmp = {}
+        tmp["name"] = "c_%s" % output_name
+        tmp["type"] = "t_%s" % output_name
+        tmp["is_array"] = True
+        tmp["init"] = node["values"]
+
+        block["declare"].append(tmp)
 
     if uram_storage:
         tmp = {}
@@ -543,7 +570,7 @@ def on_chip_rom(
 
     return blocks
 
-def parse(name, node, uram_storage):
+def parse(name, node):
     
     input_name = node["input"][0]
     output_name = node["output"][0]
@@ -562,24 +589,81 @@ def parse(name, node, uram_storage):
             name,
             node,
             input_name,
-            output_name,
-            uram_storage
+            output_name
         )
       
     return blocks
 
-def parse_all(io_dict, uram_storage):
+def add_uram_layer():
+    
+    block = {}
+    block["func"] = "LoadURAM"
+    block["args"] = []
+    block["input"] = []
+    block["output"] = []
+
+    block["template"] = []
+    block["template"].append("t_weights_st")
+
+    input_name = "weights"
+    block["input"].append("%s" % input_name)
+    block["args"].append("i_data_%s" % input_name)
+
+    block["defines"] = {}
+    block["defines"]["t_%s_st" % (input_name)]    = ["type", "int8_t"]
+
+    block["declare"] = []
+
+    block["pragma"] = []
+
+    # Internal mux to the block needed to provide the weights to the specific
+    # layers
+    block["mux_data"] = {}
+    return block
+
+def fill_uram_layer(parsed_write):
+    
+    for layer in parsed_write:
+        if layer["func"] != "LoadURAM":
+            block = layer
+
+    block["mux_data"] = {}
+    for layer in parsed_write:
+        if layer["func"] != "LoadURAM":
+            if "uram_input" in layer.keys():
+                block["template"] + [layer["template"][0]]
+                block["args"] + layer["uram_input"]
+                block["mux_data"][layer["uram_input"][0]] = layer["uram_total"]
+
+    return block
+
+def parse_all(io_dict):
 
     parsed_write = []
+
+    # Check if there is URAM storage
+    uram_storage = False
 
     for name, node in io_dict.items():
 
         if 'const' == node["type"]:
-            parsed_write = parsed_write + parse(name, node, uram_storage)
+            if node["uram_storage"]:
+                uram_storage = True
+
+    if uram_storage:
+        parsed_write.append(add_uram_layer())
+
+    for name, node in io_dict.items():
+
+        if 'const' == node["type"]:
+            parsed_write = parsed_write + parse(name, node)
+
+    if uram_storage:
+        parsed_write[0] = fill_uram_layer(parsed_write)
 
     return parsed_write
 
-def init(file_name, network_name, parsed_write, uram_storage, prj_root="/tmp"):
+def init(file_name, network_name, parsed_write, prj_root="/tmp"):
 
 
     libraries = [
@@ -603,9 +687,6 @@ def init(file_name, network_name, parsed_write, uram_storage, prj_root="/tmp"):
             for name in layer["input"]:
                 fd.write("\tconst t_%s_st *i_data_%s,\n" % (name, name))
 
-        if uram_storage:
-            fd.write("\tconst t_weights *i_weights,\n")
-
         for i, layer in enumerate(parsed_write):
             for j, name in enumerate(layer["output"]):
                 fd.write(
@@ -623,11 +704,11 @@ def init(file_name, network_name, parsed_write, uram_storage, prj_root="/tmp"):
 
         fd.write("\n")
 
-def write(io_dict, network_name, uram_storage, prj_root="/tmp"):
+def write(io_dict, network_name, prj_root="/tmp"):
 
-    parsed_write = parse_all(io_dict, uram_storage)
+    parsed_write = parse_all(io_dict)
 
-    init("memory_management", network_name, parsed_write, uram_storage, prj_root=prj_root)
+    init("memory_management", network_name, parsed_write, prj_root=prj_root)
     declare("memory_management", parsed_write, ap_ctrl=None, inline=True, prj_root=prj_root)
     body("memory_management", parsed_write, prj_root)
 

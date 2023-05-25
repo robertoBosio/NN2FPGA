@@ -5,6 +5,7 @@ set COSIM $::env(COSIM)
 set NN2FPGA_CC_ROOT $::env(NN2FPGA_CC_ROOT)
 set NN2FPGA_ROOT $::env(NN2FPGA_ROOT)
 set BOARD_PATH $::env(BOARD_PATH)
+set TB_ROOT $::env(TB_ROOT)
 # set board "KRIA"
 
 set PRJ_ROOT $::env(PRJ_ROOT)

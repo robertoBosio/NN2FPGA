@@ -63,7 +63,8 @@ def write_network(
         inferred_model,
         io_dict,
         init_info,
-        off_chip_storage
+        off_chip_storage,
+        uram_storage
     )
 
     if off_chip_storage:
@@ -95,21 +96,18 @@ def write_network(
         io_dict,
         file_name,
         off_chip_storage,
-        uram_storage,
         prj_root=prj_root,
     )
 
     weights.write(
         io_dict,
         file_name,
-        uram_storage,
         prj_root=prj_root
     )
 
     sim.write(
         io_dict,
         file_name,
-        uram_storage,
         prj_root=prj_root
     )
 

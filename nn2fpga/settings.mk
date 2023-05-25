@@ -13,6 +13,8 @@ export NN2FPGA_ROOT := $(shell pwd)
 export CXXFLAGS := -I$(VITIS_HLS_ROOT)/include -I$(NN2FPGA_CC_ROOT)/include
 export PRJ_ROOT := $(shell cd .. && pwd)/work
 export TOP_NAME := network
+export TEST_ROOT := $(shell cd .. && pwd)/test
+export TB_ROOT := $(TEST_ROOT)/tb
 # export BOARD=ULTRA96v2
 # export ONNX_PATH=./onnx/Brevonnx_resnet_final_fx.onnx
 
