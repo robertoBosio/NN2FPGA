@@ -52,7 +52,10 @@ all_sim: generate compile_sim
 run_model:
 	cd $(PRJ_ROOT) && python $(NN2FPGA_ROOT)/py/utils/test_model.py
 
-cosim: generate
+download_cifar10:
+	$(TB_ROOT)/cifar-10/download_cifar10.sh
+
+cosim: generate download_cifar10
 	make syn COSIM=1
 
 backend: syn vivado_flow

@@ -1,7 +1,7 @@
 #include <ap_utils.h>
 #include <unistd.h>
 
-#include "../../work/cifar-10/include/cifar/cifar10_reader.hpp"
+#include "../../test/tb/cifar-10/include/cifar/cifar10_reader.hpp"
 #include "../../nn2fpga/cc/include/nn2fpga/debug.h"
 #include "../../work/cc/include/network_sim.h"
 #include "hls_stream.h"
