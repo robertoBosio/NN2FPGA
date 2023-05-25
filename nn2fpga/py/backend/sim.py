@@ -1,5 +1,6 @@
 from backend.utils import *
 from backend.main import parse_all_main
+import numpy as np
 
 # Packing tensor for 128 bits parallel read
 def write_tb_declare(fd, variable, read_width=16, bits=8):
@@ -68,8 +69,46 @@ def init(file_name, parsed_write, prj_root="/tmp"):
         fd.write(") {\n")
 
 
+def declare_uram_layer(parsed_write):
+    
+    concat_weights = None
+    remove_tb_declare = []
+    for i, layer in enumerate(parsed_write):
+
+        if 'uram_input' in layer.keys():
+            if len(layer["uram_input"]) > 0:
+                if concat_weights is None:
+                    concat_weights = layer["tb_declare"][0]["init"]
+                else:
+                    concat_weights = np.concatenate(
+                        [
+                            concat_weights,
+                            layer["tb_declare"][0]["init"]
+                        ]
+                    )
+                remove_tb_declare.append(i)
+
+    for i in remove_tb_declare:
+       parsed_write[i]["tb_declare"] = []
+
+    uram_declare = None
+    if concat_weights is not None:
+        output_name = "weights"
+        uram_declare = {}
+        uram_declare["name"] = "c_%s" % output_name
+        uram_declare["type"] = "t_%s" % output_name
+        uram_declare["is_array"] = True
+        uram_declare["init"] = concat_weights
+
+    return parsed_write, [uram_declare]
+
 def body(file_name, parsed_write, prj_root="/tmp"):
     with open(prj_root + "/cc/include/%s_sim.h" % file_name, "a") as fd:
+
+        parsed_write, uram_declare = declare_uram_layer(parsed_write)
+
+        if uram_declare[0] is not None:
+            tb_declare(fd, uram_declare)
 
         for layer in parsed_write:
 

@@ -104,9 +104,9 @@ def parse_all_main(io_dict):
 
     return parsed_write, parsed_const
 
-def write(io_dict, file_name, off_chip_storage, prj_root="/tmp"):
+def write(io_dict, file_name, ap_ctrl_chain, prj_root="/tmp"):
 
-    if off_chip_storage:
+    if ap_ctrl_chain:
         ap_ctrl = "ap_ctrl_chain"
     else:
         ap_ctrl = "ap_ctrl_none"

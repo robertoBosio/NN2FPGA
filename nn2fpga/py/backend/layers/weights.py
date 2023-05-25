@@ -12,7 +12,8 @@ def parse_on_chip(
     pre_values,
     bits=8,
     signed=1,
-    narrow=1
+    narrow=1,
+    uram_storage=False
 ):
 
     dich = node_info["ich"]
@@ -55,6 +56,9 @@ def parse_on_chip(
                         index = ih*diw+iw
                         ch = ich*doch_ops+och
                         values[dih*diw-1-index][ch][ops] = quant_value
+    
+    if uram_storage:
+        values = values.flatten()
     
     return values
 
@@ -187,7 +191,8 @@ def extract_info(
             pre_values,
             bits,
             signed,
-            narrow
+            narrow,
+            uram_storage
         )
 
     return new_node
@@ -280,18 +285,25 @@ def parse_main(io_dict):
                 ]
                 pragma["options"] = options
                 block["pragma"].append(pragma)
+            
+            if node["uram_storage"]:
+                uram_storage = True
 
     if uram_storage:
-        block["input"].append("weights")
+        output_name = "weights"
+        block["input"].append("%s" % output_name)
+        block["args"].append("i_data_%s" % output_name)
 
         pragma = {}
         pragma["name"] = "interface"
         options = [
-            ["port", "i_data_weights"],
+            ["port", "i_data_%s" % output_name],
             ["mode", "m_axi"],
         ]
         pragma["options"] = options
         block["pragma"].append(pragma)
+
+        block["is_const"] = True
  
 
     for name, node in io_dict.items():
@@ -476,8 +488,19 @@ def on_chip_rom(
         block["args"].append("s_%s_init" % output_name)
     block["args"].append("s_%s" % output_name)
 
-    block["uram_input"].append("s_%s_init" % output_name)
-    block["uram_total"] = [node["n_weights"]]
+    if uram_storage:
+        block["uram_input"].append("s_%s_init" % output_name)
+        block["uram_total"] = [node["n_weights"]]
+
+        # Declare only in tb wrapper
+        block["tb_declare"] = []
+        tmp = {}
+        tmp["name"] = "c_%s" % output_name
+        tmp["type"] = "t_%s" % output_name
+        tmp["is_array"] = True
+        tmp["init"] = node["values"]
+
+        block["tb_declare"].append(tmp)
 
     block["declare"] = []
 
@@ -602,10 +625,10 @@ def add_uram_layer():
     block["input"] = []
     block["output"] = []
 
-    block["template"] = []
-    block["template"].append("t_weights_st")
-
     input_name = "weights"
+    block["template"] = []
+    block["template"].append("t_%s_st" % input_name)
+
     block["input"].append("%s" % input_name)
     block["args"].append("i_data_%s" % input_name)
 
@@ -624,17 +647,17 @@ def add_uram_layer():
 def fill_uram_layer(parsed_write):
     
     for layer in parsed_write:
-        if layer["func"] != "LoadURAM":
+        if layer["func"] == "LoadURAM":
             block = layer
 
     block["mux_data"] = {}
     for layer in parsed_write:
         if layer["func"] != "LoadURAM":
             if "uram_input" in layer.keys():
-                block["template"] + [layer["template"][0]]
-                block["args"] + layer["uram_input"]
+                block["template"] = block["template"] + [layer["template"][0]]
+                block["args"] = block["args"] + layer["uram_input"]
                 block["mux_data"][layer["uram_input"][0]] = layer["uram_total"]
-
+    
     return block
 
 def parse_all(io_dict):
