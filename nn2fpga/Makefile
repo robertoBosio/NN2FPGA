@@ -57,6 +57,9 @@ cosim: generate
 
 backend: syn vivado_flow
 
+deploy:
+	./scripts/inference.sh ${BOARD}
+
 .PHONY: clean
 clean:
 	rm -rf $(PRJ_ROOT)/$(BOARD)_example

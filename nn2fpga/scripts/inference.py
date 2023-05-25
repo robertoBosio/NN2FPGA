@@ -12,7 +12,7 @@ from datasets import cifar10_dataloader
 if __name__ == "__main__":
     # Uploading all data
 
-    supported_boards = ["kria", "ultra96"]
+    supported_boards = ["KRIA", "ULTRA96v2"]
     supported_datasets = ["cifar10"]
 
     if (len(sys.argv) < 2):
@@ -24,7 +24,7 @@ if __name__ == "__main__":
     sel_board = sys.argv[1]
     if (sel_board not in supported_boards):
         print("Selected %s" % sel_board)
-        print("Allowed board selection: kria, ultra96")
+        print("Allowed board selection: KRIA, ULTRA96v2")
         sys.exit(0)
 
     sel_dataset = sys.argv[2]
@@ -55,10 +55,10 @@ if __name__ == "__main__":
 
     #################################Inference##################################
 
-    if (sel_board == "ultra96"):
+    if (sel_board == "ULTRA96v2"):
         inference = ultra96_inference
 
-    if (sel_board == "kria"):
+    if (sel_board == "KRIA"):
         inference = kria_inference
 
     inference(
