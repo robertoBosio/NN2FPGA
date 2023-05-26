@@ -68,6 +68,8 @@ def add_uram_layer():
     # Internal mux to the block needed to provide the weights to the specific
     # layers
     block["mux_data"] = {}
+    block["bits_data"] = {}
+
     return block
 
 def fill_uram_layer(parsed_write):
@@ -83,6 +85,7 @@ def fill_uram_layer(parsed_write):
                 # block["template"] = block["template"] + [layer["template"][0]]
                 block["args"] = block["args"] + layer["uram_input"]
                 block["mux_data"][layer["uram_input"][0]] = layer["uram_total"]
+                block["bits_data"][layer["uram_input"][0]] = layer["bits"]
     
     return block
 
@@ -129,24 +132,36 @@ def body(uram_layer, network_name, prj_root):
 
     with open(prj_root + ("/cc/include/%s.h" % file_name), "a") as fd:
         input_name = uram_layer["stream_input"][0]
-        input_type_name = input_name.replace("s_", "t_")
-        for output_name in uram_layer["mux_data"]:
-            total = total + uram_layer["mux_data"][output_name][0]
 
         # By means of hls guidelines, static variable are initialized
         # to 0 by bitstream and never re-initialized by reset
         fd.write("\tstatic bool s_init;\n")
 
         for output_name in uram_layer["mux_data"]:
+            output_type_name = output_name.replace("s_", "t_")
             dim = uram_layer["mux_data"][output_name][0]
-            fd.write("\tfor (auto i = 0; i < %0d; i++) {\n" % dim)
-            fd.write("\t\tif (~s_init) {\n")
+            bytes = int(uram_layer["bits_data"][output_name]/8)
+            fd.write("\tfor (auto i = 0; i < %0d; i++) {\n" % int(dim / bytes))
+            fd.write("#pragma HLS pipeline\n")
+
             fd.write(
-                "\t\t\tt_%s_st_stream s_data = i_data_%s.read();\n" % (
-                    input_type_name,
+                "\t\t%s s_data;\n" % (
+                    output_type_name
+                )
+            )
+            fd.write("\t\tfor (auto j = 0; j < %0d; j++) {\n" % int(bytes))
+            fd.write("\t\t\tif (~s_init) {\n")
+            fd.write(
+                "\t\t\t\ts_data |= (%s)(i_data_%s.read()) << (j*8);\n" % (
+                    output_type_name,
                     input_name
                 )
             )
+            fd.write("\t\t\t}\n")
+
+            fd.write("\t\t}\n")
+
+            fd.write("\t\tif (~s_init) {\n")
             fd.write("\t\t\t%s << s_data.data;\n" % output_name)
             fd.write("\t\t}\n")
         

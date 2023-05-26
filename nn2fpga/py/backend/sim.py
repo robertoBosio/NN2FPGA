@@ -44,7 +44,8 @@ def init(file_name, parsed_write, prj_root="/tmp"):
     with open(prj_root + "/cc/include/%s_sim.h" % file_name, "w+") as fd:
 
         libraries = [
-            "network.h"
+            "network.h",
+            "debug.h"
         ]
 
         fd.write("#ifndef __NETWORKSIM__\n")

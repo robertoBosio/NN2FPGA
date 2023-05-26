@@ -61,6 +61,20 @@ def parse_on_chip(
     
     if uram_storage:
         values = values.flatten()
+
+        if bits > 8:
+            bytes_num = int(bits/8)
+            new_values = np.zeros([values.shape[0]*bytes_num])
+
+            for i in range(values.shape[0]):
+                data = values[i]
+                for j in range(bytes_num):
+                    data_byte = int(data) & 0xff
+                    new_values[i*bytes_num+j] = data_byte
+                    data = int(data // 256)
+
+            values = new_values
+
     
     return values
 
@@ -348,6 +362,7 @@ def off_chip_ddr(
     block["input"] = []
     block["stream_input"] = []
     block["output"] = []
+    block["bits"] = node["bits"]
 
     block["template"] = []
     block["template"].append("t_%s_st" % (output_name))
@@ -472,6 +487,7 @@ def on_chip_rom(
     block["stream_input"] = []
     block["uram_input"] = []
     block["output"] = []
+    block["bits"] = node["bits"]
 
     block["template"] = []
     block["template"].append("t_%s_st" % (output_name))
@@ -648,7 +664,7 @@ def parse_all(io_dict):
 
     return parsed_write
 
-def init(file_name, network_name, parsed_write, prj_root="/tmp"):
+def init(file_name, network_name, parsed_write, uram_layer_include, prj_root="/tmp"):
 
 
     libraries = [
@@ -658,6 +674,9 @@ def init(file_name, network_name, parsed_write, prj_root="/tmp"):
         "nn2fpga/weights_utils.h",
         "hls_stream.h",
     ]
+
+    if uram_layer_include:
+        libraries.append("load_uram.h")
 
     with open(prj_root + ("/cc/src/%s.cc" % file_name), "w+") as fd:
         # Write header with network definitions
@@ -698,11 +717,13 @@ def write(io_dict, network_name, prj_root="/tmp"):
 
     parsed_write = parse_all(io_dict)
 
+    uram_layer_include = False
     for layer in parsed_write:
         if layer['func'] == "load_uram":
             uram_download.write(layer, network_name, prj_root)
+            uram_layer_include = True
 
-    init("memory_management", network_name, parsed_write, prj_root=prj_root)
+    init("memory_management", network_name, parsed_write, uram_layer_include, prj_root=prj_root)
     declare("memory_management", parsed_write, ap_ctrl=None, inline=True, prj_root=prj_root)
     body("memory_management", parsed_write, prj_root)
 

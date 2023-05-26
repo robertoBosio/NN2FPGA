@@ -29,6 +29,22 @@ void empty_stream(hls::stream<T>& dinStream) {
 #endif  // __SYNTHESIS__
 }
 
+template <
+  typename t_weights_stream,
+  typename t_weights_st,
+  int c_weights_dim
+> dma_emulator (
+  c_weights,
+  c_weights_stream
+) (
+
+  for (auto i = 0; i < c_weights_dim; i++) {
+    c_weights_stream.write(c_weights[i]);
+  }
+
+);
+
+
 }  // namespace nn2fpga
 
 #endif  // NN2FPGA_DEBUG_H_
