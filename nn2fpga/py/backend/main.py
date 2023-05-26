@@ -48,6 +48,9 @@ def init(file_name, parsed_write, prj_root="/tmp"):
                 for name in layer["input"]:
                     fd.write("\tconst t_%s_st *i_data_%s,\n" % (name, name))
 
+                for name in layer["stream_input"]:
+                    fd.write("\thls::stream<t_%s_stream> &i_data_%s,\n" % (name, name))
+
         for layer in parsed_write:
             if "consume_stream" == layer["func"]:
                 for name in layer["output"]:

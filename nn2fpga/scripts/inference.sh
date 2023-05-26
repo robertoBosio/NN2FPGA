@@ -45,7 +45,7 @@ scp -r ${PRJ_ROOT}/overlay ${device}:${path}
 ssh ${device} "cd ${path} && source /etc/profile && python3 ${path}overlay/inference.py $1 cifar10"
 
 # cleanup
-scp ${device}:${path}overlay/results.txt ./${res_file}
+scp ${device}:${path}overlay/results.txt ${PRJ_ROOT}/${res_file}
 if [ $1 = "kria" ]; then
 		ssh ${device} "rm -r ${path}overlay && xmutil unloadapp k26-starter-kits && xmutil loadapp k26-starter-kits"
 fi

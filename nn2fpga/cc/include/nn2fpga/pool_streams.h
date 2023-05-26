@@ -69,7 +69,7 @@ void pool_op(hls::stream<t_input_struct> &i_data,
 
   for (auto s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
     for (auto s_och = 0; s_och < c_och; s_och++) {
-#pragma HLS pipeline style = frp
+#pragma HLS pipeline style = stp
       if (s_o_index == 0) s_acc_buff[s_och] = c_quant;
 
       t_input_struct s_input_struct = i_data.read();

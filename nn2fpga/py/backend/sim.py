@@ -1,5 +1,6 @@
 from backend.utils import *
 from backend.main import parse_all_main
+from backend.layers.uram_download import *
 import numpy as np
 
 # Packing tensor for 128 bits parallel read
@@ -99,13 +100,18 @@ def declare_uram_layer(parsed_write):
         uram_declare["type"] = "t_%s" % output_name
         uram_declare["is_array"] = True
         uram_declare["init"] = concat_weights
+    
+    dim = None
+    if concat_weights is not None:
+        dim = concat_weights.shape[0]
 
-    return parsed_write, [uram_declare]
+    return parsed_write, [uram_declare], dim
+
 
 def body(file_name, parsed_write, prj_root="/tmp"):
     with open(prj_root + "/cc/include/%s_sim.h" % file_name, "a") as fd:
 
-        parsed_write, uram_declare = declare_uram_layer(parsed_write)
+        parsed_write, uram_declare, dim = declare_uram_layer(parsed_write)
 
         if uram_declare[0] is not None:
             tb_declare(fd, uram_declare)
@@ -113,7 +119,16 @@ def body(file_name, parsed_write, prj_root="/tmp"):
         for layer in parsed_write:
 
             if 'tb_declare' in layer.keys():
-                tb_declare(fd, layer["tb_declare"])
+                if len(layer["tb_declare"]) > 0:
+                    tb_declare(fd, layer["tb_declare"])
+
+        # Defining DMA blocks which provide input streams 
+        for layer in parsed_write:
+            if "memory_management" == layer["func"]:
+                for name in layer["stream_input"]:
+                    dma_layer = dma_func(name, dim)
+                    write_declare(fd, dma_layer["declare"][0])
+                    write_func(fd, dma_layer)
 
         fd.write("\t%s(\n" % file_name)
 
@@ -126,6 +141,9 @@ def body(file_name, parsed_write, prj_root="/tmp"):
             if "memory_management" == layer["func"]:
                 for name in layer["input"]:
                     fd.write("\t\tc_%s,\n" % (name))
+
+                for name in layer["stream_input"]:
+                    fd.write("\t\tc_%s_stream[0],\n" % (name))
 
         for layer in parsed_write:
             if "consume_stream" == layer["func"]:

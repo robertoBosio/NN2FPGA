@@ -34,7 +34,7 @@ void shift_op(hls::stream<din_t> &din, hls::stream<din_t> &o_compute) {
   for (auto s_index_h = c_starth; s_index_h < c_endh; s_index_h++) {
     for (auto s_index_w = c_startw; s_index_w < c_endw; s_index_w++) {
       for (auto s_index_ich = 0; s_index_ich < ICH; s_index_ich++) {
-#pragma HLS pipeline style = flp
+#pragma HLS pipeline style = stp
         bool s_compute_write = true;
         uint16_t s_index_h_str = s_index_h % c_str;
         uint16_t s_index_w_str = s_index_w % c_str;
@@ -71,7 +71,7 @@ void pad_input(hls::stream<din_t> din[c_fw * c_fh],
   for (auto s_index_h = 0; s_index_h < IH; s_index_h += c_str) {
     for (auto s_index_w = 0; s_index_w < IW; s_index_w += c_str) {
       for (auto s_index_ich = 0; s_index_ich < ICH; s_index_ich++) {
-#pragma HLS pipeline style = flp
+#pragma HLS pipeline style = stp
         for (auto s_fh = 0; s_fh < c_fh; s_fh++) {
           for (auto s_fw = 0; s_fw < c_fw; s_fw++) {
             din_t s_write;
@@ -131,7 +131,7 @@ void shift_op(hls::stream<din_t> &din, hls::stream<din_t> &o_compute,
   for (auto s_index_h = c_starth; s_index_h < c_endh; s_index_h++) {
     for (auto s_index_w = c_startw; s_index_w < c_endw; s_index_w++) {
       for (auto s_index_ich = 0; s_index_ich < ICH; s_index_ich++) {
-#pragma HLS pipeline style = flp
+#pragma HLS pipeline style = stp
         bool s_compute_write = true;
         uint16_t s_index_h_str = s_index_h % c_str;
         uint16_t s_index_w_str = s_index_w % c_str;

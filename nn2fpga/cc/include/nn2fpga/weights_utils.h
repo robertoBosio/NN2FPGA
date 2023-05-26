@@ -134,7 +134,7 @@ void produce_stream(hls::stream<din_t> din[c_fh * c_fw],
   constexpr unsigned c_o_index = OH * OW * c_ch;
   din_t s_data[FSZ];
   for (uint32_t s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
-#pragma HLS pipeline style = flp
+#pragma HLS pipeline style = stp
     uint8_t s_iter = s_o_index % c_iter;
     if (s_iter == 0) {
       for (uint8_t s_index = 0; s_index < FSZ; s_index++)
