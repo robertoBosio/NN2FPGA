@@ -52,27 +52,31 @@ def write_const(fd, values, i, dims):
 def write_declare(fd, variable):
     
     name = variable["name"]
-    is_const = 'init' in variable.keys() 
+    is_not_stream = 'is_const' in variable.keys()
     
     type_name = variable["type"]
-    if not is_const:
+    if not is_not_stream:
         dim = variable["dim"]
         type_name = "hls::stream<%s>" % type_name
     else:
-        fd.write("\tconst ")
+        fd.write("\t")
+        if variable["is_const"]:
+            fd.write("const ")
 
-    if (variable["is_array"] and not is_const):
+    if (variable["is_array"] and not is_not_stream):
         fd.write("\t%s %s[%0d]" % (type_name, name, dim))
-    elif not is_const:
+    elif not is_not_stream:
         fd.write("\t%s %s" % (type_name, name))
     else:
         fd.write("%s_st %s" % (type_name, name))
 
-    if (is_const):
-        for dim in variable["init"].shape:
+    if (is_not_stream):
+        for dim in variable["size"]:
             fd.write("[%0d]" % dim)
-        fd.write(" = ")
-        write_const(fd, variable["init"], 0, len(variable["init"].shape))
+
+        if (variable["is_const"]):
+            fd.write(" = ")
+            write_const(fd, variable["init"], 0, len(variable["init"].shape))
 
     fd.write(";\n")
 

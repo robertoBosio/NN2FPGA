@@ -4,7 +4,7 @@ import sys
 import qonnx
 from onnx import numpy_helper
 import numpy as np
-
+from backend.utils import write_func
 
 def dma_func(
     input_name,
@@ -69,6 +69,8 @@ def add_uram_layer():
     # layers
     block["mux_data"] = {}
     block["bits_data"] = {}
+    block["index_data"] = {}
+    block["ops_data"] = {}
 
     return block
 
@@ -78,7 +80,6 @@ def fill_uram_layer(parsed_write):
         if layer["func"] == "load_uram":
             block = layer
 
-    block["mux_data"] = {}
     for layer in parsed_write:
         if layer["func"] != "load_uram":
             if "uram_input" in layer.keys():
@@ -86,6 +87,8 @@ def fill_uram_layer(parsed_write):
                 block["args"] = block["args"] + layer["uram_input"]
                 block["mux_data"][layer["uram_input"][0]] = layer["uram_total"]
                 block["bits_data"][layer["uram_input"][0]] = layer["bits"]
+                block["index_data"][layer["uram_input"][0]] = layer["index"]
+                block["ops_data"][layer["uram_input"][0]] = layer["ops"]
     
     return block
 
@@ -101,9 +104,13 @@ def init(uram_layer, network_name, prj_root="/tmp"):
     file_name = uram_layer['func']
 
     with open(prj_root + ("/cc/include/%s.h" % file_name), "w+") as fd:
+        fd.write("#ifndef __%s__\n" % file_name.upper())
+        fd.write("#define __%s__\n" % file_name.upper())
         # Write header with network definitions
+        fd.write("namespace nn2fpga {\n")
         for lib in libraries:
             fd.write("#include \"%s\"\n" % lib)
+            fd.write("#include \"nn2fpga/weights_utils.h\"\n")
         fd.write("\n")
 
         # Handle internal or external parameters
@@ -111,11 +118,12 @@ def init(uram_layer, network_name, prj_root="/tmp"):
 
         # URAM read handled by external DMA
         for i, name in enumerate(uram_layer["stream_input"]):
-            fd.write("\thls::stream<t_%s_st_stream> &i_data_%s,\n" % (name, name))
+            fd.write("\thls::stream<t_%s_stream> &i_data_%s,\n" % (name, name))
 
         for i, name in enumerate(uram_layer["mux_data"]):
             type_name = name.replace("s_", "t_")
-            fd.write("\thls::stream<%s> &%s" % (type_name, name))
+            index = uram_layer["index_data"][name]
+            fd.write("\thls::stream<%s> %s[%0d]" % (type_name, name, index))
             if i < (len(uram_layer["mux_data"])-1):
                 fd.write(",")
             fd.write("\n")
@@ -123,6 +131,50 @@ def init(uram_layer, network_name, prj_root="/tmp"):
         fd.write(") {\n")
 
         fd.write("\n")
+
+def produce_func(uram_layer, output_name):
+    output_type_name = output_name.replace("s_", "t_")
+    dim = uram_layer["mux_data"][output_name][0]
+    bytes = int(uram_layer["bits_data"][output_name]/8)
+    index = int(uram_layer["index_data"][output_name])
+    ops   = int(uram_layer["ops_data"][output_name])
+
+    block = {}
+    block["func"] = "produce_stream"
+    block["args"] = []
+    block["input"] = []
+    block["output"] = []
+    block["stream_input"] = []
+    block["template"] = []
+
+    input_name = "weights"
+
+    data_type_name = output_type_name.replace("_init", "_st")
+    block["template"].append("t_%s_stream" % input_name)
+    block["template"].append("%s" % data_type_name)
+    block["template"].append("%s" % output_type_name)
+    block["template"].append("%0d" % dim)
+    block["template"].append("%0d" % index)
+    block["template"].append("%0d" % bytes)
+    block["template"].append("%0d" % ops)
+
+    block["args"].append("i_data_%s" % input_name)
+    block["args"].append("s_init")
+    block["args"].append("%s" % output_name)
+
+    block["defines"] = {}
+
+    block["declare"] = []
+
+    block["pragma"] = []
+
+    # Internal mux to the block needed to provide the weights to the specific
+    # layers
+    block["mux_data"] = {}
+    block["bits_data"] = {}
+
+    return block
+
 
 def body(uram_layer, network_name, prj_root):
 
@@ -138,37 +190,14 @@ def body(uram_layer, network_name, prj_root):
         fd.write("\tstatic bool s_init;\n")
 
         for output_name in uram_layer["mux_data"]:
-            output_type_name = output_name.replace("s_", "t_")
-            dim = uram_layer["mux_data"][output_name][0]
-            bytes = int(uram_layer["bits_data"][output_name]/8)
-            fd.write("\tfor (auto i = 0; i < %0d; i++) {\n" % int(dim / bytes))
-            fd.write("#pragma HLS pipeline\n")
 
-            fd.write(
-                "\t\t%s s_data;\n" % (
-                    output_type_name
-                )
-            )
-            fd.write("\t\tfor (auto j = 0; j < %0d; j++) {\n" % int(bytes))
-            fd.write("\t\t\tif (~s_init) {\n")
-            fd.write(
-                "\t\t\t\ts_data |= (%s)(i_data_%s.read()) << (j*8);\n" % (
-                    output_type_name,
-                    input_name
-                )
-            )
-            fd.write("\t\t\t}\n")
-
-            fd.write("\t\t}\n")
-
-            fd.write("\t\tif (~s_init) {\n")
-            fd.write("\t\t\t%s << s_data.data;\n" % output_name)
-            fd.write("\t\t}\n")
-        
-            fd.write("\t}\n\n")
+            produce_layer = produce_func(uram_layer, output_name)
+            write_func(fd, produce_layer)
             
         fd.write("\ts_init = true;\n")
         fd.write("}\n")
+        fd.write("} // namespace nn2fpga\n")
+        fd.write("#endif")
 
 def write(uram_layer, network_name, prj_root="/tmp"):
 

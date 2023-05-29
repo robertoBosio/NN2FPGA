@@ -124,6 +124,41 @@ void produce_stream(const din_t din[c_fh * c_fw][OCH * ICH / c_ops][c_ops],
   }
 }
 
+template <typename din_t, typename din_stream_t, typename dout_t, int ICH, int OCH, int OW, int OH,
+          int c_fw, int c_fh, int c_ops, int c_reuse>
+void produce_stream(din_t din[c_fh * c_fw][OCH * ICH / c_ops][c_ops],
+                    hls::stream<din_stream_t> i_data[c_fh*c_fw],
+                    hls::stream<dout_t> o_data[c_fh * c_fw]) {
+  constexpr unsigned FSZ = c_fh * c_fw;
+  constexpr unsigned c_ch = ICH * OCH / c_ops;
+  constexpr unsigned c_o_index = OH * OW * c_ch / c_reuse;
+
+  static bool s_init;
+  din_stream_t s_data;
+  for (auto s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
+#pragma HLS pipeline
+    auto s_ch = s_o_index % c_ch;
+    for (auto s_index = 0; s_index < FSZ; s_index++) {
+      dout_t s_output;
+      if (!s_init) {
+        s_data = i_data[s_index].read();
+      }
+      for (auto s_ops = 0; s_ops < c_ops; s_ops++) {
+        if (!s_init) {
+          din[s_index][s_ch][s_ops] = s_data[s_ops];
+          s_output[s_ops] = s_data[s_ops];
+        } else {
+          s_output[s_ops] = din[s_index][s_ch][s_ops];
+        }
+      }
+      o_data[s_index].write(s_output);
+    }
+
+    if (s_ch == (c_ch-1))
+      s_init = true;
+  }
+}
+
 template <typename din_t, typename dout_t, int ICH, int OCH, int OW, int OH,
           int c_fw, int c_fh, int c_ops>
 void produce_stream(hls::stream<din_t> din[c_fh * c_fw],
@@ -148,6 +183,35 @@ void produce_stream(hls::stream<din_t> din[c_fh * c_fw],
         s_output[s_ops] = s_data[s_index](8 * (s_part + 1) - 1, 8 * s_part);
       }
       o_data[s_index].write(s_output);
+    }
+  }
+}
+
+template <typename din_t, typename dout_tmp_t, typename dout_t, int DIM, 
+          int INDEX, int BYTES, int OPS>
+void produce_stream(hls::stream<din_t> &din,
+                    bool init,
+                    hls::stream<dout_t> dout[INDEX]) {
+#pragma HLS inline
+  const auto ITER = DIM/(INDEX*OPS);
+	for (auto i = 0; i < ITER; i++) {
+    for (auto k = 0; k < INDEX; k++) {
+      dout_t dout_tmp;
+      for (auto c = 0; c < OPS; c++) {
+        dout_tmp_t tmp = 0;
+        for (auto j = 0; j < BYTES; j++) {
+#pragma HLS pipeline
+          if (!init) {
+            tmp <<= 8;
+            tmp |= din.read().data;
+          }
+        }
+        if (!init)
+          dout_tmp[c] = (tmp);
+      }
+      if (!init) {
+        dout[k] << dout_tmp;
+      }
     }
   }
 }

@@ -45,7 +45,7 @@ def init(file_name, parsed_write, prj_root="/tmp"):
 
         libraries = [
             "network.h",
-            "debug.h"
+            "nn2fpga/debug.h"
         ]
 
         fd.write("#ifndef __NETWORKSIM__\n")
@@ -100,6 +100,8 @@ def declare_uram_layer(parsed_write):
         uram_declare["name"] = "c_%s" % output_name
         uram_declare["type"] = "t_%s" % output_name
         uram_declare["is_array"] = True
+        uram_declare["is_const"] = True
+        uram_declare["size"] = concat_weights.shape
         uram_declare["init"] = concat_weights
     
     dim = None
@@ -128,6 +130,7 @@ def body(file_name, parsed_write, prj_root="/tmp"):
             if "memory_management" == layer["func"]:
                 for name in layer["stream_input"]:
                     dma_layer = dma_func(name, dim)
+                    write_defines(fd, dma_layer["defines"])
                     write_declare(fd, dma_layer["declare"][0])
                     write_func(fd, dma_layer)
 

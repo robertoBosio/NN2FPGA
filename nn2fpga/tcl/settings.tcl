@@ -2,6 +2,7 @@ set NN2FPGA_CC_ROOT $::env(NN2FPGA_CC_ROOT)
 
 set BOARD $::env(BOARD)
 set COSIM $::env(COSIM)
+set CSIM $::env(CSIM)
 set NN2FPGA_CC_ROOT $::env(NN2FPGA_CC_ROOT)
 set NN2FPGA_ROOT $::env(NN2FPGA_ROOT)
 set BOARD_PATH $::env(BOARD_PATH)

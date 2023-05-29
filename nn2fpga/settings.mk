@@ -7,6 +7,7 @@ export BOARD_PATH := \
 	/home/filippo/.Xilinx/Vivado/2022.2/xhub/board_store/xilinx_board_store
 export DEPS := $(NAME).h
 export COSIM := 0
+export CSIM := 0
 export NN2FPGA_CC_ROOT := $(shell pwd)/cc
 export NN2FPGA_ROOT := $(shell pwd)
 

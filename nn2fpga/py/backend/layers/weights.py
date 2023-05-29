@@ -15,7 +15,6 @@ def parse_on_chip(
     bits=8,
     signed=1,
     narrow=1,
-    uram_storage=False
 ):
 
     dich = node_info["ich"]
@@ -59,24 +58,38 @@ def parse_on_chip(
                         ch = ich*doch_ops+och
                         values[dih*diw-1-index][ch][ops] = quant_value
     
-    if uram_storage:
-        values = values.flatten()
+    return values
 
-        if bits > 8:
-            bytes_num = int(bits/8)
-            new_values = np.zeros([values.shape[0]*bytes_num])
+def pack_weights(
+    values,
+    bits=8,
+):
 
-            for i in range(values.shape[0]):
-                data = values[i]
-                for j in range(bytes_num):
-                    data_byte = int(data) & 0xff
-                    new_values[i*bytes_num+j] = data_byte
-                    data = int(data // 256)
+    values = np.swapaxes(values,0,1)
+    values = values.flatten()
 
-            values = new_values
+    if bits >= 8:
+        bytes_num = int(bits/8)
+        new_values = np.zeros([values.shape[0]*bytes_num])
 
+        for i in range(values.shape[0]):
+            data = values[i]
+            data_bytes = np.zeros([bytes_num])
+            for j in range(bytes_num):
+                data_byte = int(data) & 0xff
+                data_bytes[j] = data_byte
+                data = int(data // 256)
+
+            # Changing MSB to LSB order to ease hw reconstruction
+            # of the original value
+            for j in range(bytes_num-1,-1,-1):
+                new_values[i*bytes_num+j] = data_bytes[bytes_num - 1 - j]
+
+        values = new_values
     
     return values
+
+    
 
 def parse_off_chip(
     node_info,
@@ -207,8 +220,7 @@ def extract_info(
             pre_values,
             bits,
             signed,
-            narrow,
-            uram_storage
+            narrow
         )
 
     return new_node
@@ -283,6 +295,7 @@ def parse_main(io_dict):
     block["output"] = []
 
     block["declare"] = []
+    block["defines"] = {}
     block["pragma"] = []
 
     uram_storage = False
@@ -310,6 +323,16 @@ def parse_main(io_dict):
         output_name = "weights"
         block["stream_input"].append("%s" % output_name)
         block["args"].append("i_data_%s" % output_name)
+
+        block["defines"]["t_%s_stream" % output_name] = [
+            "type", 
+            "ap_axiu<8, 0, 0, 0>"
+        ]
+
+        block["defines"]["t_%s_st" % output_name] = [
+            "type", 
+            "uint8_t"
+        ]
 
         pragma = {}
         pragma["name"] = "interface"
@@ -488,6 +511,8 @@ def on_chip_rom(
     block["uram_input"] = []
     block["output"] = []
     block["bits"] = node["bits"]
+    block["index"] = node["ih"]*node["iw"]
+    block["ops"] = node["ops"]
 
     block["template"] = []
     block["template"].append("t_%s_st" % (output_name))
@@ -519,27 +544,32 @@ def on_chip_rom(
         tmp["name"] = "c_%s" % output_name
         tmp["type"] = "t_%s" % output_name
         tmp["is_array"] = True
-        tmp["init"] = node["values"]
+        tmp["is_const"] = not uram_storage
+        values = pack_weights(node["values"], node["bits"])
+        tmp["size"] = values.shape
+        tmp["init"] = values
 
         block["tb_declare"].append(tmp)
 
     block["declare"] = []
 
-    if not uram_storage:
-        tmp = {}
-        tmp["name"] = "c_%s" % output_name
-        tmp["type"] = "t_%s" % output_name
-        tmp["is_array"] = True
-        tmp["init"] = node["values"]
+    tmp = {}
+    tmp["name"] = "c_%s" % output_name
+    tmp["type"] = "t_%s" % output_name
+    tmp["is_array"] = True
+    tmp["is_const"] = not uram_storage
+    size = node["values"].shape
+    tmp["size"] = size
+    tmp["init"] = node["values"]
 
-        block["declare"].append(tmp)
+    block["declare"].append(tmp)
 
     if uram_storage:
         tmp = {}
         tmp["name"] = "s_%s_init" % output_name
         tmp["type"] = "t_%s_init" % output_name
-        tmp["is_array"] = False
-        tmp["dim"] = 1
+        tmp["is_array"] = True
+        tmp["dim"] = node["ih"]*node["iw"]
 
         block["declare"].append(tmp)
 
@@ -694,7 +724,7 @@ def init(file_name, network_name, parsed_write, uram_layer_include, prj_root="/t
         # URAM read handled by external DMA
         for layer in parsed_write:
             for name in layer["stream_input"]:
-                fd.write("\thls::stream<t_%s_st_stream> &i_data_%s,\n" % (name, name))
+                fd.write("\thls::stream<t_%s_stream> &i_data_%s,\n" % (name, name))
 
         for i, layer in enumerate(parsed_write):
             for j, name in enumerate(layer["output"]):
