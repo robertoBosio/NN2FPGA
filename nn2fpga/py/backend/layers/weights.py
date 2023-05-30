@@ -82,8 +82,8 @@ def pack_weights(
 
             # Changing MSB to LSB order to ease hw reconstruction
             # of the original value
-            for j in range(bytes_num-1,-1,-1):
-                new_values[i*bytes_num+j] = data_bytes[bytes_num - 1 - j]
+            for j in range(0, bytes_num):
+                new_values[i*bytes_num+j] = data_bytes[j]
 
         values = new_values
     
@@ -532,6 +532,7 @@ def on_chip_rom(
     block["args"].append("c_%s" % output_name)
     if uram_storage:
         block["args"].append("s_%s_init" % output_name)
+        block["args"].append("s_%s_init_flag" % output_name)
     block["args"].append("s_%s" % output_name)
 
     if uram_storage:
@@ -555,7 +556,7 @@ def on_chip_rom(
 
     tmp = {}
     tmp["name"] = "c_%s" % output_name
-    tmp["type"] = "t_%s" % output_name
+    tmp["type"] = "t_%s_st" % output_name
     tmp["is_array"] = True
     tmp["is_const"] = not uram_storage
     size = node["values"].shape
@@ -565,6 +566,15 @@ def on_chip_rom(
     block["declare"].append(tmp)
 
     if uram_storage:
+        tmp = {}
+        tmp["name"] = "s_%s_init_flag" % output_name
+        tmp["type"] = "static bool"
+        tmp["is_array"] = False
+        tmp["is_const"] = False
+        tmp["size"] = 1
+        tmp["init"] = None
+        block["declare"].append(tmp)
+
         tmp = {}
         tmp["name"] = "s_%s_init" % output_name
         tmp["type"] = "t_%s_init" % output_name
@@ -603,8 +613,20 @@ def on_chip_rom(
     # block["pragma"].append(pragma)
     #######################################################################
     #######################################################################
+    if uram_storage:
+        pragma = {}
+        pragma["name"] = "bind_storage"
+        options = [
+            ["variable", "c_%s" % (output_name)],
+            ["impl", "URAM"],
+            ["type", "RAM_T2P"]
+        ]
+        pragma["options"] = options
+
+        block["pragma"].append(pragma)
+
     pragma = {}
-    pragma["name"] = "array_reshape"
+    pragma["name"] = "array_partition"
     options = [
         ["variable", "c_%s" % (output_name)],
         ["type", "complete"],

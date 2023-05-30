@@ -65,14 +65,13 @@ def write_declare(fd, variable):
 
     if (variable["is_array"] and not is_not_stream):
         fd.write("\t%s %s[%0d]" % (type_name, name, dim))
-    elif not is_not_stream:
-        fd.write("\t%s %s" % (type_name, name))
     else:
-        fd.write("%s_st %s" % (type_name, name))
+        fd.write("%s %s" % (type_name, name))
 
     if (is_not_stream):
-        for dim in variable["size"]:
-            fd.write("[%0d]" % dim)
+        if variable["is_array"]:
+            for dim in variable["size"]:
+                fd.write("[%0d]" % dim)
 
         if (variable["is_const"]):
             fd.write(" = ")

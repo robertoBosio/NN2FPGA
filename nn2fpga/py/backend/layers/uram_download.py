@@ -99,6 +99,7 @@ def init(uram_layer, network_name, prj_root="/tmp"):
         "%s.h" % network_name,
         "ap_int.h",
         "hls_stream.h",
+        "nn2fpga/weights_utils.h"
     ]
 
     file_name = uram_layer['func']
@@ -110,7 +111,6 @@ def init(uram_layer, network_name, prj_root="/tmp"):
         fd.write("namespace nn2fpga {\n")
         for lib in libraries:
             fd.write("#include \"%s\"\n" % lib)
-            fd.write("#include \"nn2fpga/weights_utils.h\"\n")
         fd.write("\n")
 
         # Handle internal or external parameters

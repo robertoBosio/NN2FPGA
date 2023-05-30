@@ -11,6 +11,7 @@ set TB_ROOT $::env(TB_ROOT)
 
 set PRJ_ROOT $::env(PRJ_ROOT)
 set TOP_NAME $::env(TOP_NAME)
+set URAM_STORAGE $::env(URAM_STORAGE)
 
 if {$BOARD == "PYNQ"} {
 	set FPGA_PART "xc7z020clg400-1"

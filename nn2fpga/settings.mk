@@ -8,6 +8,7 @@ export BOARD_PATH := \
 export DEPS := $(NAME).h
 export COSIM := 0
 export CSIM := 0
+export URAM_STORAGE := 0
 export NN2FPGA_CC_ROOT := $(shell pwd)/cc
 export NN2FPGA_ROOT := $(shell pwd)
 

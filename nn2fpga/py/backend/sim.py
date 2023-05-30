@@ -98,7 +98,7 @@ def declare_uram_layer(parsed_write):
         output_name = "weights"
         uram_declare = {}
         uram_declare["name"] = "c_%s" % output_name
-        uram_declare["type"] = "t_%s" % output_name
+        uram_declare["type"] = "t_%s_st" % output_name
         uram_declare["is_array"] = True
         uram_declare["is_const"] = True
         uram_declare["size"] = concat_weights.shape
