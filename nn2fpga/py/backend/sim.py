@@ -108,13 +108,13 @@ def declare_uram_layer(parsed_write):
     if concat_weights is not None:
         dim = concat_weights.shape[0]
 
-    return parsed_write, [uram_declare], dim
+    return parsed_write, [uram_declare], dim, concat_weights
 
 
 def body(file_name, parsed_write, prj_root="/tmp"):
     with open(prj_root + "/cc/include/%s_sim.h" % file_name, "a") as fd:
 
-        parsed_write, uram_declare, dim = declare_uram_layer(parsed_write)
+        parsed_write, uram_declare, dim, concat_weights = declare_uram_layer(parsed_write)
 
         if uram_declare[0] is not None:
             tb_declare(fd, uram_declare)
@@ -155,6 +155,10 @@ def body(file_name, parsed_write, prj_root="/tmp"):
                     fd.write("\t\to_%s\n" % (name))
 
         fd.write("\t);\n")
+    
+    if concat_weights is not None:
+        os.system("mkdir -p " + prj_root + "/npy/")
+        np.save(prj_root + "/npy/uram.npy", concat_weights)
 
 
 def footer(file_name, parsed_write, prj_root="/tmp"):

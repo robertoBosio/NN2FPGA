@@ -88,9 +88,14 @@ def write_pragma(fd, pragma):
     )
 
     for option in options:
-        fd.write(
-            " %s=%s" % (option[0], option[1])
-        )
+        if len(option) == 1:
+            fd.write(
+                " %s" % (option[0])
+            )
+        else:
+            fd.write(
+                " %s=%s" % (option[0], option[1])
+            )
 
     fd.write("\n")
 

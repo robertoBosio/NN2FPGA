@@ -151,7 +151,7 @@ def parse(name, node):
     # Adding here dataflow pragma for top dataflow
     pragma = {}
     pragma["name"] = "dataflow"
-    options = []
+    options = [["disable_start_propagation"]]
     pragma["options"] = options
     block["pragma"].append(pragma)
 

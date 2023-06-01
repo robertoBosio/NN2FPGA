@@ -13,7 +13,8 @@ def kria_inference(
     dma,
     batch_size,
     off_chip_memory,
-    network
+    network,
+    uram_storage
 ):
 
     NUM_BATCH = len(test_loader)
@@ -83,7 +84,8 @@ def ultra96_inference(
     dma,
     batch_size,
     off_chip_memory,
-    network
+    network,
+    uram_storage
 ):
     rails = pynq.get_rails()
 

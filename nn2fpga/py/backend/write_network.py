@@ -27,7 +27,7 @@ def write_network(
 ):
 
     # Cases in which a master axi interface is needed
-    ap_ctrl_chain = off_chip_storage or uram_storage
+    ap_ctrl_chain = off_chip_storage
 
     read_width = 8
 

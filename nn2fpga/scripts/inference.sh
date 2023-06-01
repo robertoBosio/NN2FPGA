@@ -35,6 +35,9 @@ scp ${PRJ_ROOT}/${prj_name}_example/design_1.bit ${PRJ_ROOT}/overlay/design_1.bi
 cp ${NN2FPGA_ROOT}/scripts/inference.py ${PRJ_ROOT}/overlay/inference.py
 cp ${NN2FPGA_ROOT}/scripts/boards.py ${PRJ_ROOT}/overlay/boards.py
 cp ${NN2FPGA_ROOT}/scripts/datasets.py ${PRJ_ROOT}/overlay/datasets.py
+if [ ${URAM_STORAGE} = 1 ]; then
+    cp ${PRJ_ROOT}/npy/uram.npy ${PRJ_ROOT}/overlay/uram.npy
+fi
 
 # upload bitstream to sdcard
 # scp -r overlay root@${ip}:/home/xilinx/
@@ -42,7 +45,7 @@ scp -r ${PRJ_ROOT}/overlay ${device}:${path}
 
 # execute kernel
 #cat ./host.py | ssh root@192.168.3.1 'python3 -'
-ssh ${device} "cd ${path} && source /etc/profile && python3 ${path}overlay/inference.py $1 cifar10"
+ssh ${device} "cd ${path} && source /etc/profile && python3 ${path}overlay/inference.py $1 cifar10 ${URAM_STORAGE}"
 
 # cleanup
 scp ${device}:${path}overlay/results.txt ${PRJ_ROOT}/${res_file}

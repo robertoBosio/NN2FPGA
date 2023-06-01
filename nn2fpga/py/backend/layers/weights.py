@@ -82,8 +82,10 @@ def pack_weights(
 
             # Changing MSB to LSB order to ease hw reconstruction
             # of the original value
-            for j in range(0, bytes_num):
-                new_values[i*bytes_num+j] = data_bytes[j]
+            for j in range(bytes_num-1,-1,-1):
+                new_values[i*bytes_num+j] = data_bytes[bytes_num - 1 - j]
+            # for j in range(0, bytes_num):
+            #     new_values[i*bytes_num+j] = data_bytes[j]
 
         values = new_values
     

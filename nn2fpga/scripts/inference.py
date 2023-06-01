@@ -14,10 +14,11 @@ if __name__ == "__main__":
 
     supported_boards = ["KRIA", "ULTRA96v2"]
     supported_datasets = ["cifar10"]
+    supported_uram_storage = [0, 1]
 
-    if (len(sys.argv) < 2):
+    if (len(sys.argv) < 3):
         print(
-            "Wrong number of arguments: inference.py board dataset"
+            "Wrong number of arguments: inference.py board dataset uram_storage"
         )
         sys.exit(0)
 
@@ -32,6 +33,12 @@ if __name__ == "__main__":
         print("Allowed dataset selection: cifar10")
         sys.exit(0)
 
+    sel_uram_storage = int(sys.argv[3])
+    if (sel_uram_storage not in supported_uram_storage):
+        print("Selected %s" % sel_uram_storage)
+        print("Allowed uram_storage selection: 0, 1")
+        sys.exit(0)
+
     off_chip_memory = False
 
     batch_size = 2000
@@ -40,11 +47,19 @@ if __name__ == "__main__":
         dataloader = cifar10_dataloader
     test_loader, buffer_dim = dataloader(batch_size)
 
-    print("LOADING OVERLAY")
+    print("Loading overlay")
     overlay = Overlay('./overlay/design_1.bit')
 
-    print("LOADED OVERLAY")
+    print("Loaded overlay")
     dma = overlay.axi_dma_0
+    if (sel_uram_storage == 1):
+        print("Loading URAM")
+        dma_uram = overlay.axi_dma_1
+        uram_vector = np.load("overlay/uram.npy")
+        uram_buffer = allocate(shape=(uram_vector.shape[0], ), dtype=np.uint8)
+        uram_buffer[:] = uram_vector[:]
+        dma_uram.sendchannel.transfer(uram_buffer)
+
     if (off_chip_memory):
         network = overlay.Network_0
     else:
@@ -68,5 +83,6 @@ if __name__ == "__main__":
         dma,
         batch_size,
         off_chip_memory,
-        network
+        network,
+        sel_uram_storage
     )
