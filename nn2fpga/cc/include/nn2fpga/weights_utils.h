@@ -134,29 +134,31 @@ void produce_stream(din_t din[c_fh * c_fw][OCH * ICH / c_ops][c_ops],
   constexpr unsigned c_ch = ICH * OCH / c_ops;
   constexpr unsigned c_o_index = OH * OW * c_ch / c_reuse;
 
-  din_stream_t s_data;
+  if (!s_init) {
+    for (auto s_ch = 0; (s_ch < c_ch); s_ch++) {
+  #pragma HLS pipeline
+      for (auto s_index = 0; s_index < FSZ; s_index++) {
+        din_stream_t s_data = i_data[s_index].read();
+        for (auto s_ops = 0; s_ops < c_ops; s_ops++) {
+          din[s_index][s_ch][s_ops] = s_data[s_ops];
+        }
+      }
+    }
+  }
+  s_init = true;
+
   for (auto s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
 #pragma HLS pipeline
     auto s_ch = s_o_index % c_ch;
     for (auto s_index = 0; s_index < FSZ; s_index++) {
       dout_t s_output;
-      if (!s_init) {
-        s_data = i_data[s_index].read();
-      }
       for (auto s_ops = 0; s_ops < c_ops; s_ops++) {
-        if (!s_init) {
-          din[s_index][s_ch][s_ops] = s_data[s_ops];
-          s_output[s_ops] = s_data[s_ops];
-        } else {
-          s_output[s_ops] = din[s_index][s_ch][s_ops];
-        }
+        s_output[s_ops] = din[s_index][s_ch][s_ops];
       }
       o_data[s_index].write(s_output);
     }
-
-    s_init |= (s_ch == (c_ch-1));
   }
-
+  
 }
 
 template <typename din_t, typename dout_t, int ICH, int OCH, int OW, int OH,

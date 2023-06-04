@@ -557,7 +557,10 @@ def on_chip_rom(
     block["declare"] = []
 
     tmp = {}
-    tmp["name"] = "c_%s" % output_name
+    if uram_storage:
+        tmp["name"] = "static c_%s" % output_name
+    else:
+        tmp["name"] = "c_%s" % output_name
     tmp["type"] = "t_%s_st" % output_name
     tmp["is_array"] = True
     tmp["is_const"] = not uram_storage
@@ -627,8 +630,27 @@ def on_chip_rom(
 
         block["pragma"].append(pragma)
 
+    if uram_storage:
+        divider = 128
+    else:
+        divider = 64
+
+    partition_factor = int(node["ih"]*node["iw"]*node["ops"]*8/divider)
+    if partition_factor>1:
+        pragma = {}
+        pragma["name"] = "array_partition"
+        options = [
+            ["variable", "c_%s" % (output_name)],
+            ["type", "cyclic"],
+            ["factor", partition_factor],
+            ["dim", 1],
+        ]
+        pragma["options"] = options
+
+        block["pragma"].append(pragma)
+    #######################################################################
     pragma = {}
-    pragma["name"] = "array_partition"
+    pragma["name"] = "array_reshape"
     options = [
         ["variable", "c_%s" % (output_name)],
         ["type", "complete"],
