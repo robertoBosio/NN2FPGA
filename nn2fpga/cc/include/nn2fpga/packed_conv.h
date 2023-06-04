@@ -26,7 +26,7 @@ void conv_comp(hls::stream<t_input_struct> i_input[c_index],
   const auto c_iter = c_reuse * c_num_och;
 
   t_acc s_acc_buff[c_reuse][c_och];
-#pragma HLS array_partition variable = s_acc_buff type = complete dim = 0
+#pragma HLS array_partition variable = s_acc_buff type = cyclic factor = c_ops dim = 2
   t_input s_input[c_reuse][c_index];
 #pragma HLS array_partition variable = s_input type = complete
   bool s_last = false;
@@ -114,7 +114,7 @@ void conv_comp(hls::stream<t_input_struct> i_input[c_index],
   const auto c_iter = c_reuse * c_num_och;
 
   t_acc s_acc_buff[c_reuse][c_och];
-#pragma HLS array_partition variable = s_acc_buff type = complete dim = 0
+#pragma HLS array_partition variable = s_acc_buff type = cyclic factor = c_ops dim = 2
   t_input s_input[c_reuse][c_index];
 #pragma HLS array_partition variable = s_input type = complete
   bool s_last = false;
@@ -207,9 +207,9 @@ void conv_comp(hls::stream<t_input_struct> i_input[c_index],
   const auto c_iter = c_reuse * c_num_och;
 
   t_acc s_acc_buff[c_reuse][c_och];
-#pragma HLS array_partition variable = s_acc_buff type = complete dim = 0
+#pragma HLS array_partition variable = s_acc_buff type = cyclic factor = c_ops dim = 2
   t_acc_1x1 s_acc_1x1_buff[c_reuse][c_och];
-#pragma HLS array_partition variable = s_acc_1x1_buff type = complete dim = 0
+#pragma HLS array_partition variable = s_acc_1x1_buff type = cyclic factor = c_ops dim = 2
   t_input s_input[c_reuse][c_index];
 #pragma HLS array_partition variable = s_input type = complete
   bool s_last = false;
@@ -333,7 +333,7 @@ void conv_comp(hls::stream<t_input_struct> i_input[c_index],
   const auto c_iter = c_reuse * c_num_och;
 
   t_acc s_acc_buff[c_reuse][c_och];
-#pragma HLS array_partition variable = s_acc_buff type = complete dim = 0
+#pragma HLS array_partition variable = s_acc_buff type = cyclic factor = c_ops dim = 2
   t_input s_input[c_reuse][c_index];
 #pragma HLS array_partition variable = s_input type = complete
   bool s_last = false;
@@ -437,7 +437,7 @@ void conv_comp(hls::stream<t_input_struct> i_input[c_index],
   const auto c_iter = c_reuse * c_num_och;
 
   t_acc s_acc_buff[c_reuse][c_och];
-#pragma HLS array_partition variable = s_acc_buff type = complete dim = 0
+#pragma HLS array_partition variable = s_acc_buff type = cyclic factor = c_ops dim = 2
   t_input s_input[c_reuse][c_index];
 #pragma HLS array_partition variable = s_input type = complete
   bool s_last = false;
@@ -537,7 +537,7 @@ void conv_comp(hls::stream<t_input_struct> i_input[c_index],
   const int c_num_och = c_och / c_ops;
 
   t_acc s_acc_buff[c_och];
-#pragma HLS array_partition variable = s_acc_buff type = complete
+#pragma HLS array_partition variable = s_acc_buff type = cyclic factor = c_ops dim = 2
   t_input s_input[c_index];
 #pragma HLS array_partition variable = s_input type = complete
   t_bias s_bias;

@@ -196,24 +196,24 @@ void produce_stream(hls::stream<din_t> &din,
                     hls::stream<dout_t> dout[INDEX]) {
 #pragma HLS inline
   const auto ITER = DIM/(INDEX*OPS);
-	for (auto i = 0; i < ITER; i++) {
-    for (auto k = 0; k < INDEX; k++) {
-      dout_t dout_tmp;
-      for (auto c = 0; c < OPS; c++) {
-#pragma HLS pipeline
-        dout_tmp_t tmp = 0;
-        for (auto j = 0; j < BYTES; j++) {
-          if (!init) {
+  dout_tmp_t tmp = 0;
+  dout_t dout_tmp;
+  if (!init) {
+    for (auto i = 0; i < ITER; i++) {
+      for (auto k = 0; k < INDEX; k++) {
+        for (auto c = 0; c < OPS; c++) {
+          for (auto j = 0; j < BYTES; j++) {
+#pragma HLS pipeline II=2
+            if (j==0)
+              tmp = 0;
             tmp <<= 8;
             tmp |= din.read().data;
+            if (j==(BYTES-1))
+              dout_tmp[c] = (tmp);
+            if ((j==(BYTES-1))&(c==(OPS-1)))
+              dout[k] << dout_tmp;
           }
         }
-        if (!init) {
-          dout_tmp[c] = (tmp);
-        }
-      }
-      if (!init) {
-        dout[k] << dout_tmp;
       }
     }
   }
