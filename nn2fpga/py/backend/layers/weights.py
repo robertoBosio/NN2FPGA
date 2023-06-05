@@ -592,7 +592,7 @@ def on_chip_rom(
     block["defines"]["t_%s_st" % (output_name)]    = ["type", node["data_type"]]
     output_type_name = "hls::vector<%s, %0d>" % (node["data_type"], node["ops"])
     if uram_storage:
-        block["defines"]["t_%s_init" % (output_name)]    = ["type", output_type_name]
+        block["defines"]["t_%s_init" % (output_name)]    = ["type", "t_%s_st" % output_name]
     block["defines"]["t_%s" % (output_name)]       = ["type",  output_type_name]
     block["defines"]["c_%s_ich" % (name)]          = ["const", node["ich"]]
     block["defines"]["c_%s_och" % (name)]          = ["const", node["och"]]
