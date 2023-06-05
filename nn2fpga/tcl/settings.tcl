@@ -2,6 +2,7 @@ set NN2FPGA_CC_ROOT $::env(NN2FPGA_CC_ROOT)
 
 set BOARD $::env(BOARD)
 set COSIM $::env(COSIM)
+set CSIM $::env(CSIM)
 set NN2FPGA_CC_ROOT $::env(NN2FPGA_CC_ROOT)
 set NN2FPGA_ROOT $::env(NN2FPGA_ROOT)
 set BOARD_PATH $::env(BOARD_PATH)
@@ -10,6 +11,7 @@ set TB_ROOT $::env(TB_ROOT)
 
 set PRJ_ROOT $::env(PRJ_ROOT)
 set TOP_NAME $::env(TOP_NAME)
+set URAM_STORAGE $::env(URAM_STORAGE)
 
 if {$BOARD == "PYNQ"} {
 	set FPGA_PART "xc7z020clg400-1"

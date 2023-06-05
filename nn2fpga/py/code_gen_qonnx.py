@@ -45,10 +45,10 @@ def main():
 
     PRJ_ROOT = str(os.environ.get("PRJ_ROOT"))
 
+    uram_storage = False
     if "URAM_STORAGE" in os.environ:
-        uram_storage = True
-    else:
-        uram_storage = False
+        if int(os.environ.get("URAM_STORAGE")) == 1:
+            uram_storage = True
 
     if "OFF_CHIP_STORAGE" in os.environ:
         off_chip_storage = True

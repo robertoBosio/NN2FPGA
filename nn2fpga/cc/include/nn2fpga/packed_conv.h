@@ -26,7 +26,7 @@ void conv_comp(hls::stream<t_input_struct> i_input[c_index],
   const auto c_iter = c_reuse * c_num_och;
 
   t_acc s_acc_buff[c_reuse][c_och];
-#pragma HLS array_partition variable = s_acc_buff type = complete dim = 0
+#pragma HLS array_partition variable = s_acc_buff type = cyclic factor = c_ops dim = 2
   t_input s_input[c_reuse][c_index];
 #pragma HLS array_partition variable = s_input type = complete
   bool s_last = false;
@@ -46,7 +46,7 @@ void conv_comp(hls::stream<t_input_struct> i_input[c_index],
 /* #if c_iter>1 */
 /* #pragma HLS pipeline style=frp */
 /* #endif */
-#pragma HLS pipeline style = flp
+#pragma HLS pipeline style = stp
 
         auto s_reuse = s_iter % c_reuse;
         auto s_num_och = s_iter / c_reuse;
@@ -114,7 +114,7 @@ void conv_comp(hls::stream<t_input_struct> i_input[c_index],
   const auto c_iter = c_reuse * c_num_och;
 
   t_acc s_acc_buff[c_reuse][c_och];
-#pragma HLS array_partition variable = s_acc_buff type = complete dim = 0
+#pragma HLS array_partition variable = s_acc_buff type = cyclic factor = c_ops dim = 2
   t_input s_input[c_reuse][c_index];
 #pragma HLS array_partition variable = s_input type = complete
   bool s_last = false;
@@ -130,7 +130,7 @@ void conv_comp(hls::stream<t_input_struct> i_input[c_index],
   for (auto s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
     for (auto s_ich = 0; s_ich < c_ich; s_ich++) {
       for (auto s_iter = 0; s_iter < c_iter; s_iter++) {
-#pragma HLS pipeline style = flp
+#pragma HLS pipeline style = stp
 
         auto s_reuse = s_iter % c_reuse;
         auto s_num_och = s_iter / c_reuse;
@@ -207,9 +207,9 @@ void conv_comp(hls::stream<t_input_struct> i_input[c_index],
   const auto c_iter = c_reuse * c_num_och;
 
   t_acc s_acc_buff[c_reuse][c_och];
-#pragma HLS array_partition variable = s_acc_buff type = complete dim = 0
+#pragma HLS array_partition variable = s_acc_buff type = cyclic factor = c_ops dim = 2
   t_acc_1x1 s_acc_1x1_buff[c_reuse][c_och];
-#pragma HLS array_partition variable = s_acc_1x1_buff type = complete dim = 0
+#pragma HLS array_partition variable = s_acc_1x1_buff type = cyclic factor = c_ops dim = 2
   t_input s_input[c_reuse][c_index];
 #pragma HLS array_partition variable = s_input type = complete
   bool s_last = false;
@@ -229,7 +229,7 @@ void conv_comp(hls::stream<t_input_struct> i_input[c_index],
   for (auto s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
     for (auto s_ich = 0; s_ich < c_ich; s_ich++) {
       for (auto s_iter = 0; s_iter < c_iter; s_iter++) {
-#pragma HLS pipeline style = flp
+#pragma HLS pipeline style = stp
 
         auto s_reuse = s_iter % c_reuse;
         auto s_num_och = s_iter / c_reuse;
@@ -333,7 +333,7 @@ void conv_comp(hls::stream<t_input_struct> i_input[c_index],
   const auto c_iter = c_reuse * c_num_och;
 
   t_acc s_acc_buff[c_reuse][c_och];
-#pragma HLS array_partition variable = s_acc_buff type = complete dim = 0
+#pragma HLS array_partition variable = s_acc_buff type = cyclic factor = c_ops dim = 2
   t_input s_input[c_reuse][c_index];
 #pragma HLS array_partition variable = s_input type = complete
   bool s_last = false;
@@ -349,7 +349,7 @@ void conv_comp(hls::stream<t_input_struct> i_input[c_index],
   for (auto s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
     for (auto s_ich = 0; s_ich < c_ich; s_ich++) {
       for (auto s_iter = 0; s_iter < c_iter; s_iter++) {
-#pragma HLS pipeline style = flp
+#pragma HLS pipeline style = stp
 
         auto s_reuse = s_iter % c_reuse;
         auto s_num_och = s_iter / c_reuse;
@@ -437,7 +437,7 @@ void conv_comp(hls::stream<t_input_struct> i_input[c_index],
   const auto c_iter = c_reuse * c_num_och;
 
   t_acc s_acc_buff[c_reuse][c_och];
-#pragma HLS array_partition variable = s_acc_buff type = complete dim = 0
+#pragma HLS array_partition variable = s_acc_buff type = cyclic factor = c_ops dim = 2
   t_input s_input[c_reuse][c_index];
 #pragma HLS array_partition variable = s_input type = complete
   bool s_last = false;
@@ -454,7 +454,7 @@ void conv_comp(hls::stream<t_input_struct> i_input[c_index],
   for (auto s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
     for (auto s_ich = 0; s_ich < c_ich; s_ich++) {
       for (auto s_iter = 0; s_iter < c_iter; s_iter++) {
-#pragma HLS pipeline style = flp
+#pragma HLS pipeline style = stp
 
         auto s_reuse = s_iter % c_reuse;
         auto s_num_och = s_iter / c_reuse;
@@ -537,7 +537,7 @@ void conv_comp(hls::stream<t_input_struct> i_input[c_index],
   const int c_num_och = c_och / c_ops;
 
   t_acc s_acc_buff[c_och];
-#pragma HLS array_partition variable = s_acc_buff type = complete
+#pragma HLS array_partition variable = s_acc_buff type = cyclic factor = c_ops dim = 2
   t_input s_input[c_index];
 #pragma HLS array_partition variable = s_input type = complete
   t_bias s_bias;
@@ -545,7 +545,7 @@ void conv_comp(hls::stream<t_input_struct> i_input[c_index],
   bool s_last;
 
   for (uint32_t s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
-#pragma HLS pipeline style = flp
+#pragma HLS pipeline style = stp
 
     uint16_t s_pipe_iter = s_o_index % c_pipe_iter;
     uint8_t s_num_och = s_pipe_iter % c_num_och;
@@ -650,7 +650,7 @@ void stream_output(hls::stream<t_acc_struct> i_acc[c_ops],
   t_acc_1x1_struct s_acc_1x1[c_och];
 
   for (auto s_pipe_iter = 0; s_pipe_iter < c_pipe_iter; s_pipe_iter++) {
-#pragma HLS pipeline style = flp
+#pragma HLS pipeline style = stp
     auto s_ops = s_pipe_iter % c_ops;
     auto s_num_och = s_pipe_iter % c_num_och;
     auto s_och = s_pipe_iter % c_och;
@@ -688,7 +688,7 @@ void stream_output(hls::stream<t_acc_struct> i_acc[c_ops],
   t_acc_struct s_acc[c_och];
 
   for (auto s_pipe_iter = 0; s_pipe_iter < c_pipe_iter; s_pipe_iter++) {
-#pragma HLS pipeline style = flp
+#pragma HLS pipeline style = stp
     auto s_ops = s_pipe_iter % c_ops;
     auto s_num_och = s_pipe_iter % c_num_och;
     auto s_och = s_pipe_iter % c_och;

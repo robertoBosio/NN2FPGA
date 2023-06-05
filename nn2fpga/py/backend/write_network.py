@@ -26,6 +26,9 @@ def write_network(
     prj_root="/tmp",
 ):
 
+    # Cases in which a master axi interface is needed
+    ap_ctrl_chain = off_chip_storage
+
     read_width = 8
 
     inferred_model = model.transform(infer_shapes.InferShapes())
@@ -95,7 +98,7 @@ def write_network(
     main.write(
         io_dict,
         file_name,
-        off_chip_storage,
+        ap_ctrl_chain,
         prj_root=prj_root,
     )
 

@@ -1,5 +1,7 @@
 from backend.utils import *
 from backend.main import parse_all_main
+from backend.layers.uram_download import *
+import numpy as np
 
 # Packing tensor for 128 bits parallel read
 def write_tb_declare(fd, variable, read_width=16, bits=8):
@@ -42,7 +44,8 @@ def init(file_name, parsed_write, prj_root="/tmp"):
     with open(prj_root + "/cc/include/%s_sim.h" % file_name, "w+") as fd:
 
         libraries = [
-            "network.h"
+            "network.h",
+            "nn2fpga/debug.h"
         ]
 
         fd.write("#ifndef __NETWORKSIM__\n")
@@ -68,13 +71,68 @@ def init(file_name, parsed_write, prj_root="/tmp"):
         fd.write(") {\n")
 
 
+def declare_uram_layer(parsed_write):
+    
+    concat_weights = None
+    remove_tb_declare = []
+    for i, layer in enumerate(parsed_write):
+
+        if 'uram_input' in layer.keys():
+            if len(layer["uram_input"]) > 0:
+                if concat_weights is None:
+                    concat_weights = layer["tb_declare"][0]["init"]
+                else:
+                    concat_weights = np.concatenate(
+                        [
+                            concat_weights,
+                            layer["tb_declare"][0]["init"]
+                        ]
+                    )
+                remove_tb_declare.append(i)
+
+    for i in remove_tb_declare:
+       parsed_write[i]["tb_declare"] = []
+
+    uram_declare = None
+    if concat_weights is not None:
+        output_name = "weights"
+        uram_declare = {}
+        uram_declare["name"] = "c_%s" % output_name
+        uram_declare["type"] = "t_%s_st" % output_name
+        uram_declare["is_array"] = True
+        uram_declare["is_const"] = True
+        uram_declare["size"] = concat_weights.shape
+        uram_declare["init"] = concat_weights
+    
+    dim = None
+    if concat_weights is not None:
+        dim = concat_weights.shape[0]
+
+    return parsed_write, [uram_declare], dim, concat_weights
+
+
 def body(file_name, parsed_write, prj_root="/tmp"):
     with open(prj_root + "/cc/include/%s_sim.h" % file_name, "a") as fd:
+
+        parsed_write, uram_declare, dim, concat_weights = declare_uram_layer(parsed_write)
+
+        if uram_declare[0] is not None:
+            tb_declare(fd, uram_declare)
 
         for layer in parsed_write:
 
             if 'tb_declare' in layer.keys():
-                tb_declare(fd, layer["tb_declare"])
+                if len(layer["tb_declare"]) > 0:
+                    tb_declare(fd, layer["tb_declare"])
+
+        # Defining DMA blocks which provide input streams 
+        for layer in parsed_write:
+            if "memory_management" == layer["func"]:
+                for name in layer["stream_input"]:
+                    dma_layer = dma_func(name, dim)
+                    write_defines(fd, dma_layer["defines"])
+                    write_declare(fd, dma_layer["declare"][0])
+                    write_func(fd, dma_layer)
 
         fd.write("\t%s(\n" % file_name)
 
@@ -88,12 +146,19 @@ def body(file_name, parsed_write, prj_root="/tmp"):
                 for name in layer["input"]:
                     fd.write("\t\tc_%s,\n" % (name))
 
+                for name in layer["stream_input"]:
+                    fd.write("\t\tc_%s_stream[0],\n" % (name))
+
         for layer in parsed_write:
             if "consume_stream" == layer["func"]:
                 for name in layer["output"]:
                     fd.write("\t\to_%s\n" % (name))
 
         fd.write("\t);\n")
+    
+    if concat_weights is not None:
+        os.system("mkdir -p " + prj_root + "/npy/")
+        np.save(prj_root + "/npy/uram.npy", concat_weights)
 
 
 def footer(file_name, parsed_write, prj_root="/tmp"):

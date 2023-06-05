@@ -6,13 +6,15 @@ from onnx import numpy_helper
 import numpy as np
 from backend.graph import extract_connections
 from backend.utils import *
+from backend.layers.uram_download import fill_uram_layer, add_uram_layer
+import backend.layers.uram_download as uram_download
 
 def parse_on_chip(
     node_info,
     pre_values,
     bits=8,
     signed=1,
-    narrow=1
+    narrow=1,
 ):
 
     dich = node_info["ich"]
@@ -57,6 +59,39 @@ def parse_on_chip(
                         values[dih*diw-1-index][ch][ops] = quant_value
     
     return values
+
+def pack_weights(
+    values,
+    bits=8,
+):
+
+    values = np.swapaxes(values,0,1)
+    values = values.flatten()
+
+    if bits >= 8:
+        bytes_num = int(bits/8)
+        new_values = np.zeros([values.shape[0]*bytes_num])
+
+        for i in range(values.shape[0]):
+            data = values[i]
+            data_bytes = np.zeros([bytes_num])
+            for j in range(bytes_num):
+                data_byte = int(data) & 0xff
+                data_bytes[j] = data_byte
+                data = int(data // 256)
+
+            # Changing MSB to LSB order to ease hw reconstruction
+            # of the original value
+            for j in range(bytes_num-1,-1,-1):
+                new_values[i*bytes_num+j] = data_bytes[bytes_num - 1 - j]
+            # for j in range(0, bytes_num):
+            #     new_values[i*bytes_num+j] = data_bytes[j]
+
+        values = new_values
+    
+    return values
+
+    
 
 def parse_off_chip(
     node_info,
@@ -258,9 +293,11 @@ def parse_main(io_dict):
     block["func"] = "memory_management"
     block["args"] = []
     block["input"] = []
+    block["stream_input"] = []
     block["output"] = []
 
     block["declare"] = []
+    block["defines"] = {}
     block["pragma"] = []
 
     uram_storage = False
@@ -280,18 +317,35 @@ def parse_main(io_dict):
                 ]
                 pragma["options"] = options
                 block["pragma"].append(pragma)
+            
+            if node["uram_storage"]:
+                uram_storage = True
 
     if uram_storage:
-        block["input"].append("weights")
+        output_name = "weights"
+        block["stream_input"].append("%s" % output_name)
+        block["args"].append("i_data_%s" % output_name)
+
+        block["defines"]["t_%s_stream" % output_name] = [
+            "type", 
+            "ap_axiu<8, 0, 0, 0>"
+        ]
+
+        block["defines"]["t_%s_st" % output_name] = [
+            "type", 
+            "uint8_t"
+        ]
 
         pragma = {}
         pragma["name"] = "interface"
         options = [
-            ["port", "i_data_weights"],
-            ["mode", "m_axi"],
+            ["port", "i_data_%s" % output_name],
+            ["mode", "axis"],
         ]
         pragma["options"] = options
         block["pragma"].append(pragma)
+
+        block["is_const"] = True
  
 
     for name, node in io_dict.items():
@@ -331,7 +385,9 @@ def off_chip_ddr(
     block["func"] = "mem_algo"
     block["args"] = []
     block["input"] = []
+    block["stream_input"] = []
     block["output"] = []
+    block["bits"] = node["bits"]
 
     block["template"] = []
     block["template"].append("t_%s_st" % (output_name))
@@ -453,8 +509,12 @@ def on_chip_rom(
     block["func"] = "produce_stream"
     block["args"] = []
     block["input"] = []
+    block["stream_input"] = []
     block["uram_input"] = []
     block["output"] = []
+    block["bits"] = node["bits"]
+    block["index"] = node["ih"]*node["iw"]
+    block["ops"] = node["ops"]
 
     block["template"] = []
     block["template"].append("t_%s_st" % (output_name))
@@ -474,28 +534,57 @@ def on_chip_rom(
     block["args"].append("c_%s" % output_name)
     if uram_storage:
         block["args"].append("s_%s_init" % output_name)
+        block["args"].append("s_%s_init_flag" % output_name)
     block["args"].append("s_%s" % output_name)
 
-    block["uram_input"].append("s_%s_init" % output_name)
-    block["uram_total"] = [node["n_weights"]]
+    if uram_storage:
+        block["uram_input"].append("s_%s_init" % output_name)
+        block["uram_total"] = [node["n_weights"]]
 
-    block["declare"] = []
-
-    if not uram_storage:
+        # Declare only in tb wrapper
+        block["tb_declare"] = []
         tmp = {}
         tmp["name"] = "c_%s" % output_name
         tmp["type"] = "t_%s" % output_name
         tmp["is_array"] = True
-        tmp["init"] = node["values"]
+        tmp["is_const"] = not uram_storage
+        values = pack_weights(node["values"], node["bits"])
+        tmp["size"] = values.shape
+        tmp["init"] = values
 
-        block["declare"].append(tmp)
+        block["tb_declare"].append(tmp)
+
+    block["declare"] = []
+
+    tmp = {}
+    if uram_storage:
+        tmp["name"] = "static c_%s" % output_name
+    else:
+        tmp["name"] = "c_%s" % output_name
+    tmp["type"] = "t_%s_st" % output_name
+    tmp["is_array"] = True
+    tmp["is_const"] = not uram_storage
+    size = node["values"].shape
+    tmp["size"] = size
+    tmp["init"] = node["values"]
+
+    block["declare"].append(tmp)
 
     if uram_storage:
         tmp = {}
+        tmp["name"] = "s_%s_init_flag" % output_name
+        tmp["type"] = "static bool"
+        tmp["is_array"] = False
+        tmp["is_const"] = False
+        tmp["size"] = 1
+        tmp["init"] = None
+        block["declare"].append(tmp)
+
+        tmp = {}
         tmp["name"] = "s_%s_init" % output_name
         tmp["type"] = "t_%s_init" % output_name
-        tmp["is_array"] = False
-        tmp["dim"] = 1
+        tmp["is_array"] = True
+        tmp["dim"] = node["ih"]*node["iw"]
 
         block["declare"].append(tmp)
 
@@ -503,7 +592,7 @@ def on_chip_rom(
     block["defines"]["t_%s_st" % (output_name)]    = ["type", node["data_type"]]
     output_type_name = "hls::vector<%s, %0d>" % (node["data_type"], node["ops"])
     if uram_storage:
-        block["defines"]["t_%s_init" % (output_name)]    = ["type", output_type_name]
+        block["defines"]["t_%s_init" % (output_name)]    = ["type", "t_%s_st" % output_name]
     block["defines"]["t_%s" % (output_name)]       = ["type",  output_type_name]
     block["defines"]["c_%s_ich" % (name)]          = ["const", node["ich"]]
     block["defines"]["c_%s_och" % (name)]          = ["const", node["och"]]
@@ -528,6 +617,37 @@ def on_chip_rom(
 
     # block["pragma"].append(pragma)
     #######################################################################
+    #######################################################################
+    if uram_storage:
+        pragma = {}
+        pragma["name"] = "bind_storage"
+        options = [
+            ["variable", "c_%s" % (output_name)],
+            ["impl", "URAM"],
+            ["type", "RAM_T2P"]
+        ]
+        pragma["options"] = options
+
+        block["pragma"].append(pragma)
+
+    if uram_storage:
+        divider = 128
+    else:
+        divider = 64
+
+    partition_factor = int(node["ih"]*node["iw"]*node["ops"]*8/divider)
+    if partition_factor>1:
+        pragma = {}
+        pragma["name"] = "array_partition"
+        options = [
+            ["variable", "c_%s" % (output_name)],
+            ["type", "cyclic"],
+            ["factor", partition_factor],
+            ["dim", 1],
+        ]
+        pragma["options"] = options
+
+        block["pragma"].append(pragma)
     #######################################################################
     pragma = {}
     pragma["name"] = "array_reshape"
@@ -594,49 +714,6 @@ def parse(name, node):
       
     return blocks
 
-def add_uram_layer():
-    
-    block = {}
-    block["func"] = "LoadURAM"
-    block["args"] = []
-    block["input"] = []
-    block["output"] = []
-
-    block["template"] = []
-    block["template"].append("t_weights_st")
-
-    input_name = "weights"
-    block["input"].append("%s" % input_name)
-    block["args"].append("i_data_%s" % input_name)
-
-    block["defines"] = {}
-    block["defines"]["t_%s_st" % (input_name)]    = ["type", "int8_t"]
-
-    block["declare"] = []
-
-    block["pragma"] = []
-
-    # Internal mux to the block needed to provide the weights to the specific
-    # layers
-    block["mux_data"] = {}
-    return block
-
-def fill_uram_layer(parsed_write):
-    
-    for layer in parsed_write:
-        if layer["func"] != "LoadURAM":
-            block = layer
-
-    block["mux_data"] = {}
-    for layer in parsed_write:
-        if layer["func"] != "LoadURAM":
-            if "uram_input" in layer.keys():
-                block["template"] + [layer["template"][0]]
-                block["args"] + layer["uram_input"]
-                block["mux_data"][layer["uram_input"][0]] = layer["uram_total"]
-
-    return block
-
 def parse_all(io_dict):
 
     parsed_write = []
@@ -663,7 +740,7 @@ def parse_all(io_dict):
 
     return parsed_write
 
-def init(file_name, network_name, parsed_write, prj_root="/tmp"):
+def init(file_name, network_name, parsed_write, uram_layer_include, prj_root="/tmp"):
 
 
     libraries = [
@@ -673,6 +750,9 @@ def init(file_name, network_name, parsed_write, prj_root="/tmp"):
         "nn2fpga/weights_utils.h",
         "hls_stream.h",
     ]
+
+    if uram_layer_include:
+        libraries.append("load_uram.h")
 
     with open(prj_root + ("/cc/src/%s.cc" % file_name), "w+") as fd:
         # Write header with network definitions
@@ -686,6 +766,11 @@ def init(file_name, network_name, parsed_write, prj_root="/tmp"):
         for layer in parsed_write:
             for name in layer["input"]:
                 fd.write("\tconst t_%s_st *i_data_%s,\n" % (name, name))
+
+        # URAM read handled by external DMA
+        for layer in parsed_write:
+            for name in layer["stream_input"]:
+                fd.write("\thls::stream<t_%s_stream> &i_data_%s,\n" % (name, name))
 
         for i, layer in enumerate(parsed_write):
             for j, name in enumerate(layer["output"]):
@@ -708,7 +793,13 @@ def write(io_dict, network_name, prj_root="/tmp"):
 
     parsed_write = parse_all(io_dict)
 
-    init("memory_management", network_name, parsed_write, prj_root=prj_root)
+    uram_layer_include = False
+    for layer in parsed_write:
+        if layer['func'] == "load_uram":
+            uram_download.write(layer, network_name, prj_root)
+            uram_layer_include = True
+
+    init("memory_management", network_name, parsed_write, uram_layer_include, prj_root=prj_root)
     declare("memory_management", parsed_write, ap_ctrl=None, inline=True, prj_root=prj_root)
     body("memory_management", parsed_write, prj_root)
 

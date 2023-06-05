@@ -29,7 +29,7 @@ void pad_input(hls::stream<din_t> &din, hls::stream<din_t> &o_data) {
   for (uint32_t s_ih = 0; s_ih < IH_PAD; s_ih++) {
     for (uint32_t s_iw = 0; s_iw < IW_PAD; s_iw++) {
       for (uint32_t s_ich = 0; s_ich < ICH; s_ich++) {
-#pragma HLS pipeline style = flp
+#pragma HLS pipeline style = stp
 
         bool s_data_read = true;
 

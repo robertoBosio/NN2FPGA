@@ -33,4 +33,4 @@ launch_runs impl_1 -jobs 2
 wait_on_run impl_1
 open_run impl_1
 
-write_bitstream -file ${PRJ_ROOT}/${BOARD}_example/design_1.bit
+write_bitstream -file ${PRJ_ROOT}/${BOARD}_example/design_1.bit -force

@@ -58,6 +58,9 @@ download_cifar10:
 cosim: generate download_cifar10
 	make syn COSIM=1
 
+csim: generate download_cifar10
+	make syn CSIM=1
+
 backend: syn vivado_flow
 
 deploy:

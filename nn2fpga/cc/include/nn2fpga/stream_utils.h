@@ -18,7 +18,7 @@ void produce_stream(hls::stream<din_wrap_t>& dinStream,
 	ap_uint<BITS> din_par;
 PRODSTR:
   for (auto i = 0; i < ISZ; i++) {
-#pragma HLS pipeline style = flp
+#pragma HLS pipeline style = stp
     auto par = i % PAR;
 
     din_t din;

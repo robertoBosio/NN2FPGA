@@ -52,27 +52,30 @@ def write_const(fd, values, i, dims):
 def write_declare(fd, variable):
     
     name = variable["name"]
-    is_const = 'init' in variable.keys() 
+    is_not_stream = 'is_const' in variable.keys()
     
     type_name = variable["type"]
-    if not is_const:
+    if not is_not_stream:
         dim = variable["dim"]
         type_name = "hls::stream<%s>" % type_name
     else:
-        fd.write("\tconst ")
+        fd.write("\t")
+        if variable["is_const"]:
+            fd.write("const ")
 
-    if (variable["is_array"] and not is_const):
+    if (variable["is_array"] and not is_not_stream):
         fd.write("\t%s %s[%0d]" % (type_name, name, dim))
-    elif not is_const:
-        fd.write("\t%s %s" % (type_name, name))
     else:
-        fd.write("%s_st %s" % (type_name, name))
+        fd.write("%s %s" % (type_name, name))
 
-    if (is_const):
-        for dim in variable["init"].shape:
-            fd.write("[%0d]" % dim)
-        fd.write(" = ")
-        write_const(fd, variable["init"], 0, len(variable["init"].shape))
+    if (is_not_stream):
+        if variable["is_array"]:
+            for dim in variable["size"]:
+                fd.write("[%0d]" % dim)
+
+        if (variable["is_const"]):
+            fd.write(" = ")
+            write_const(fd, variable["init"], 0, len(variable["init"].shape))
 
     fd.write(";\n")
 
@@ -85,9 +88,14 @@ def write_pragma(fd, pragma):
     )
 
     for option in options:
-        fd.write(
-            " %s=%s" % (option[0], option[1])
-        )
+        if len(option) == 1:
+            fd.write(
+                " %s" % (option[0])
+            )
+        else:
+            fd.write(
+                " %s=%s" % (option[0], option[1])
+            )
 
     fd.write("\n")
 
@@ -195,6 +203,9 @@ def defines(file_name, parsed_write, prj_root="/tmp"):
                 for name in layer["input"]:
                     fd.write("\tconst t_%s_st *i_data_%s,\n" % (name, name))
 
+                for name in layer["stream_input"]:
+                    fd.write("\thls::stream<t_%s_stream> &i_data_%s,\n" % (name, name))
+
         for layer in parsed_write:
             if "consume_stream" == layer["func"]:
                 for name in layer["output"]:
@@ -208,6 +219,9 @@ def defines(file_name, parsed_write, prj_root="/tmp"):
             if 'is_const' in layer.keys():
                 for name in layer["input"]:
                     fd.write("\tconst t_%s_st *i_data_%s,\n" % (name, name))
+
+                for name in layer["stream_input"]:
+                    fd.write("\thls::stream<t_%s_stream> &i_data_%s,\n" % (name, name))
 
         for i, layer in enumerate(parsed_write):
             if 'is_const' in layer.keys():
