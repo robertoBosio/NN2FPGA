@@ -81,11 +81,17 @@ def parse_wout(name, node):
     if (node["merge_1x1"]):
         block["template"].append("t_%s_struct" % output_1x1_name)
         block["template"].append("t_%s" % output_1x1_name)
+    else:
+        block["template"].append("std::nullptr_t")
+        block["template"].append("std::nullptr_t")
     block["template"].append("t_%s_acc_struct" % output_name)
     block["template"].append("t_%s_acc" % output_name)
     if (node["merge_1x1"]):
         block["template"].append("t_%s_acc_struct" % output_1x1_name)
         block["template"].append("t_%s_acc" % output_1x1_name)
+    else:
+        block["template"].append("std::nullptr_t")
+        block["template"].append("std::nullptr_t")
     block["template"].append("c_%s_ich" % name)
     block["template"].append("c_%s_och" % name)
     block["template"].append("c_%s_ow" % name)
@@ -101,6 +107,10 @@ def parse_wout(name, node):
         block["template"].append("c_%s_mask" % output_1x1_name)
         block["template"].append("c_%s_shift_h" % output_1x1_name)
         block["template"].append("c_%s_shift_l" % output_1x1_name)
+    else:
+        block["template"].append("0")
+        block["template"].append("0")
+        block["template"].append("0")
 
     block["defines"] = {}
 
@@ -195,18 +205,22 @@ def parse_wout(name, node):
     block["args"].append("s_%s_acc" % output_name)
     if (node["merge_1x1"]):
         block["args"].append("s_%s_acc" % output_1x1_name)
+    else:
+        block["args"].append("(hls::stream<std::nullptr_t>*)(nullptr)")
 
     # If there is a reuse then the output must be rearranged to be channel first
     if (node["reuse"] > 1):
-        block["args"].append("s_%s_p_nchw[0]" % output_name)
+        block["args"].append("s_%s_p_nchw" % output_name)
     else:
-        block["args"].append("s_%s[0]" % output_name)
+        block["args"].append("s_%s" % output_name)
 
     if (node["merge_1x1"]):
         if (node["reuse"] > 1):
-            block["args"].append("s_%s_p_nchw[0]" % output_1x1_name)
+            block["args"].append("s_%s_p_nchw" % output_1x1_name)
         else:
-            block["args"].append("s_%s[0]" % output_1x1_name)
+            block["args"].append("s_%s" % output_1x1_name)
+    else:
+        block["args"].append("(hls::stream<std::nullptr_t>*)(nullptr)")
 
     block["output"] = []
     block["output"].append("s_%s" % output_name)
@@ -322,16 +336,36 @@ def parse_comp(name, node):
     block["template"].append("t_%s" % weight_name)
     if (has_bias):
         block["template"].append("t_%s" % bias_name)
+    else:
+        block["template"].append("std::nullptr_t")
+
     if (node["add"]):
         block["template"].append("t_%s_struct" % add_type_name)
+    else:
+        block["template"].append("std::nullptr_t")
+
+    if (node["has_forward"]):
+        block["template"].append("t_%s_struct" % input_type_name)
+    else:
+        block["template"].append("std::nullptr_t")
+
     if (node["merge_1x1"]):
         block["template"].append("t_%s" % weight_1x1_name)
         block["template"].append("t_%s" % bias_1x1_name)
+    else:
+        block["template"].append("std::nullptr_t")
+        block["template"].append("std::nullptr_t")
+
     block["template"].append("t_%s_acc_struct" % output_name)
     block["template"].append("t_%s_acc" % output_name)
+
     if (node["merge_1x1"]):
         block["template"].append("t_%s_acc_struct" % output_1x1_name)
         block["template"].append("t_%s_acc" % output_1x1_name)
+    else:
+        block["template"].append("std::nullptr_t")
+        block["template"].append("std::nullptr_t")
+
     block["template"].append("c_%s_ich" % name)
     block["template"].append("c_%s_och" % name)
     block["template"].append("c_%s_ow" % name)
@@ -344,13 +378,21 @@ def parse_comp(name, node):
     if (node["in_scale_factor"][0] is not None) or (node["merge_1x1"]):
         block["template"].append("c_%s_in_shift_h" % input_name)
         block["template"].append("c_%s_in_shift_l" % input_name)
+    else:
+        block["template"].append("0")
+        block["template"].append("0")
 
     if (node["merge_1x1"]):
         block["template"].append("c_%s_in_shift_h_1x1" % input_name)
         block["template"].append("c_%s_in_shift_l_1x1" % input_name)
+    else:
+        block["template"].append("0")
+        block["template"].append("0")
 
     if (node["add"]):
         block["template"].append("c_%s_add_shift_l" % add_name)
+    else:
+        block["template"].append("0")
 
     block["defines"] = {}
     block["defines"]["t_%s_acc" % output_name] = ["type", "int32_t"]
@@ -398,27 +440,38 @@ def parse_comp(name, node):
     block["args"].append("s_%s" % weight_name)
     if (has_bias):
         block["args"].append("s_%s" % bias_name)
+    else:
+        block["args"].append("(hls::stream<std::nullptr_t>*)(nullptr)")
 
     if (node["merge_1x1"]):
         block["args"].append("s_%s" % weight_1x1_name)
         block["args"].append("s_%s" % bias_1x1_name)
+    else:
+        block["args"].append("(hls::stream<std::nullptr_t>*)(nullptr)")
+        block["args"].append("(hls::stream<std::nullptr_t>*)(nullptr)")
 
     if (node["add"]):
         if (node["reuse"] > 1):
-            block["args"].append("s_%s_nchw[0]" % add_name)
+            block["args"].append("s_%s_nchw" % add_name)
         else:
-            block["args"].append("s_%s[0]" % add_name)
+            block["args"].append("s_%s" % add_name)
+    else:
+        block["args"].append("(hls::stream<std::nullptr_t>*)(nullptr)")
 
     if (node["has_forward"]):
         if (node["reuse"] > 1):
-            block["args"].append("s_%s_p_nchw[0]" % forward_name)
+            block["args"].append("s_%s_p_nchw" % forward_name)
         else:
-            block["args"].append("s_%s[0]" % forward_name)
+            block["args"].append("s_%s" % forward_name)
+    else:
+        block["args"].append("(hls::stream<std::nullptr_t>*)(nullptr)")
 
     block["args"].append("s_%s_acc" % output_name)
 
     if (node["merge_1x1"]):
         block["args"].append("s_%s_acc" % output_1x1_name)
+    else:
+        block["args"].append("(hls::stream<std::nullptr_t>*)(nullptr)")
 
     block["declare"] = []
 
