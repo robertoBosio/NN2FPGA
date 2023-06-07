@@ -31,6 +31,7 @@ din_t quant_act(din_t din) {
   const din_t c_mask_tmp = (1 << (MASK + SCALE)) - 1;
   const din_t c_mask_pad = MSB - c_mask_tmp;
 
+    // print result for debug
   if (SCALE <= 0)
     return (val << SCALE_INV);
   else {
