@@ -26,7 +26,7 @@ def parallel_ops_number(layers_info, clamp=None, board="ULTRA96v2", prj_root="/t
         return best_one, best_index
 
     def happiness(choices, elem, layers_info):
-        return choice[0] * layers_info[elem][1] * layers_info[elem][2]
+        return choice[0] * layers_info[elem][1]
 
     num_layers = len(layers_info)
 
@@ -92,6 +92,7 @@ def ilp(io_dict, off_chip_storage, board="ULTRA96v2", double_packing=True, prj_r
 
             value = int(math.log2(node_info["total"]/max_total))
             value = 2**value
+            print(node_name, node_info["total"], value)
 
             layers_info.append(
                 [

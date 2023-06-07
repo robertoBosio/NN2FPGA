@@ -23,7 +23,7 @@ def info(io_dict, node, node_name, init_info, tensors_info):
     stride   = getattr(attributes[4], 'ints')[0]
     pad      = getattr(attributes[3], 'ints')[0]
     is_1x1   = (fh == 1) and (fw == 1)
-    total    = 1/(oh*ow*och*ich*fh*fw)
+    total    = 1/(oh*ow*och*ich)
     kernel   = fh*fw
     img_ch   = ich*och
     reuse    = 1

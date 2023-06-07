@@ -118,6 +118,7 @@ def graph_info(model, init_info):
 
         node_name = node.name
         node_name = node_name.replace(".", "_")
+
         io_dict[node_name] = {}
         io_dict[node_name]["input"] = []
         io_dict[node_name]["output"] = []
@@ -149,6 +150,8 @@ def graph_info(model, init_info):
                 init_info,
                 tensors_info
             )
+            # Save last layer name if it is a recognized layer
+            last_layer_name = node_name
             continue
 
         if 'pool' in node.op_type.lower():
@@ -159,14 +162,20 @@ def graph_info(model, init_info):
                 init_info,
                 tensors_info
             )
+            # Save last layer name if it is a recognized layer
+            last_layer_name = node_name
             continue
 
         if 'relu' in node.op_type.lower():
             io_dict[node_name]["type"] = "relu"
+            # Save last layer name if it is a recognized layer
+            last_layer_name = node_name
             continue
 
         if 'add' in node.op_type.lower():
             io_dict[node_name]["type"] = "add"
+            # Save last layer name if it is a recognized layer
+            last_layer_name = node_name
             continue
 
         if 'quant' in node.op_type.lower():
@@ -189,7 +198,22 @@ def graph_info(model, init_info):
             io_dict[node_name]["type"] = "quant"
             io_dict[node_name]["clip"] = scale_factor
             io_dict[node_name]["mask"] = scale_factor
+            # Save last layer name if it is a recognized layer
+            last_layer_name = node_name
             continue
+        
+        # If the node is not recognized, it is not included in the dictionary
+        # and it is not considered in the optimization process
+        io_dict.pop(node_name)
+        # Break the loop if the last layer is not recognized
+        break
+
+    # check if the last layer output is the graph output
+    graph_output_name = model.graph.output[0].name
+    graph_output_name = graph_output_name.replace(".", "_")
+    if io_dict[last_layer_name]["output"][0] != graph_output_name:
+        io_dict[last_layer_name]["output"][0] = graph_output_name
+
 
     return io_dict
 
