@@ -225,12 +225,14 @@ def graph_info(model, init_info, object_detection=False, anchors=None):
 
     # check if the last layer output is the graph output
     assert (len(cut_name) < 2 or object_detection)
+    if len(cut_name) > 0:
+        assert (len(cut_name) == len(anchors))
 
     if object_detection:
         concat_net = None
         for i, layer_name in enumerate(cut_name):
-            io_dict[layer_name]["output"][0] = "s_detect[%0d]" % i
-        io_dict = detect.info(io_dict, graph_output_name, anchors, cut_name)
+            io_dict = detect.info(io_dict, i, anchors[i], layer_name)
+        io_dict = non_max_suppression.info(io_dict, graph_output_name, len(cut_name), anchors, cut_name)
     elif len(cut_name) == 1:
         graph_output_name = model.graph.output[0].name
         graph_output_name = graph_output_name.replace(".", "_")

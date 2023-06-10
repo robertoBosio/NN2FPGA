@@ -11,9 +11,10 @@ import backend.layers.weights as weights
 import backend.layers.input_gen as input_gen
 import backend.layers.output_gen as output_gen
 import backend.layers.detect as detect
+import backend.layers.non_max_suppression as non_max_suppression
 from backend.utils import *
 
-def init(file_name, parsed_write, prj_root="/tmp"):
+def init(file_name, parsed_write, object_detection=False, prj_root="/tmp"):
 
 
     libraries = [
@@ -29,6 +30,11 @@ def init(file_name, parsed_write, prj_root="/tmp"):
         "nn2fpga/quantisation.h",
         "nn2fpga/weights_utils.h",
     ]
+
+    if (object_detection):
+        libraries.append("nn2fpga/detect_utils.h")
+        libraries.append("nn2fpga/non_max_suppression.h")
+        libraries.append("hls_np_channel.h")
 
     with open(prj_root + ("/cc/src/%s.cc" % file_name), "w+") as fd:
         # Write header with network definitions
@@ -105,6 +111,11 @@ def parse_all_main(io_dict):
                 detect.parse(name, node)
             )
 
+        if 'non_max_suppression' == node["type"]:
+            parsed_write.append(
+                non_max_suppression.parse(name, node)
+            )
+
 
         last_node_name = name
 
@@ -114,7 +125,7 @@ def parse_all_main(io_dict):
 
     return parsed_write, parsed_const
 
-def write(io_dict, file_name, ap_ctrl_chain, prj_root="/tmp"):
+def write(io_dict, file_name, ap_ctrl_chain, object_detection, prj_root="/tmp"):
 
     if ap_ctrl_chain:
         ap_ctrl = "ap_ctrl_chain"
@@ -123,7 +134,7 @@ def write(io_dict, file_name, ap_ctrl_chain, prj_root="/tmp"):
 
     parsed_write, parsed_const = parse_all_main(io_dict)
 
-    init(file_name, parsed_write, prj_root=prj_root)
+    init(file_name, parsed_write, object_detection, prj_root=prj_root)
     declare(file_name, parsed_write, ap_ctrl, prj_root=prj_root)
     body(file_name, parsed_write, prj_root=prj_root)
 

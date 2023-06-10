@@ -48,8 +48,6 @@ def write_network(
         anchors
     )
 
-    print(io_dict)
-
     io_dict = opt_steps(
         inferred_model,
         io_dict,
@@ -105,6 +103,7 @@ def write_network(
         io_dict,
         file_name,
         ap_ctrl_chain,
+        object_detection=object_detection,
         prj_root=prj_root,
     )
 

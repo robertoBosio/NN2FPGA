@@ -53,18 +53,20 @@ def write_declare(fd, variable):
     
     name = variable["name"]
     is_not_stream = 'is_const' in variable.keys()
+    if "is_stream" in variable.keys():
+        is_not_stream = not variable["is_stream"]
     
+    fd.write("\t")
     type_name = variable["type"]
     if not is_not_stream:
         dim = variable["dim"]
         type_name = "hls::stream<%s>" % type_name
     else:
-        fd.write("\t")
         if variable["is_const"]:
             fd.write("const ")
 
     if (variable["is_array"] and not is_not_stream):
-        fd.write("\t%s %s[%0d]" % (type_name, name, dim))
+        fd.write("%s %s[%0d]" % (type_name, name, dim))
     else:
         fd.write("%s %s" % (type_name, name))
 
@@ -78,7 +80,7 @@ def write_declare(fd, variable):
             if variable["is_array"]:
                 write_const(fd, variable["init"], 0, len(variable["init"].shape))
             else:
-                fd.write("%0d;" % variable["init"])
+                fd.write("%0d" % variable["init"])
 
     fd.write(";\n")
 
