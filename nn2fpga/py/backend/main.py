@@ -10,6 +10,7 @@ import backend.layers.pad as pad
 import backend.layers.weights as weights
 import backend.layers.input_gen as input_gen
 import backend.layers.output_gen as output_gen
+import backend.layers.detect as detect
 from backend.utils import *
 
 def init(file_name, parsed_write, prj_root="/tmp"):
@@ -98,6 +99,12 @@ def parse_all_main(io_dict):
                 name,
                 node
             )
+
+        if 'detect' == node["type"]:
+            parsed_write.append(
+                detect.parse(name, node)
+            )
+
 
         last_node_name = name
 

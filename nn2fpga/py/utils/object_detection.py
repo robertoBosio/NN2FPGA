@@ -31,28 +31,25 @@ def detect_lut(nc, anchors, ch, input_shape, stride=32, bit_width=8, scale=-9.0)
         y = detect([x])
 
         # Write the output to a file
-        with open("../work/detect_lut.txt", "a") as f:
-            f.write("i" + str(i) + "------------------------------------- " + "\n")
-            # for k in range(y[0].shape[0]):
-            #     for j in range(y[0].shape[1]):
-            #         f.write("j" + str(j) + "------------------------------------- " + "\n")
-            #         f.write(str(y[0][k, j, ...].tolist()[0]) + " ")
-            #         f.write(str(y[0][k, j, ...].tolist()[2]) + " ")
-            #         f.write(str(y[0][k, j, ...].tolist()[4]) + " ")
-            #         f.write("\n")
-            # create a list of output values
-            val_list.append(
-                [y[0][0, 0, ...].tolist()[0],
-                y[0][0, 0, ...].tolist()[2],
-                y[0][0, 0, ...].tolist()[4]])
-    
-    # cast
+        val_list.append(
+            [y[0][0, 0, ...].tolist()[0],
+            y[0][0, 0, ...].tolist()[2],
+            y[0][0, 0, ...].tolist()[4]])
 
-    data_type = {
-        "type": "ap_int",
-        "int_width": 16,
-        "dec_width": 16,
-    }
+    anchor_grid = []
+    for data in detect.anchor_grid:
+        # get possible values of grid from detect.grid element
+        anchor_grid_values_x = data[..., :, 0].unique().tolist()
+        anchor_grid_values_y = data[..., :, 1].unique().tolist()
+        anchor_grid.append([anchor_grid_values_x, anchor_grid_values_y])
+    
+    grid = []
+    for data in detect.grid:
+        # get possible values of grid from detect.grid element
+        grid_values = data[..., :, 0].unique().tolist()
+        grid.append(grid_values)
+
+    return val_list, grid, anchor_grid
 
     # write the output to a file in ../work/cc/include/ directory
     with open("../work/cc/include/detect_lut.h", "w") as f:

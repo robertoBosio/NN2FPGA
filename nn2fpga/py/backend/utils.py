@@ -75,7 +75,10 @@ def write_declare(fd, variable):
 
         if (variable["is_const"]):
             fd.write(" = ")
-            write_const(fd, variable["init"], 0, len(variable["init"].shape))
+            if variable["is_array"]:
+                write_const(fd, variable["init"], 0, len(variable["init"].shape))
+            else:
+                fd.write("%0d;" % variable["init"])
 
     fd.write(";\n")
 

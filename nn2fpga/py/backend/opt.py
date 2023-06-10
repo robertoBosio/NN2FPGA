@@ -166,6 +166,10 @@ def opt_merge_conv(model, io_dict):
 
             # Check if there are multiple layer connected to the net
             output_name = layer_info["output"][0]
+
+            # Done to recognize vector connections
+            output_name = output_name.split("[")[0]
+
             layer_out_len = len(io_connect[output_name][1])
             if layer_out_len > 1:
 

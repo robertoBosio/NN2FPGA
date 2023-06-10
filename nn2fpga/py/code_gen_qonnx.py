@@ -50,10 +50,15 @@ def main():
         if int(os.environ.get("URAM_STORAGE")) == 1:
             uram_storage = True
 
+    off_chip_storage = False
     if "OFF_CHIP_STORAGE" in os.environ:
-        off_chip_storage = True
-    else:
-        off_chip_storage = False
+        if int(os.environ.get("OFF_CHIP_STORAGE")) == 1:
+            off_chip_storage = True
+
+    object_detection = False
+    if "OBJECT_DETECTION" in os.environ:
+        if int(os.environ.get("OBJECT_DETECTION")) == 1:
+            object_detection = True
 
     # onnx_path = "./onnx/Brevonnx_resnet_final_fx.onnx"
     # onnx_path = "./onnx/Brevonnx_resnet8_final_fx.onnx"
@@ -74,12 +79,23 @@ def main():
 
     board = os.environ["BOARD"]
 
+    if object_detection:
+        # anchors = [5,5, 6,13, 10,8, 16,12, 13,27, 27,19, 42,31, 69,51, 136,110]
+        anchors = [5,5, 6,13, 10,8]
+        # divide anchors in group of 6 elements
+        anchors = [anchors[i:i+6] for i in range(0, len(anchors), 6)]
+        
+    else:
+        anchors = []
+
     write_network(
         inferred_model,
         file_name = top_name,
         off_chip_storage=off_chip_storage,
         board=board, 
         uram_storage=uram_storage,
+        object_detection=object_detection,
+        anchors=anchors,
         prj_root=PRJ_ROOT
     )
 
