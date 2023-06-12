@@ -77,7 +77,6 @@ def parallel_ops_number(layers_info, clamp=None, board="ULTRA96v2", prj_root="/t
         # Returning the layers name together with the computed number of 
         # operations that should be executed in parallel
         data = int(max_data/layers_info[i][5])
-        print(all_divisors[layers_offset[i]:layers_offset[i]+layers_divisors[i]], data)
         low_range, high_range = find_range(
             all_divisors[layers_offset[i]:layers_offset[i]+layers_divisors[i]],
             data
