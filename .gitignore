@@ -130,7 +130,6 @@ dmypy.json
 
 tmp/
 data/
-cifar10/
 ckpt/
 log/
 logs/
