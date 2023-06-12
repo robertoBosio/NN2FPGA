@@ -11,6 +11,7 @@ import backend.layers.quant as quant
 import backend.layers.detect as detect
 import backend.layers.non_max_suppression as non_max_suppression
 import backend.layers.concat as concat
+import backend.layers.upsample as upsample
 
 def net_distance(io_dict, io_connect):
 
@@ -215,6 +216,15 @@ def graph_info(model, init_info, object_detection=False, anchors=None):
             continue
         
         if 'resize' in node.op_type.lower() and cut_name == []:
+            io_dict = upsample.info(
+                io_dict,
+                node,
+                node_name,
+                init_info,
+                tensors_info
+            )
+            # Save last layer name if it is a recognized layer
+            last_layer_name = node_name
             continue
         
         if cut_name == []:

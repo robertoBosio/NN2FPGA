@@ -129,10 +129,35 @@ void concat_op(
   }
 }
 
-template <typename t_input, int c_feature_map, int c_upsample>
+template <typename t_input, int c_ich, int c_ih, int c_iw, int c_upsample>
 void upsample_op(
   hls::stream<t_input> &din,
   hls::stream<t_input> &o_data
+) {
+
+  auto upsample_buff = new t_input[c_ich][1][c_iw];
+
+  for (auto s_ih = 0; s_ih < c_ih; s_ih++) {  
+    for (auto s_upsample_h = 0; s_upsample_h < c_upsample; s_upsample_h++) {  
+      for (auto s_iw = 0; s_iw < c_iw; s_iw++) {  
+        for (auto s_upsample_w = 0; s_upsample_w < c_upsample; s_upsample_w++) {  
+          for (auto s_ich = 0; s_ich < c_ich; s_ich++) {  
+          #pragma HLS pipeline style = stp
+            t_input s_data;
+            if (s_upsample_w == 0 && s_upsample_h == 0) {
+              s_data = din.read();
+              o_data.write(s_data);
+              upsample_buff[s_ich][0][s_iw] = s_data;
+            } else {
+              s_data = upsample_buff[s_ich][0][s_iw];
+              o_data.write(s_data);
+            }
+          }
+        }
+      }
+    }
+  }
+}
 )
 
 
