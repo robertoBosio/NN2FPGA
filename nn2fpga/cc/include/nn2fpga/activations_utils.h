@@ -111,7 +111,22 @@ t_input relu_op(t_input i_data) {
 		return 0;
 }
 
-   
+template <typename t_input, int c_feature_map, int c_concat>
+void concat_op(
+  hls::stream<t_input> din[c_concat],
+  constexpr int c_ich[c_concat],
+  hls::stream<t_input> &o_data
+) {  
+
+  for (auto s_feature_map = 0; s_feature_map < c_feature_map; s_feature_map++) {  
+    for (auto s_concat = 0; s_concat < c_concat; s_concat++) {  
+      for (auto s_ich = 0; s_ich < c_ich[s_concat]; s_ich++) {  
+    #pragma HLS pipeline style = stp
+        t_input s_data = din[s_concat].read();
+        o_data.write(s_data);
+      }
+    }
+  }
 
 }  // namespace nn2fpga
 

@@ -10,6 +10,7 @@ import backend.layers.input_gen as input_gen
 import backend.layers.quant as quant
 import backend.layers.detect as detect
 import backend.layers.non_max_suppression as non_max_suppression
+import backend.layers.concat as concat
 
 def net_distance(io_dict, io_connect):
 
@@ -202,6 +203,15 @@ def graph_info(model, init_info, object_detection=False, anchors=None):
             continue
         
         if 'concat' in node.op_type.lower() and cut_name == []:
+            io_dict = concat.info(
+                io_dict,
+                node,
+                node_name,
+                init_info,
+                tensors_info
+            )
+            # Save last layer name if it is a recognized layer
+            last_layer_name = node_name
             continue
         
         if 'resize' in node.op_type.lower() and cut_name == []:
