@@ -44,7 +44,7 @@ def info(io_dict, node, node_name, init_info, tensors_info):
     io_dict[node_name]["och"]    = och
     io_dict[node_name]["oh"]     = oh
     io_dict[node_name]["ow"]     = ow
-    io_dict[node_name]["type"]   = 'detect'
+    io_dict[node_name]["type"]   = 'concat'
     io_dict[node_name]["feature_map"] = feature_map
 
     return io_dict
