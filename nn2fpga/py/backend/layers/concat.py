@@ -58,7 +58,7 @@ def parse(parsed_write, node_name):
     output_type_name = output_name.replace("_skip", "")
 
     block = {}
-    block["func"] = "concat"
+    block["func"] = "concat_op"
 
     # Template parameters
     block["template"] = []
