@@ -31,6 +31,7 @@ def info(io_dict, node, node_name, init_info, tensors_info):
     io_dict[node_name]["ow"]     = ow
     io_dict[node_name]["factor"]     = upsample_factor
     io_dict[node_name]["type"]   = 'upsample'
+    io_dict[node_name]["scale_factor"] = 0
 
     return io_dict
 
@@ -67,6 +68,16 @@ def parse(parsed_write, node_name):
     block["defines"]["c_%s_ih" % node_name] = ["const", node["ih"]]
     block["defines"]["c_%s_iw" % node_name] = ["const", node["iw"]]
     block["defines"]["c_%s_factor" % node_name] = ["const", node["factor"]]
+
+    if node["scale_factor"] is list:
+        scale_factor = node["scale_factor"][0]
+    else:
+        scale_factor = node["scale_factor"]
+
+    block["defines"]["c_%s_scale_factor" % name] = [
+        "const",
+        scale_factor
+    ]
 
     block["output"] = []
     block["output"].append("s_%s" % output_name)

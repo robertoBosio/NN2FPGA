@@ -46,6 +46,7 @@ def info(io_dict, node, node_name, init_info, tensors_info):
     io_dict[node_name]["ow"]     = ow
     io_dict[node_name]["type"]   = 'concat'
     io_dict[node_name]["feature_map"] = feature_map
+    io_dict[node_name]["scale_factor"] = 0
 
     return io_dict
 
@@ -78,6 +79,16 @@ def parse(parsed_write, node_name):
         [["data", "t_%s" % output_name], ["last", "bool"]]
     ]
     block["defines"]["c_%s_feature_map" % node_name] = ["const", node["feature_map"]]
+
+    if node["scale_factor"] is list:
+        scale_factor = node["scale_factor"][0]
+    else:
+        scale_factor = node["scale_factor"]
+
+    block["defines"]["c_%s_scale_factor" % name] = [
+        "const",
+        scale_factor
+    ]
 
     block["output"] = []
     block["output"].append("s_%s" % output_name)
