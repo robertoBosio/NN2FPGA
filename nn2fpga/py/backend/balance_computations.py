@@ -2,6 +2,8 @@ import os
 import sys
 import pulp
 import math
+from backend.ilp_utils import find_divisors
+from backend.ilp_utils import find_range
 
 def parallel_ops_number(layers_info, clamp=None, board="ULTRA96v2", prj_root="/tmp"):
 
@@ -59,17 +61,35 @@ def parallel_ops_number(layers_info, clamp=None, board="ULTRA96v2", prj_root="/t
 
     print("Status:", pulp.LpStatus[prob.status])
 
+    all_divisors, layers_divisors, layers_offset, layers_name = find_divisors(layers_info, clamp=clamp)
+
+    # Searching for an integer divisor of the number of DSPs that is the closest to the
+    # number of operations that should be executed in parallel
+    max_data = int(choice[0].value())
+    low_range, high_range = find_range(
+        all_divisors[layers_offset[best_index]:layers_offset[best_index]+layers_divisors[best_index]],
+        max_data
+    )
+
     parallel_op = {}
-    max_exp = int(math.log2(choice[0].value()))
-    max_data = 2**max_exp
+    max_data = low_range
     for i in range(num_layers):
         # Returning the layers name together with the computed number of 
         # operations that should be executed in parallel
         data = int(max_data/layers_info[i][5])
+        print(all_divisors[layers_offset[i]:layers_offset[i]+layers_divisors[i]], data)
+        low_range, high_range = find_range(
+            all_divisors[layers_offset[i]:layers_offset[i]+layers_divisors[i]],
+            data
+        )
         if data == 0:
           data = 1
-        parallel_op[layers_info[i][0]] = data
-    
+        parallel_op[layers_info[i][0]] = low_range
+        # Manual tuning for DAC
+        parallel_op['/model_1/conv/Conv'] = 16
+        parallel_op['/model_3/conv/Conv'] = 16
+        parallel_op['/model_11/conv/Conv'] = 26
+
     return parallel_op
 
 def ilp(io_dict, off_chip_storage, board="ULTRA96v2", double_packing=True, prj_root="/tmp"):
@@ -77,7 +97,7 @@ def ilp(io_dict, off_chip_storage, board="ULTRA96v2", double_packing=True, prj_r
     if off_chip_storage:
         clamp = 8
     else:
-        clamp = 16
+        clamp = 64
 
     layers_info = []
 
@@ -90,8 +110,8 @@ def ilp(io_dict, off_chip_storage, board="ULTRA96v2", double_packing=True, prj_r
     for node_name, node_info in io_dict.items():
         if 'conv' in node_info["type"]:
 
-            value = int(math.log2(node_info["total"]/max_total))
-            value = 2**value
+            value = node_info["total"]/max_total
+            # value = 2**value
             print(node_name, node_info["total"], value)
 
             layers_info.append(
@@ -101,7 +121,8 @@ def ilp(io_dict, off_chip_storage, board="ULTRA96v2", double_packing=True, prj_r
                     node_info["kernel"],
                     node_info["img_ch"],
                     node_info["merge_1x1"],
-                    value
+                    value,
+                    node_info["och"]
                 ]
             )
 
