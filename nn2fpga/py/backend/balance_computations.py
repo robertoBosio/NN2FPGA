@@ -84,10 +84,7 @@ def parallel_ops_number(layers_info, clamp=None, board="ULTRA96v2", prj_root="/t
         if data == 0:
           data = 1
         parallel_op[layers_info[i][0]] = low_range
-        # Manual tuning for DAC
-        parallel_op['/model_1/conv/Conv'] = 16
-        parallel_op['/model_3/conv/Conv'] = 16
-        parallel_op['/model_11/conv/Conv'] = 26
+        print(all_divisors[layers_offset[i]:layers_offset[i]+layers_divisors[i]], data, low_range, high_range)
 
     return parallel_op
 
@@ -127,11 +124,25 @@ def ilp(io_dict, off_chip_storage, board="ULTRA96v2", double_packing=True, prj_r
 
     parallel_ops = parallel_ops_number(layers_info, clamp, board, prj_root=prj_root)
 
+    # Manual tuning for DAC
+    parallel_ops['/model_0/conv/Conv'] = 4
+    parallel_ops['/model_1/conv/Conv'] = 16
+    parallel_ops['/model_3/conv/Conv'] = 16
+    parallel_ops['/model_5/conv/Conv'] = 14
+    parallel_ops['/model_7/conv/Conv'] = 13
+    parallel_ops['/model_11/conv/Conv'] = 26
+    parallel_ops['/model_13/m_0/Conv'] = 4
+
     print(parallel_ops)
 
     for node_name, ops in parallel_ops.items():
         io_dict[node_name]["ops"] = ops
         io_dict[node_name]["dp"] = False
+
+        # Evaluating neccessary output channels to avoid losing performance
+        io_dict[node_name]["out_par"] = int(io_dict[node_name]["oh"] * io_dict[node_name]["ow"] * io_dict[node_name]["och"] * io_dict[node_name]["total"])
+        if io_dict[node_name]["out_par"] == 0:
+            io_dict[node_name]["out_par"] = 1
 
     # if double_packing:
     #     for node_name, ops in parallel_ops.items():

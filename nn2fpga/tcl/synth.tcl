@@ -15,8 +15,15 @@ add_files -cflags "-Icc/include -I${NN2FPGA_ROOT}/cc/include" \
   cc/src/memory_management.cc
 add_files -cflags "-Icc/include -I${NN2FPGA_ROOT}/cc/include" \
   cc/src/${TOP_NAME}.cc
-add_files -cflags "-Icc/include -I${NN2FPGA_ROOT}/cc/include" \
-  -tb ${TB_ROOT}/${TOP_NAME}_tb.cc
+if {${DATASET} == "dac2023"} {
+  puts ${PRJ_ROOT}/Vitis_Libraries/vision/L1/include/common/
+
+  add_files -cflags "-Icc/include -I${NN2FPGA_ROOT}/cc/include -I${PRJ_ROOT}/Vitis_Libraries/vision/L1/include/" \
+    -tb ${TB_ROOT}/${DATASET}/${TOP_NAME}_tb.cc
+} else {
+  add_files -cflags "-Icc/include -I${NN2FPGA_ROOT}/cc/include" \
+    -tb ${TB_ROOT}/${DATASET}/${TOP_NAME}_tb.cc
+}
 
 if {${CSIM} == 1} {
   csim_design

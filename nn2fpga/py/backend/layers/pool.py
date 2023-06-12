@@ -60,6 +60,7 @@ def info(io_dict, node, node_name, init_info, tensors_info):
     io_dict[node_name]["type"]   = 'pool'
     io_dict[node_name]["in_scale_factor"] = in_scale_factor
     io_dict[node_name]["actscale"] = []
+    io_dict[node_name]["is_adaptive"] = adaptive
 
     return io_dict
 
@@ -97,7 +98,10 @@ def parse(name, node):
     # block["template"].append("c_%s_in_scale_factor" % name)
 
     block["args"] = []
-    block["args"].append("s_%s[0]" % input_name)
+    if (node["is_adaptive"]):
+        block["args"].append("s_%s[0]" % input_name)
+    else:
+        block["args"].append("s_%s_compute" % input_name)
     block["args"].append("s_%s[0]" % output_name)
 
     block["defines"] = {}

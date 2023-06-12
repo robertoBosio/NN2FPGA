@@ -55,10 +55,10 @@ run_model:
 download_cifar10:
 	$(TB_ROOT)/cifar-10/download_cifar10.sh
 
-cosim: generate download_cifar10
+cosim: generate
 	make syn COSIM=1
 
-csim: generate download_cifar10
+csim: generate
 	make syn CSIM=1
 
 backend: syn vivado_flow
