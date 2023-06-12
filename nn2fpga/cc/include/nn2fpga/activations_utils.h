@@ -127,6 +127,14 @@ void concat_op(
       }
     }
   }
+}
+
+template <typename t_input, int c_feature_map, int c_upsample>
+void upsample_op(
+  hls::stream<t_input> &din,
+  hls::stream<t_input> &o_data
+)
+
 
 }  // namespace nn2fpga
 

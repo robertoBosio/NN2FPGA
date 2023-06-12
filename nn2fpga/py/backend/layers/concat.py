@@ -14,6 +14,19 @@ def info(io_dict, node, node_name, init_info, tensors_info):
     ]
     output_shape = tensors_info[node.output[0]].tensor_type.shape
 
+    # Changing names of the variables in input to concat
+    # To organize them in a vector that will be used in the concat function
+    input_vector_name = "s_%s_net" % node_name
+    for i, input in enumerate(node.input):
+        for name_iter, node_iter in io_dict.items():
+            if input in node_iter["output"]:
+                index = node_iter["output"].index(input)
+                io_dict[name_iter]["output"][index] = "%s[%0d]" % (input_vector_name, i)
+
+            if input in node_iter["input"]:
+                index = node_iter["input"].index(input)
+                io_dict[name_iter]["input"][index] = "%s[%0d]" % (input_vector_name, i)
+
     ich = []
     for input_shape in input_shapes: 
         ich.append(getattr(input_shape, 'dim')[1].dim_value)
