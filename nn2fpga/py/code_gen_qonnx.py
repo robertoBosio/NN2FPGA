@@ -81,7 +81,7 @@ def main():
 
     if object_detection:
         # anchors = [5,5, 6,13, 10,8, 16,12, 13,27, 27,19, 42,31, 69,51, 136,110]
-        anchors = [5,5, 6,13, 10,8]
+        anchors = [9,10, 21,18, 51,38]
         # divide anchors in group of 6 elements
         anchors = [anchors[i:i+6] for i in range(0, len(anchors), 6)]
         

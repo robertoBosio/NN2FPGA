@@ -31,7 +31,7 @@ def info(io_dict, graph_output_name, nl, anchors, cut_name, stride=32):
     io_dict[node_name]["total"] = total
     io_dict[node_name]["split"] = 2
     io_dict[node_name]["nl"] = nl
-    io_dict[node_name]["conf_th"] = 0.5
+    io_dict[node_name]["conf_th"] = 0.001
 
     return io_dict
 

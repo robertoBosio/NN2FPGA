@@ -114,7 +114,7 @@ t_input relu_op(t_input i_data) {
 template <typename t_input, int c_feature_map, int c_concat>
 void concat_op(
   hls::stream<t_input> din[c_concat],
-  constexpr int c_ich[c_concat],
+  const int c_ich[c_concat],
   hls::stream<t_input> &o_data
 ) {  
 
@@ -158,7 +158,6 @@ void upsample_op(
     }
   }
 }
-)
 
 
 }  // namespace nn2fpga
