@@ -20,7 +20,7 @@ def info(io_dict, nl, anchor, layer_name, nc=7, stride=32):
 
     io_dict[layer_name]["output"][0] = "%s_detect" % io_dict[layer_name]["output"][0]
     
-    node_name = "detect"
+    node_name = "node_%s"  % io_dict[layer_name]["output"][0]
 
     detect_lut, grid, anchor_grid = object_detection.detect_lut(
         nc = nc,

@@ -14,11 +14,12 @@ def info(io_dict, graph_output_name, nl, anchors, cut_name, stride=32):
 
     total = 0
     for layer_name in cut_name:
-        oh = io_dict[layer_name]["oh"]
-        ow = io_dict[layer_name]["ow"]
-        ich = io_dict[layer_name]["ich"]
-        total += oh*ow*ich
-        och = io_dict[layer_name]["och"]
+        detect_layer_name = "node_%s"  % io_dict[layer_name]["output"][0]
+        ih = io_dict[detect_layer_name]["ih"]
+        iw = io_dict[detect_layer_name]["iw"]
+        ich = io_dict[detect_layer_name]["ich"]
+        total += ih*iw*ich
+        och = io_dict[detect_layer_name]["och"]
     
     node_name = "non_max_suppression"
 
@@ -38,7 +39,7 @@ def info(io_dict, graph_output_name, nl, anchors, cut_name, stride=32):
 def parse(name, node):
 
     block = {}
-    block["func"] = "non_max_suppression"
+    block["func"] = "consume_stream"
 
     input_name  = node["input"][0]
     input_type_name = input_name.replace("_skip", "")
@@ -51,8 +52,7 @@ def parse(name, node):
     block["template"] = []
     block["template"].append("t_%s_struct" % input_type_name)
     block["template"].append("t_%s" % input_type_name)
-    block["template"].append("t_%s_struct" % output_type_name)
-    block["template"].append("t_%s" % output_type_name)
+    block["template"].append("t_o_outp1")
     block["template"].append("c_%s_och" % name)
     block["template"].append("c_%s_total" % name)
     block["template"].append("c_%s_split" % name)
@@ -62,25 +62,24 @@ def parse(name, node):
 
     block["args"].append("s_%s.out" % input_name)
     block["args"].append("c_%s_conf_th" % name)
-    block["args"].append("s_%s[0]" % output_name)
+    block["args"].append("o_outp1")
 
     block["output"] = []
-    block["output"].append("s_%s" % output_name)
+    block["output"].append("outp1")
 
     input_type = "ap_ufixed<32, 16>"
-    output_type = "ap_ufixed<32, 16>"
+    output_type = "ap_axiu<32, 0, 0, 0>"
     block["defines"] = {}
-    block["defines"]["t_%s" % output_name] = ["type", output_type]
-    block["defines"]["t_%s_struct" % output_name] = [
-        "struct",
-        [["data", "t_%s" % output_name], ["last", "bool"]]
-    ]
+    block["defines"]["t_o_%s" % output_name] = ["type", output_type]
 
     block["defines"]["c_%s_och" % name]     = ["const", node["och"]]
     block["defines"]["c_%s_total" % name]   = ["const", node["total"]]
     block["defines"]["c_%s_split" % name]   = ["const", node["split"]]
     block["defines"]["c_%s_nl" % name]      = ["const", node["nl"]]
     block["defines"]["c_%s_conf_th" % name] = ["const", node["conf_th"]]
+
+    block["defines"]["t_o_outp1"] = ["alias", "t_o_%s" % output_type_name]
+    block["defines"]["t_o_data"] = ["alias", "t_o_%s" % output_type_name]
 
     block["declare"] = []
     merge_type = "hls::merge::load_balance<t_%s_struct, %0d>" % (input_type_name, node["nl"])
@@ -93,22 +92,14 @@ def parse(name, node):
     declare["dim"] = 1
     block["declare"].append(declare)
 
-    declare = {}
-    declare["name"] = "s_%s" % output_name
-    declare["type"] = "t_%s_struct" % output_type_name
-    declare["is_array"] = True
-    declare["dim"] = 1
-    block["declare"].append(declare)
-    depth = 2
-
     block["pragma"] = []
     pragma = {}
-    pragma["name"] = "stream"
+    pragma["name"] = "interface"
     options = [
-        ["variable", "s_%s" % output_name],
-        ["depth", "%0d" % depth],
-        ["type", "fifo"],
+        ["port", "o_outp1"],
+        ["mode", "axis"],
     ]
     pragma["options"] = options
+
     block["pragma"].append(pragma)
     return block 

@@ -2,8 +2,6 @@ import os
 import sys
 import math
 
-from primefac import primefac
-
 def find_divisors(layers_info, clamp=33):
     all_divisors = []
     layers_divisors = []

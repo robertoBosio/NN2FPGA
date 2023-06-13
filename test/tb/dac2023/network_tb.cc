@@ -1,12 +1,9 @@
 #include <ap_utils.h>
 #include <unistd.h>
 
-#include "common/xf_headers.hpp"
-#include "aie/imgproc/xf_resize_config.hpp"
-
-#include "../../test/tb/cifar10/include/cifar/cifar10_reader.hpp"
-#include "../../nn2fpga/cc/include/nn2fpga/debug.h"
-#include "../../work/cc/include/network_sim.h"
+#include <opencv2/opencv.hpp>
+#include "../../../nn2fpga/cc/include/nn2fpga/debug.h"
+#include "../../../work/cc/include/network_sim.h"
 #include "hls_stream.h"
 /* #include "MemoryWeights.hpp" */
 /* #include "../src/MemoryManagement.hpp" */
@@ -29,7 +26,6 @@ int main() {
     char cwd[100];
     std::cout << "CURRENT WORKING DIRECTORY" << std::endl;
     std::cout << getcwd(cwd, sizeof(cwd)) << std::endl;
-    auto dataset = cifar::read_dataset<std::vector, std::vector, char, char>();
 
     /* for (int i = 0; i < dataset.test_images.size(); i++) { */
     /* 	std::cout << dataset.test_images.at(i) << ' '; */
@@ -46,12 +42,13 @@ int main() {
     int s_bytes = 0;
     cv::Mat img;
     cv::Mat result_ocv;
-    cv::Mat error;
-    img = cv::imread("000001.jpg",1);
+    
+    img = cv::imread("/home/filippo/workspace/NN2FPGA/test/tb/dac2023/00001.jpg");
+
+    std::cout << img.rows << " " << img.cols << std::endl;
 
     result_ocv.create(cv::Size(640, 640),CV_8UC3);
-    error.create(cv::Size(640, 640),CV_8UC3);
-    cv::resize(img,result_ocv,cv::Size(640,640),0,0,CV_INTER_LINEAR);
+    cv::resize(img,result_ocv,cv::Size(640,640),0,0,cv::INTER_LINEAR);
 
     // Iterate over elements of result_ocv per channel
     for (int i = 0; i < result_ocv.rows; i++) {
@@ -90,30 +87,17 @@ int main() {
     networkSim(i_data,
             o_data_sim);
 
-    std::cout << "" << std::endl;
     t_o_data s_o_data;
     s_o_data = o_data_sim.read();
-    int32_t max_value = -1;
-    max_value = (int32_t)(s_o_data.data);
-    std::cout << (int32_t)(s_o_data.data) << std::endl;
-    int max_index = 0;
-    int s_index = 1;
 
     do {
         s_o_data = o_data_sim.read();
         std::cout << (int32_t)(s_o_data.data) << std::endl;
-        if ((int32_t)(s_o_data.data) > max_value) {
-        max_value = (int32_t)(s_o_data.data);
         /* std::cout << "INDEX " << s_index << std::endl; */
         /* std::cout << "MAX VALUE " << (int32_t)(max_value) << std::endl; */
-        max_index = s_index;
-        }
-        s_index++;
     } while (!s_o_data.last);
-    results[s_batch] = max_index;
 
     s_batch++;
-    if (s_batch == c_batch) break;
 
     const int n_bytes_labels = c_batch;
 

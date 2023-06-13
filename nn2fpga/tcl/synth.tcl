@@ -18,7 +18,7 @@ add_files -cflags "-Icc/include -I${NN2FPGA_ROOT}/cc/include" \
 if {${DATASET} == "dac2023"} {
   puts ${PRJ_ROOT}/Vitis_Libraries/vision/L1/include/common/
 
-  add_files -cflags "-Icc/include -I${NN2FPGA_ROOT}/cc/include -I${PRJ_ROOT}/Vitis_Libraries/vision/L1/include/" \
+  add_files -cflags "-Icc/include -I${NN2FPGA_ROOT}/cc/include -I/usr/local/include/opencv4/ -I${PRJ_ROOT}/Vitis_Libraries/vision/L1/include/ -lopencv_imgproc -lopencv_core -lopencv_imgcodecs" \
     -tb ${TB_ROOT}/${DATASET}/${TOP_NAME}_tb.cc
 } else {
   add_files -cflags "-Icc/include -I${NN2FPGA_ROOT}/cc/include" \

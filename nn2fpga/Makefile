@@ -20,6 +20,7 @@ restore_design:
 		$(NN2FPGA_ROOT)
 
 syn:
+	mkdir -p $(PRJ_ROOT)/cc/src/ $(PRJ_ROOT)/cc/include/ && \
 	cd $(PRJ_ROOT) && vitis_hls -f $(NN2FPGA_ROOT)/tcl/synth.tcl \
 		$(NN2FPGA_ROOT)
 

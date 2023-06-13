@@ -76,6 +76,8 @@ def parse_all_main(io_dict):
 
     parsed_const = []
 
+    no_output_gen = False
+
     for name, node in io_dict.items():
 
         if 'produce' == node["type"]:
@@ -120,13 +122,15 @@ def parse_all_main(io_dict):
             parsed_write.append(
                 non_max_suppression.parse(name, node)
             )
+            no_output_gen = True
 
 
         last_node_name = name
 
-    parsed_write.append(
-        output_gen.parse(parsed_write, last_node_name)
-    )
+    if not no_output_gen:
+        parsed_write.append(
+            output_gen.parse(parsed_write, last_node_name)
+        )
 
     return parsed_write, parsed_const
 
