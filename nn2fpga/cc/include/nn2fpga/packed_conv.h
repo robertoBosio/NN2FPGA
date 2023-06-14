@@ -295,7 +295,7 @@ void stream_output(hls::stream<t_acc_struct> i_acc[c_ops],
                  c_oh, c_ow, c_index, c_ops, c_relu>(s_acc[s_och], o_data);
 
     if constexpr(std::is_same<t_acc_1x1_struct, std::nullptr_t>::value == false) {
-      quant_stream<t_output_1x1_struct, t_output_1x1, nullptr_t, nullptr_t, t_acc_1x1_struct, t_acc_1x1,
+      quant_stream<t_output_1x1_struct, t_output_1x1, std::nullptr_t, std::nullptr_t, t_acc_1x1_struct, t_acc_1x1,
                   c_ich, c_och, c_oh, c_ow, 1, 1, 0>(s_acc_1x1[s_och], o_data_1x1);
     }
   }

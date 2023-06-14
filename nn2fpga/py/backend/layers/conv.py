@@ -378,7 +378,7 @@ def parse_comp(name, node):
         input_type_mod = get_quant_type(True, node["in_bits"][0], node["in_scale_factor"][0])
 
     else:
-        input_type_mod = "nullptr_t"
+        input_type_mod = "std::nullptr_t"
 
     block["defines"]["t_%s_mod" % input_name] = ["type", input_type_mod]
 
@@ -387,7 +387,7 @@ def parse_comp(name, node):
         if (node["in_scale_factor"][1] is not None):
             input_1x1_type = get_quant_type(True, node["bits"][1], node["in_scale_factor"][1])
         else:
-            input_1x1_type = "nullptr_t"
+            input_1x1_type = "std::nullptr_t"
         block["defines"]["t_%s_1x1" % input_name] = ["type", input_1x1_type]
 
         if (node["in_scale_factor"][1] is not None):

@@ -13,6 +13,7 @@ set DATASET $::env(DATASET)
 set PRJ_ROOT $::env(PRJ_ROOT)
 set TOP_NAME $::env(TOP_NAME)
 set URAM_STORAGE $::env(URAM_STORAGE)
+set OBJECT_DETECTION $::env(OBJECT_DETECTION)
 
 if {$BOARD == "PYNQ"} {
 	set FPGA_PART "xc7z020clg400-1"
