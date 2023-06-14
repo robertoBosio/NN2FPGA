@@ -39,6 +39,8 @@ def info(io_dict, node, node_name, init_info, tensors_info):
         stride = attr_dict["strides"][0]
         pad    = attr_dict["pads"][0]
 
+    adaptive |= (fh == iw) and (fw == ih) and (stride == 1) and (pad == 0)
+
     in_scale_factor = 0
 
     if 'max' in node.op_type.lower():

@@ -83,6 +83,8 @@ def parse_wout(name, node):
     block["template"] = []
     block["template"].append("t_%s_struct" % output_type_name)
     block["template"].append("t_%s" % output_type_name)
+    block["template"].append("t_%s_clip" % output_type_name)
+    block["template"].append("t_%s_mask" % output_type_name)
     if (node["merge_1x1"]):
         block["template"].append("t_%s_struct" % output_1x1_name)
         block["template"].append("t_%s" % output_1x1_name)
@@ -109,6 +111,8 @@ def parse_wout(name, node):
     block["defines"] = {}
 
     output_type = get_quant_type(node["signed"], node["bits"][0], node["scale_factor"][0])
+    output_type_clip = get_quant_type(node["clip_signed"][0], node["bits"][0], node["clip_factor"][0])
+    output_type_mask = get_quant_type(node["mask_signed"][0], node["bits"][0], node["mask_factor"][0])
 
     block["defines"] = {}
     block["defines"]["t_%s" % output_name] = ["type", output_type]
@@ -116,6 +120,8 @@ def parse_wout(name, node):
         "struct",
         [["data", "t_%s" % output_name], ["last", "bool"]]
     ]
+    block["defines"]["t_%s_clip" % output_name] = ["type", output_type_clip]
+    block["defines"]["t_%s_mask" % output_name] = ["type", output_type_mask]
 
     if (node["merge_1x1"]):
         output_type_1x1 = get_quant_type(True, node["bits"][1], node["scale_factor"][1])
@@ -142,10 +148,6 @@ def parse_wout(name, node):
     #     signed=signed
     # )
 
-    # block["defines"]["c_%s_mask" % output_name] = ["const", reduced_mask]
-    # block["defines"]["c_%s_shift_h" % output_name] = ["const", reduced_clip]
-    # block["defines"]["c_%s_shift_l" % output_name] = ["const", diff_scale]
-
     # if (node["merge_1x1"]):
         # actscale = node["actscale"][0]
         # if node["in_scale_factor"][1] is not None:
@@ -159,9 +161,6 @@ def parse_wout(name, node):
         #     node["mask_factor"][1],
         #     signed=True
         # )
-        # block["defines"]["c_%s_mask" % output_1x1_name] = ["const", reduced_mask]
-        # block["defines"]["c_%s_shift_h" % output_1x1_name] = ["const", reduced_clip]
-        # block["defines"]["c_%s_shift_l" % output_1x1_name] = ["const", diff_scale]
 
     # block["defines"]["c_%s_in_shift_h" % input_name] = ["const", reduced_clip]
     # block["defines"]["c_%s_in_shift_l" % input_name] = ["const", diff_scale]
@@ -366,6 +365,7 @@ def parse_comp(name, node):
     block["template"].append("c_%s_ops" % name)
     block["template"].append("c_%s_reuse" % name)
 
+    print(name, node)
     acc_type = get_quant_type(True, 32, node["actscale"][0]+node["wscale"][0])
     block["defines"] = {}
     block["defines"]["t_%s_acc" % output_name] = ["type", acc_type]
@@ -376,27 +376,24 @@ def parse_comp(name, node):
 
     if (node["in_scale_factor"][0] is not None):
         input_type_mod = get_quant_type(True, node["in_bits"][0], node["in_scale_factor"][0])
-        diff_scale, reduced_clip = backend.quant.compute_in_quant(
-            node["actscale"][0],
-            node["in_scale_factor"][0]
-        )
 
     else:
         input_type_mod = "nullptr_t"
 
-    block["defines"]["t_%s_mode" % input_name] = ["type", input_type_mod]
+    block["defines"]["t_%s_mod" % input_name] = ["type", input_type_mod]
 
     if (node["merge_1x1"]):
 
-        input_1x1_type = get_quant_type(True, node["bits"][1], node["scale_factor"][1])
-        block["defines"]["t_%s_1x1" % input_name] = ["type", input_1x1_type]
         if (node["in_scale_factor"][1] is not None):
-            if len(node["actscale"]) == 1:
-                actscale = node["actscale"][0]
-            else:
-                actscale = node["actscale"][1]
+            input_1x1_type = get_quant_type(True, node["bits"][1], node["in_scale_factor"][1])
+        else:
+            input_1x1_type = "nullptr_t"
+        block["defines"]["t_%s_1x1" % input_name] = ["type", input_1x1_type]
 
-        acc_type_1x1 = get_quant_type(True, 32, node["actscale"][0]+node["wscale"][0])
+        if (node["in_scale_factor"][1] is not None):
+            acc_type_1x1 = get_quant_type(True, 32, node["in_scale_factor"][1]+node["wscale"][1])
+        else:
+            acc_type_1x1 = get_quant_type(True, 32, node["actscale"][0]+node["wscale"][1])
 
         block["defines"]["t_%s_acc" % output_1x1_name] = ["type", acc_type_1x1]
         block["defines"]["t_%s_acc_struct" % output_1x1_name] = [

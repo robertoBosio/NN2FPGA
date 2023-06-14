@@ -22,8 +22,8 @@ def find_divisors(layers_info, clamp=33):
     return all_divisors, layers_divisors, layers_offset, layers_name
 
 def find_range(divisors, ilp_value):
-    low_range = 0
-    high_range = 0
+    low_range = 1
+    high_range = 1
     for i, divisor in enumerate(divisors):
         if (i == 0):
             high_range = divisor

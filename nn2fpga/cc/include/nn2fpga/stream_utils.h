@@ -21,14 +21,14 @@ PRODSTR:
 #pragma HLS pipeline style = stp
     auto par = i % PAR;
 
-    ap_fixed<8,0> din;
+    ap_ufixed<8,0> din;
     if (par == 0) {
       dinWrap = dinStream.read();
       din_par = dinWrap.data;
     }
 
     dout_wrap_t doutWrap;
-    din.range(7,0) = (din_t)(din_par & 0xff);
+    din.range(7,0) = din_par & 0xff;
     doutWrap.data = dout_t(din);
 
     if (par < (PAR - 1)) {

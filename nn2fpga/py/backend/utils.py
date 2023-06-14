@@ -41,7 +41,7 @@ def write_const(fd, values, i, dims, form="int"):
 
     if (i == (dims)):
         if form == "float":
-            fd.write("%0.5f" % values)
+            fd.write("%0.16f" % values)
         else:
             fd.write("%0d" % values)
     else:
@@ -89,7 +89,7 @@ def write_declare(fd, variable):
                 write_const(fd, variable["init"], 0, len(variable["init"].shape), form)
             else:
                 if form == "float":
-                    fd.write("%0.5f" % variable["init"])
+                    fd.write("%0.16f" % variable["init"])
                 else:
                     fd.write("%0d" % variable["init"])
 
@@ -162,7 +162,7 @@ def write_defines(fd, values):
 
         if value[0] == 'const_float':
             fd.write(
-                "const ap_fixed<32,16> %s = %.5f;\n" % (
+                "const ap_fixed<32,16> %s = %.16f;\n" % (
                     name,
                     value[1]
                 )

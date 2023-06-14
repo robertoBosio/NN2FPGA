@@ -231,7 +231,8 @@ void conv_comp(hls::stream<t_input_struct> i_input[c_index],
 
 //////////////////////////////////////////////////////////////////////////////
 
-template <class t_output_struct, class t_output, class t_acc_struct,
+template <class t_output_struct, class t_output, class t_output_clip,
+          class t_output_mask, class t_acc_struct,
           class t_acc, int c_ich, int c_och, int c_oh, int c_ow, int c_index,
           int c_ops, int c_relu>
 void quant_stream(t_acc_struct i_acc, hls::stream<t_output_struct> o_data[1]) {
@@ -244,14 +245,21 @@ void quant_stream(t_acc_struct i_acc, hls::stream<t_output_struct> o_data[1]) {
   if (c_relu == 1) {
     s_acc = relu_op<t_acc>(s_acc);
   }
+  if constexpr(std::is_same<t_output_clip, std::nullptr_t>::value == false) {
+    s_acc = t_output_clip(s_acc);
+  }
+  if constexpr(std::is_same<t_output_mask, std::nullptr_t>::value == false) {
+    s_acc = t_output_mask(s_acc);
+  }
   s_output.data = t_output(s_acc);
+  // std::cout << s_output.data << " ";
   s_output.last = s_acc_struct.last;
 
   o_data[0].write(s_output);
 }
 
-template <class t_output_struct, class t_output, class t_output_1x1_struct,
-          class t_output_1x1, class t_acc_struct, class t_acc,
+template <class t_output_struct, class t_output, class t_output_clip, class t_output_mask,
+          class t_output_1x1_struct, class t_output_1x1, class t_acc_struct, class t_acc,
           class t_acc_1x1_struct, class t_acc_1x1, int c_ich, int c_och,
           int c_oh, int c_ow, int c_index, int c_ops, int c_relu, int c_stride>
 void stream_output(hls::stream<t_acc_struct> i_acc[c_ops],
@@ -283,11 +291,11 @@ void stream_output(hls::stream<t_acc_struct> i_acc[c_ops],
       }
     }
 
-    quant_stream<t_output_struct, t_output, t_acc_struct, t_acc, c_ich, c_och,
+    quant_stream<t_output_struct, t_output, t_output_clip, t_output_mask, t_acc_struct, t_acc, c_ich, c_och,
                  c_oh, c_ow, c_index, c_ops, c_relu>(s_acc[s_och], o_data);
 
     if constexpr(std::is_same<t_acc_1x1_struct, std::nullptr_t>::value == false) {
-      quant_stream<t_output_1x1_struct, t_output_1x1, t_acc_1x1_struct, t_acc_1x1,
+      quant_stream<t_output_1x1_struct, t_output_1x1, nullptr_t, nullptr_t, t_acc_1x1_struct, t_acc_1x1,
                   c_ich, c_och, c_oh, c_ow, 1, 1, 0>(s_acc_1x1[s_och], o_data_1x1);
     }
   }
