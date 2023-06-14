@@ -4,6 +4,7 @@ import sys
 import qonnx
 from onnx import numpy_helper
 import numpy as np
+from backend.layers.quant import get_quant_type
 
 def info(io_dict, node, node_name, init_info, tensors_info):
 
@@ -61,6 +62,7 @@ def info(io_dict, node, node_name, init_info, tensors_info):
     io_dict[node_name]["in_scale_factor"] = in_scale_factor
     io_dict[node_name]["actscale"] = []
     io_dict[node_name]["is_adaptive"] = adaptive
+    io_dict[node_name]["actbits"] = []
 
     return io_dict
 
@@ -94,7 +96,6 @@ def parse(name, node):
     block["template"].append("c_%s_stride" % name)
     block["template"].append("c_%s_pad" % name)
     block["template"].append("c_%s_pool" % name)
-    block["template"].append("c_%s_scale_factor" % name)
     # block["template"].append("c_%s_in_scale_factor" % name)
 
     block["args"] = []
@@ -105,11 +106,7 @@ def parse(name, node):
     block["args"].append("s_%s[0]" % output_name)
 
     block["defines"] = {}
-    if (signed):
-        output_type = "int8_t"
-    else:
-        output_type = "uint8_t"
-
+    output_type = get_quant_type(node["signed"], node["bits"][0], node["scale_factor"][0])
     block["defines"]["t_%s" % output_type_name] = ["type", output_type]
     block["defines"]["t_%s_struct" % output_type_name] = [
         "struct",
@@ -119,7 +116,8 @@ def parse(name, node):
     if node["pool"] == 1:
         block["defines"]["t_%s_acc" % name]            = ["type", output_type]
     else:
-        block["defines"]["t_%s_acc" % name]            = ["type", "int32_t"]
+        acc_type = get_quant_type(True, 32, node["actscale"][0])
+        block["defines"]["t_%s_acc" % name]            = ["type", acc_type]
     block["defines"]["c_%s_ich" % name]            = ["const", node["ich"]]
     block["defines"]["c_%s_och" % name]            = ["const", node["och"]]
     block["defines"]["c_%s_iw" % name]             = ["const", node["iw"]]
@@ -131,17 +129,6 @@ def parse(name, node):
     block["defines"]["c_%s_stride" % name]         = ["const", node["stride"]]
     block["defines"]["c_%s_pad" % name]            = ["const", node["pad"]]
     block["defines"]["c_%s_pool" % name]           = ["const", node["pool"]]
-    if "scale_factor" in node.keys():
-        if (len(node["actscale"]) > 0):
-            off = -1*(node["actscale"][0])
-        else:
-            off = 0
-
-        diff_scale = off + node["scale_factor"][0] + node["in_scale_factor"]
-        block["defines"]["c_%s_scale_factor" % name] = [
-            "const", 
-            diff_scale
-        ]
 
     block["declare"] = []
 

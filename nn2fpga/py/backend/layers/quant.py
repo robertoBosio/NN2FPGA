@@ -6,6 +6,16 @@ import qonnx
 from onnx import numpy_helper
 import numpy as np
 
+def get_quant_type(signed, bit_width, scale_factor):
+    type_name = ""
+    type_name += "ap_fixed" if signed else "ap_ufixed"
+    type_name += "<"
+    type_name += str(int(bit_width))
+    type_name += ","
+    type_name += str(int(bit_width+scale_factor))
+    type_name += ">"
+    return type_name
+
 def info(io_dict, node, node_name, init_info, tensors_info):
 
     scale_name   = io_dict[node_name]["input"][1]

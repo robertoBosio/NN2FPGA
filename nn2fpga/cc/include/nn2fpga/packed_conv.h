@@ -18,8 +18,7 @@ namespace nn2fpga {
 template <class t_input, class t_weight, class t_bias,
           class t_add_struct, class t_acc_struct, class t_acc,
           int c_reuse, int c_index,
-          int c_ops, int c_ich, int c_och, int c_shift_l, int c_shift_h,
-          int c_add_shift_l>
+          int c_ops, int c_ich, int c_och>
 void conv_pipe(
     t_input i_input[c_reuse][c_index],
     t_weight i_weight[c_index],
@@ -76,12 +75,10 @@ void conv_pipe(
 
 ////////////////////////////////////////////////////////////////////////////////
 template <class t_input_struct, class t_input, class t_weight, class t_bias,
-          class t_add_struct, class t_forward_struct, class t_weight_1x1, 
-          class t_bias_1x1, class t_acc_struct, class t_acc,
+          class t_add_struct, class t_forward_struct, class t_input_mod, class t_input_1x1,
+          class t_weight_1x1, class t_bias_1x1, class t_acc_struct, class t_acc,
           class t_acc_1x1_struct, class t_acc_1x1, int c_ich, int c_och,
-          int c_oh, int c_ow, int c_index, int c_str, int c_ops, int c_reuse,
-          int c_shift_h, int c_shift_l, int c_shift_h_1x1, int c_shift_l_1x1,
-          int c_add_shift_l>
+          int c_oh, int c_ow, int c_index, int c_str, int c_ops, int c_reuse>
 void conv_comp(hls::stream<t_input_struct> i_input[c_index],
                hls::stream<t_weight> i_weights[c_index],
                hls::stream<t_bias> i_bias[1],
@@ -168,16 +165,14 @@ void conv_comp(hls::stream<t_input_struct> i_input[c_index],
             t_weight,
             t_bias,
             t_add_struct,
+            t_input_mod,
             t_acc_struct,
             t_acc,
             c_reuse,
             c_index,
             c_ops,
             c_ich,
-            c_och,
-            c_shift_l,
-            c_shift_h,
-            c_add_shift_l
+            c_och
           > (
             s_input,
             s_weight,
@@ -199,16 +194,14 @@ void conv_comp(hls::stream<t_input_struct> i_input[c_index],
               t_weight_1x1,
               t_bias_1x1,
               std::nullptr_t,
+              t_input_1x1,
               t_acc_1x1_struct,
               t_acc_1x1,
               c_reuse,
               1,
               c_ops,
               c_ich,
-              c_och,
-              c_shift_l_1x1,
-              c_shift_h_1x1,
-              0
+              c_och
             > (
               s_input_1x1,
               s_weight_1x1,

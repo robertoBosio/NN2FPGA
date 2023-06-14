@@ -63,6 +63,7 @@ def hw_quant(model, io_dict):
             is_quant1 = 'quant' in io_dict[layer_out_name].keys()
             if is_quant0 and is_quant1:
                 in_scale_factors = io_dict[layer_in_name]["scale_factor"]
+                in_bits = io_dict[layer_in_name]["bits"]
 
                 # Multiple outputs from previous layer in case of skip 
                 # connections
@@ -70,10 +71,17 @@ def hw_quant(model, io_dict):
                 scale_index0 = in_net_names.index(net_name)
                 scale_factor0 = in_scale_factors[scale_index0]
 
+                bits_index0 = in_net_names.index(net_name)
+                bits0 = in_bits[bits_index0]
+
                 io_dict[layer_out_name]["actscale"].append(scale_factor0)
+                io_dict[layer_out_name]["actbits"].append(bits0)
             elif is_weight and is_not_bias:
                 scale_factor = io_dict[layer_in_name]["scale_factor"]
                 io_dict[layer_out_name]["wscale"].append(scale_factor)
+
+                bits = io_dict[layer_in_name]["bits"]
+                io_dict[layer_out_name]["wbits"].append(bits)
 
 
     return io_dict
@@ -94,6 +102,7 @@ def merge_quant(io_dict, quant_info, inherit_quant=False):
             new_node = {}
             new_node.setdefault("seq", [])
             new_node.setdefault("seq_scale", [])
+            new_node.setdefault("seq_bits", [])
             new_node.setdefault("seq_out", [])
             new_node.setdefault("seq_clip", [])
             new_node.setdefault("seq_mask", [])
@@ -115,6 +124,7 @@ def merge_quant(io_dict, quant_info, inherit_quant=False):
                             new_node[new_output] = new_node_name
                             new_node["seq"].append(new_node_name)
                             new_node["seq_scale"].append(new_scale)
+                            new_node["seq_bits"].append(new_bits)
                             new_node["seq_out"].append(new_output)
                             new_node["changed"] = True
 
@@ -149,6 +159,7 @@ def merge_quant(io_dict, quant_info, inherit_quant=False):
                 new_node[output] = quant_info[name][output]
                 new_node["seq"].append(quant_info[name]["seq"][i])
                 new_node["seq_scale"].append(quant_info[name]["seq_scale"][i])
+                new_node["seq_bits"].append(quant_info[name]["seq_bits"][i])
                 new_node["seq_out"].append(quant_info[name]["seq_out"][i])
                 new_node["seq_clip"].append(quant_info[name]["seq_clip"][i])
                 new_node["seq_mask"].append(quant_info[name]["seq_mask"][i])
@@ -174,6 +185,7 @@ def merge_quant(io_dict, quant_info, inherit_quant=False):
         if "quant" in name.lower():
             new_output  = []
             new_scale   = []
+            new_bits   = []
             new_clip   = []
             new_mask   = []
             # The quant_info database is already selecting the point where 
@@ -185,11 +197,13 @@ def merge_quant(io_dict, quant_info, inherit_quant=False):
                     seq = quant_info[input_name]["seq"]
                     seq_out = quant_info[input_name]["seq_out"]
                     seq_scale = quant_info[input_name]["seq_scale"]
+                    seq_bits = quant_info[input_name]["seq_bits"]
                     seq_clip = quant_info[input_name]["seq_clip"]
                     seq_mask = quant_info[input_name]["seq_mask"]
                     for i, next_output in enumerate(seq_out):
                         new_output.append(next_output)
                         new_scale.append(seq_scale[i])
+                        new_bits.append(seq_bits[i])
                         new_clip.append(seq_clip[i])
                         new_mask.append(seq_mask[i])
                     for rem_name in quant_info[input_name]["removed"]:
@@ -198,6 +212,7 @@ def merge_quant(io_dict, quant_info, inherit_quant=False):
             if len(new_output) > 0:
                 io_dict[name]["output"] = new_output
                 io_dict[name]["scale_factor"] = new_scale
+                io_dict[name]["bits"] = new_bits
                 io_dict[name]["clip"] = new_clip
                 io_dict[name]["mask"] = new_mask
 
@@ -223,6 +238,8 @@ def extract_quant_info(model, io_dict, init_info):
             scale_info   = init_info[scale_name]
             scale_factor = numpy_helper.to_array(scale_info)
             scale_factor = np.log2(scale_factor)
+            bits_name    = io_dict[node_name]["input"][3]
+            bits = init_info[bits_name]
             clip = node["clip"]
             mask = node["mask"]
 
@@ -231,6 +248,7 @@ def extract_quant_info(model, io_dict, init_info):
             quant_info.setdefault(node["input"][0], {})
             quant_info[node["input"][0]].setdefault("seq", [])
             quant_info[node["input"][0]].setdefault("seq_scale", [])
+            quant_info[node["input"][0]].setdefault("seq_bits", [])
             quant_info[node["input"][0]].setdefault("seq_out", [])
             quant_info[node["input"][0]].setdefault("others", [])
             quant_info[node["input"][0]].setdefault("others_scale", [])
@@ -243,6 +261,7 @@ def extract_quant_info(model, io_dict, init_info):
             quant_info[node["input"][0]][node["output"][0]] = node_name
             quant_info[node["input"][0]]["seq"].append(node_name)
             quant_info[node["input"][0]]["seq_scale"].append(scale_factor)
+            quant_info[node["input"][0]]["seq_bits"].append(bits)
             quant_info[node["input"][0]]["seq_out"].append(node["output"][0])
             quant_info[node["input"][0]]["seq_clip"].append(clip)
             quant_info[node["input"][0]]["seq_mask"].append(mask)
@@ -256,6 +275,9 @@ def extract_quant_info(model, io_dict, init_info):
                 if input in quant_info.keys():
                     scale_factor = quant_info[input]["seq_scale"][0]
                     quant_info[input]["others"].append(node_name)
+
+                    bits_factor = quant_info[input]["seq_bits"][0]
+                    quant_info[input]["others_bits"].append(node_name)
 
     return quant_info
 
