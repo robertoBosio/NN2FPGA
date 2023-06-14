@@ -12,14 +12,14 @@ template <typename t_data_struct, typename t_data,
           int SPLIT, int NL>
           void consume_stream(
             hls::stream<t_data_struct> &i_data,
-            const ap_ufixed<8,8> conf_th,
+            const ap_fixed<32,16> conf_th,
             hls::stream<t_box> &o_data
           ) {
 
     // Rewriting the following code in C++ HLS
 
     bool detected;
-    ap_ufixed<8,8> detected_class;
+    ap_fixed<32,16> detected_class;
     auto detected_class_index = 0;
     t_data box;
 
@@ -52,14 +52,14 @@ template <typename t_data_struct, typename t_data,
 
             if ((j > SPLIT*2) & (detected == true) & s_buffer[j] > detected_class) {
                 detected_class = s_buffer[j];
-                detected_class_index = j - SPLIT*2;
+                detected_class_index = j - SPLIT*2 - 1;
             }
 
             if ((j == OCH - 1) & (detected == true))  {
                 if (detected_class > conf_th) {
-                    box[5] = detected_class;
+                    box[4] = detected_class_index;
                     t_box dout_write;
-                    for (auto i = 0; i < NL; i++) {
+                    for (auto i = 0; i < 5; i++) {
                         dout_write.data = box[i];
                         dout_write.last = din_last;
                         dout_write.keep = 0xff;

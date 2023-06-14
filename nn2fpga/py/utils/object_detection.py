@@ -16,8 +16,8 @@ def detect_lut(nc, anchors, ch, input_shape, stride=32, bit_width=8, scale=-9.0)
     detect.stride = stride
 
     # Create a file to write the output
-    with open("../work/detect_lut.txt", "w") as f:
-        f.write("")
+    # with open("../work/detect_lut.txt", "w") as f:
+    #     f.write("")
 
     val_list = []
     # Iterate over signed integer range with number of bits equal to bit_width
@@ -43,13 +43,19 @@ def detect_lut(nc, anchors, ch, input_shape, stride=32, bit_width=8, scale=-9.0)
         anchor_grid_values_y = data[..., :, 1].unique().tolist()
         anchor_grid.append([anchor_grid_values_x, anchor_grid_values_y])
     
-    grid = []
+    # print("anchor_grid: ", anchor_grid)
+    # exit()
+    
+    grid_h = []
+    grid_w = []
     for data in detect.grid:
         # get possible values of grid from detect.grid element
-        grid_values = data[..., :, 0].unique().tolist()
-        grid.append(grid_values)
+        grid_values_w = data[..., :, 0].unique().tolist()
+        grid_values_h = data[..., :, 1].unique().tolist()
+        grid_h.append(grid_values_h)
+        grid_w.append(grid_values_w)
 
-    return val_list, grid, anchor_grid
+    return val_list, grid_h, grid_w, anchor_grid
 
     # write the output to a file in ../work/cc/include/ directory
     with open("../work/cc/include/detect_lut.h", "w") as f:
@@ -87,7 +93,8 @@ def detect_lut(nc, anchors, ch, input_shape, stride=32, bit_width=8, scale=-9.0)
         # write detect.grid to file
         for grid in detect.grid:
             # get possible values of grid from detect.grid element
-            grid_values = grid[..., :, 0].unique().tolist()
+            grid_values_w = grid[..., :, 0].unique().tolist()
+            grid_values_h = grid[..., :, 1].unique().tolist()
             # for each value in grid_values
             for i in range(len(grid_values)):
                 # write the values in the form of hls::vector

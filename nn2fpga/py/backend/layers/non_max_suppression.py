@@ -67,8 +67,8 @@ def parse(name, node):
     block["output"] = []
     block["output"].append("outp1")
 
-    input_type = "ap_ufixed<32, 16>"
-    output_type = "ap_axiu<32, 0, 0, 0>"
+    input_type = "ap_fixed<32, 16>"
+    output_type = "hls::axis<ap_fixed<32, 16>, 0, 0, 0>"
     block["defines"] = {}
     block["defines"]["t_o_%s" % output_name] = ["type", output_type]
 
@@ -76,7 +76,7 @@ def parse(name, node):
     block["defines"]["c_%s_total" % name]   = ["const", node["total"]]
     block["defines"]["c_%s_split" % name]   = ["const", node["split"]]
     block["defines"]["c_%s_nl" % name]      = ["const", node["nl"]]
-    block["defines"]["c_%s_conf_th" % name] = ["const", node["conf_th"]]
+    block["defines"]["c_%s_conf_th" % name] = ["const_float", node["conf_th"]]
 
     block["defines"]["t_o_outp1"] = ["alias", "t_o_%s" % output_type_name]
     block["defines"]["t_o_data"] = ["alias", "t_o_%s" % output_type_name]

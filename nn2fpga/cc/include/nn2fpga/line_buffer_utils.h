@@ -53,7 +53,7 @@ void shift_op(hls::stream<din_t> &din, hls::stream<din_t> &o_compute) {
   }
 }
 
-template <typename din_t, int ICH, int IW, int IH, int c_fw, int c_fh,
+template <typename din_t, int ICH, int IH, int IW, int c_fw, int c_fh,
           int c_str, int c_pad>
 void pad_input(hls::stream<din_t> din[c_fw * c_fh],
                hls::stream<din_t> o_data[c_fw * c_fh]) {

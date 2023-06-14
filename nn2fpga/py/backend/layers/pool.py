@@ -116,7 +116,10 @@ def parse(name, node):
         [["data", "t_%s" % output_type_name], ["last", "bool"]]
     ]
 
-    block["defines"]["t_%s_acc" % name]            = ["type", "int32_t"]
+    if node["pool"] == 1:
+        block["defines"]["t_%s_acc" % name]            = ["type", output_type]
+    else:
+        block["defines"]["t_%s_acc" % name]            = ["type", "int32_t"]
     block["defines"]["c_%s_ich" % name]            = ["const", node["ich"]]
     block["defines"]["c_%s_och" % name]            = ["const", node["och"]]
     block["defines"]["c_%s_iw" % name]             = ["const", node["iw"]]

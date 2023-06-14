@@ -47,8 +47,8 @@ int main() {
 
     std::cout << img.rows << " " << img.cols << std::endl;
 
-    result_ocv.create(cv::Size(640, 640),CV_8UC3);
-    cv::resize(img,result_ocv,cv::Size(640,640),0,0,cv::INTER_LINEAR);
+    result_ocv.create(cv::Size(672, 384),CV_8UC3);
+    cv::resize(img,result_ocv,cv::Size(672,384),0,0,cv::INTER_LINEAR);
 
     // Iterate over elements of result_ocv per channel
     for (int i = 0; i < result_ocv.rows; i++) {
@@ -71,28 +71,31 @@ int main() {
                     s_data.last = true;
                 else
                     s_data.last = false;
-                if (s_par == (c_par - 1)) {
+                if (s_par == (c_par - 2)) {
                     i_data.write(s_data);
                 }
 
                 s_bytes++;
-                if (s_bytes == n_bytes) break;
             }
         }
     }
     ///////////////////////// KERNEL EXECUTION ON IMAGE ///////////////////////
 
-    /* std::cout << "--------------------- KERNEL -----------------------" <<
-        * "\n"; */
+    std::cout << "KERNEL EXECUTION ON IMAGE" << std::endl;
     networkSim(i_data,
             o_data_sim);
+    std::cout << "KERNEL EXECUTION ON IMAGE DONE" << std::endl;
 
     t_o_data s_o_data;
-    s_o_data = o_data_sim.read();
 
     do {
-        s_o_data = o_data_sim.read();
-        std::cout << (int32_t)(s_o_data.data) << std::endl;
+        for (auto i = 0; i<5; i++) {
+            s_o_data = o_data_sim.read();
+            std::cout << (ap_fixed<32, 16>)(s_o_data.data) << " ";
+            if (i==0 & s_o_data.last)
+                break;
+        }
+        std::cout << std::endl;
         /* std::cout << "INDEX " << s_index << std::endl; */
         /* std::cout << "MAX VALUE " << (int32_t)(max_value) << std::endl; */
     } while (!s_o_data.last);

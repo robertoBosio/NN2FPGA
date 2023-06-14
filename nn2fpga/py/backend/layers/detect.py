@@ -22,18 +22,25 @@ def info(io_dict, nl, anchor, layer_name, nc=7, stride=32):
     
     node_name = "node_%s"  % io_dict[layer_name]["output"][0]
 
-    detect_lut, grid, anchor_grid = object_detection.detect_lut(
+    detect_lut, grid_h, grid_w, anchor_grid = object_detection.detect_lut(
         nc = nc,
         anchors=[anchor],
         ch=[ich],
         input_shape=[1, och*ich, ih, iw],
         stride=[stride],
+        scale=scale_factor,
     )
     
     # cast lists to numpy arrays
     detect_lut = np.array(detect_lut)
-    grid = np.array(grid)
-    anchor_grid = np.array(anchor_grid)
+    grid_w = np.array(grid_w)
+    grid_h = np.array(grid_h)
+    # splitting anchor in ich groups of 2 elements
+    anchor_grid = []
+    for i in range(ich):
+        anchor_grid.append(np.array(anchor[i*2:(i+1)*2]))
+
+    anchor_grid = np.array([anchor_grid])
 
     io_dict[node_name] = {}
     io_dict[node_name]["input"] = ["%s" % io_dict[layer_name]["output"][0]]
@@ -41,7 +48,8 @@ def info(io_dict, nl, anchor, layer_name, nc=7, stride=32):
     io_dict[node_name]["is_constant"] = False
     io_dict[node_name]["type"] = 'detect'
     io_dict[node_name]["detect_lut"] = detect_lut
-    io_dict[node_name]["grid"] = grid
+    io_dict[node_name]["grid_w"] = grid_w
+    io_dict[node_name]["grid_h"] = grid_h
     io_dict[node_name]["anchor_grid"] = anchor_grid
     io_dict[node_name]["stride"] = stride
     io_dict[node_name]["och"] = och
@@ -84,20 +92,22 @@ def parse(name, node):
     block["template"].append("t_%s_struct" % output_type_name)
     block["template"].append("t_%s" % output_type_name)
     block["template"].append("t_%s_detect_lut_st" % name)
-    block["template"].append("t_%s_grid_st" % name)
+    block["template"].append("t_%s_grid_h_st" % name)
+    block["template"].append("t_%s_grid_w_st" % name)
     block["template"].append("t_%s_anchor_grid_st" % name)
     block["template"].append("t_%s_stride_st" % name)
     block["template"].append("c_%s_ich" % name)
     block["template"].append("c_%s_och" % name)
-    block["template"].append("c_%s_iw" % name)
     block["template"].append("c_%s_ih" % name)
+    block["template"].append("c_%s_iw" % name)
     block["template"].append("c_%s_split" % name)
 
     block["args"] = []
 
     block["args"].append("s_%s[0]" % input_name)
     block["args"].append("c_%s_detect_lut" % name)
-    block["args"].append("c_%s_grid" % name)
+    block["args"].append("c_%s_grid_h" % name)
+    block["args"].append("c_%s_grid_w" % name)
     block["args"].append("c_%s_anchor_grid" % name)
     block["args"].append("c_%s_stride" % name)
     block["args"].append("s_%s.in[%0d]" % (output_name, nl))
@@ -105,7 +115,7 @@ def parse(name, node):
     block["output"] = []
     block["output"].append("s_%s" % output_name)
 
-    output_type = "hls::vector<ap_ufixed<32, 16>, %0d>" % node["och"]
+    output_type = "hls::vector<ap_fixed<32, 16>, %0d>" % node["och"]
     block["defines"] = {}
     block["defines"]["t_%s" % output_name] = ["type", output_type]
     block["defines"]["t_%s_struct" % output_name] = [
@@ -113,10 +123,11 @@ def parse(name, node):
         [["data", "t_%s" % output_name], ["last", "bool"]]
     ]
 
-    block["defines"]["t_%s_detect_lut_st" % name]  = ["type", "ap_fixed<32,16>"]
-    block["defines"]["t_%s_grid_st" % name]        = ["type", "ap_fixed<8,8>"]
-    block["defines"]["t_%s_anchor_grid_st" % name] = ["type", "ap_uint<16>"]
-    block["defines"]["t_%s_stride_st" % name]      = ["type", "ap_uint<8>"]
+    block["defines"]["t_%s_detect_lut_st" % name]  = ["type", "ap_fixed<32, 16>"]
+    block["defines"]["t_%s_grid_w_st" % name]        = ["type", "ap_fixed<32, 16>"]
+    block["defines"]["t_%s_grid_h_st" % name]        = ["type", "ap_fixed<32, 16>"]
+    block["defines"]["t_%s_anchor_grid_st" % name] = ["type", "ap_fixed<32, 16>"]
+    block["defines"]["t_%s_stride_st" % name]      = ["type", "ap_fixed<32, 16>"]
 
     block["defines"]["c_%s_och" % name]     = ["const", node["och"]]
     block["defines"]["c_%s_ich" % name]     = ["const", node["ich"]]
@@ -134,17 +145,30 @@ def parse(name, node):
     size = node["detect_lut"].shape
     tmp["size"] = size
     tmp["init"] = node["detect_lut"]
+    tmp["form"] = "float"
 
     block["declare"].append(tmp)
 
     tmp = {}
-    tmp["name"] = "c_%s_grid" % name
-    tmp["type"] = "t_%s_grid_st" % name
+    tmp["name"] = "c_%s_grid_h" % name
+    tmp["type"] = "t_%s_grid_h_st" % name
     tmp["is_array"] = True
     tmp["is_const"] = True
-    size = node["grid"].shape
+    size = node["grid_h"].shape
     tmp["size"] = size
-    tmp["init"] = node["grid"]
+    tmp["init"] = node["grid_h"]
+    tmp["form"] = "float"
+
+    block["declare"].append(tmp)
+    tmp = {}
+    tmp["name"] = "c_%s_grid_w" % name
+    tmp["type"] = "t_%s_grid_w_st" % name
+    tmp["is_array"] = True
+    tmp["is_const"] = True
+    size = node["grid_w"].shape
+    tmp["size"] = size
+    tmp["init"] = node["grid_w"]
+    tmp["form"] = "float"
 
     block["declare"].append(tmp)
 
