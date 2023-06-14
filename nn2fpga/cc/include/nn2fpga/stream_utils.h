@@ -21,7 +21,7 @@ PRODSTR:
 #pragma HLS pipeline style = stp
     auto par = i % PAR;
 
-    ap_ufixed<8,0> din;
+    ap_ufixed<8,0, AP_RND, AP_SAT> din;
     if (par == 0) {
       dinWrap = dinStream.read();
       din_par = dinWrap.data;

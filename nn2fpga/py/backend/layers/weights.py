@@ -16,6 +16,7 @@ def parse_on_chip(
     bits=8,
     signed=1,
     narrow=1,
+    uram_storage=False
 ):
 
     dich = node_info["ich"]
@@ -55,7 +56,8 @@ def parse_on_chip(
                         if (limit_l > quant_value):
                             quant_value = limit_l
                         
-                        quant_value = quant_value*scale_factor
+                        if not uram_storage:
+                            quant_value = quant_value*scale_factor
 
                         index = ih*diw+iw
                         ch = ich*doch_ops+och
@@ -89,6 +91,20 @@ def pack_weights(
                 new_values[i*bytes_num+j] = data_bytes[bytes_num - 1 - j]
             # for j in range(0, bytes_num):
             #     new_values[i*bytes_num+j] = data_bytes[j]
+
+        values = new_values
+    elif bits < 8:
+        pack_width = int(8/bits)
+        new_values = np.zeros([int(values.shape[0]/pack_width)])
+        mask = 2**bits - 1
+
+        for i in range(0, values.shape[0], pack_width):
+            data_byte = 0
+            for j in range(pack_width):
+                data = values[i+j]
+                data_byte |= (int(data) & mask) << (j*bits)
+
+            new_values[int(i/pack_width)] = data_byte
 
         values = new_values
     
@@ -221,7 +237,8 @@ def extract_info(
             pre_values,
             bits,
             signed,
-            narrow
+            narrow,
+            uram_storage
         )
 
     return new_node
@@ -332,7 +349,7 @@ def parse_main(io_dict):
 
         block["defines"]["t_%s_st" % output_name] = [
             "type", 
-            "uint8_t"
+            "ap_uint<8>"
         ]
 
         pragma = {}

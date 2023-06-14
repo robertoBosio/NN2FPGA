@@ -65,25 +65,32 @@ void produce_stream(din_t din[c_fh * c_fw][OCH * ICH / c_ops][c_ops],
 }
 
 template <typename din_t, typename dout_tmp_t, typename dout_t, int DIM, 
-          int INDEX, int BYTES, int OPS>
+          int INDEX, int BYTES, int BITS, int PACK, int OPS>
 void produce_stream(hls::stream<din_t> &din,
                     bool init,
                     hls::stream<dout_tmp_t> dout[INDEX]) {
 #pragma HLS inline
-  const auto ITER = DIM/(INDEX*OPS);
+  const auto ITER = DIM/(INDEX*OPS*PACK);
   dout_tmp_t tmp = 0;
+  din_t tmp_din;
   if (!init) {
     for (auto i = 0; i < ITER; i++) {
       for (auto k = 0; k < INDEX; k++) {
         for (auto c = 0; c < OPS; c++) {
           for (auto j = 0; j < BYTES; j++) {
+            for (auto m = 0; m < PACK; m++) {
 #pragma HLS pipeline II=1
-            if (j==0)
-              tmp = 0;
-            tmp <<= 8;
-            tmp |= din.read().data;
-            if (j==(BYTES-1))
-              dout[k] << tmp;
+              if ((j==0) && (m==0))
+                  tmp = 0;
+              if (m==0) {
+                tmp_din = din.read();
+              }
+              tmp <<= BITS;
+              tmp.range(BITS-1, 0) = tmp_din.data.range(BITS*(m+1)-1, BITS*m);
+              if (j==(BYTES-1)) {
+                dout[k] << dout_tmp_t(tmp);
+              }
+            }
           }
         }
       }

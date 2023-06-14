@@ -59,7 +59,7 @@ def add_uram_layer():
     block["args"].append("i_data_%s" % input_name)
 
     block["defines"] = {}
-    block["defines"]["t_%s_st" % (input_name)]    = ["type", "int8_t"]
+    block["defines"]["t_%s_st" % (input_name)]    = ["type", "ap_int<8>"]
 
     block["declare"] = []
 
@@ -136,6 +136,15 @@ def produce_func(uram_layer, output_name):
     output_type_name = output_name.replace("s_", "t_")
     dim = uram_layer["mux_data"][output_name][0]
     bytes = int(uram_layer["bits_data"][output_name]/8)
+    if (bytes == 0):
+        bytes = 1
+    bits = uram_layer["bits_data"][output_name]
+    # Limiting bits to 8 for packing reasons
+    if (bits > 8):
+        bits = 8
+    pack = int(8/bits)
+    if (pack == 0):
+        pack = 1
     index = int(uram_layer["index_data"][output_name])
     ops   = int(uram_layer["ops_data"][output_name])
 
@@ -156,6 +165,8 @@ def produce_func(uram_layer, output_name):
     block["template"].append("%0d" % dim)
     block["template"].append("%0d" % index)
     block["template"].append("%0d" % bytes)
+    block["template"].append("%0d" % bits)
+    block["template"].append("%0d" % pack)
     block["template"].append("%0d" % ops)
 
     block["args"].append("i_data_%s" % input_name)
