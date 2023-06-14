@@ -54,11 +54,11 @@ def parse(parsed_write, node_name):
     block["args"].append("s_%s[0]" % input_name)
     block["args"].append("o_outp1")
 
+    output_type = "hls::axis<t_%s, 0, 0, 0>" % input_type_name
     block["defines"] = {}
-    block["defines"]["c_%s" % (output_name)] = ["const", 8]
     block["defines"]["t_o_%s" % output_type_name] = [
         "type",
-        "ap_axis<c_%s, 0, 0, 0>" % output_name
+        "%s" % output_type
     ]
 
     block["defines"]["t_o_outp1"] = ["alias", "t_o_%s" % output_type_name]

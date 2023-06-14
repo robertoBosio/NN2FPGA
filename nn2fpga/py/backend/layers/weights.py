@@ -8,6 +8,7 @@ from backend.graph import extract_connections
 from backend.utils import *
 from backend.layers.uram_download import fill_uram_layer, add_uram_layer
 import backend.layers.uram_download as uram_download
+from backend.layers.quant import get_quant_type
 
 def parse_on_chip(
     node_info,
@@ -53,6 +54,8 @@ def parse_on_chip(
 
                         if (limit_l > quant_value):
                             quant_value = limit_l
+                        
+                        quant_value = quant_value*scale_factor
 
                         index = ih*diw+iw
                         ch = ich*doch_ops+och
@@ -172,17 +175,13 @@ def extract_info(
     ops = node_info["ops"]
 
     signed = new_node["signed"]
+    scale_factor = new_node["scale_factor"]
     bits   = new_node["bits"]
     narrow = new_node["narrow"]
     bw = int(128/bits)
 
-    if signed:
-        data_type = "int"
-    else:
-        data_type = "uint"
+    data_type = get_quant_type(signed, bits, scale_factor)
 
-    data_type = data_type + "%0d" % bits
-    data_type = data_type + "_t"
     new_node["data_type"] = data_type
 
     new_node["ich"]    = ich
@@ -567,6 +566,7 @@ def on_chip_rom(
     size = node["values"].shape
     tmp["size"] = size
     tmp["init"] = node["values"]
+    tmp["form"] = "float"
 
     block["declare"].append(tmp)
 

@@ -163,16 +163,6 @@ def parse_wout(name, node):
         # block["defines"]["c_%s_shift_h" % output_1x1_name] = ["const", reduced_clip]
         # block["defines"]["c_%s_shift_l" % output_1x1_name] = ["const", diff_scale]
 
-    if (node["in_scale_factor"][0] is not None):
-        input_type_mod = get_quant_type(True, node["in_bits"][0], node["in_scale_factor"][0])
-        diff_scale, reduced_clip = backend.quant.compute_in_quant(
-            node["actscale"][0],
-            node["in_scale_factor"][0]
-        )
-
-    else:
-        input_type_mode = "nullptr_t"
-
     # block["defines"]["c_%s_in_shift_h" % input_name] = ["const", reduced_clip]
     # block["defines"]["c_%s_in_shift_l" % input_name] = ["const", diff_scale]
 
@@ -344,12 +334,15 @@ def parse_comp(name, node):
 
     if (node["in_scale_factor"][0] is not None):
         block["template"].append("t_%s_mod" % input_type_name)
+    else:
+        block["template"].append("std::nullptr_t")
 
     if (node["merge_1x1"]):
         block["template"].append("t_%s_1x1" % input_type_name)
         block["template"].append("t_%s" % weight_1x1_name)
         block["template"].append("t_%s" % bias_1x1_name)
     else:
+        block["template"].append("std::nullptr_t")
         block["template"].append("std::nullptr_t")
         block["template"].append("std::nullptr_t")
 
@@ -381,6 +374,18 @@ def parse_comp(name, node):
         [["data", "t_%s_acc" % output_name], ["last", "bool"]]
     ]
 
+    if (node["in_scale_factor"][0] is not None):
+        input_type_mod = get_quant_type(True, node["in_bits"][0], node["in_scale_factor"][0])
+        diff_scale, reduced_clip = backend.quant.compute_in_quant(
+            node["actscale"][0],
+            node["in_scale_factor"][0]
+        )
+
+    else:
+        input_type_mod = "nullptr_t"
+
+    block["defines"]["t_%s_mode" % input_name] = ["type", input_type_mod]
+
     if (node["merge_1x1"]):
 
         input_1x1_type = get_quant_type(True, node["bits"][1], node["scale_factor"][1])
@@ -392,6 +397,7 @@ def parse_comp(name, node):
                 actscale = node["actscale"][1]
 
         acc_type_1x1 = get_quant_type(True, 32, node["actscale"][0]+node["wscale"][0])
+
         block["defines"]["t_%s_acc" % output_1x1_name] = ["type", acc_type_1x1]
         block["defines"]["t_%s_acc_struct" % output_1x1_name] = [
             "struct",

@@ -76,28 +76,21 @@ int main() {
     /* std::cout << "--------------------- KERNEL -----------------------" <<
      * "\n"; */
     networkSim(i_data,
-            /* weights_conv0_weight, */
-            /* weights_conv1_weight, */
-            /* weights_conv2_weight, */
-            /* weights_conv3_weight, */
-            /* weights_conv4_weight, */
-            /* weights_fc_weight, */
             o_data_sim);
 
     std::cout << "" << std::endl;
     t_o_data s_o_data;
     s_o_data = o_data_sim.read();
-    int32_t max_value = -1;
-    max_value = (int32_t)(s_o_data.data);
-    std::cout << (int32_t)(s_o_data.data) << std::endl;
+    auto max_value = s_o_data.data;
+    std::cout << s_o_data.data << std::endl;
     int max_index = 0;
     int s_index = 1;
 
     do {
       s_o_data = o_data_sim.read();
-      std::cout << (int32_t)(s_o_data.data) << std::endl;
-      if ((int32_t)(s_o_data.data) > max_value) {
-        max_value = (int32_t)(s_o_data.data);
+      std::cout << s_o_data.data << std::endl;
+      if (s_o_data.data > max_value) {
+        max_value = s_o_data.data;
         /* std::cout << "INDEX " << s_index << std::endl; */
         /* std::cout << "MAX VALUE " << (int32_t)(max_value) << std::endl; */
         max_index = s_index;

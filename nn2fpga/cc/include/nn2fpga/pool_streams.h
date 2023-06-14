@@ -53,7 +53,7 @@ void pool_op(hls::stream<t_input> &i_data, hls::stream<t_output> &o_data) {
 template <class t_input_struct, class t_input, class t_output_struct,
           class t_output, class t_acc, int c_ich, int c_och, int c_ih, int c_iw,
           int c_oh, int c_ow, int c_fh, int c_fw, int c_str, int c_pad,
-          int c_pool, int c_shift>
+          int c_pool>
 void pool_op(hls::stream<t_input_struct> &i_data,
              hls::stream<t_output_struct> &o_data) {
   const int c_index = c_fh * c_fw;
@@ -86,7 +86,7 @@ void pool_op(hls::stream<t_input_struct> &i_data,
         t_acc s_acc = s_acc_buff[s_och];
         if (c_pool == 0)  // Average Pool
           s_acc = s_acc >> c_average_scale;
-        s_output_struct.data = quant_act<t_acc, t_output, c_shift>(s_acc);
+        s_output_struct.data = t_output(s_acc);
         s_output_struct.last = s_last;
         o_data.write(s_output_struct);
       }
@@ -97,7 +97,7 @@ void pool_op(hls::stream<t_input_struct> &i_data,
 template <class t_input_struct, class t_input, class t_output_struct,
           class t_output, class t_acc, int c_ich, int c_och, int c_ih, int c_iw,
           int c_oh, int c_ow, int c_fh, int c_fw, int c_str, int c_pad,
-          int c_pool, int c_shift>
+          int c_pool>
 void pool_op(hls::stream<t_input_struct> i_data[c_fh*c_fw],
              hls::stream<t_output_struct> &o_data) {
   const int c_index = c_fh * c_fw;
@@ -131,7 +131,7 @@ void pool_op(hls::stream<t_input_struct> i_data[c_fh*c_fw],
           t_acc s_acc = s_acc_buff;
           if (c_pool == 0)  // Average Pool
             s_acc = s_acc >> c_average_scale;
-          s_output_struct.data = quant_act<t_acc, t_output, c_shift>(s_acc);
+          s_output_struct.data = t_output(s_acc);
           s_output_struct.last = s_last;
           o_data.write(s_output_struct);
         }

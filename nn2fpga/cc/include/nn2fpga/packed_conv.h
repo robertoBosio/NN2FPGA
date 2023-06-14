@@ -15,8 +15,8 @@ namespace nn2fpga {
 
 
 // Write template for the conv_pipe function.
-template <class t_input, class t_weight, class t_bias,
-          class t_add_struct, class t_acc_struct, class t_acc,
+template <class t_input, class t_weight, class t_bias, class t_add_struct,
+          class t_input_mod, class t_acc_struct, class t_acc,
           int c_reuse, int c_index,
           int c_ops, int c_ich, int c_och>
 void conv_pipe(
@@ -48,7 +48,7 @@ void conv_pipe(
 
   if constexpr(std::is_same<t_add_struct, std::nullptr_t>::value == false) {
     if (ich == och) {
-      s_acc += (t_acc)(i_add.data) << c_add_shift_l;
+      s_acc += t_acc(i_add.data);
     }
   }
 
@@ -56,9 +56,8 @@ void conv_pipe(
 
   for (auto s_index = 0; s_index < c_index; s_index++) {
     t_input s_data = i_input[reuse][s_index];
-    if (c_shift_l != 0)
-      s_data =
-          quant_act<t_input, t_input, c_shift_l, c_shift_h>(s_data);
+    if constexpr(std::is_same<t_input_mod, std::nullptr_t>::value == false)
+      s_data = t_input_mod(s_data);
     s_acc += s_data * i_weight[s_index][ops];
   }
 
@@ -234,23 +233,18 @@ void conv_comp(hls::stream<t_input_struct> i_input[c_index],
 
 template <class t_output_struct, class t_output, class t_acc_struct,
           class t_acc, int c_ich, int c_och, int c_oh, int c_ow, int c_index,
-          int c_ops, int c_relu, int c_quant, int c_mask, int c_shift_h,
-          int c_shift_l>
+          int c_ops, int c_relu>
 void quant_stream(t_acc_struct i_acc, hls::stream<t_output_struct> o_data[1]) {
 #pragma HLS inline
   t_acc_struct s_acc_struct = i_acc;
-  t_acc s_acc = c_quant;
-
-  /* 1 subtraction for quantization */
-  s_acc += s_acc_struct.data;
+  t_acc s_acc = s_acc_struct.data;
 
   t_output_struct s_output;
 
   if (c_relu == 1) {
     s_acc = relu_op<t_acc>(s_acc);
   }
-  s_output.data =
-      quant_act<t_acc, t_output, c_shift_l, c_shift_h, c_mask>(s_acc);
+  s_output.data = t_output(s_acc);
   s_output.last = s_acc_struct.last;
 
   o_data[0].write(s_output);
@@ -259,9 +253,7 @@ void quant_stream(t_acc_struct i_acc, hls::stream<t_output_struct> o_data[1]) {
 template <class t_output_struct, class t_output, class t_output_1x1_struct,
           class t_output_1x1, class t_acc_struct, class t_acc,
           class t_acc_1x1_struct, class t_acc_1x1, int c_ich, int c_och,
-          int c_oh, int c_ow, int c_index, int c_ops, int c_relu, int c_quant,
-          int c_mask, int c_shift_h, int c_shift_l, int c_mask_1x1,
-          int c_shift_h_1x1, int c_shift_l_1x1>
+          int c_oh, int c_ow, int c_index, int c_ops, int c_relu, int c_stride>
 void stream_output(hls::stream<t_acc_struct> i_acc[c_ops],
                    hls::stream<t_acc_1x1_struct> i_acc_1x1[c_ops],
                    hls::stream<t_output_struct> o_data[1],
@@ -292,13 +284,11 @@ void stream_output(hls::stream<t_acc_struct> i_acc[c_ops],
     }
 
     quant_stream<t_output_struct, t_output, t_acc_struct, t_acc, c_ich, c_och,
-                 c_oh, c_ow, c_index, c_ops, c_relu, c_quant, c_mask, c_shift_h,
-                 c_shift_l>(s_acc[s_och], o_data);
+                 c_oh, c_ow, c_index, c_ops, c_relu>(s_acc[s_och], o_data);
 
     if constexpr(std::is_same<t_acc_1x1_struct, std::nullptr_t>::value == false) {
       quant_stream<t_output_1x1_struct, t_output_1x1, t_acc_1x1_struct, t_acc_1x1,
-                  c_ich, c_och, c_oh, c_ow, 1, 1, 0, c_quant, c_mask_1x1,
-                  c_shift_h_1x1, c_shift_l_1x1>(s_acc_1x1[s_och], o_data_1x1);
+                  c_ich, c_och, c_oh, c_ow, 1, 1, 0>(s_acc_1x1[s_och], o_data_1x1);
     }
   }
 }
