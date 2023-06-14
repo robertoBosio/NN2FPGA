@@ -118,10 +118,14 @@ def opt_skip(model, io_dict):
                 if in_clip is list:
                     in_clip = in_clip[0]
                 in_mask  = in_layer["mask_factor"][in_index]
+                if in_mask is list:
+                    in_mask = in_mask[0]
                 in_clip_signed = in_layer["clip_signed"][in_index]
                 if in_clip_signed is list:
                     in_clip_signed = in_clip_signed[0]
                 in_mask_signed = in_layer["mask_signed"][in_index]
+                if in_mask_signed is list:
+                    in_mask_signed = in_mask_signed[0]
 
                 # Reordering the layers to have correct actiations passthrough
                 ordered_layers = list(
@@ -253,12 +257,16 @@ def opt_merge_conv(model, io_dict):
                                     clip_value = clip_value[0]
                                 clip_factor.append(clip_value)
                                 mask_value = layer_merge["mask_factor"][i]
+                                if mask_value is list:
+                                    mask_value = mask_value[0]
                                 mask_factor.append(mask_value)
                                 clip_signed_value = layer_merge["clip_signed"][i]
                                 if clip_signed_value is list:
                                     clip_signed_value = clip_signed_value[0]
                                 clip_signed.append(clip_signed_value)
                                 mask_signed_value = layer_merge["mask_signed"][i]
+                                if mask_signed_value is list:
+                                    mask_signed_value = mask_signed_value[0]
                                 mask_signed.append(mask_signed_value)
                                 in_scale_value = layer_merge["in_scale_factor"][i]
                                 in_scale_factor.append(in_scale_value)
@@ -358,10 +366,14 @@ def opt_quant(model, io_dict, quant_info):
                     if isinstance(clip_factor, list):
                         clip_factor = clip_factor[0]
                     mask_factor = quant_info[net_name]["seq_mask"][0]
+                    if isinstance(mask_factor, list):
+                        mask_factor = mask_factor[0]
                     clip_signed = quant_info[net_name]["seq_clip_signed"][0]
                     if isinstance(clip_signed, list):
                         clip_signed = clip_signed[0]
                     mask_signed = quant_info[net_name]["seq_mask_signed"][0]
+                    if isinstance(mask_signed, list):
+                        mask_signed = mask_signed[0]
                     signed = quant_info[net_name]["signed"]
 
                     in_index = io_dict[layer_in_name]["output"].index(net_name)

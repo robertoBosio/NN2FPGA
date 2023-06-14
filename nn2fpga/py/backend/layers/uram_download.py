@@ -59,7 +59,7 @@ def add_uram_layer():
     block["args"].append("i_data_%s" % input_name)
 
     block["defines"] = {}
-    block["defines"]["t_%s_st" % (input_name)]    = ["type", "ap_int<8>"]
+    block["defines"]["t_%s_st" % (input_name)]    = ["type", "int8_t"]
 
     block["declare"] = []
 

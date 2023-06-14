@@ -349,7 +349,7 @@ def parse_main(io_dict):
 
         block["defines"]["t_%s_st" % output_name] = [
             "type", 
-            "ap_uint<8>"
+            "uint8_t"
         ]
 
         pragma = {}
@@ -652,7 +652,7 @@ def on_chip_rom(
     else:
         divider = 64
 
-    partition_factor = int(node["ih"]*node["iw"]*node["ops"]*8/divider)
+    partition_factor = int(node["ih"]*node["iw"]*node["ops"]*node["bits"]/divider)
     if partition_factor>1:
         pragma = {}
         pragma["name"] = "array_partition"

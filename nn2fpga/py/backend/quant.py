@@ -141,6 +141,7 @@ def merge_quant(io_dict, quant_info, inherit_quant=False):
                             new_clip_signed = quant_info[output]["seq_clip_signed"][j]
                             clip_index = node["seq_out"].index(output)
                             old_clip = node["seq_clip"][clip_index]
+                            old_clip_signed = node["seq_clip_signed"][clip_index]
                             if old_clip < new_clip:
                                 new_clip = old_clip
                                 new_clip_signed = old_clip_signed
@@ -159,6 +160,9 @@ def merge_quant(io_dict, quant_info, inherit_quant=False):
                             if old_mask > new_mask:
                                 new_mask = old_mask
                                 new_mask_signed = old_mask_signed
+                            if new_mask is list:
+                                new_mask = new_mask[0]
+                                new_mask_signed = new_mask_signed[0]
                             new_node["seq_mask"].append(new_mask)
                             new_node["seq_mask_signed"].append(new_mask_signed)
 
@@ -185,6 +189,9 @@ def merge_quant(io_dict, quant_info, inherit_quant=False):
                 if new_clip is list:
                     new_clip = new_clip[0]
                     new_clip_signed = new_clip_signed[0]
+                if new_mask is list:
+                    new_mask = new_mask[0]
+                    new_mask_signed = new_mask_signed[0]
                 new_node["seq_clip"].append(new_clip)
                 new_node["seq_mask"].append(quant_info[name]["seq_mask"][i])
                 new_node["seq_clip_signed"].append(new_clip_signed)
@@ -286,10 +293,14 @@ def extract_quant_info(model, io_dict, init_info):
             if clip is list:
                 clip = clip[0]
             mask = node["mask"]
+            if mask is list:
+                mask = mask[0]
             clip_signed = node["clip_signed"]
             if clip_signed is list:
                 clip_signed = clip_signed[0]
             mask_signed = node["mask_signed"]
+            if mask_signed is list:
+                mask_signed = mask_signed[0]
 
             signed = node["signed"]
 
