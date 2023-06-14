@@ -54,7 +54,7 @@ run_model:
 	cd $(PRJ_ROOT) && python $(NN2FPGA_ROOT)/py/utils/test_model.py
 
 download_cifar10:
-	$(TB_ROOT)/cifar-10/download_cifar10.sh
+	$(TB_ROOT)/cifar10/download_cifar10.sh
 
 cosim: generate
 	make syn COSIM=1
