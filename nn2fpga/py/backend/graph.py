@@ -100,7 +100,7 @@ def extract_tensors_info(model):
 
     return tensors_info
 
-def graph_info(model, init_info, object_detection=False, anchors=None):
+def graph_info(model, init_info, object_detection=False, anchors=None, ws=2):
 
     tensors_info = extract_tensors_info(
         model
@@ -120,7 +120,8 @@ def graph_info(model, init_info, object_detection=False, anchors=None):
     io_dict = input_gen.info(
         io_dict,
         tensors_info,
-        model
+        model,
+        ws
     )
 
     graph_output_name = model.graph.output[0].name
@@ -161,7 +162,8 @@ def graph_info(model, init_info, object_detection=False, anchors=None):
                 node,
                 node_name,
                 init_info,
-                tensors_info
+                tensors_info,
+                ws
             )
             # Save last layer name if it is a recognized layer
             last_layer_name = node_name
@@ -173,7 +175,8 @@ def graph_info(model, init_info, object_detection=False, anchors=None):
                 node,
                 node_name,
                 init_info,
-                tensors_info
+                tensors_info,
+                ws
             )
             # Save last layer name if it is a recognized layer
             last_layer_name = node_name
@@ -251,7 +254,7 @@ def graph_info(model, init_info, object_detection=False, anchors=None):
     if object_detection:
         concat_net = None
         for i, layer_name in enumerate(cut_name):
-            io_dict = detect.info(io_dict, i, anchors[i], layer_name, len(cut_name))
+            io_dict = detect.info(io_dict, i, anchors[i], layer_name, len(cut_name), ws)
         io_dict = non_max_suppression.info(io_dict, graph_output_name, len(cut_name), anchors, cut_name)
     elif len(cut_name) == 1:
         graph_output_name = model.graph.output[0].name

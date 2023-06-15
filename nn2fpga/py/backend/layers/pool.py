@@ -6,7 +6,7 @@ from onnx import numpy_helper
 import numpy as np
 from backend.layers.quant import get_quant_type
 
-def info(io_dict, node, node_name, init_info, tensors_info):
+def info(io_dict, node, node_name, init_info, tensors_info, ws):
 
     attributes = getattr(node, "attribute" )
     input_shape = tensors_info[node.input[0]].tensor_type.shape
@@ -65,6 +65,7 @@ def info(io_dict, node, node_name, init_info, tensors_info):
     io_dict[node_name]["actscale"] = []
     io_dict[node_name]["is_adaptive"] = adaptive
     io_dict[node_name]["actbits"] = []
+    io_dict[node_name]["ws"] = ws
 
     return io_dict
 
@@ -98,6 +99,7 @@ def parse(name, node):
     block["template"].append("c_%s_stride" % name)
     block["template"].append("c_%s_pad" % name)
     block["template"].append("c_%s_pool" % name)
+    # block["template"].append("c_ws")
     # block["template"].append("c_%s_in_scale_factor" % name)
 
     block["args"] = []

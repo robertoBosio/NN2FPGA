@@ -6,7 +6,7 @@ from onnx import numpy_helper
 import numpy as np
 from backend.layers.quant import get_quant_type
 
-def info(io_dict, tensors_info, model):
+def info(io_dict, tensors_info, model, ws):
 
 
     node_name = "produce_stream"
@@ -29,6 +29,7 @@ def info(io_dict, tensors_info, model):
     io_dict[node_name]["ich"]    = ich
     io_dict[node_name]["ih"]     = ih
     io_dict[node_name]["iw"]     = iw
+    io_dict[node_name]["ws"]     = ws
 
     return io_dict
 
@@ -53,6 +54,7 @@ def parse(name, node):
     block["template"].append("c_%s_iw" % name)
     block["template"].append("c_%s_ih" % name)
     block["template"].append("c_%s" % input_name)
+    # block["template"].append("c_ws")
 
     block["args"] = []
     block["args"].append("i_%s" % input_name)
@@ -106,6 +108,10 @@ def parse(name, node):
     block["defines"]["c_%s_ih" % name] = [
         "const",
         node["ih"]
+    ]
+    block["defines"]["c_ws"] = [
+        "const",
+        node["ws"]
     ]
 
     block["declare"] = []

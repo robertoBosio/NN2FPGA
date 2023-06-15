@@ -47,8 +47,8 @@ int main() {
 
     std::cout << img.rows << " " << img.cols << std::endl;
 
-    result_ocv.create(cv::Size(672, 384),CV_8UC3);
-    cv::resize(img,result_ocv,cv::Size(672,384),0,0,cv::INTER_LINEAR);
+    result_ocv.create(cv::Size(c_produce_stream_iw, c_produce_stream_ih),CV_8UC3);
+    cv::resize(img,result_ocv,cv::Size(c_produce_stream_iw,c_produce_stream_ih),0,0,cv::INTER_AREA);
 
     // Iterate over elements of result_ocv per channel
     for (int i = 0; i < result_ocv.rows; i++) {
@@ -78,6 +78,7 @@ int main() {
                 s_bytes++;
             }
         }
+            std::cout << std::endl;
     }
     ///////////////////////// KERNEL EXECUTION ON IMAGE ///////////////////////
 

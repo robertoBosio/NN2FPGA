@@ -38,6 +38,7 @@ void produce_stream(din_t din[c_fh * c_fw][OCH * ICH / c_ops][c_ops],
   constexpr unsigned c_ch = ICH * OCH / c_ops;
   constexpr unsigned c_o_index = OH * OW / c_reuse;
 
+  std::cout << "produce_stream " << c_ch << " " << c_o_index << std::endl;
   if (!s_init) {
     for (auto s_ch = 0; (s_ch < c_ch); s_ch++) {
       for (auto s_index = 0; s_index < FSZ; s_index++) {
@@ -69,6 +70,7 @@ template <typename din_t, typename dout_tmp_t, typename dout_t, int DIM,
 void produce_stream(hls::stream<din_t> &din,
                     bool init,
                     hls::stream<dout_tmp_t> dout[INDEX]) {
+  std::cout << "produce_stream " << BYTES << std::endl;
 #pragma HLS inline
   const auto ITER = DIM/(INDEX*OPS*PACK);
   dout_tmp_t tmp = 0;

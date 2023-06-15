@@ -66,6 +66,9 @@ def write_network(
         io_dict
     )
 
+    for name, node in io_dict.items():
+        if node["type"] == "conv":
+            print(name, node)
     io_dict = weights.weights_info(
         inferred_model,
         io_dict,

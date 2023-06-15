@@ -12,7 +12,7 @@ template <typename t_input_struct, typename t_input,
           typename t_detect_lut, typename t_grid_h, typename t_grid_w,
           typename t_anchor_grid, typename t_stride,
           int ICH, int OCH, int IH, int IW,
-          int SPLIT>
+          int SPLIT, int BITS, int WIDTH>
           void detect(
             hls::stream<t_input_struct> &i_data, 
 	        const t_detect_lut detect_lut[255][ICH],
@@ -26,9 +26,10 @@ template <typename t_input_struct, typename t_input,
     // Rewriting the following code in C++ HLS
 
     // Offset for an integer number depending on its number of bits
-    const auto offset = (1 << (sizeof(t_input) * 8 - 1));
+    const ap_ufixed<BITS, BITS+WIDTH> offset = 0x80;
 
     t_output s_buffer;
+    ap_ufixed<BITS+1, BITS+WIDTH> din_data;
     // Loop over input width IW and height IH
     for (auto k = 0; k < IH; k++) {
         for (auto l = 0; l < IW; l++) {
@@ -37,7 +38,9 @@ template <typename t_input_struct, typename t_input,
                     #pragma HLS pipeline II=1
                     // Reading input data
                     auto din_read = i_data.read();
-                    unsigned int din_data = din_read.data + offset;
+                    std::cout << "din_read.data: " << din_read.data << " " << WIDTH << std::endl;
+                    din_data = din_read.data + offset;
+                    std::cout << "din_data: " << din_data << std::endl;
                     auto din_last = din_read.last;
                     auto detect_addr = 2; 
                     if (j < SPLIT)

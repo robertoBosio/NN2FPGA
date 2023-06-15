@@ -26,6 +26,7 @@ def parse(name, node):
     block["template"].append("c_%s_fw" % name)
     block["template"].append("c_%s_stride" % name)
     block["template"].append("c_%s_pad" % name)
+    # block["template"].append("c_ws")
 
     block["args"] = []
 

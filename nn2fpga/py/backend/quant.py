@@ -261,6 +261,7 @@ def merge_quant(io_dict, quant_info, inherit_quant=False):
                 io_dict[name]["bits"] = new_bits
                 io_dict[name]["clip"] = new_clip
                 io_dict[name]["mask"] = new_mask
+                io_dict[name]["signed"] = new_signed
                 io_dict[name]["clip_signed"] = new_clip_signed
                 io_dict[name]["mask_signed"] = new_mask_signed
 
@@ -302,7 +303,10 @@ def extract_quant_info(model, io_dict, init_info):
             if mask_signed is list:
                 mask_signed = mask_signed[0]
 
-            signed = node["signed"]
+            if node["signed"] is list:
+                signed = node["signed"][-1]
+            else:
+                signed = node["signed"]
 
             quant_info.setdefault(node["input"][0], {})
             quant_info[node["input"][0]].setdefault("seq", [])

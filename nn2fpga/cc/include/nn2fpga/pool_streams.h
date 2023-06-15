@@ -67,28 +67,28 @@ void pool_op(hls::stream<t_input_struct> i_data[c_fh*c_fw],
   bool s_last;
   t_acc s_acc_buff;
 
-  hls::stream<t_acc> s_acc_stream;
-#pragma HLS stream variable = s_acc_stream depth = 2 type = fifo
-
   for (auto s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
     for (auto s_och = 0; s_och < c_och; s_och++) {
   #pragma HLS pipeline style = stp
       for (auto s_index = 0; s_index < c_index; s_index++) {
-        if (s_index == 0) s_acc_buff = c_quant;
 
         t_input_struct s_input_struct = i_data[s_index].read();
         t_input s_input = s_input_struct.data;
         s_last = s_input_struct.last;
 
-        if (c_pool == 0)  // Average Pool
+        if constexpr(c_pool == 0) {  // Average Pool
+          if (s_index == 0) 
+            s_acc_buff = c_quant;
           s_acc_buff += s_input;
-        if (c_pool == 1) {  // Max Poool
-          if (s_input > s_acc_buff) s_acc_buff = s_input;
+        }
+        if constexpr(c_pool == 1) {  // Max Poool
+          if ((s_index == 0) | (s_input > s_acc_buff))
+            s_acc_buff = s_input;
         }
         if (s_index == (c_index - 1)) {
           t_output_struct s_output_struct;
           t_acc s_acc = s_acc_buff;
-          if (c_pool == 0)  // Average Pool
+          if constexpr(c_pool == 0)  // Average Pool
             s_acc = s_acc >> c_average_scale;
           s_output_struct.data = t_output(s_acc);
           s_output_struct.last = s_last;

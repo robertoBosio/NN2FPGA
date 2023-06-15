@@ -7,7 +7,7 @@ import numpy as np
 import backend.quant
 from backend.layers.quant import get_quant_type
 
-def info(io_dict, node, node_name, init_info, tensors_info):
+def info(io_dict, node, node_name, init_info, tensors_info, ws):
 
     attributes = getattr(node, "attribute" )
     input_shape = tensors_info[node.input[0]].tensor_type.shape
@@ -60,6 +60,7 @@ def info(io_dict, node, node_name, init_info, tensors_info):
     io_dict[node_name]["actbits"] = []
     io_dict[node_name]["wscale"] = []
     io_dict[node_name]["actscale"] = []
+    io_dict[node_name]["ws"] = ws
 
     return io_dict
 
@@ -107,6 +108,7 @@ def parse_wout(name, node):
     block["template"].append("c_%s_ops" % name)
     block["template"].append("c_%s_relu" % name)
     block["template"].append("c_%s_stride" % name)
+    # block["template"].append("c_ws")
 
     block["defines"] = {}
 
