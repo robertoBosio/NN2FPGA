@@ -51,7 +51,7 @@ template <typename t_input_struct, typename t_input,
                     // If j less than SPLIT the compute the xy variable
                     if (j < SPLIT) {
                         // Compute the xy variable
-                        dout_data += (j == 0) ? grid_w[l] : grid_h[k];
+                        dout_data += (j == 0) ? grid_w[0][l] : grid_h[0][k];
                         dout_data *= stride;
                     }
 

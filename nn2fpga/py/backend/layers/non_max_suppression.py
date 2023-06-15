@@ -49,6 +49,11 @@ def parse(name, node):
     # Template parameters
     nl = node["nl"]
 
+    if (node["nl"] == 1):
+        merge_stream = False
+    else:
+        merge_stream = True
+
     block["template"] = []
     block["template"].append("t_%s_struct" % input_type_name)
     block["template"].append("t_%s" % input_type_name)
@@ -60,7 +65,10 @@ def parse(name, node):
 
     block["args"] = []
 
-    block["args"].append("s_%s.out" % input_name)
+    if merge_stream:
+        block["args"].append("s_%s.out" % input_name)
+    else:
+        block["args"].append("s_%s" % input_name)
     block["args"].append("c_%s_conf_th" % name)
     block["args"].append("o_outp1")
 
@@ -82,7 +90,10 @@ def parse(name, node):
     block["defines"]["t_o_data"] = ["alias", "t_o_%s" % output_type_name]
 
     block["declare"] = []
-    merge_type = "hls::merge::load_balance<t_%s_struct, %0d>" % (input_type_name, node["nl"])
+    if merge_stream:
+        merge_type = "hls::merge::load_balance<t_%s_struct, %0d>" % (input_type_name, node["nl"])
+    else:
+        merge_type = "hls::stream<t_%s_struct>" % input_type_name
     declare = {}
     declare["name"] = "s_%s" % input_name
     declare["type"] = "%s" % merge_type

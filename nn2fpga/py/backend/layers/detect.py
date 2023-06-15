@@ -6,7 +6,7 @@ from onnx import numpy_helper
 import numpy as np
 import utils.object_detection as object_detection
 
-def info(io_dict, nl, anchor, layer_name, nc=7, stride=32):
+def info(io_dict, nl, anchor, layer_name, tot_nl=1, nc=7, stride=32):
 
     # This is the network that is used to detect the objects
     # Parse io_dict to find the last layer checking that the output
@@ -59,6 +59,7 @@ def info(io_dict, nl, anchor, layer_name, nc=7, stride=32):
     io_dict[node_name]["nl"] = nl
     io_dict[node_name]["split"] = 2
     io_dict[node_name]["scale_factor"] = scale_factor
+    io_dict[node_name]["tot_nl"] = tot_nl
 
     return io_dict
 
@@ -110,7 +111,10 @@ def parse(name, node):
     block["args"].append("c_%s_grid_w" % name)
     block["args"].append("c_%s_anchor_grid" % name)
     block["args"].append("c_%s_stride" % name)
-    block["args"].append("s_%s.in[%0d]" % (output_name, nl))
+    if node["tot_nl"] > 1:
+        block["args"].append("s_%s.in[%0d]" % (output_name, nl))
+    else:
+        block["args"].append("s_%s" % output_name)
 
     block["output"] = []
     block["output"].append("s_%s" % output_name)

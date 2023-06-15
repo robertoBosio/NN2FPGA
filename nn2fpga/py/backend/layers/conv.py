@@ -365,7 +365,6 @@ def parse_comp(name, node):
     block["template"].append("c_%s_ops" % name)
     block["template"].append("c_%s_reuse" % name)
 
-    print(name, node)
     acc_type = get_quant_type(True, 32, node["actscale"][0]+node["wscale"][0])
     block["defines"] = {}
     block["defines"]["t_%s_acc" % output_name] = ["type", acc_type]

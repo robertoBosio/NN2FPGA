@@ -251,7 +251,7 @@ def graph_info(model, init_info, object_detection=False, anchors=None):
     if object_detection:
         concat_net = None
         for i, layer_name in enumerate(cut_name):
-            io_dict = detect.info(io_dict, i, anchors[i], layer_name)
+            io_dict = detect.info(io_dict, i, anchors[i], layer_name, len(cut_name))
         io_dict = non_max_suppression.info(io_dict, graph_output_name, len(cut_name), anchors, cut_name)
     elif len(cut_name) == 1:
         graph_output_name = model.graph.output[0].name
