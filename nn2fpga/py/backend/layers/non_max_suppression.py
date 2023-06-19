@@ -76,7 +76,7 @@ def parse(name, node):
     block["output"].append("outp1")
 
     input_type = "ap_fixed<32, 16>"
-    output_type = "hls::axis<ap_fixed<32, 16>, 0, 0, 0>"
+    output_type = "hls::axis<hls::vector<ap_ufixed<16, 16>, 8>, 0, 0, 0>"
     block["defines"] = {}
     block["defines"]["t_o_%s" % output_name] = ["type", output_type]
 
@@ -93,7 +93,7 @@ def parse(name, node):
     if merge_stream:
         merge_type = "hls::merge::load_balance<t_%s_struct, %0d>" % (input_type_name, node["nl"])
     else:
-        merge_type = "hls::stream<t_%s_struct>" % input_type_name
+        merge_type = "hls::stream<t_%s_struct, 300>" % input_type_name
     declare = {}
     declare["name"] = "s_%s" % input_name
     declare["type"] = "%s" % merge_type

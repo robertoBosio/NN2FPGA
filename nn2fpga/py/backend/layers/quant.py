@@ -14,6 +14,7 @@ def get_quant_type(signed, bit_width, scale_factor):
     type_name += ","
     type_name += str(int(bit_width+scale_factor))
     type_name += ",AP_RND,AP_SAT>"
+    # type_name += ",AP_TRN,AP_SAT>"
     return type_name
 
 def info(io_dict, node, node_name, init_info, tensors_info):

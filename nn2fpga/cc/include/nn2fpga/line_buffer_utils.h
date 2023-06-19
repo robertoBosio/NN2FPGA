@@ -106,7 +106,7 @@ void shift_op(hls::stream<din_t> &din, hls::stream<din_t> &o_compute,
               hls::stream<din_t> &o_data) {
   /* #pragma HLS inline */
 
-  std::cout << "shift_op " << IH << " " << IW << std::endl;
+  // std::cout << "shift_op " << IH << " " << IW << std::endl;
   constexpr int c_pad_index_h = c_pad * (c_fh - 1) / 2;
   constexpr int c_pad_index_w = c_pad * (c_fw - 1) / 2;
   constexpr int IH_PAD = IH + c_pad_index_h * 2;

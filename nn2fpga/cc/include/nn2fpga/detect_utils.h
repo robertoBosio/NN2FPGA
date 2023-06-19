@@ -26,21 +26,19 @@ template <typename t_input_struct, typename t_input,
     // Rewriting the following code in C++ HLS
 
     // Offset for an integer number depending on its number of bits
-    const ap_ufixed<BITS, BITS+WIDTH> offset = 0x80;
 
     t_output s_buffer;
-    ap_ufixed<BITS+1, BITS+WIDTH> din_data;
+    ap_uint<BITS> din_data = 0;
     // Loop over input width IW and height IH
     for (auto k = 0; k < IH; k++) {
         for (auto l = 0; l < IW; l++) {
             for (auto h = 0; h < ICH; h++) {
                 for (auto j = 0; j < OCH; j++) {
-                    #pragma HLS pipeline II=1
+                    #pragma HLS pipeline style=stp
                     // Reading input data
                     auto din_read = i_data.read();
-                    std::cout << "din_read.data: " << din_read.data << " " << WIDTH << std::endl;
-                    din_data = din_read.data + offset;
-                    std::cout << "din_data: " << din_data << std::endl;
+                    din_data.range(BITS-1, 0) = din_read.data.range(BITS-1, 0);
+                    // std::cout << "(" << din_read.data << " " << din_data << ") ";
                     auto din_last = din_read.last;
                     auto detect_addr = 2; 
                     if (j < SPLIT)
@@ -75,6 +73,7 @@ template <typename t_input_struct, typename t_input,
                         o_data.write(dout_write);
                     }
                 }
+                // std::cout << std::endl;
             }
         }
     }

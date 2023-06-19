@@ -29,7 +29,7 @@ template <typename t_data_struct, typename t_data,
     for (auto k = 0; k < TOTAL; k++) {
         for (auto j = 0; j < OCH; j++) {
 
-            #pragma HLS pipeline II=1
+            #pragma HLS pipeline style=stp
             // Adding non-max suppression
             if (j == 0) {
 
@@ -42,29 +42,30 @@ template <typename t_data_struct, typename t_data,
 
             }
 
-            if (j < 4) {
+            if (j <= SPLIT*2) {
                 box[j] = s_buffer[j];
             }
 
-            if ((j == SPLIT*2) & (s_buffer[j] < conf_th)) {
-                detected = false;
-            }
-
-            if ((j > SPLIT*2) & (detected == true) & s_buffer[j] > detected_class) {
+            if ((j > SPLIT*2) & s_buffer[j] > detected_class) {
                 detected_class = s_buffer[j];
-                detected_class_index = j - SPLIT*2 - 1;
+                detected_class_index = j - SPLIT*2;
             }
 
             if ((j == OCH - 1) & (detected == true))  {
-                if (detected_class > conf_th) {
-                    box[4] = detected_class_index;
+                if ((detected_class)*(box[SPLIT*2]) > conf_th) {
+                    box[SPLIT*2] = detected_class_index;
                     t_box dout_write;
                     for (auto i = 0; i < 5; i++) {
-                        dout_write.data = box[i];
-                        dout_write.last = din_last;
-                        dout_write.keep = 0xff;
-                        o_data.write(dout_write);
+                        #pragma HLS unroll
+                        dout_write.data[i] = box[i];
                     }
+                    for (auto i = 5; i < 8; i++) {
+                        #pragma HLS unroll
+                        dout_write.data[i] = 0xffff;
+                    }
+                    dout_write.last = false;
+                    dout_write.keep = -1;
+                    o_data.write(dout_write);
                 }
             }
             // Write output data to the output stream composing the t_output_struct
@@ -72,9 +73,12 @@ template <typename t_data_struct, typename t_data,
     }
 
     t_box dout_write;
-    dout_write.data = -1;
+    for (auto i = 0; i < 8; i++) {
+        #pragma HLS unroll
+        dout_write.data[i] = 0xffff;
+    }
     dout_write.last = true;
-    dout_write.keep = 0xff;
+    dout_write.keep = -1;
     o_data.write(dout_write);
 
 }

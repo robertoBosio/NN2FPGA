@@ -90,9 +90,9 @@ int main() {
     t_o_data s_o_data;
 
     do {
+        s_o_data = o_data_sim.read();
         for (auto i = 0; i<5; i++) {
-            s_o_data = o_data_sim.read();
-            std::cout << (ap_fixed<32, 16>)(s_o_data.data) << " ";
+            std::cout << s_o_data.data[i] << " ";
             if (i==0 & s_o_data.last)
                 break;
         }

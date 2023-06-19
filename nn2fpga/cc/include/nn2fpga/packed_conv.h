@@ -58,7 +58,9 @@ void conv_pipe(
     t_input s_data = i_input[reuse][s_index];
     if constexpr(std::is_same<t_input_mod, std::nullptr_t>::value == false)
       s_data = t_input_mod(s_data);
-    s_acc += s_data * i_weight[s_index][ops];
+    s_acc += t_acc(s_data) * t_acc(i_weight[s_index][ops]);
+    // #pragma HLS bind_op variable=s_acc op=mul impl=dsp
+    // #pragma HLS bind_op variable=s_acc op=add impl=dsp
   }
 
   if (ich != 0) s_acc += s_acc_base;
@@ -89,7 +91,6 @@ void conv_comp(hls::stream<t_input_struct> i_input[c_index],
                hls::stream<t_acc_1x1_struct> o_acc_1x1_stream[c_ops]) {
   /* #pragma HLS inline */
   // Generic Convolution Computation
-  std::cout << "conv_comp " << c_ich << std::endl;
 
   const auto c_o_index = c_oh * c_ow / c_reuse;
   const auto c_num_och = c_och / c_ops;
@@ -236,7 +237,7 @@ template <class t_output_struct, class t_output, class t_output_clip,
           class t_output_mask, class t_acc_struct,
           class t_acc, int c_ich, int c_och, int c_oh, int c_ow, int c_index,
           int c_ops, int c_relu>
-t_output quant_stream(t_acc_struct i_acc, hls::stream<t_output_struct> o_data[1]) {
+void quant_stream(t_acc_struct i_acc, hls::stream<t_output_struct> o_data[1]) {
 #pragma HLS inline
   t_acc_struct s_acc_struct = i_acc;
   t_acc s_acc = s_acc_struct.data;
@@ -257,7 +258,6 @@ t_output quant_stream(t_acc_struct i_acc, hls::stream<t_output_struct> o_data[1]
   s_output.last = s_acc_struct.last;
 
   o_data[0].write(s_output);
-  return s_output.data;
 }
 
 template <class t_output_struct, class t_output, class t_output_clip, class t_output_mask,
@@ -270,7 +270,7 @@ void stream_output(hls::stream<t_acc_struct> i_acc[c_ops],
                    hls::stream<t_output_1x1_struct> o_data_1x1[1]) {
   /* #pragma HLS inline */
 
-  std::cout << "stream_output" << std::endl;
+  // std::cout << "stream_output" << std::endl;
   const auto c_num_comp = c_oh * c_ow * c_och;
   const auto c_pipe_iter = c_num_comp;
   const auto c_num_och = c_och / c_ops;
@@ -294,18 +294,18 @@ void stream_output(hls::stream<t_acc_struct> i_acc[c_ops],
       }
     }
 
-    t_output s_print = quant_stream<t_output_struct, t_output, t_output_clip, t_output_mask, t_acc_struct, t_acc, c_ich, c_och,
+    quant_stream<t_output_struct, t_output, t_output_clip, t_output_mask, t_acc_struct, t_acc, c_ich, c_och,
                  c_oh, c_ow, c_index, c_ops, c_relu>(s_acc[s_och], o_data);
 
-    if (s_pipe_iter/c_och < 2)
-      std::cout << s_print << " ";
+    // if (s_pipe_iter%c_och == (c_och-1))
+    //   std::cout << std::endl;
 
     if constexpr(std::is_same<t_acc_1x1_struct, std::nullptr_t>::value == false) {
       quant_stream<t_output_1x1_struct, t_output_1x1, std::nullptr_t, std::nullptr_t, t_acc_1x1_struct, t_acc_1x1,
                   c_ich, c_och, c_oh, c_ow, 1, 1, 0>(s_acc_1x1[s_och], o_data_1x1);
     }
   }
-  std::cout << std::endl;
+  // std::cout << std::endl;
 }
 
 }  // namespace nn2fpga

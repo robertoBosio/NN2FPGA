@@ -367,7 +367,7 @@ def parse_comp(name, node):
     block["template"].append("c_%s_ops" % name)
     block["template"].append("c_%s_reuse" % name)
 
-    acc_type = get_quant_type(True, 32, node["actscale"][0]+node["wscale"][0])
+    acc_type = get_quant_type(True, 32, node["actscale"][0]+node["wscale"][0]-2)
     block["defines"] = {}
     block["defines"]["t_%s_acc" % output_name] = ["type", acc_type]
     block["defines"]["t_%s_acc_struct" % output_name] = [
@@ -392,7 +392,7 @@ def parse_comp(name, node):
         block["defines"]["t_%s_1x1" % input_name] = ["type", input_1x1_type]
 
         if (node["in_scale_factor"][1] is not None):
-            acc_type_1x1 = get_quant_type(True, 32, node["in_scale_factor"][1]+node["wscale"][1])
+            acc_type_1x1 = get_quant_type(True, 32, node["in_scale_factor"][1]+node["wscale"][1]-2)
         else:
             acc_type_1x1 = get_quant_type(True, 32, node["actscale"][0]+node["wscale"][1])
 

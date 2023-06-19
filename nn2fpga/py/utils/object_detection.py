@@ -21,7 +21,7 @@ def detect_lut(nc, anchors, ch, input_shape, stride=32, bit_width=8, scale=-9.0)
 
     val_list = []
     # Iterate over signed integer range with number of bits equal to bit_width
-    for i in range(-2**(bit_width-1), 2**(bit_width-1)-1):
+    for i in range(0, 2**(bit_width-1)):
         # Declare the input tensor
         x = torch.ones(input_shape)*i
 
@@ -36,6 +36,24 @@ def detect_lut(nc, anchors, ch, input_shape, stride=32, bit_width=8, scale=-9.0)
             y[0][0, 0, ...].tolist()[2],
             y[0][0, 0, ...].tolist()[4]])
 
+    print(len(val_list))
+
+    for i in range(-2**(bit_width-1), 0):
+        # Declare the input tensor
+        x = torch.ones(input_shape)*i
+
+        # Quantize the input tensor
+        x = quantize_tensor(x, bit_width=bit_width, scale=scale)
+
+        y = detect([x])
+
+        # Write the output to a file
+        val_list.append(
+            [y[0][0, 0, ...].tolist()[0],
+            y[0][0, 0, ...].tolist()[2],
+            y[0][0, 0, ...].tolist()[4]])
+
+    print(len(val_list))
     anchor_grid = []
     for data in detect.anchor_grid:
         # get possible values of grid from detect.grid element

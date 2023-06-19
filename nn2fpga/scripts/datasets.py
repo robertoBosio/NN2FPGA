@@ -11,7 +11,7 @@ def cifar10_dataloader(batch_size):
     test_data = torchvision.datasets.CIFAR10(
         CIFAR10_DIRECTORY,
         train=False,
-        download=False,
+        download=True,
         transform=torchvision.transforms.Compose([
             torchvision.transforms.ToTensor(),
             # transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
@@ -22,7 +22,7 @@ def cifar10_dataloader(batch_size):
     test_loader = torch.utils.data.DataLoader(
         test_data,
         batch_size=batch_size,
-        shuffle=True,
+        shuffle=False,
         num_workers=1
     )
 
