@@ -8,7 +8,6 @@ if [ $1 = "KRIA" ]; then
     path="/home/ubuntu/"
     ip="192.168.99.160"
     device="${user}@kria"
-    prj_name=$1
 elif [ $1 = "ULTRA96v2" ]; then
     user="root"
     path="~/"
@@ -16,12 +15,12 @@ elif [ $1 = "ULTRA96v2" ]; then
     # ip="192.168.1.84"
     ip="192.168.3.1"
     device="${user}@${ip}"
-    prj_name=$1
 else
     echo "KRIA or ULTRA96v2"
     exit
 fi
 
+prj_name="$1_${TOP_NAME}"
 res_file=results_${1}_$(date +%m%d%H%M).csv
 #echo "exec_time_avg,exec_time_std,power_avg,power_std,energy_avg,energy_std" > ${res_file}
 
@@ -36,7 +35,7 @@ cp ${NN2FPGA_ROOT}/scripts/inference.py ${PRJ_ROOT}/overlay/inference.py
 cp ${NN2FPGA_ROOT}/scripts/boards.py ${PRJ_ROOT}/overlay/boards.py
 cp ${NN2FPGA_ROOT}/scripts/datasets.py ${PRJ_ROOT}/overlay/datasets.py
 if [ ${URAM_STORAGE} = 1 ]; then
-    cp ${PRJ_ROOT}/npy/uram.npy ${PRJ_ROOT}/overlay/uram.npy
+    cp ${PRJ_ROOT}/npy/uram_${TOP_NAME}.npy ${PRJ_ROOT}/overlay/uram.npy
 fi
 
 # upload bitstream to sdcard

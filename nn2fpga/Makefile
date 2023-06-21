@@ -19,6 +19,10 @@ restore_design:
 	cd $(PRJ_ROOT) && vitis_hls -f $(NN2FPGA_ROOT)/tcl/restore_design.tcl \
 		$(NN2FPGA_ROOT)
 
+restore_vivado_design:
+	cd $(PRJ_ROOT) && vivado -mode tcl -source $(NN2FPGA_ROOT)/tcl/restore_vivado_design.tcl \
+		-tclargs $(NN2FPGA_ROOT)
+
 syn:
 	mkdir -p $(PRJ_ROOT)/cc/src/ $(PRJ_ROOT)/cc/include/ && \
 	cd $(PRJ_ROOT) && vitis_hls -f $(NN2FPGA_ROOT)/tcl/synth.tcl \
@@ -60,6 +64,7 @@ cosim: generate
 	make syn COSIM=1
 
 csim: generate
+	cp $(PRJ_ROOT)/cc/include/$(TOP_NAME)_sim.h $(PRJ_ROOT)/cc/include/network_sim.h
 	make syn CSIM=1
 
 backend: syn vivado_flow

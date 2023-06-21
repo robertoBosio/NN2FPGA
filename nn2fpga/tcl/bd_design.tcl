@@ -200,17 +200,18 @@ proc create_root_design { parentCell topName uramStorage objectDetection } {
   set_property -dict [list \
     CONFIG.c_include_sg {0} \
     CONFIG.c_m_axi_mm2s_data_width {64} \
-    CONFIG.c_m_axi_s2mm_data_width {32} \
     CONFIG.c_m_axis_mm2s_tdata_width {64} \
     CONFIG.c_sg_length_width {26} \
   ] $axi_dma_0
 
    if {${objectDetection} == 1} {
     set_property -dict [list \
-       CONFIG.c_s_axis_s2mm_tdata_width {32} \
+       CONFIG.c_m_axi_s2mm_data_width {128} \
+       CONFIG.c_s_axis_s2mm_tdata_width {128} \
     ] $axi_dma_0
    } else {
     set_property -dict [list \
+       CONFIG.c_m_axi_s2mm_data_width {32} \
        CONFIG.c_s_axis_s2mm_tdata_width {8} \
     ] $axi_dma_0
    }
@@ -230,7 +231,11 @@ proc create_root_design { parentCell topName uramStorage objectDetection } {
 
   # Create instance: ps8_0_axi_periph, and set properties
   set ps8_0_axi_periph [ create_bd_cell -type ip -vlnv xilinx.com:ip:axi_interconnect:2.1 ps8_0_axi_periph ]
-  set_property CONFIG.NUM_MI {2} $ps8_0_axi_periph
+  if {${uramStorage} == 1} {
+   set_property CONFIG.NUM_MI {2} $ps8_0_axi_periph
+  } else {
+   set_property CONFIG.NUM_MI {1} $ps8_0_axi_periph
+  }
 
 
   # Create instance: rst_ps8_0_214M, and set properties
@@ -617,7 +622,6 @@ Port;FD4A0000;FD4AFFFF;1|FPD;DPDMA;FD4C0000;FD4CFFFF;1|FPD;DDR_XMPU5_CFG;FD05000
     CONFIG.PSU__QSPI__PERIPHERAL__ENABLE {0} \
     CONFIG.PSU__SATA__PERIPHERAL__ENABLE {0} \
     CONFIG.PSU__SAXIGP2__DATA_WIDTH {64} \
-    CONFIG.PSU__SAXIGP3__DATA_WIDTH {32} \
     CONFIG.PSU__SD0_COHERENCY {0} \
     CONFIG.PSU__SD0_ROUTE_THROUGH_FPD {0} \
     CONFIG.PSU__SD0__CLK_50_SDR_ITAP_DLY {0x15} \
@@ -706,6 +710,16 @@ Port;FD4A0000;FD4AFFFF;1|FPD;DPDMA;FD4C0000;FD4CFFFF;1|FPD;DDR_XMPU5_CFG;FD05000
     CONFIG.PSU__USE__S_AXI_GP2 {1} \
     CONFIG.PSU__USE__S_AXI_GP3 {1} \
   ] $zynq_ultra_ps_e_0
+
+  if {${objectDetection} == 1} {
+    set_property -dict [list \
+      CONFIG.PSU__SAXIGP3__DATA_WIDTH {128} \
+    ] $zynq_ultra_ps_e_0
+  } else {
+    set_property -dict [list \
+      CONFIG.PSU__SAXIGP3__DATA_WIDTH {32} \
+    ] $zynq_ultra_ps_e_0
+  }
 
   if {${uramStorage} == 1} {
     set_property -dict [list \

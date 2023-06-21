@@ -44,7 +44,7 @@ def init(file_name, parsed_write, prj_root="/tmp"):
     with open(prj_root + "/cc/include/%s_sim.h" % file_name, "w+") as fd:
 
         libraries = [
-            "network.h",
+            "%s.h" % file_name,
             "nn2fpga/debug.h"
         ]
 
@@ -56,7 +56,7 @@ def init(file_name, parsed_write, prj_root="/tmp"):
 
         fd.write("\n")
 
-        fd.write("void %sSim(\n" % file_name)
+        fd.write("void networkSim(\n")
 
         for layer in parsed_write:
             if "produce_stream" == layer["func"]:
@@ -158,7 +158,7 @@ def body(file_name, parsed_write, prj_root="/tmp"):
     
     if concat_weights is not None:
         os.system("mkdir -p " + prj_root + "/npy/")
-        np.save(prj_root + "/npy/uram.npy", concat_weights)
+        np.save(prj_root + "/npy/uram_%s.npy" % file_name, concat_weights)
 
 
 def footer(file_name, parsed_write, prj_root="/tmp"):

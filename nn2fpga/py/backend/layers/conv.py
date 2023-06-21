@@ -360,14 +360,14 @@ def parse_comp(name, node):
 
     block["template"].append("c_%s_ich" % name)
     block["template"].append("c_%s_och" % name)
-    block["template"].append("c_%s_ow" % name)
     block["template"].append("c_%s_oh" % name)
+    block["template"].append("c_%s_ow" % name)
     block["template"].append("c_%s_index" % name)
     block["template"].append("c_%s_stride" % name)
     block["template"].append("c_%s_ops" % name)
     block["template"].append("c_%s_reuse" % name)
 
-    acc_type = get_quant_type(True, 32, node["actscale"][0]+node["wscale"][0]-2)
+    acc_type = get_quant_type(True, 32, node["actscale"][0]+node["wscale"][0], acc_reg=True)
     block["defines"] = {}
     block["defines"]["t_%s_acc" % output_name] = ["type", acc_type]
     block["defines"]["t_%s_acc_struct" % output_name] = [
@@ -422,8 +422,8 @@ def parse_comp(name, node):
     if (node["reuse"] > 1):
         block["args"].append("s_%s_nchw" % input_name)
     else:
-        if node["is_1x1"]:
-            block["args"].append("s_%s" % input_name)
+        if node["pad"] == 0:
+            block["args"].append("s_%s_pre_pad" % input_name)
         else:
             block["args"].append("s_%s_compute" % input_name)
 
@@ -580,8 +580,8 @@ def parse_nchw(name, node):
         block["template"].append("t_%s_struct" % tensor_type_name)
         block["template"].append("c_%s_ich" % name)
         block["template"].append("c_%s_och" % name)
-        block["template"].append("c_%s_ow" % name)
         block["template"].append("c_%s_oh" % name)
+        block["template"].append("c_%s_ow" % name)
 
         if is_add or is_1x1:
             block["template"].append("1")
@@ -656,8 +656,8 @@ def parse_nhwc(name, node):
         block["template"].append("t_%s_struct" % tensor_type_name)
         block["template"].append("c_%s_ich" % name)
         block["template"].append("c_%s_och" % name)
-        block["template"].append("c_%s_ow" % name)
         block["template"].append("c_%s_oh" % name)
+        block["template"].append("c_%s_ow" % name)
         block["template"].append("c_%s_index" % name)
         block["template"].append("c_%s_stride" % name)
         if ops is not None:

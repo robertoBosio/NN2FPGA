@@ -19,7 +19,7 @@ template <class t_input, class t_weight, class t_bias, class t_add_struct,
           class t_input_mod, class t_acc_struct, class t_acc,
           int c_reuse, int c_index,
           int c_ops, int c_ich, int c_och>
-void conv_pipe(
+t_acc_struct conv_pipe(
     t_input i_input[c_reuse][c_index],
     t_weight i_weight[c_index],
     t_bias i_bias,
@@ -29,8 +29,7 @@ void conv_pipe(
     uint32_t reuse,
     bool last,
     t_add_struct i_add,
-    t_acc i_acc_buff[c_reuse][c_och],
-    hls::stream<t_acc_struct> o_acc_stream[c_ops]) {
+    t_acc i_acc_buff[c_reuse][c_och]) {
 #pragma HLS inline
   t_acc s_acc;
   t_acc s_acc_base;
@@ -58,7 +57,8 @@ void conv_pipe(
     t_input s_data = i_input[reuse][s_index];
     if constexpr(std::is_same<t_input_mod, std::nullptr_t>::value == false)
       s_data = t_input_mod(s_data);
-    s_acc += t_acc(s_data) * t_acc(i_weight[s_index][ops]);
+    // s_acc += t_acc(s_data) * t_acc(i_weight[s_index][ops]);
+    s_acc += s_data * i_weight[s_index][ops];
     // #pragma HLS bind_op variable=s_acc op=mul impl=dsp
     // #pragma HLS bind_op variable=s_acc op=add impl=dsp
   }
@@ -67,11 +67,9 @@ void conv_pipe(
 
   s_acc_struct.data = s_acc;
 
-  if (ich == (c_ich - 1)) {
-    o_acc_stream[ops].write(s_acc_struct);
-  } else {
-    i_acc_buff[reuse][och] = s_acc;
-  }
+  i_acc_buff[reuse][och] = s_acc;
+
+  return s_acc_struct;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -114,6 +112,10 @@ void conv_comp(hls::stream<t_input_struct> i_input[c_index],
   t_bias_1x1 s_bias_1x1;
 #pragma HLS array_partition variable = s_bias_1x1 type = complete
   t_add_struct s_add;
+  t_acc_struct s_acc_struct[c_ops];
+#pragma HLS array_partition variable = s_acc_struct type = complete
+  t_acc_1x1_struct s_acc_1x1_struct[c_ops];
+#pragma HLS array_partition variable = s_acc_1x1_struct type = complete
 
   for (auto s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
     for (auto s_ich = 0; s_ich < c_ich; s_ich++) {
@@ -161,7 +163,7 @@ void conv_comp(hls::stream<t_input_struct> i_input[c_index],
       COMPUTE:
         for (auto s_ops = 0; s_ops < c_ops; s_ops++) {
           auto s_och = s_num_och * c_ops + s_ops;
-          conv_pipe<
+          s_acc_struct[s_ops] = conv_pipe<
             t_input,
             t_weight,
             t_bias,
@@ -184,13 +186,12 @@ void conv_comp(hls::stream<t_input_struct> i_input[c_index],
             s_reuse,
             s_last,
             s_add,
-            s_acc_buff,
-            o_acc_stream
+            s_acc_buff
           );
 
           if constexpr(std::is_same<t_acc_1x1_struct, std::nullptr_t>::value == false) {
             s_input_1x1[s_reuse][0] = s_input[s_reuse][c_index / 2];
-            conv_pipe<
+            s_acc_1x1_struct[s_ops] = conv_pipe<
               t_input,
               t_weight_1x1,
               t_bias_1x1,
@@ -213,9 +214,13 @@ void conv_comp(hls::stream<t_input_struct> i_input[c_index],
               s_reuse,
               s_last,
               nullptr,
-              s_acc_1x1_buff,
-              o_acc_1x1_stream
+              s_acc_1x1_buff
             );
+          }
+          if (s_ich == (c_ich-1)) {
+            o_acc_stream[s_ops].write(s_acc_struct[s_ops]);
+            if constexpr(std::is_same<t_acc_1x1_struct, std::nullptr_t>::value == false)
+              o_acc_1x1_stream[s_ops].write(s_acc_1x1_struct[s_ops]);
           }
         }
         if constexpr(std::is_same<t_forward_struct, std::nullptr_t>::value == false) {
