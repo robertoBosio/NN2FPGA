@@ -1,7 +1,7 @@
 set NN2FPGA_ROOT [lindex $argv 0]
 source "${NN2FPGA_ROOT}/tcl/settings.tcl"
 
-set PRJ_NAME ${BOARD}_example
+set PRJ_NAME ${BOARD}_${TOP_NAME}_example
 
 create_project ${PRJ_NAME} ${PRJ_NAME} -force -part ${FPGA_PART}
 
@@ -33,4 +33,4 @@ launch_runs impl_1 -jobs 11
 wait_on_run impl_1
 open_run impl_1
 
-write_bitstream -file ${PRJ_ROOT}/${BOARD}_example/design_1.bit -force
+write_bitstream -file ${PRJ_ROOT}/${PRJ_NAME}/design_1.bit -force

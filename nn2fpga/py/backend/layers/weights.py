@@ -769,7 +769,7 @@ def init(file_name, network_name, parsed_write, uram_layer_include, prj_root="/t
     ]
 
     if uram_layer_include:
-        libraries.append("load_uram.h")
+        libraries.append("load_uram_%s.h" % network_name)
 
     with open(prj_root + ("/cc/src/%s.cc" % file_name), "w+") as fd:
         # Write header with network definitions
@@ -816,7 +816,8 @@ def write(io_dict, network_name, prj_root="/tmp"):
             uram_download.write(layer, network_name, prj_root)
             uram_layer_include = True
 
-    init("memory_management", network_name, parsed_write, uram_layer_include, prj_root=prj_root)
-    declare("memory_management", parsed_write, ap_ctrl=None, inline=True, prj_root=prj_root)
-    body("memory_management", parsed_write, prj_root)
+    memory_management_file_name = "memory_management_%s" % network_name
+    init(memory_management_file_name, network_name, parsed_write, uram_layer_include, prj_root=prj_root)
+    declare(memory_management_file_name, parsed_write, ap_ctrl=None, inline=True, prj_root=prj_root)
+    body(memory_management_file_name, parsed_write, prj_root)
 

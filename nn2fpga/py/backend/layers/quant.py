@@ -6,14 +6,17 @@ import qonnx
 from onnx import numpy_helper
 import numpy as np
 
-def get_quant_type(signed, bit_width, scale_factor):
+def get_quant_type(signed, bit_width, scale_factor, acc_reg=False):
     type_name = ""
     type_name += "ap_fixed" if signed else "ap_ufixed"
     type_name += "<"
     type_name += str(int(bit_width))
     type_name += ","
     type_name += str(int(bit_width+scale_factor))
-    type_name += ",AP_RND,AP_SAT>"
+    if acc_reg:
+        type_name += ",AP_RND,AP_WRAP>"
+    else:
+        type_name += ",AP_RND,AP_SAT>"
     # type_name += ",AP_TRN,AP_SAT>"
     return type_name
 

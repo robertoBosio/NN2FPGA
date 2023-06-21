@@ -102,7 +102,8 @@ def init(uram_layer, network_name, prj_root="/tmp"):
         "nn2fpga/weights_utils.h"
     ]
 
-    file_name = uram_layer['func']
+    layer_name = uram_layer['func']
+    file_name = uram_layer['func'] + "_%s" % network_name
 
     with open(prj_root + ("/cc/include/%s.h" % file_name), "w+") as fd:
         fd.write("#ifndef __%s__\n" % file_name.upper())
@@ -114,7 +115,7 @@ def init(uram_layer, network_name, prj_root="/tmp"):
         fd.write("\n")
 
         # Handle internal or external parameters
-        fd.write("void %s(\n" % file_name)
+        fd.write("void %s(\n" % layer_name)
 
         # URAM read handled by external DMA
         for i, name in enumerate(uram_layer["stream_input"]):
@@ -189,7 +190,7 @@ def produce_func(uram_layer, output_name):
 
 def body(uram_layer, network_name, prj_root):
 
-    file_name = uram_layer['func']
+    file_name = uram_layer['func'] + "_%s" % network_name
 
     total = 0
 
