@@ -4,8 +4,9 @@ import sys
 import qonnx
 from onnx import numpy_helper
 import numpy as np
+from backend.layers.quant import get_quant_type
 
-def info(io_dict, tensors_info, model):
+def info(io_dict, tensors_info, model, ws):
 
 
     node_name = "produce_stream"
@@ -28,6 +29,7 @@ def info(io_dict, tensors_info, model):
     io_dict[node_name]["ich"]    = ich
     io_dict[node_name]["ih"]     = ih
     io_dict[node_name]["iw"]     = iw
+    io_dict[node_name]["ws"]     = ws
 
     return io_dict
 
@@ -52,7 +54,7 @@ def parse(name, node):
     block["template"].append("c_%s_iw" % name)
     block["template"].append("c_%s_ih" % name)
     block["template"].append("c_%s" % input_name)
-    block["template"].append("c_%s_scale_factor" % name)
+    # block["template"].append("c_ws")
 
     block["args"] = []
     block["args"].append("i_%s" % input_name)
@@ -67,10 +69,7 @@ def parse(name, node):
         "ap_axiu<c_%s, 0, 0, 0>" % input_name
     ]
 
-    if (signed):
-        output_type = "int8_t"
-    else:
-        output_type = "uint8_t"
+    output_type = get_quant_type(node["signed"], node["bits"][0], node["scale_factor"][0])
 
     block["defines"]["t_%s_part" % input_type_name] = [
         "type",
@@ -110,12 +109,9 @@ def parse(name, node):
         "const",
         node["ih"]
     ]
-
-    scale_factor = 8+node["scale_factor"][0]
-
-    block["defines"]["c_%s_scale_factor" % name] = [
+    block["defines"]["c_ws"] = [
         "const",
-        scale_factor
+        node["ws"]
     ]
 
     block["declare"] = []

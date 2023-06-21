@@ -23,6 +23,8 @@ def write_network(
     off_chip_storage=False,
     board="ULTRA96v2",
     uram_storage=False,
+    object_detection=False,
+    anchors=[],
     prj_root="/tmp",
 ):
 
@@ -41,7 +43,9 @@ def write_network(
 
     io_dict = graph_info(
         inferred_model,
-        init_info
+        init_info,
+        object_detection,
+        anchors
     )
 
     io_dict = opt_steps(
@@ -99,6 +103,7 @@ def write_network(
         io_dict,
         file_name,
         ap_ctrl_chain,
+        object_detection=object_detection,
         prj_root=prj_root,
     )
 

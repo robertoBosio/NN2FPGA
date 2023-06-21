@@ -2,6 +2,8 @@ import os
 import sys
 import pulp
 import math
+from backend.ilp_utils import find_divisors
+from backend.ilp_utils import find_range
 
 def parallel_ops_number(layers_info, clamp=None, board="ULTRA96v2", prj_root="/tmp"):
 
@@ -26,7 +28,7 @@ def parallel_ops_number(layers_info, clamp=None, board="ULTRA96v2", prj_root="/t
         return best_one, best_index
 
     def happiness(choices, elem, layers_info):
-        return choice[0] * layers_info[elem][1] * layers_info[elem][2]
+        return choice[0] * layers_info[elem][1]
 
     num_layers = len(layers_info)
 
@@ -59,17 +61,29 @@ def parallel_ops_number(layers_info, clamp=None, board="ULTRA96v2", prj_root="/t
 
     print("Status:", pulp.LpStatus[prob.status])
 
+    all_divisors, layers_divisors, layers_offset, layers_name = find_divisors(layers_info, clamp=clamp)
+
+    # Searching for an integer divisor of the number of DSPs that is the closest to the
+    # number of operations that should be executed in parallel
+    max_data = int(choice[0].value())
+    low_range, high_range = find_range(
+        all_divisors[layers_offset[best_index]:layers_offset[best_index]+layers_divisors[best_index]],
+        max_data
+    )
+
     parallel_op = {}
-    max_exp = int(math.log2(choice[0].value()))
-    max_data = 2**max_exp
+    max_data = low_range
     for i in range(num_layers):
         # Returning the layers name together with the computed number of 
         # operations that should be executed in parallel
         data = int(max_data/layers_info[i][5])
-        if data == 0:
-          data = 1
-        parallel_op[layers_info[i][0]] = data
-    
+        low_range, high_range = find_range(
+            all_divisors[layers_offset[i]:layers_offset[i]+layers_divisors[i]],
+            data
+        )
+        parallel_op[layers_info[i][0]] = low_range
+        print(all_divisors[layers_offset[i]:layers_offset[i]+layers_divisors[i]], data, low_range, high_range)
+
     return parallel_op
 
 def ilp(io_dict, off_chip_storage, board="ULTRA96v2", double_packing=True, prj_root="/tmp"):
@@ -77,7 +91,7 @@ def ilp(io_dict, off_chip_storage, board="ULTRA96v2", double_packing=True, prj_r
     if off_chip_storage:
         clamp = 8
     else:
-        clamp = 16
+        clamp = 64
 
     layers_info = []
 
@@ -90,8 +104,9 @@ def ilp(io_dict, off_chip_storage, board="ULTRA96v2", double_packing=True, prj_r
     for node_name, node_info in io_dict.items():
         if 'conv' in node_info["type"]:
 
-            value = int(math.log2(node_info["total"]/max_total))
-            value = 2**value
+            value = node_info["total"]/max_total
+            # value = 2**value
+            print(node_name, node_info["total"], value)
 
             layers_info.append(
                 [
@@ -100,17 +115,32 @@ def ilp(io_dict, off_chip_storage, board="ULTRA96v2", double_packing=True, prj_r
                     node_info["kernel"],
                     node_info["img_ch"],
                     node_info["merge_1x1"],
-                    value
+                    value,
+                    node_info["och"]
                 ]
             )
 
     parallel_ops = parallel_ops_number(layers_info, clamp, board, prj_root=prj_root)
+
+    # # Manual tuning for DAC
+    # parallel_ops['/model_0/conv/Conv'] = 4
+    # parallel_ops['/model_1/conv/Conv'] = 16
+    # parallel_ops['/model_3/conv/Conv'] = 16
+    # parallel_ops['/model_5/conv/Conv'] = 14
+    # parallel_ops['/model_7/conv/Conv'] = 13
+    # parallel_ops['/model_11/conv/Conv'] = 26
+    # parallel_ops['/model_13/m_0/Conv'] = 4
 
     print(parallel_ops)
 
     for node_name, ops in parallel_ops.items():
         io_dict[node_name]["ops"] = ops
         io_dict[node_name]["dp"] = False
+
+        # Evaluating neccessary output channels to avoid losing performance
+        io_dict[node_name]["out_par"] = int(io_dict[node_name]["oh"] * io_dict[node_name]["ow"] * io_dict[node_name]["och"] * io_dict[node_name]["total"])
+        if io_dict[node_name]["out_par"] == 0:
+            io_dict[node_name]["out_par"] = 1
 
     # if double_packing:
     #     for node_name, ops in parallel_ops.items():

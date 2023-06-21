@@ -2,7 +2,7 @@ import os
 import sys
 import pulp
 import math
-from primefac import primefac
+from backend.ilp_utils import find_divisors
 
 def reuse_number(layers_info, clamp=16):
 

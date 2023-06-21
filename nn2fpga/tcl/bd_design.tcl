@@ -158,7 +158,7 @@ if { $bCheckIPsPassed != 1 } {
 
 # Procedure to create entire design; Provide argument to make
 # procedure reusable. If parentCell is "", will use root.
-proc create_root_design { parentCell topName uramStorage } {
+proc create_root_design { parentCell topName uramStorage objectDetection } {
 
   variable script_folder
   variable design_name
@@ -202,9 +202,18 @@ proc create_root_design { parentCell topName uramStorage } {
     CONFIG.c_m_axi_mm2s_data_width {64} \
     CONFIG.c_m_axi_s2mm_data_width {32} \
     CONFIG.c_m_axis_mm2s_tdata_width {64} \
-    CONFIG.c_s_axis_s2mm_tdata_width {8} \
     CONFIG.c_sg_length_width {26} \
   ] $axi_dma_0
+
+   if {${objectDetection} == 1} {
+    set_property -dict [list \
+       CONFIG.c_s_axis_s2mm_tdata_width {32} \
+    ] $axi_dma_0
+   } else {
+    set_property -dict [list \
+       CONFIG.c_s_axis_s2mm_tdata_width {8} \
+    ] $axi_dma_0
+   }
 
    if {${uramStorage} == 1} {
       # Create instance: axi_dma_1, and set properties
@@ -772,6 +781,6 @@ Port;FD4A0000;FD4AFFFF;1|FPD;DPDMA;FD4C0000;FD4CFFFF;1|FPD;DDR_XMPU5_CFG;FD05000
 # MAIN FLOW
 ##################################################################
 
-create_root_design "" ${TOP_NAME} ${URAM_STORAGE}
+create_root_design "" ${TOP_NAME} ${URAM_STORAGE} ${OBJECT_DETECTION}
 
 

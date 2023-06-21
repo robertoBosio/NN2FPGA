@@ -37,34 +37,39 @@ def body(file_name, parsed_write, prj_root="/tmp"):
 
         fd.write("}\n")
 
-def write_const(fd, values, i, dims):
+def write_const(fd, values, i, dims, form="int"):
 
     if (i == (dims)):
-        fd.write("%0d" % values)
+        if form == "float":
+            fd.write("%0.16f" % values)
+        else:
+            fd.write("%0d" % values)
     else:
         fd.write("{")
         for j in range(values.shape[0]):
             if j > 0:
                 fd.write(",")
-            write_const(fd, values[j, ...], i+1, dims)
+            write_const(fd, values[j, ...], i+1, dims, form)
         fd.write("}")
     
 def write_declare(fd, variable):
     
     name = variable["name"]
     is_not_stream = 'is_const' in variable.keys()
+    if "is_stream" in variable.keys():
+        is_not_stream = not variable["is_stream"]
     
+    fd.write("\t")
     type_name = variable["type"]
     if not is_not_stream:
         dim = variable["dim"]
         type_name = "hls::stream<%s>" % type_name
     else:
-        fd.write("\t")
         if variable["is_const"]:
             fd.write("const ")
 
     if (variable["is_array"] and not is_not_stream):
-        fd.write("\t%s %s[%0d]" % (type_name, name, dim))
+        fd.write("%s %s[%0d]" % (type_name, name, dim))
     else:
         fd.write("%s %s" % (type_name, name))
 
@@ -75,7 +80,18 @@ def write_declare(fd, variable):
 
         if (variable["is_const"]):
             fd.write(" = ")
-            write_const(fd, variable["init"], 0, len(variable["init"].shape))
+            form = "int"
+
+            if "form" in variable.keys():
+                form = variable["form"]
+
+            if variable["is_array"]:
+                write_const(fd, variable["init"], 0, len(variable["init"].shape), form)
+            else:
+                if form == "float":
+                    fd.write("%0.16f" % variable["init"])
+                else:
+                    fd.write("%0d" % variable["init"])
 
     fd.write(";\n")
 
@@ -139,6 +155,14 @@ def write_defines(fd, values):
         if value[0] == 'const':
             fd.write(
                 "const int %s = %0d;\n" % (
+                    name,
+                    value[1]
+                )
+            )
+
+        if value[0] == 'const_float':
+            fd.write(
+                "const ap_fixed<32,16> %s = %.16f;\n" % (
                     name,
                     value[1]
                 )

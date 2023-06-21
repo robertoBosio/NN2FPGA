@@ -8,10 +8,12 @@ set NN2FPGA_ROOT $::env(NN2FPGA_ROOT)
 set BOARD_PATH $::env(BOARD_PATH)
 set TB_ROOT $::env(TB_ROOT)
 # set board "KRIA"
+set DATASET $::env(DATASET)
 
 set PRJ_ROOT $::env(PRJ_ROOT)
 set TOP_NAME $::env(TOP_NAME)
 set URAM_STORAGE $::env(URAM_STORAGE)
+set OBJECT_DETECTION $::env(OBJECT_DETECTION)
 
 if {$BOARD == "PYNQ"} {
 	set FPGA_PART "xc7z020clg400-1"

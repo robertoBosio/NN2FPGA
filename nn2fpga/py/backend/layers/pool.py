@@ -4,8 +4,9 @@ import sys
 import qonnx
 from onnx import numpy_helper
 import numpy as np
+from backend.layers.quant import get_quant_type
 
-def info(io_dict, node, node_name, init_info, tensors_info):
+def info(io_dict, node, node_name, init_info, tensors_info, ws):
 
     attributes = getattr(node, "attribute" )
     input_shape = tensors_info[node.input[0]].tensor_type.shape
@@ -38,6 +39,8 @@ def info(io_dict, node, node_name, init_info, tensors_info):
         stride = attr_dict["strides"][0]
         pad    = attr_dict["pads"][0]
 
+    adaptive |= (fh == iw) and (fw == ih) and (stride == 1) and (pad == 0)
+
     in_scale_factor = 0
 
     if 'max' in node.op_type.lower():
@@ -60,6 +63,9 @@ def info(io_dict, node, node_name, init_info, tensors_info):
     io_dict[node_name]["type"]   = 'pool'
     io_dict[node_name]["in_scale_factor"] = in_scale_factor
     io_dict[node_name]["actscale"] = []
+    io_dict[node_name]["is_adaptive"] = adaptive
+    io_dict[node_name]["actbits"] = []
+    io_dict[node_name]["ws"] = ws
 
     return io_dict
 
@@ -93,26 +99,29 @@ def parse(name, node):
     block["template"].append("c_%s_stride" % name)
     block["template"].append("c_%s_pad" % name)
     block["template"].append("c_%s_pool" % name)
-    block["template"].append("c_%s_scale_factor" % name)
+    # block["template"].append("c_ws")
     # block["template"].append("c_%s_in_scale_factor" % name)
 
     block["args"] = []
-    block["args"].append("s_%s[0]" % input_name)
+    if (node["is_adaptive"]):
+        block["args"].append("s_%s[0]" % input_name)
+    else:
+        block["args"].append("s_%s_compute" % input_name)
     block["args"].append("s_%s[0]" % output_name)
 
     block["defines"] = {}
-    if (signed):
-        output_type = "int8_t"
-    else:
-        output_type = "uint8_t"
-
+    output_type = get_quant_type(node["signed"], node["bits"][0], node["scale_factor"][0])
     block["defines"]["t_%s" % output_type_name] = ["type", output_type]
     block["defines"]["t_%s_struct" % output_type_name] = [
         "struct",
         [["data", "t_%s" % output_type_name], ["last", "bool"]]
     ]
 
-    block["defines"]["t_%s_acc" % name]            = ["type", "int32_t"]
+    if node["pool"] == 1:
+        block["defines"]["t_%s_acc" % name]            = ["type", output_type]
+    else:
+        acc_type = get_quant_type(True, 32, node["actscale"][0])
+        block["defines"]["t_%s_acc" % name]            = ["type", acc_type]
     block["defines"]["c_%s_ich" % name]            = ["const", node["ich"]]
     block["defines"]["c_%s_och" % name]            = ["const", node["och"]]
     block["defines"]["c_%s_iw" % name]             = ["const", node["iw"]]
@@ -124,17 +133,6 @@ def parse(name, node):
     block["defines"]["c_%s_stride" % name]         = ["const", node["stride"]]
     block["defines"]["c_%s_pad" % name]            = ["const", node["pad"]]
     block["defines"]["c_%s_pool" % name]           = ["const", node["pool"]]
-    if "scale_factor" in node.keys():
-        if (len(node["actscale"]) > 0):
-            off = -1*(node["actscale"][0])
-        else:
-            off = 0
-
-        diff_scale = off + node["scale_factor"][0] + node["in_scale_factor"]
-        block["defines"]["c_%s_scale_factor" % name] = [
-            "const", 
-            diff_scale
-        ]
 
     block["declare"] = []
 

@@ -5,7 +5,7 @@ import qonnx
 from onnx import numpy_helper
 import numpy as np
 
-def info(io_dict, tensors_info, model):
+def info(io_dict, tensors_info, model, ws):
 
 
     node_name = "produce_stream"
@@ -28,6 +28,7 @@ def info(io_dict, tensors_info, model):
     io_dict[node_name]["och"]    = och
     io_dict[node_name]["oh"]     = oh
     io_dict[node_name]["ow"]     = ow
+    io_dict[node_name]["ws"]     = ws
 
     return io_dict
 
@@ -49,16 +50,17 @@ def parse(parsed_write, node_name):
     block["template"].append("c_%s_och" % node_name)
     block["template"].append("c_%s_ow" % node_name)
     block["template"].append("c_%s_oh" % node_name)
+    # block["template"].append("c_ws")
 
     block["args"] = []
     block["args"].append("s_%s[0]" % input_name)
     block["args"].append("o_outp1")
 
+    output_type = "hls::axis<t_%s, 0, 0, 0>" % input_type_name
     block["defines"] = {}
-    block["defines"]["c_%s" % (output_name)] = ["const", 8]
     block["defines"]["t_o_%s" % output_type_name] = [
         "type",
-        "ap_axis<c_%s, 0, 0, 0>" % output_name
+        "%s" % output_type
     ]
 
     block["defines"]["t_o_outp1"] = ["alias", "t_o_%s" % output_type_name]

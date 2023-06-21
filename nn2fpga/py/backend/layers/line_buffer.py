@@ -5,6 +5,15 @@ import qonnx
 from onnx import numpy_helper
 import numpy as np
 
+def return_index(fh, fw, ws, iw, ih):
+    window_size = fw+ws-1
+    if (iw >= (fw-1)) and (iw <= (window_size-fw+1)):
+        return iw+window_size*(ih-1)
+    elif (iw > (window_size-fw+1)):
+        return iw-ws+window_size*ih
+    else:
+        return iw+window_size*ih-fw+1
+
 def parse(name, node):
 
     dfh = node["fh"]

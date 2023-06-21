@@ -7,6 +7,11 @@ import numpy as np
 import backend.layers.conv as conv
 import backend.layers.pool as pool
 import backend.layers.input_gen as input_gen
+import backend.layers.quant as quant
+import backend.layers.detect as detect
+import backend.layers.non_max_suppression as non_max_suppression
+import backend.layers.concat as concat
+import backend.layers.upsample as upsample
 
 def net_distance(io_dict, io_connect):
 
@@ -55,6 +60,10 @@ def extract_connections(model, io_dict):
         for output_name in io_info["output"]:
 
             is_graph_input = output_name == graph_input_name
+
+            # Done to recognize vector connections
+            output_name = output_name.split("[")[0]
+
             io_connect.setdefault(output_name, [[], []])
 
             io_connect[output_name][0].append(node_name)
@@ -91,7 +100,7 @@ def extract_tensors_info(model):
 
     return tensors_info
 
-def graph_info(model, init_info):
+def graph_info(model, init_info, object_detection=False, anchors=None, ws=2):
 
     tensors_info = extract_tensors_info(
         model
@@ -111,13 +120,19 @@ def graph_info(model, init_info):
     io_dict = input_gen.info(
         io_dict,
         tensors_info,
-        model
+        model,
+        ws
     )
 
+    graph_output_name = model.graph.output[0].name
+    graph_output_name = graph_output_name.replace(".", "_")
+
+    cut_name = []
     for node in model.graph.node:
 
         node_name = node.name
         node_name = node_name.replace(".", "_")
+
         io_dict[node_name] = {}
         io_dict[node_name]["input"] = []
         io_dict[node_name]["output"] = []
@@ -147,8 +162,11 @@ def graph_info(model, init_info):
                 node,
                 node_name,
                 init_info,
-                tensors_info
+                tensors_info,
+                ws
             )
+            # Save last layer name if it is a recognized layer
+            last_layer_name = node_name
             continue
 
         if 'pool' in node.op_type.lower():
@@ -157,40 +175,93 @@ def graph_info(model, init_info):
                 node,
                 node_name,
                 init_info,
-                tensors_info
+                tensors_info,
+                ws
             )
+            # Save last layer name if it is a recognized layer
+            last_layer_name = node_name
             continue
 
         if 'relu' in node.op_type.lower():
             io_dict[node_name]["type"] = "relu"
+            # Save last layer name if it is a recognized layer
+            last_layer_name = node_name
             continue
 
-        if 'add' in node.op_type.lower():
+        if 'add' in node.op_type.lower() and cut_name == []:
             io_dict[node_name]["type"] = "add"
+            # Save last layer name if it is a recognized layer
+            last_layer_name = node_name
             continue
 
         if 'quant' in node.op_type.lower():
-            scale_name   = io_dict[node_name]["input"][1]
-            scale_info   = init_info[scale_name]
-            scale_factor = numpy_helper.to_array(scale_info)
-            scale_factor = np.log2(scale_factor)
-
-            attributes = getattr(node, "attribute" )
-            narrow = attributes[0].i
-            signed = attributes[2].i
-
-            bits_name   = io_dict[node_name]["input"][3]
-            bits = init_info[bits_name]
-
-            io_dict[node_name]["scale_factor"] = scale_factor
-            io_dict[node_name]["signed"] = signed
-            io_dict[node_name]["narrow"] = narrow
-            io_dict[node_name]["bits"] = numpy_helper.to_array(bits)
-            io_dict[node_name]["type"] = "quant"
-            io_dict[node_name]["clip"] = scale_factor
-            io_dict[node_name]["mask"] = scale_factor
+            io_dict = quant.info(
+                io_dict,
+                node,
+                node_name,
+                init_info,
+                tensors_info
+            )
+            # Save last layer name if it is a recognized layer
+            last_layer_name = node_name
             continue
+        
+        if 'concat' in node.op_type.lower() and cut_name == []:
+            io_dict = concat.info(
+                io_dict,
+                node,
+                node_name,
+                init_info,
+                tensors_info
+            )
+            # Save last layer name if it is a recognized layer
+            last_layer_name = node_name
+            continue
+        
+        if 'resize' in node.op_type.lower() and cut_name == []:
+            io_dict = upsample.info(
+                io_dict,
+                node,
+                node_name,
+                init_info,
+                tensors_info
+            )
+            # Save last layer name if it is a recognized layer
+            last_layer_name = node_name
+            continue
+        
+        if cut_name == []:
+            cut_name.append(last_layer_name)
+            # Assign the graph output name to the cut layer
+            io_dict[last_layer_name]["output"][0] = graph_output_name
+        else:
+            io_connect = extract_connections(model, io_dict)
+            # append the last layer if the input is in the io_connect
+            if io_dict[node_name]["input"][0] in io_connect.keys():
+                cut_name.append(last_layer_name)
+                # Assign the graph output name to the cut layer
+                io_dict[last_layer_name]["output"][0] = graph_output_name
 
+        # If the node is not recognized, it is not included in the dictionary
+        # and it is not considered in the optimization process
+        io_dict.pop(node_name)
+
+    # check if the last layer output is the graph output
+    assert (len(cut_name) < 2 or object_detection)
+    if len(cut_name) > 0:
+        assert (len(cut_name) == len(anchors))
+
+    if object_detection:
+        concat_net = None
+        for i, layer_name in enumerate(cut_name):
+            io_dict = detect.info(io_dict, i, anchors[i], layer_name, len(cut_name), ws)
+        io_dict = non_max_suppression.info(io_dict, graph_output_name, len(cut_name), anchors, cut_name)
+    elif len(cut_name) == 1:
+        graph_output_name = model.graph.output[0].name
+        graph_output_name = graph_output_name.replace(".", "_")
+        if io_dict[last_layer_name]["output"][0] != graph_output_name:
+            io_dict[last_layer_name]["output"][0] = graph_output_name
+    
     return io_dict
 
 def rename_nodes(io_dict):
@@ -225,10 +296,19 @@ def rename_edges(model, io_dict):
         else:
             new_net_name = "net_" + in_type + "_%0d" % n_net
 
-        rename_dict[net_name] = new_net_name
+        rename_dict[net_name.split("[")[0]] = new_net_name
 
-        in_pos = io_dict[layer_in_name]["output"].index(net_name)
+        # Done to recognize vector connections
+        vector_less_name = []
+        for output_name in io_dict[layer_in_name]["output"]:
+            vector_less_name.append(output_name.split("[")[0])
+
+        in_pos = vector_less_name.index(net_name)
         io_dict[layer_in_name]["output"][in_pos] = new_net_name 
+        # In this way splits are handled with the layer merging them
+
+        if len(net_name.split("[")) > 1:
+            io_dict[layer_in_name]["output"][in_pos] += "[" + net_name.split("[")[1]
 
         if layer_out_name != "consume_stream":
             out_pos = io_dict[layer_out_name]["input"].index(net_name)

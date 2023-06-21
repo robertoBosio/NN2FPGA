@@ -8,6 +8,7 @@ from backend.graph import extract_connections
 from backend.utils import *
 from backend.layers.uram_download import fill_uram_layer, add_uram_layer
 import backend.layers.uram_download as uram_download
+from backend.layers.quant import get_quant_type
 
 def parse_on_chip(
     node_info,
@@ -15,6 +16,7 @@ def parse_on_chip(
     bits=8,
     signed=1,
     narrow=1,
+    uram_storage=False
 ):
 
     dich = node_info["ich"]
@@ -53,6 +55,9 @@ def parse_on_chip(
 
                         if (limit_l > quant_value):
                             quant_value = limit_l
+                        
+                        if not uram_storage:
+                            quant_value = quant_value*scale_factor
 
                         index = ih*diw+iw
                         ch = ich*doch_ops+och
@@ -86,6 +91,20 @@ def pack_weights(
                 new_values[i*bytes_num+j] = data_bytes[bytes_num - 1 - j]
             # for j in range(0, bytes_num):
             #     new_values[i*bytes_num+j] = data_bytes[j]
+
+        values = new_values
+    elif bits < 8:
+        pack_width = int(8/bits)
+        new_values = np.zeros([int(values.shape[0]/pack_width)])
+        mask = 2**bits - 1
+
+        for i in range(0, values.shape[0], pack_width):
+            data_byte = 0
+            for j in range(pack_width):
+                data = values[i+j]
+                data_byte |= (int(data) & mask) << (j*bits)
+
+            new_values[int(i/pack_width)] = data_byte
 
         values = new_values
     
@@ -172,17 +191,13 @@ def extract_info(
     ops = node_info["ops"]
 
     signed = new_node["signed"]
+    scale_factor = new_node["scale_factor"]
     bits   = new_node["bits"]
     narrow = new_node["narrow"]
     bw = int(128/bits)
 
-    if signed:
-        data_type = "int"
-    else:
-        data_type = "uint"
+    data_type = get_quant_type(signed, bits, scale_factor)
 
-    data_type = data_type + "%0d" % bits
-    data_type = data_type + "_t"
     new_node["data_type"] = data_type
 
     new_node["ich"]    = ich
@@ -222,7 +237,8 @@ def extract_info(
             pre_values,
             bits,
             signed,
-            narrow
+            narrow,
+            uram_storage
         )
 
     return new_node
@@ -567,6 +583,7 @@ def on_chip_rom(
     size = node["values"].shape
     tmp["size"] = size
     tmp["init"] = node["values"]
+    tmp["form"] = "float"
 
     block["declare"].append(tmp)
 
@@ -635,7 +652,7 @@ def on_chip_rom(
     else:
         divider = 64
 
-    partition_factor = int(node["ih"]*node["iw"]*node["ops"]*8/divider)
+    partition_factor = int(node["ih"]*node["iw"]*node["ops"]*node["bits"]/divider)
     if partition_factor>1:
         pragma = {}
         pragma["name"] = "array_partition"

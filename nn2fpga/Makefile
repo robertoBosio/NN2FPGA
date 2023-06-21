@@ -20,6 +20,7 @@ restore_design:
 		$(NN2FPGA_ROOT)
 
 syn:
+	mkdir -p $(PRJ_ROOT)/cc/src/ $(PRJ_ROOT)/cc/include/ && \
 	cd $(PRJ_ROOT) && vitis_hls -f $(NN2FPGA_ROOT)/tcl/synth.tcl \
 		$(NN2FPGA_ROOT)
 
@@ -53,12 +54,12 @@ run_model:
 	cd $(PRJ_ROOT) && python $(NN2FPGA_ROOT)/py/utils/test_model.py
 
 download_cifar10:
-	$(TB_ROOT)/cifar-10/download_cifar10.sh
+	$(TB_ROOT)/cifar10/download_cifar10.sh
 
-cosim: generate download_cifar10
+cosim: generate
 	make syn COSIM=1
 
-csim: generate download_cifar10
+csim: generate
 	make syn CSIM=1
 
 backend: syn vivado_flow

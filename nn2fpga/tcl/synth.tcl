@@ -4,6 +4,14 @@ source "${NN2FPGA_ROOT}/tcl/settings.tcl"
 set impl_sel "solution_0"
 set PRJ_NAME ${TOP_NAME}_${BOARD}
 
+if {${CSIM} == 1} {
+  set PRJ_NAME ${PRJ_NAME}_csim
+} elseif {${COSIM} == 1} {
+  set PRJ_NAME ${PRJ_NAME}_cosim
+} else {
+  set PRJ_NAME ${PRJ_NAME}
+}
+
 delete_project ${PRJ_NAME}_ip
 open_project ${PRJ_NAME}_ip
 set_top ${TOP_NAME}
@@ -15,8 +23,15 @@ add_files -cflags "-Icc/include -I${NN2FPGA_ROOT}/cc/include" \
   cc/src/memory_management.cc
 add_files -cflags "-Icc/include -I${NN2FPGA_ROOT}/cc/include" \
   cc/src/${TOP_NAME}.cc
-add_files -cflags "-Icc/include -I${NN2FPGA_ROOT}/cc/include" \
-  -tb ${TB_ROOT}/${TOP_NAME}_tb.cc
+if {${DATASET} == "dac2023"} {
+  puts ${PRJ_ROOT}/Vitis_Libraries/vision/L1/include/common/
+
+  add_files -cflags "-Icc/include -I${NN2FPGA_ROOT}/cc/include -I/usr/local/include/opencv4/ -I${PRJ_ROOT}/Vitis_Libraries/vision/L1/include/ -lopencv_imgproc -lopencv_core -lopencv_imgcodecs" \
+    -tb ${TB_ROOT}/${DATASET}/${TOP_NAME}_tb.cc
+} else {
+  add_files -cflags "-Icc/include -I${NN2FPGA_ROOT}/cc/include -I${TB_ROOT}/${DATASET}/include -I${PRJ_ROOT}/cc/include" \
+    -tb ${TB_ROOT}/${DATASET}/${TOP_NAME}_tb.cc
+}
 
 if {${CSIM} == 1} {
   csim_design
