@@ -19,6 +19,8 @@ def info(io_dict, tensors_info, model, ws):
     ich      = getattr(input_shape, 'dim')[1].dim_value
     ih       = getattr(input_shape, 'dim')[2].dim_value
     iw       = getattr(input_shape, 'dim')[3].dim_value
+    # print(ich, ih, iw)
+    # exit(0)
 
     io_dict[node_name] = {}
     io_dict[node_name]["input"] = [graph_input_name]

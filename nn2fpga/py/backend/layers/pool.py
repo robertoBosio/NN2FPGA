@@ -120,7 +120,7 @@ def parse(name, node):
     if node["pool"] == 1:
         block["defines"]["t_%s_acc" % name]            = ["type", output_type]
     else:
-        acc_type = get_quant_type(True, 32, node["actscale"][0])
+        acc_type = get_quant_type(True, 32, node["actscale"][0], acc_reg=True)
         block["defines"]["t_%s_acc" % name]            = ["type", acc_type]
     block["defines"]["c_%s_ich" % name]            = ["const", node["ich"]]
     block["defines"]["c_%s_och" % name]            = ["const", node["och"]]

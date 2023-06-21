@@ -20,17 +20,17 @@ open_solution solution_1
 set_part ${FPGA_PART}
 
 add_files -cflags "-Icc/include -I${NN2FPGA_ROOT}/cc/include" \
-  cc/src/memory_management.cc
+  cc/src/memory_management_${TOP_NAME}.cc
 add_files -cflags "-Icc/include -I${NN2FPGA_ROOT}/cc/include" \
   cc/src/${TOP_NAME}.cc
 if {${DATASET} == "dac2023"} {
   puts ${PRJ_ROOT}/Vitis_Libraries/vision/L1/include/common/
 
   add_files -cflags "-Icc/include -I${NN2FPGA_ROOT}/cc/include -I/usr/local/include/opencv4/ -I${PRJ_ROOT}/Vitis_Libraries/vision/L1/include/ -lopencv_imgproc -lopencv_core -lopencv_imgcodecs" \
-    -tb ${TB_ROOT}/${DATASET}/${TOP_NAME}_tb.cc
+    -tb ${TB_ROOT}/${DATASET}/network_tb.cc
 } else {
   add_files -cflags "-Icc/include -I${NN2FPGA_ROOT}/cc/include -I${TB_ROOT}/${DATASET}/include -I${PRJ_ROOT}/cc/include" \
-    -tb ${TB_ROOT}/${DATASET}/${TOP_NAME}_tb.cc
+    -tb ${TB_ROOT}/${DATASET}/network_tb.cc
 }
 
 if {${CSIM} == 1} {
