@@ -36,8 +36,8 @@ void shift_op(hls::stream<din_t> &din, hls::stream<din_t> &o_compute) {
       for (auto s_index_ich = 0; s_index_ich < ICH; s_index_ich++) {
 #pragma HLS pipeline style = stp
         bool s_compute_write = true;
-        uint16_t s_index_h_str = s_index_h % c_str;
-        uint16_t s_index_w_str = s_index_w % c_str;
+        auto s_index_h_str = s_index_h % c_str;
+        auto s_index_w_str = s_index_w % c_str;
 
         s_compute_write &= (s_index_h >= c_paddingh_shift);
         s_compute_write &= (s_index_h < (IH_PAD - c_end_paddingh_shift));
@@ -63,13 +63,16 @@ void pad_input(hls::stream<din_t> din[c_fw * c_fh],
 
   constexpr int c_pad_index_h = c_pad * (c_fh - 1) / 2;
   constexpr int c_pad_index_w = c_pad * (c_fw - 1) / 2;
-  constexpr int IH_PAD = IH + c_pad_index_h * 2;
-  constexpr int IW_PAD = IW + c_pad_index_w * 2;
+  constexpr int IH_REM = IH - (IH % c_str)*(1-c_pad);
+  constexpr int IW_REM = IW - (IW % c_str)*(1-c_pad);
+  constexpr int IH_PAD = IH + c_pad_index_h * 2 - IH_REM*(1-c_pad);
+  constexpr int IW_PAD = IW + c_pad_index_w * 2 - IW_REM*(1-c_pad);
   constexpr int FSZ = c_fh * c_fw;
 
   bool s_last;
-  for (auto s_index_h = 0; s_index_h < IH; s_index_h += c_str) {
-    for (auto s_index_w = 0; s_index_w < IW; s_index_w += c_str) {
+  // std::cout << "pad_input" << std::endl;
+  for (auto s_index_h = 0; s_index_h < IH_REM; s_index_h += c_str) {
+    for (auto s_index_w = 0; s_index_w < IW_REM; s_index_w += c_str) {
       for (auto s_index_ich = 0; s_index_ich < ICH; s_index_ich++) {
 #pragma HLS pipeline style = stp
         for (auto s_fh = 0; s_fh < c_fh; s_fh++) {
