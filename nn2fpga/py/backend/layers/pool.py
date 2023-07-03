@@ -106,7 +106,10 @@ def parse(name, node):
     if (node["is_adaptive"]):
         block["args"].append("s_%s[0]" % input_name)
     else:
-        block["args"].append("s_%s_compute" % input_name)
+        if node["pad"] == 0:
+            block["args"].append("s_%s_pre_pad" % input_name)
+        else:
+            block["args"].append("s_%s_compute" % input_name)
     block["args"].append("s_%s[0]" % output_name)
 
     block["defines"] = {}

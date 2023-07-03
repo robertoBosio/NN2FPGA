@@ -137,8 +137,8 @@ void shift_op(hls::stream<din_t> &din, hls::stream<din_t> &o_compute,
       for (auto s_index_ich = 0; s_index_ich < ICH; s_index_ich++) {
 #pragma HLS pipeline style = stp
         bool s_compute_write = true;
-        uint16_t s_index_h_str = s_index_h % c_str;
-        uint16_t s_index_w_str = s_index_w % c_str;
+        auto s_index_h_str = s_index_h % c_str;
+        auto s_index_w_str = s_index_w % c_str;
 
         s_compute_write &= (s_index_h >= c_paddingh_shift);
         s_compute_write &= (s_index_h < (IH_PAD - c_end_paddingh_shift));
