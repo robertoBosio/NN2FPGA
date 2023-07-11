@@ -19,6 +19,7 @@ def info(io_dict, node, node_name, init_info, tensors_info, ws):
     och      = getattr(output_shape, 'dim')[1].dim_value
     oh       = getattr(output_shape, 'dim')[2].dim_value
     ow       = getattr(output_shape, 'dim')[3].dim_value
+    group    = getattr(attributes[1], 'ints')
     fh       = getattr(attributes[2], 'ints')[0]
     fw       = getattr(attributes[2], 'ints')[1]
     stride   = getattr(attributes[4], 'ints')[0]
@@ -41,6 +42,7 @@ def info(io_dict, node, node_name, init_info, tensors_info, ws):
     io_dict[node_name]["ow"]     = ow
     io_dict[node_name]["fh"]     = fh
     io_dict[node_name]["fw"]     = fw
+    io_dict[node_name]["group"]  = group
     io_dict[node_name]["stride"] = stride
     io_dict[node_name]["pad"]    = pad
     io_dict[node_name]["is_1x1"] = is_1x1
@@ -311,8 +313,10 @@ def parse_comp(name, node):
         output_1x1_type_name = output_1x1_name.replace("_skip", "")
 
     block = {}
-    block["func"] = "conv_comp"
-
+    if group == 1:
+        block["func"] = "conv_comp"
+    else:
+        block["func"] = "depth_conv_comp"
     # Template parameters
     block["template"] = []
     block["template"].append("t_%s_struct" % input_type_name)

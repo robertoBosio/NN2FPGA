@@ -22,6 +22,7 @@ def init(file_name, parsed_write, object_detection=False, prj_root="/tmp"):
         "ap_int.h",
         "hls_stream.h",
         "nn2fpga/packed_conv.h",
+        "nn2fpga/packed_depthwise_conv.h",
         "nn2fpga/pool_streams.h",
         "nn2fpga/utils.h",
         "nn2fpga/activations_utils.h",
