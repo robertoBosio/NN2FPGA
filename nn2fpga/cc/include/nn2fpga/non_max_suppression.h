@@ -53,13 +53,13 @@ template <typename t_data_struct, typename t_data,
 
             if ((j == OCH - 1) & (detected == true))  {
                 if ((detected_class)*(box[SPLIT*2]) > conf_th) {
-                    box[SPLIT*2] = detected_class_index;
+                    box[SPLIT*2+1] = detected_class_index;
                     t_box dout_write;
-                    for (auto i = 0; i < 5; i++) {
+                    for (auto i = 0; i < 6; i++) {
                         #pragma HLS unroll
                         dout_write.data[i] = box[i];
                     }
-                    for (auto i = 5; i < 8; i++) {
+                    for (auto i = 6; i < 8; i++) {
                         #pragma HLS unroll
                         dout_write.data[i] = 0xffff;
                     }

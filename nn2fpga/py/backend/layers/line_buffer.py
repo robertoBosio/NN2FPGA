@@ -122,7 +122,7 @@ def parse(name, node):
 
             pragma = {}
 
-            if (fw == 2):
+            if (fw == (dfw-1)):
                 depth = node["iw"]*node["ich"]
             else:
                 depth = node["ich"]

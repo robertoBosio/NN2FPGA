@@ -6,8 +6,8 @@ fi
 if [ $1 = "KRIA" ]; then
     user="root"
     path="/home/ubuntu/"
-    ip="192.168.99.160"
-    device="${user}@kria"
+    ip="kriahlslab0"
+    device="${user}@kriahlslab0"
 elif [ $1 = "ULTRA96v2" ]; then
     user="root"
     path="~/"
@@ -34,6 +34,8 @@ scp ${PRJ_ROOT}/${prj_name}_example/design_1.bit ${PRJ_ROOT}/overlay/design_1.bi
 cp ${NN2FPGA_ROOT}/scripts/inference.py ${PRJ_ROOT}/overlay/inference.py
 cp ${NN2FPGA_ROOT}/scripts/boards.py ${PRJ_ROOT}/overlay/boards.py
 cp ${NN2FPGA_ROOT}/scripts/datasets.py ${PRJ_ROOT}/overlay/datasets.py
+cp ${NN2FPGA_ROOT}/scripts/coco.py ${PRJ_ROOT}/overlay/coco.py
+cp ${NN2FPGA_ROOT}/scripts/cifar10.py ${PRJ_ROOT}/overlay/cifar10.py
 if [ ${URAM_STORAGE} = 1 ]; then
     cp ${PRJ_ROOT}/npy/uram_${TOP_NAME}.npy ${PRJ_ROOT}/overlay/uram.npy
 fi
@@ -48,6 +50,6 @@ ssh ${device} "cd ${path} && source /etc/profile && python3 ${path}overlay/infer
 
 # cleanup
 scp ${device}:${path}overlay/results.txt ${PRJ_ROOT}/${res_file}
-if [ $1 = "kria" ]; then
+if [ $1 = "kriahlslab0" ]; then
 		ssh ${device} "rm -r ${path}overlay && xmutil unloadapp k26-starter-kits && xmutil loadapp k26-starter-kits"
 fi
