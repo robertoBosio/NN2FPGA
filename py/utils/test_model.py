@@ -32,7 +32,10 @@ def conv3x3(in_planes, out_planes, stride=1, weight_bits=8):
                        weight_quant = Int8WeightPerTensorFixedPoint,
                        bias_quant = Int16Bias,
                        input_quant = Int8ActPerTensorFixedPoint,
-                       output_quant = Int8ActPerTensorFixedPoint
+                       output_quant = Int8ActPerTensorFixedPoint,
+                       weight_bit_width = 4,
+                       output_bit_width = 4,
+                       input_bit_width = 4
                        )
 
 
@@ -65,13 +68,16 @@ class TestModel(nn.Module) :
                      bias_quant=Int16Bias,
                      input_quant = Int8ActPerTensorFixedPoint,
                      output_quant = Int8ActPerTensorFixedPoint,
+                     weigth_bit_width = 4,
+                     output_bit_width = 4,
+                     input_bit_width = 8
                      )
         self.bn1 = nn.BatchNorm2d(16)
         self.relu = QuantReLU(quant_type=QuantType.INT,
             restrict_scaling_type=RestrictValueType.POWER_OF_TWO,
             scaling_impl_type=ScalingImplType.CONST, 
             act_quant=CommonUintActQuant,
-            bit_width=8)
+            bit_width=4)
         self.avgpool = QuantAdaptiveAvgPool2d((1, 1),trunc_quant = None)
                      
         self.fc = QuantConv2d(16, 10,
@@ -80,6 +86,8 @@ class TestModel(nn.Module) :
                 input_quant = Int8ActPerTensorFixedPoint,
                 output_quant = Int8ActPerTensorFixedPoint,
                 bias_quant=Int16Bias
+                weight_bit_width = 4,
+                input_bit_width = 4
                 )
 
     def forward(self, x, train=True):

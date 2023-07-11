@@ -19,22 +19,23 @@ import brevitas
 from brevitas.core.restrict_val import RestrictValueType
 from brevitas.core.scaling import ScalingImplType
 import onnx
+from models.mobilenetv1_fx8 import *
 from brevitas.export.onnx.qonnx.manager import QONNXManager
-parser = argparse.ArgumentParser(description='brevitas_resnet fx implementation')
+parser = argparse.ArgumentParser(description='mobilenet fx implementation')
 
 parser.add_argument('--root_dir', type=str, default='./')
 parser.add_argument('--data_dir', type=str, default='./data')
-parser.add_argument('--log_name', type=str, default='resnetq_8w8f_cifar_fx')
+parser.add_argument('--log_name', type=str, default='mobilenetv1_8w8f_cifar_fx')
 parser.add_argument('--pretrain', action='store_true', default=True)
-parser.add_argument('--pretrain_dir', type=str, default='resnetq_8w8f_cifar_fx')
+parser.add_argument('--pretrain_dir', type=str, default='mobilenetv1_8w8f_cifar_fx')
 parser.add_argument('--cifar', type=int, default=10)
-parser.add_argument('--lr', type=float, default=0.01)
+parser.add_argument('--lr', type=float, default=0.0075)
 parser.add_argument('--wd', type=float, default=1e-4)
-parser.add_argument('--train_batch_size', type=int, default=256)
+parser.add_argument('--train_batch_size', type=int, default=1000)
 parser.add_argument('--eval_batch_size', type=int, default=100)
-parser.add_argument('--max_epochs', type=int, default=250)
+parser.add_argument('--max_epochs', type=int, default=500)
 parser.add_argument('--log_interval', type=int, default=40)
-parser.add_argument('--num_workers', type=int, default=4)
+parser.add_argument('--num_workers', type=int, default=16)
 parser.add_argument('--Wbits', type=int, default=8)
 parser.add_argument('--Abits', type=int, default=8)
 
@@ -76,7 +77,8 @@ def main():
 
     print('===> Building ResNet..')
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    model = resnet20(wbit=cfg.Wbits,abit=cfg.Abits).to('cuda:0')
+    #model = resnet20(wbit=cfg.Wbits,abit=cfg.Abits).to('cuda:0')
+    model = MobileNetV1(3,10).to(device) 
 
     if device == 'cuda':
         model = torch.nn.DataParallel(model)
@@ -85,12 +87,13 @@ def main():
 
     optimizer = torch.optim.SGD(model.parameters(), lr=cfg.lr, momentum=0.9, weight_decay=cfg.wd)
     #optimizer = torch.optim.Adam(model.parameters(),lr=cfg.lr,weight_decay=cfg.wd)
-    lr_schedu = optim.lr_scheduler.MultiStepLR(optimizer, [90, 150, 200], gamma=0.1)
+    #lr_schedu = optim.lr_scheduler.MultiStepLR(optimizer, [90, 150, 200], gamma=0.1)
+    lr_schedu = optim.lr_scheduler.CosineAnnealingLR(optimizer, cfg.max_epochs, eta_min=0, last_epoch=- 1, verbose=False)
     criterion = torch.nn.CrossEntropyLoss()
     summary_writer = SummaryWriter(cfg.log_dir)
-    
+
     if cfg.pretrain:
-        ckpt = torch.load(os.path.join(cfg.ckpt_dir, f'checkpoint_fx.t7'))
+        ckpt = torch.load(os.path.join(cfg.ckpt_dir, f'checkpoint_mobilenet_fx.t7'))
         model.load_state_dict(ckpt['model_state_dict'])
         optimizer.load_state_dict(ckpt['optimizer_state_dict'])
         start_epoch = ckpt['epoch']
@@ -171,7 +174,7 @@ def main():
             }
             torch.save(state, os.path.join(cfg.ckpt_dir, f'checkpoint_quant_fx.t7'))
             model.to('cpu')
-            QONNXManager.export(model.module, input_shape=(1, 3, 32, 32), export_path='onnx/Brevonnx_resnet_final_fx.onnx')            
+            QONNXManager.export(model.module, input_shape=(1, 3, 32, 32), export_path='onnx/Brevonnx_mobilenet_final_fx.onnx')            
             best_acc = acc
 
 
