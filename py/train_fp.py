@@ -12,6 +12,7 @@ cudnn.benchmark = True
 import torchvision
 
 from models.resnet import *
+from models.mobilenetv1_fx8 import *
 from utils.preprocess import *
 from utils.bar_show import progress_bar
 
@@ -19,7 +20,8 @@ from utils.bar_show import progress_bar
 parser = argparse.ArgumentParser(description='brevitas_resnet implementation')
 
 parser.add_argument('--root_dir', type=str, default='./')
-parser.add_argument('--data_dir', type=str, default='./data')
+#parser.add_argument('--data_dir', type=str, default='../data')
+parser.add_argument('--data_dir', type=str, default='/home/teodoro/datasets')
 parser.add_argument('--log_name', type=str, default='resnet')
 parser.add_argument('--pretrain', action='store_true', default=False)
 parser.add_argument('--pretrain_dir', type=str, default='resnet')
@@ -51,6 +53,9 @@ def main():
     elif cfg.cifar == 100:
         print('training CIFAR-100 !')
         dataset = torchvision.datasets.CIFAR100
+    elif cfg.cifar == 1000:
+        print('training ImageNet !')
+        dataset = torchvision.datasets.ImageNet
     else:
         assert False, 'dataset unknown !'
 
@@ -67,7 +72,7 @@ def main():
 
     print('===> Building ResNet..')
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    model = ResNet50().to(device)
+    model = MobileNetV1(ch_in=3, n_classes=10) 
 
     if device == 'cuda':
         model = torch.nn.DataParallel(model)
@@ -77,7 +82,7 @@ def main():
     # optimizer = torch.optim.Adam(model.parameters(),lr=cfg.lr,weight_decay=cfg.wd)
     lr_schedu = optim.lr_scheduler.MultiStepLR(optimizer, [90, 150, 200], gamma=0.1)
     criterion = torch.nn.CrossEntropyLoss().cuda()
-    summary_writer = SummaryWriter(cfg.log_dir)
+    #summary_writer = SummaryWriter(cfg.log_dir)
 
     if cfg.pretrain:
         ckpt = torch.load(os.path.join(cfg.ckpt_dir, f'checkpoint.t7'))
@@ -112,13 +117,13 @@ def main():
                          % (train_loss / (batch_idx + 1), 100. * correct / total, correct, total))
 
             if batch_idx % cfg.log_interval == 0:  #every log_interval mini_batches...
-                summary_writer.add_scalar('Loss/train', train_loss / (batch_idx + 1), epoch * len(train_loader) + batch_idx)
-                summary_writer.add_scalar('Accuracy/train', 100. * correct / total, epoch * len(train_loader) + batch_idx)
-                summary_writer.add_scalar('learning rate', optimizer.param_groups[0]['lr'], epoch * len(train_loader) + batch_idx)
+                # summary_writer.add_scalar('Loss/train', train_loss / (batch_idx + 1), epoch * len(train_loader) + batch_idx)
+                # summary_writer.add_scalar('Accuracy/train', 100. * correct / total, epoch * len(train_loader) + batch_idx)
+                # summary_writer.add_scalar('learning rate', optimizer.param_groups[0]['lr'], epoch * len(train_loader) + batch_idx)
                 for tag, value in model.named_parameters():
                      tag = tag.replace('.', '/')
-                     summary_writer.add_histogram(tag, value.detach(), global_step=epoch * len(train_loader) + batch_idx)
-                     summary_writer.add_histogram(tag + '/grad', value.grad.detach(), global_step=epoch * len(train_loader) + batch_idx)
+                    #  summary_writer.add_histogram(tag, value.detach(), global_step=epoch * len(train_loader) + batch_idx)
+                    #  summary_writer.add_histogram(tag + '/grad', value.grad.detach(), global_step=epoch * len(train_loader) + batch_idx)
 
 
 
@@ -143,9 +148,9 @@ def main():
                 progress_bar(batch_idx, len(eval_loader), 'Loss: %.3f | Acc: %.3f%% (%d/%d)'
                     % (test_loss/(batch_idx+1), 100.*correct/total, correct, total))
 
-                if batch_idx % cfg.log_interval == 0:  # every log_interval mini_batches...
-                    summary_writer.add_scalar('Loss/test', test_loss / (batch_idx + 1), epoch * len(train_loader) + batch_idx)
-                    summary_writer.add_scalar('Accuracy/test', 100. * correct / total, epoch * len(train_loader) + batch_idx)
+                # if batch_idx % cfg.log_interval == 0:  # every log_interval mini_batches...
+                    # summary_writer.add_scalar('Loss/test', test_loss / (batch_idx + 1), epoch * len(train_loader) + batch_idx)
+                    # summary_writer.add_scalar('Accuracy/test', 100. * correct / total, epoch * len(train_loader) + batch_idx)
 
         acc = 100. * correct / total
         if acc > best_acc:

@@ -87,7 +87,8 @@ def main():
 
     optimizer = torch.optim.SGD(model.parameters(), lr=cfg.lr, momentum=0.9, weight_decay=cfg.wd)
     # optimizer = torch.optim.Adam(model.parameters(),lr=cfg.lr,weight_decay=cfg.wd)
-    lr_schedu = optim.lr_scheduler.MultiStepLR(optimizer, [90, 150, 200], gamma=0.1)
+    lr_schedu = optim.lr_scheduler.CosineAnnealingLR(optimizer, cfg.max_epochs, eta_min=0, last_epoch=- 1, verbose=False)
+    #lr_schedu = optim.lr_scheduler.MultiStepLR(optimizer, [90, 150, 200], gamma=0.1)
     criterion = torch.nn.CrossEntropyLoss()
     summary_writer = SummaryWriter(cfg.log_dir)
     

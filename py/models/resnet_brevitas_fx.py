@@ -8,7 +8,7 @@ from brevitas.core.quant import QuantType
 from brevitas.core.restrict_val import RestrictValueType
 from brevitas.core.scaling import ScalingImplType
 from .common import CommonIntActQuant, CommonUintActQuant
-from brevitas.quant import Int16Bias, Int8WeightPerTensorFixedPoint, Int8ActPerTensorFixedPoint, Int8ActPerTensorFloat 
+from brevitas.quant import Int16Bias, Int8WeightPerTensorFixedPoint, Int8ActPerTensorFixedPoint 
 
 def conv3x3(in_planes, out_planes, stride=1, weight_bits=8):
     return QuantConv2d(in_planes,
@@ -20,7 +20,7 @@ def conv3x3(in_planes, out_planes, stride=1, weight_bits=8):
                        weight_quant = Int8WeightPerTensorFixedPoint,
                        bias_quant = Int16Bias,
                        input_quant = Int8ActPerTensorFixedPoint,
-                       output_quant = Int8ActPerTensorFixedPoint
+                       #output_quant = Int8ActPerTensorFixedPoint
                        )
 
 
@@ -75,7 +75,7 @@ class ResNet(nn.Module):
                      weight_quant= Int8WeightPerTensorFixedPoint,
                      bias_quant=Int16Bias,
                      input_quant = Int8ActPerTensorFixedPoint,
-                     output_quant = Int8ActPerTensorFixedPoint,
+                     #output_quant = Int8ActPerTensorFixedPoint,
                      )
         self.bn1 = nn.BatchNorm2d(16)
         self.relu = QuantReLU(quant_type=QuantType.INT,
@@ -92,7 +92,7 @@ class ResNet(nn.Module):
                 kernel_size=(1, 1), bias=False,
                 weight_quant = Int8WeightPerTensorFixedPoint,
                 input_quant = Int8ActPerTensorFixedPoint,
-                output_quant = Int8ActPerTensorFixedPoint,
+                #output_quant = Int8ActPerTensorFixedPoint,
                 bias_quant=Int16Bias,
                 )
 
@@ -115,7 +115,7 @@ class ResNet(nn.Module):
                     stride=stride, bias=None,
                     weight_quant = Int8WeightPerTensorFixedPoint,
                     input_quant = Int8ActPerTensorFixedPoint,
-                    output_quant=Int8ActPerTensorFixedPoint,
+                    #output_quant=Int8ActPerTensorFixedPoint,
                     bias_quant=Int16Bias,
                     ),
                 nn.BatchNorm2d(planes * block.expansion)
@@ -148,3 +148,8 @@ class ResNet(nn.Module):
 def resnet20(num_classes=10, weight_bits=8, **kwargs):
     return ResNet(BasicBlock, [3, 3, 3], num_classes=num_classes,
                     weight_bits=weight_bits)
+
+
+
+
+
