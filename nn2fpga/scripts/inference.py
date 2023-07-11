@@ -7,7 +7,9 @@ import os
 import numpy as np
 
 from boards import kria_inference, ultra96_inference
-from datasets import cifar10_dataloader
+from datasets import cifar10_dataloader, coco_dataloader
+from coco import postprocess as coco_postprocess
+from cifar10 import postprocess as cifar10_postprocess
 
 if __name__ == "__main__":
     # Uploading all data
@@ -45,6 +47,11 @@ if __name__ == "__main__":
 
     if (sel_dataset == "cifar10"):
         dataloader = cifar10_dataloader
+        postprocess = cifar10_postprocess
+    if (sel_dataset == "coco"):
+        dataloader = coco_dataloader
+        postprocess = coco_postprocess
+
     test_loader, buffer_dim = dataloader(batch_size)
 
     print("Loading overlay")
@@ -84,5 +91,6 @@ if __name__ == "__main__":
         batch_size,
         off_chip_memory,
         network,
+        postprocess,
         sel_uram_storage
     )

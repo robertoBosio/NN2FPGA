@@ -82,7 +82,7 @@ def parallel_ops_number(layers_info, clamp=None, board="ULTRA96v2", prj_root="/t
             all_divisors[layers_offset[i]:layers_offset[i]+layers_divisors[i]],
             math.ceil(data)
         )
-        parallel_op[layers_info[i][0]] = low_range
+        parallel_op[layers_info[i][0]] = high_range
         print(all_divisors[layers_offset[i]:layers_offset[i]+layers_divisors[i]], data, low_range, high_range, layers_info[i][5])
 
     return parallel_op

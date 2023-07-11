@@ -61,6 +61,7 @@ download_cifar10:
 	$(TB_ROOT)/cifar10/download_cifar10.sh
 
 cosim: generate
+	cp $(PRJ_ROOT)/cc/include/$(TOP_NAME)_sim.h $(PRJ_ROOT)/cc/include/network_sim.h
 	make syn COSIM=1
 
 csim: generate

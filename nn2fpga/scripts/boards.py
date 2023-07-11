@@ -14,6 +14,7 @@ def kria_inference(
     batch_size,
     off_chip_memory,
     network,
+    postprocess,
     uram_storage
 ):
 
@@ -46,10 +47,7 @@ def kria_inference(
             batch_time = end - start
             total_time += batch_time
 
-            predicted = np.argmax(np.asarray(out_buffer[:]), axis=-1)
-            accuracy_batch = np.equal(predicted, results)
-            accuracy_batch = accuracy_batch.sum()
-            accuracy += accuracy_batch
+            accuracy, accuracy_batch = postprocess(out_buffer, results, accuracy, batch_size)
 
             # print("Total time:", batch_time, "seconds")
             # print("Inference time:", batch_time/BATCH_SIZE, "seconds")
@@ -85,6 +83,7 @@ def ultra96_inference(
     batch_size,
     off_chip_memory,
     network,
+    postprocess,
     uram_storage
 ):
     rails = pynq.get_rails()
