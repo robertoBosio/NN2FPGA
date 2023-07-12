@@ -6,31 +6,36 @@ from onnx import numpy_helper
 import numpy as np
 
 def return_index(fh, fw, ws, iw, ih):
-    window_size = fw+ws-1
-    if (iw >= (fw-1)) and (iw <= (window_size-fw+1)):
-        return iw+window_size*(ih-1)
-    elif (iw > (window_size-fw+1)):
-        return iw-ws+window_size*ih
+    base_index = ih*(fw+ws-1)+iw
+    if (iw >= (fw-1)) and (iw < (ws)):
+        return base_index+fw+ws-1
+    elif iw < (fw):
+        return base_index+ws
     else:
-        return iw+window_size*ih-fw+1
+        return base_index+fw-1
 
 def parse(name, node):
 
+    ws = node["ws"]
     dfh = node["fh"]
-    dfw = node["fw"]
+    dfw = node["fw"] + (ws-1)
     dindex = dfh*dfw
 
     line_buffer_blocks = []
+
+
+    input_name  = node["input"][0]
+    input_type_name = input_name.replace("_skip", "")
+
+    output_name = input_name
+    output_type_name = output_name.replace("_skip", "")
 
     for fh in range(dfh):
         for fw in range(dfw):
             
             index = fh*dfw+fw
-            input_name  = node["input"][0]
-            input_type_name = input_name.replace("_skip", "")
-
-            output_name = input_name
-            output_type_name = output_name.replace("_skip", "")
+            out_index = return_index(node["fh"], node["fw"], ws, fw, fh)
+            print("index: %0d" % index, "out_index: %0d" % out_index, "fh: %0d" % fh, "fw: %0d" % fw)
 
             block = {}
             block["func"] = "shift_op"
@@ -53,20 +58,20 @@ def parse(name, node):
 
             block["args"] = []
 
-            if index == 0:
-                block["args"].append("s_%s[0]" % input_name)
+            if index < ws:
+                block["args"].append("s_%s[%0d]" % (input_name, index))
             else:
                 block["args"].append(
-                    "s_%s_data[%0d]" % (input_name, index-1)
+                    "s_%s_data[%0d]" % (input_name, index-ws)
                 )
 
             block["args"].append(
                 "s_%s_pre_pad[%0d]" % (input_name, index)
             )
 
-            if index < (dindex-1):
+            if out_index < (dindex):
                 block["args"].append(
-                    "s_%s_data[%0d]" % (input_name, index)
+                    "s_%s_data[%0d]" % (input_name, out_index-1)
                 )
 
             block["declare"] = []
@@ -76,7 +81,7 @@ def parse(name, node):
                 declare["name"] = "s_%s_data" % output_name
                 declare["type"] = "t_%s_struct" % output_name
                 declare["is_array"] = True
-                declare["dim"] = dindex-1
+                declare["dim"] = dindex-ws
                 block["declare"].append(declare)
 
                 declare = {}

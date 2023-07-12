@@ -100,7 +100,7 @@ def extract_tensors_info(model):
 
     return tensors_info
 
-def graph_info(model, init_info, object_detection=False, anchors=None, ws=2):
+def graph_info(model, init_info, object_detection=False, anchors=None, ws=1):
 
     tensors_info = extract_tensors_info(
         model

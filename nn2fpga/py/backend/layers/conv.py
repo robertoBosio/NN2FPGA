@@ -27,7 +27,6 @@ def info(io_dict, node, node_name, init_info, tensors_info, ws):
     total    = 1/(oh*ow*och*ich)
     kernel   = fh*fw
     img_ch   = ich*och
-    reuse    = 1
     relu     = False
     add      = False
     in_scale_factor = [None]
@@ -47,7 +46,10 @@ def info(io_dict, node, node_name, init_info, tensors_info, ws):
     io_dict[node_name]["total"]  = total
     io_dict[node_name]["kernel"] = kernel
     io_dict[node_name]["img_ch"] = img_ch
-    io_dict[node_name]["reuse"]  = reuse
+    # Reuse is generic
+    io_dict[node_name]["reuse"]  = ws
+    # Ws are the operations in parallel
+    io_dict[node_name]["ws"]     = ws
     io_dict[node_name]["relu"]   = relu
     io_dict[node_name]["add"]    = add
     io_dict[node_name]["scale_factor"] = 0
@@ -60,7 +62,6 @@ def info(io_dict, node, node_name, init_info, tensors_info, ws):
     io_dict[node_name]["actbits"] = []
     io_dict[node_name]["wscale"] = []
     io_dict[node_name]["actscale"] = []
-    io_dict[node_name]["ws"] = ws
 
     return io_dict
 
@@ -108,6 +109,7 @@ def parse_wout(name, node):
     block["template"].append("c_%s_ops" % name)
     block["template"].append("c_%s_relu" % name)
     block["template"].append("c_%s_stride" % name)
+    block["template"].append("c_%s_ws" % name)
     # block["template"].append("c_ws")
 
     block["defines"] = {}
@@ -134,57 +136,6 @@ def parse_wout(name, node):
             [["data", "t_%s" % output_1x1_name], ["last", "bool"]]
         ]
 
-    # Evaluate these values both for the normal output and the pointwise merge
-    # If there is a need for in place quantization, the activation scale
-    # is the input scale factor
-    # actscale = node["actscale"][0]
-    # if node["in_scale_factor"][0] is not None:
-    #     actscale = node["in_scale_factor"][0]
-
-    # diff_scale, reduced_clip, reduced_mask = backend.quant.compute_out_quant(
-    #     actscale,
-    #     node["wscale"][0],
-    #     node["scale_factor"][0],
-    #     node["clip_factor"][0],
-    #     node["mask_factor"][0],
-    #     signed=signed
-    # )
-
-    # if (node["merge_1x1"]):
-        # actscale = node["actscale"][0]
-        # if node["in_scale_factor"][1] is not None:
-        #   actscale = node["in_scale_factor"][1]
-
-        # diff_scale, reduced_clip, reduced_mask = backend.quant.compute_out_quant(
-        #     actscale,
-        #     node["wscale"][1],
-        #     node["scale_factor"][1],
-        #     node["clip_factor"][1],
-        #     node["mask_factor"][1],
-        #     signed=True
-        # )
-
-    # block["defines"]["c_%s_in_shift_h" % input_name] = ["const", reduced_clip]
-    # block["defines"]["c_%s_in_shift_l" % input_name] = ["const", diff_scale]
-
-    # if (node["merge_1x1"]):
-    #   if (node["in_scale_factor"][1] is not None):
-    #       if len(node["actscale"]) == 1:
-    #           actscale = node["actscale"][0]
-    #       else:
-    #           actscale = node["actscale"][1]
-
-    #       diff_scale, reduced_clip = backend.quant.compute_in_quant(
-    #           actscale,
-    #           node["in_scale_factor"][1]
-    #       )
-
-    #   else:
-    #       reduced_clip = 255
-    #       diff_scale = 0
-    #   block["defines"]["c_%s_in_shift_h_1x1" % input_name] = ["const", reduced_clip]
-    #   block["defines"]["c_%s_in_shift_l_1x1" % input_name] = ["const", diff_scale]
-
     block["args"] = []
     block["args"].append("s_%s_acc" % output_name)
     if (node["merge_1x1"]):
@@ -192,17 +143,10 @@ def parse_wout(name, node):
     else:
         block["args"].append("(hls::stream<std::nullptr_t>*)(nullptr)")
 
-    # If there is a reuse then the output must be rearranged to be channel first
-    if (node["reuse"] > 1):
-        block["args"].append("s_%s_p_nchw" % output_name)
-    else:
-        block["args"].append("s_%s" % output_name)
+    block["args"].append("s_%s" % output_name)
 
     if (node["merge_1x1"]):
-        if (node["reuse"] > 1):
-            block["args"].append("s_%s_p_nchw" % output_1x1_name)
-        else:
-            block["args"].append("s_%s" % output_1x1_name)
+        block["args"].append("s_%s" % output_1x1_name)
     else:
         block["args"].append("(hls::stream<std::nullptr_t>*)(nullptr)")
 
@@ -212,10 +156,7 @@ def parse_wout(name, node):
     block["declare"] = []
 
     declare = {}
-    if (node["reuse"] > 1):
-        declare["name"] = "s_%s_p_nchw" % output_name
-    else:
-        declare["name"] = "s_%s" % output_name
+    declare["name"] = "s_%s" % output_name
     declare["type"] = "t_%s_struct" % output_name
     declare["is_array"] = True
     declare["dim"] = 1
@@ -224,13 +165,10 @@ def parse_wout(name, node):
 
     if (node["merge_1x1"]):
         declare = {}
-        if (node["reuse"] > 1):
-            declare["name"] = "s_%s_p_nchw" % output_1x1_name
-        else:
-            declare["name"] = "s_%s" % output_1x1_name
+        declare["name"] = "s_%s" % output_1x1_name
         declare["type"] = "t_%s_struct" % output_1x1_name
         declare["is_array"] = True
-        declare["dim"] = 1
+        declare["dim"] = node["ws"]
         block["declare"].append(declare)
 
     block["pragma"] = []
@@ -248,10 +186,7 @@ def parse_wout(name, node):
 
     pragma = {}
     pragma["name"] = "stream"
-    if (node["reuse"] > 1):
-        pragma_name = "s_%s_p_nchw" % (output_name)
-    else:
-        pragma_name = "s_%s" % (output_name)
+    pragma_name = "s_%s" % (output_name)
     options = [
         ["variable", pragma_name],
         ["depth", depth],
@@ -263,16 +198,9 @@ def parse_wout(name, node):
     if (node["merge_1x1"]):
         pragma = {}
         pragma["name"] = "stream"
-        if (node["reuse"] > 1):
-            pragma_name = "s_%s_p_nchw" % (output_1x1_name)
-        else:
-            pragma_name = "s_%s" % (output_1x1_name)
+        pragma_name = "s_%s" % (output_1x1_name)
 
-        if (node["reuse"] > 1):
-            depth = 2
-        else:
-            # depth = node["ow"]*node["och"]*(node["fh"]-1)
-            depth = node["ow"]*node["och"]*(node["fh"]-1)-node["ich"]
+        depth = node["ow"]*node["och"]*(node["fh"]-1)-node["ich"]
 
         options = [
             ["variable", pragma_name],
@@ -366,6 +294,7 @@ def parse_comp(name, node):
     block["template"].append("c_%s_stride" % name)
     block["template"].append("c_%s_ops" % name)
     block["template"].append("c_%s_reuse" % name)
+    block["template"].append("c_%s_ws" % name)
 
     acc_type = get_quant_type(True, 32, node["actscale"][0]+node["wscale"][0], acc_reg=True)
     block["defines"] = {}
@@ -416,16 +345,14 @@ def parse_comp(name, node):
     block["defines"]["c_%s_ops" % name]            = ["const", node["ops"]]
     block["defines"]["c_%s_index" % name]          = ["const", node["kernel"]]
     block["defines"]["c_%s_reuse" % name]          = ["const", node["reuse"]]
+    block["defines"]["c_%s_ws" % name]             = ["const", node["ws"]]
 
     block["args"] = []
 
-    if (node["reuse"] > 1):
-        block["args"].append("s_%s_nchw" % input_name)
+    if node["pad"] == 0:
+        block["args"].append("s_%s_pre_pad" % input_name)
     else:
-        if node["pad"] == 0:
-            block["args"].append("s_%s_pre_pad" % input_name)
-        else:
-            block["args"].append("s_%s_compute" % input_name)
+        block["args"].append("s_%s_compute" % input_name)
 
     block["args"].append("s_%s" % weight_name)
     if (has_bias):
@@ -441,18 +368,12 @@ def parse_comp(name, node):
         block["args"].append("(hls::stream<std::nullptr_t>*)(nullptr)")
 
     if (node["add"]):
-        if (node["reuse"] > 1):
-            block["args"].append("s_%s_nchw" % add_name)
-        else:
-            block["args"].append("s_%s" % add_name)
+        block["args"].append("s_%s" % add_name)
     else:
         block["args"].append("(hls::stream<std::nullptr_t>*)(nullptr)")
 
     if (node["has_forward"]):
-        if (node["reuse"] > 1):
-            block["args"].append("s_%s_p_nchw" % forward_name)
-        else:
-            block["args"].append("s_%s" % forward_name)
+        block["args"].append("s_%s" % forward_name)
     else:
         block["args"].append("(hls::stream<std::nullptr_t>*)(nullptr)")
 
@@ -469,7 +390,7 @@ def parse_comp(name, node):
     declare["name"] = "s_%s_acc" % output_name
     declare["type"] = "t_%s_acc_struct" % output_name
     declare["is_array"] = True
-    declare["dim"] = node["ops"]
+    declare["dim"] = node["ops"]*node["ws"]
     block["declare"].append(declare)
 
     if (node["merge_1x1"]):
@@ -477,18 +398,15 @@ def parse_comp(name, node):
         declare["name"] = "s_%s_acc" % output_1x1_name
         declare["type"] = "t_%s_acc_struct" % output_1x1_name
         declare["is_array"] = True
-        declare["dim"] = node["ops"]
+        declare["dim"] = node["ops"]*node["ws"]
         block["declare"].append(declare)
 
     if (node["has_forward"]):
         declare = {}
-        if (node["reuse"] > 1):
-            declare["name"] = "s_%s_p_nchw" % forward_name
-        else:
-            declare["name"] = "s_%s" % forward_name
+        declare["name"] = "s_%s" % forward_name
         declare["type"] = "t_%s_struct" % input_name
         declare["is_array"] = True
-        declare["dim"] = 1
+        declare["dim"] = node["ws"]
         block["declare"].append(declare)
 
     block["pragma"] = []
@@ -524,10 +442,7 @@ def parse_comp(name, node):
         depth += node["och"]+1
         pragma = {}
         pragma["name"] = "stream"
-        if (node["reuse"] > 1):
-            pragma_name = "s_%s_p_nchw" % forward_name
-        else:
-            pragma_name = "s_%s" % forward_name
+        pragma_name = "s_%s" % forward_name
         options = [
             ["variable", pragma_name],
             ["depth", depth],
@@ -539,179 +454,12 @@ def parse_comp(name, node):
 
     return [block]
 
-def parse_nchw(name, node):
-
-    input_name  = node["input"][0]
-    input_type_name = input_name.replace("_skip", "")
-
-    arrange_name = []
-    arrange_name.append(
-        [
-            input_name, 
-            input_type_name, 
-            node["fh"]*node["fw"],
-            False, # is add
-            False # is 1x1
-        ]
-    )
-
-    if node["add"]:
-        add_name = node["input"][3]
-        add_type_name = add_name.replace("_skip", "")
-
-        arrange_name.append(
-            [
-                add_name, 
-                add_type_name, 
-                1,
-                True,
-                False
-            ]
-        )
-
-    blocks = []
-
-    for tensor_name, tensor_type_name, dim, is_add, is_1x1 in arrange_name:
-        block = {}
-        block["func"] = "arrange_op"
-
-        # Template parameters
-        block["template"] = []
-        block["template"].append("t_%s_struct" % tensor_type_name)
-        block["template"].append("c_%s_ich" % name)
-        block["template"].append("c_%s_och" % name)
-        block["template"].append("c_%s_oh" % name)
-        block["template"].append("c_%s_ow" % name)
-
-        if is_add or is_1x1:
-            block["template"].append("1")
-        else:
-            block["template"].append("c_%s_index" % name)
-        block["template"].append("c_%s_stride" % name)
-        block["template"].append("c_%s_ops" % name)
-        block["template"].append("c_%s_reuse" % name)
-
-        block["args"] = []
-
-        if node["is_1x1"] or is_add or is_1x1:
-            block["args"].append("s_%s" % tensor_name)
-        else:
-            block["args"].append("s_%s_compute" % tensor_name)
-
-        block["args"].append("s_%s_nchw" % tensor_name)
-
-        block["declare"] = []
-        declare = {}
-        declare["name"] = "s_%s_nchw" % tensor_name
-        declare["type"] = "t_%s_struct" % tensor_type_name
-        declare["is_array"] = True
-        declare["dim"] = dim
-        block["declare"].append(declare)
-
-        block["pragma"] = []
-        pragma = {}
-        pragma["name"] = "stream"
-        options = [
-            ["variable", "s_%s_nchw" % tensor_name],
-            ["depth", "2"],
-            ["type", "fifo"],
-        ]
-        pragma["options"] = options
-        block["pragma"].append(pragma)
-        blocks.append(block)
-
-    return blocks
-
-def parse_nhwc(name, node):
-
-    blocks = []
-    arrange_name = []
-
-    for i, output_name in enumerate(node["output"]):
-        output_type_name = output_name.replace("_skip", "")
-
-        # For data forward there is one data coming out for every c_ich 
-        # operations
-        if "skip" in output_name:
-            ops = 1
-        else:
-            ops = None
-
-        if (i > 0) and (node["merge_1x1"]):
-            depth = 2
-        else:
-            depth = node["ow"]*node["och"]*(node["fh"]-2)
-
-        if depth < 0:
-            depth = 2
-
-        arrange_name.append([output_name, output_type_name, ops, depth])
-
-    for tensor_name, tensor_type_name, ops, depth in arrange_name:
-        block = {}
-        block["func"] = "rearrange_op"
-
-        # Template parameters
-        block["template"] = []
-        block["template"].append("t_%s_struct" % tensor_type_name)
-        block["template"].append("c_%s_ich" % name)
-        block["template"].append("c_%s_och" % name)
-        block["template"].append("c_%s_oh" % name)
-        block["template"].append("c_%s_ow" % name)
-        block["template"].append("c_%s_index" % name)
-        block["template"].append("c_%s_stride" % name)
-        if ops is not None:
-            block["template"].append("%d" % ops)
-        else:
-            block["template"].append("c_%s_ops" % name)
-        block["template"].append("c_%s_reuse" % name)
-
-        block["args"] = []
-
-        block["args"].append("s_%s_p_nchw[0]" % tensor_name)
-        block["args"].append("s_%s[0]" % tensor_name)
-
-        block["output"] = []
-        block["output"].append("s_%s" % tensor_name)
-
-        block["declare"] = []
-        declare = {}
-        declare["name"] = "s_%s" % tensor_name
-        declare["type"] = "t_%s_struct" % tensor_type_name
-        declare["is_array"] = True
-        declare["dim"] = 1
-        block["declare"].append(declare)
-
-        block["pragma"] = []
-        pragma = {}
-        pragma["name"] = "stream"
-        options = [
-            ["variable", "s_%s" % tensor_name],
-            ["depth", "%0d" % depth],
-            ["type", "fifo"],
-        ]
-        pragma["options"] = options
-        block["pragma"].append(pragma)
-        blocks.append(block)
-
-    return blocks
-
 def parse_split(name, node):
 
     blocks = []
 
-    # If the reuse of the weights is greater than 1 then we need to
-    # bufferize the input data to reorder from nhwc to nchw
-    if (node["reuse"] > 1):
-        blocks = blocks + parse_nchw(name, node)
-
     blocks = blocks + parse_comp(name, node)
     blocks = blocks + parse_wout(name, node)
-
-    # If the reuse of the weights is greater than 1 then we need to
-    # restore the output data from nchw to nhwc
-    if (node["reuse"] > 1):
-        blocks = blocks + parse_nhwc(name, node)
 
     return blocks
 
