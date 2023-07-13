@@ -31,7 +31,8 @@ def info(io_dict, tensors_info, model, ws):
     io_dict[node_name]["ich"]    = ich
     io_dict[node_name]["ih"]     = ih
     io_dict[node_name]["iw"]     = iw
-    io_dict[node_name]["ws"]     = ws
+    io_dict[node_name]["enable_ws"] = ws
+    io_dict[node_name]["ws_out"]     = 1
 
     return io_dict
 
@@ -55,12 +56,13 @@ def parse(name, node):
     block["template"].append("c_%s_ich" % name)
     block["template"].append("c_%s_iw" % name)
     block["template"].append("c_%s_ih" % name)
+    block["template"].append("c_%s_ws_out" % name)
     block["template"].append("c_%s" % input_name)
     # block["template"].append("c_ws")
 
     block["args"] = []
     block["args"].append("i_%s" % input_name)
-    block["args"].append("s_%s[0]" % output_name)
+    block["args"].append("s_%s" % output_name)
 
     block["input"] = ["%s" % input_name]
 
@@ -111,9 +113,9 @@ def parse(name, node):
         "const",
         node["ih"]
     ]
-    block["defines"]["c_ws"] = [
+    block["defines"]["c_%s_ws_out" % name] = [
         "const",
-        node["ws"]
+        node["ws_out"]
     ]
 
     block["declare"] = []
@@ -122,7 +124,7 @@ def parse(name, node):
     declare["name"] = "s_%s" % output_name
     declare["type"] = "t_%s_struct" % output_name
     declare["is_array"] = True
-    declare["dim"] = 1
+    declare["dim"] = node["ws_out"]
     block["declare"].append(declare)
 
     block["pragma"] = []
@@ -131,7 +133,7 @@ def parse(name, node):
     pragma["name"] = "stream"
     options = [
         ["variable", "s_%s" % (output_name)],
-        ["depth", 2],
+        ["depth", node["ich"]],
         ["type", "fifo"],
     ]
     pragma["options"] = options

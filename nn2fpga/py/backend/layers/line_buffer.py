@@ -145,17 +145,18 @@ def parse(name, node):
                 block["pragma"].append(pragma)
 
                 if (fh == 0) and (fw == 0):
-                  pragma = {}
-                  pragma["name"] = "bind_storage"
-                  options = [
-                      ["variable", "s_%s_data[0]" % output_name],
-                      # ["depth", "2"],
-                      # ["impl", "BRAM"],
-                      ["impl", "AUTO"],
-                      ["type", "fifo"],
-                  ]
-                  pragma["options"] = options
-                  block["pragma"].append(pragma)
+                    # TODO: Check correcteness of variable selection
+                    pragma = {}
+                    pragma["name"] = "bind_storage"
+                    options = [
+                        ["variable", "s_%s_data[0]" % output_name],
+                        # ["depth", "2"],
+                        # ["impl", "BRAM"],
+                        ["impl", "AUTO"],
+                        ["type", "fifo"],
+                    ]
+                    pragma["options"] = options
+                    block["pragma"].append(pragma)
 
 
             line_buffer_blocks.append(block)

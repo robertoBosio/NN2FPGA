@@ -5,10 +5,10 @@ import qonnx
 from onnx import numpy_helper
 import numpy as np
 
-def info(io_dict, tensors_info, model, ws):
+def info(io_dict, tensors_info, model, enable_ws):
 
 
-    node_name = "produce_stream"
+    node_name = "consume_stream"
 
     graph_output_name = model.graph.output[0].name
     output_shape = tensors_info[graph_output_name].tensor_type.shape
@@ -28,7 +28,8 @@ def info(io_dict, tensors_info, model, ws):
     io_dict[node_name]["och"]    = och
     io_dict[node_name]["oh"]     = oh
     io_dict[node_name]["ow"]     = ow
-    io_dict[node_name]["ws"]     = ws
+    io_dict[node_name]["enable_ws"] = enable_ws
+    io_dict[node_name]["ws"]     = 1
 
     return io_dict
 
@@ -50,10 +51,10 @@ def parse(parsed_write, node_name):
     block["template"].append("c_%s_och" % node_name)
     block["template"].append("c_%s_ow" % node_name)
     block["template"].append("c_%s_oh" % node_name)
-    # block["template"].append("c_ws")
+    block["template"].append("c_%s_ws" % node_name)
 
     block["args"] = []
-    block["args"].append("s_%s[0]" % input_name)
+    block["args"].append("s_%s" % input_name)
     block["args"].append("o_outp1")
 
     output_type = "hls::axis<t_%s, 0, 0, 0>" % input_type_name
@@ -65,6 +66,7 @@ def parse(parsed_write, node_name):
 
     block["defines"]["t_o_outp1"] = ["alias", "t_o_%s" % output_type_name]
     block["defines"]["t_o_data"] = ["alias", "t_o_%s" % output_type_name]
+    block["defines"]["c_%s_ws" % node_name] = ["const", 1]
 
     block["output"] = ["outp1"]
     block["declare"] = []

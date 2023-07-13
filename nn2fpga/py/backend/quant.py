@@ -73,9 +73,27 @@ def hw_quant(model, io_dict):
 
                 bits_index0 = in_net_names.index(net_name)
                 bits0 = in_bits[bits_index0]
+                
+                if io_dict[layer_out_name]["type"] == "conv":
+                    enable_ws = io_dict[layer_out_name]["enable_ws"]
+                else:
+                    enable_ws = io_dict[layer_in_name]["enable_ws"]
+                    io_dict[layer_out_name]["enable_ws"] = enable_ws
+
+                if (enable_ws):
+                    if (node["iw"] > 1):
+                        ws_partial = int(16/bits0)
+                    else:
+                        ws_partial = i
+                    io_dict[layer_in_name]["ws_out"] = ws_partial
 
                 io_dict[layer_out_name]["actscale"].append(scale_factor0)
                 io_dict[layer_out_name]["actbits"].append(bits0)
+
+                if (enable_ws):
+                    io_dict[layer_out_name]["ws"] = ws_partial
+                    io_dict[layer_out_name]["reuse"] = ws_partial
+
             elif is_weight and is_not_bias:
                 scale_factor = io_dict[layer_in_name]["scale_factor"]
                 io_dict[layer_out_name]["wscale"].append(scale_factor)

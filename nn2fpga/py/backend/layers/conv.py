@@ -7,7 +7,7 @@ import numpy as np
 import backend.quant
 from backend.layers.quant import get_quant_type
 
-def info(io_dict, node, node_name, init_info, tensors_info, ws):
+def info(io_dict, node, node_name, init_info, tensors_info, enable_ws):
 
     attributes = getattr(node, "attribute" )
     input_shape = tensors_info[node.input[0]].tensor_type.shape
@@ -47,20 +47,22 @@ def info(io_dict, node, node_name, init_info, tensors_info, ws):
     io_dict[node_name]["kernel"] = kernel
     io_dict[node_name]["img_ch"] = img_ch
     # Reuse is generic
-    io_dict[node_name]["reuse"]  = ws
+    io_dict[node_name]["enable_ws"] = enable_ws
+    io_dict[node_name]["reuse"]  = 1
     # Ws are the operations in parallel
-    io_dict[node_name]["ws"]     = ws
+    io_dict[node_name]["ws"]     = 1
+    io_dict[node_name]["ws_out"] = 1
     io_dict[node_name]["relu"]   = relu
     io_dict[node_name]["add"]    = add
     io_dict[node_name]["scale_factor"] = 0
     io_dict[node_name]["in_scale_factor"] = in_scale_factor
-    io_dict[node_name]["bits"] = 0
+    io_dict[node_name]["bits"]    = 0
     io_dict[node_name]["in_bits"] = in_bits
     io_dict[node_name]["type"]   = 'conv'
     io_dict[node_name]["wbias"]  = len(node.input) > 2
-    io_dict[node_name]["wbits"] = []
+    io_dict[node_name]["wbits"]  = []
     io_dict[node_name]["actbits"] = []
-    io_dict[node_name]["wscale"] = []
+    io_dict[node_name]["wscale"]  = []
     io_dict[node_name]["actscale"] = []
 
     return io_dict
