@@ -8,7 +8,7 @@
 namespace nn2fpga {
 
 template <typename din_t, int ICH, int OCH, int IH, int IW, int OH, int OW,
-          int c_fh, int c_fw, int c_str, int c_pad, int c_pos_h, int c_pos_w>
+          int c_fh, int c_fw, int c_str, int c_pad, int c_pos_h, int c_pos_w, int c_ws>
 void shift_op(hls::stream<din_t> &din, hls::stream<din_t> &o_compute) {
   /* #pragma HLS inline */
 
@@ -55,7 +55,7 @@ void shift_op(hls::stream<din_t> &din, hls::stream<din_t> &o_compute) {
 }
 
 template <typename din_t, int ICH, int IH, int IW, int c_fw, int c_fh,
-          int c_str, int c_pad>
+          int c_str, int c_pad, int c_ws>
 void pad_input(hls::stream<din_t> din[c_fw * c_fh],
                hls::stream<din_t> o_data[c_fw * c_fh]) {
   /* #pragma HLS inline */
@@ -105,7 +105,7 @@ void pad_input(hls::stream<din_t> din[c_fw * c_fh],
 }
 
 template <typename din_t, int ICH, int OCH, int IH, int IW, int OH, int OW,
-          int c_fh, int c_fw, int c_str, int c_pad, int c_pos_h, int c_pos_w>
+          int c_fh, int c_fw, int c_str, int c_pad, int c_pos_h, int c_pos_w, int c_ws>
 void shift_op(hls::stream<din_t> &din, hls::stream<din_t> &o_compute,
               hls::stream<din_t> &o_data) {
   /* #pragma HLS inline */

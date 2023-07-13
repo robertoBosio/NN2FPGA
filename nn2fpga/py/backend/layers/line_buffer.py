@@ -55,6 +55,7 @@ def parse(name, node):
             block["template"].append("c_%s_pad" % name)
             block["template"].append("%0d" % (dfh - 1 - fh))
             block["template"].append("%0d" % (dfw - 1 - fw))
+            block["template"].append("c_%s_ws" % name)
 
             block["args"] = []
 
