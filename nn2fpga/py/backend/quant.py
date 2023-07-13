@@ -81,6 +81,7 @@ def hw_quant(model, io_dict):
                     io_dict[layer_out_name]["enable_ws"] = enable_ws
 
                 if (enable_ws):
+                    # TODO: check for pointwise convolutions not at the end
                     if (io_dict[layer_out_name]["iw"] > 1):
                         ws_partial = int(16/bits0)
                     else:

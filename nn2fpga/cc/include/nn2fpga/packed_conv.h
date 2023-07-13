@@ -19,7 +19,7 @@ template <class t_input, class t_weight, class t_bias, class t_add_struct,
           class t_input_mod, class t_acc_struct, class t_acc,
           int c_reuse, int c_ws, int c_index,
           int c_ops, int c_ich, int c_och>
-t_acc_struct conv_pipe(
+void conv_pipe(
     t_input i_input[c_index],
     t_weight i_weight[c_index],
     t_bias i_bias,
@@ -29,15 +29,17 @@ t_acc_struct conv_pipe(
     uint32_t reuse,
     bool last,
     t_add_struct i_add[c_ws],
-    t_acc i_acc_buff[c_reuse][c_och]) {
+    t_acc i_acc_buff[c_reuse][c_och*c_ws],
+    t_acc_struct s_acc_struct[c_ws]) {
 #pragma HLS inline
 
   if constexpr(c_ws > 1) {
     
-    t_acc s_acc;
-    t_acc s_acc_base;
-    t_acc_struct s_acc_struct;
-    s_acc_struct.last = last & (och == (c_och - 1));
+    t_acc s_acc[c_ws];
+    t_acc s_acc_base[c_ws];
+    for (auto s_ws = 0; s_ws < c_ws; s_ws++) {
+      s_acc_struct[s_ws].last = last & (och == (c_och - 1));
+    }
 
     const auto c_bits = t_input::width;
     // TODO: use t_weight which right now is an hls::vector to extract the weight
@@ -53,12 +55,17 @@ t_acc_struct conv_pipe(
     typedef ap_fixed<c_simd_bits+t_input::width, c_simd_bits+t_input::iwidth> t_acc_simd;
 
     if constexpr(std::is_same<t_bias, std::nullptr_t>::value == false) {
-      if (ich == 0)
-        s_acc = i_bias[ops];
-      else
-        s_acc = 0;
+      for (auto s_ws = 0; s_ws < c_ws; s_ws++) {
+        if (ich == 0) {
+          s_acc[s_ws] = i_bias[ops];
+        } else {
+          s_acc[s_ws] = 0;
+        }
+      }
     } else {
-      s_acc = 0;
+      for (auto s_ws = 0; s_ws < c_ws; s_ws++) {
+        s_acc[s_ws] = 0;
+      }
     }
 
     if constexpr(std::is_same<t_add_struct, std::nullptr_t>::value == false) {
@@ -70,7 +77,7 @@ t_acc_struct conv_pipe(
     }
     if (ich == 0) {
       for (auto s_ws = 0; s_ws < c_ws; s_ws++) {
-        s_acc_base = i_acc_buff[och];
+        s_acc_base[s_ws] = i_acc_buff[och*c_ws+s_ws];
       }
     }
     ap_uint<48> s_acc_simd[c_simd] = {0};
@@ -101,8 +108,10 @@ t_acc_struct conv_pipe(
       i_acc_buff[reuse][och*c_ws+s_ws] = s_acc[s_ws];
     }
 
-    s_acc_struct.data = s_acc;
-    return s_acc_struct;
+    for (auto s_ws = 0; s_ws < c_ws; s_ws++) {
+      s_acc_struct[s_ws].data = s_acc[s_ws];
+    }
+    // return s_acc_struct;
   }
 
 
@@ -110,8 +119,7 @@ t_acc_struct conv_pipe(
 
     t_acc s_acc;
     t_acc s_acc_base;
-    t_acc_struct s_acc_struct;
-    s_acc_struct.last = last & (och == (c_och - 1));
+    s_acc_struct[0].last = last & (och == (c_och - 1));
 
     if constexpr(std::is_same<t_bias, std::nullptr_t>::value == false) {
       if (ich == 0)
@@ -139,9 +147,9 @@ t_acc_struct conv_pipe(
 
     i_acc_buff[reuse][och] = s_acc;
 
-    s_acc_struct.data = s_acc;
+    s_acc_struct[0].data = s_acc;
 
-    return s_acc_struct;
+    // return s_acc_struct;
 
   }
 
@@ -193,6 +201,7 @@ void conv_comp(hls::stream<t_input_struct> i_input[c_index+c_reuse-1],
   t_acc_1x1_struct s_acc_1x1_struct[c_ops*c_ws];
 #pragma HLS array_partition variable = s_acc_1x1_struct type = complete
 
+  std::cout << "conv_comp: " << c_index << " " << c_reuse << " " << c_ops << " " << c_ws << "\n";
   for (auto s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
     for (auto s_ich = 0; s_ich < c_ich; s_ich++) {
       for (auto s_iter = 0; s_iter < c_iter; s_iter++) {
@@ -238,7 +247,9 @@ void conv_comp(hls::stream<t_input_struct> i_input[c_index+c_reuse-1],
         COMPUTE:
         for (auto s_ops = 0; s_ops < c_ops; s_ops++) {
           auto s_och = s_num_och * c_ops + s_ops;
-          s_acc_struct[s_ops] = conv_pipe<
+          t_acc_struct s_acc_temp[c_ws];
+
+          conv_pipe<
             t_input,
             t_weight,
             t_bias,
@@ -262,14 +273,20 @@ void conv_comp(hls::stream<t_input_struct> i_input[c_index+c_reuse-1],
             s_reuse,
             s_last,
             s_add,
-            s_acc_buff
+            s_acc_buff,
+            s_acc_temp
           );
+
+          for (auto s_ws = 0; s_ws < c_ws; s_ws++) {
+            s_acc_struct[s_ops*c_ws+s_ws] = s_acc_temp[s_ws];
+          }
 
           if constexpr(std::is_same<t_acc_1x1_struct, std::nullptr_t>::value == false) {
             for (auto s_ws = 0; s_ws < c_ws; s_ws++) {
               s_input_1x1[s_ws] = s_input[c_index / 2 + s_ws*c_str];
             }
-            s_acc_1x1_struct[s_ops] = conv_pipe<
+            t_acc_1x1_struct s_acc_temp_1x1[c_ws];
+            conv_pipe<
               t_input,
               t_weight_1x1,
               t_bias_1x1,
@@ -293,13 +310,19 @@ void conv_comp(hls::stream<t_input_struct> i_input[c_index+c_reuse-1],
               s_reuse,
               s_last,
               nullptr,
-              s_acc_1x1_buff
+              s_acc_1x1_buff,
+              s_acc_temp_1x1
             );
+            for (auto s_ws = 0; s_ws < c_ws; s_ws++) {
+              s_acc_1x1_struct[s_ops*c_ws+s_ws] = s_acc_temp_1x1[s_ws];
+            }
           }
           if (s_ich == (c_ich-1)) {
-            o_acc_stream[s_ops].write(s_acc_struct[s_ops]);
-            if constexpr(std::is_same<t_acc_1x1_struct, std::nullptr_t>::value == false)
-              o_acc_1x1_stream[s_ops].write(s_acc_1x1_struct[s_ops]);
+            for (auto s_ws = 0; s_ws < c_ws; s_ws++) {
+              o_acc_stream[s_ops*c_ws+s_ws].write(s_acc_struct[s_ops*c_ws+s_ws]);
+              if constexpr(std::is_same<t_acc_1x1_struct, std::nullptr_t>::value == false)
+                o_acc_1x1_stream[s_ops*c_ws+s_ws].write(s_acc_1x1_struct[s_ops*c_ws+s_ws]);
+            }
           }
         }
         if constexpr(std::is_same<t_forward_struct, std::nullptr_t>::value == false) {
@@ -364,7 +387,7 @@ void stream_output(hls::stream<t_acc_struct> i_acc[c_ops*c_ws],
   t_acc_struct s_acc[c_ws][c_och];
   t_acc_1x1_struct s_acc_1x1[c_ws][c_och];
 
-  // std::cout << "stream_output: " << c_num_comp << " " << c_pipe_iter << " " << c_num_och << std::endl;
+  std::cout << "stream_output: " << c_num_comp << " " << c_pipe_iter << " " << c_num_och << std::endl;
   for (auto s_pipe_iter = 0; s_pipe_iter < c_pipe_iter; s_pipe_iter++) {
 #pragma HLS pipeline style = stp
     for (auto s_ws = 0; s_ws < c_ws; s_ws++) {

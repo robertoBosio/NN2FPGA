@@ -31,6 +31,7 @@ void shift_op(hls::stream<din_t> &din, hls::stream<din_t> &o_compute) {
   constexpr int c_endh = IH_PAD - c_pad_index_h;
   constexpr int c_endw = IW_PAD - c_pad_index_w;
 
+  std::cout << "shift_op" << " c_starth: " << c_starth << " c_startw: " << c_startw << " c_endh: " << c_endh << " c_endw: " << c_endw << std::endl;
   for (auto s_index_h = c_starth; s_index_h < c_endh; s_index_h++) {
     for (auto s_index_w = c_startw; s_index_w < c_endw; s_index_w++) {
       for (auto s_index_ich = 0; s_index_ich < ICH; s_index_ich++) {
@@ -132,6 +133,7 @@ void shift_op(hls::stream<din_t> &din, hls::stream<din_t> &o_compute,
   hls::stream<din_t> s_compute;
 #pragma HLS stream variable = s_compute depth = 2 type = fifo
 
+  std::cout << "shift_op" << " c_starth: " << c_starth << " c_startw: " << c_startw << " c_endh: " << c_endh << " c_endw: " << c_endw << std::endl;
   for (auto s_index_h = c_starth; s_index_h < c_endh; s_index_h++) {
     for (auto s_index_w = c_startw; s_index_w < c_endw; s_index_w++) {
       for (auto s_index_ich = 0; s_index_ich < ICH; s_index_ich++) {
