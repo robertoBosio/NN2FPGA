@@ -39,7 +39,7 @@ def parse(name, node):
     declare["name"] = "s_%s_compute" % input_name
     declare["type"] = "t_%s_struct" % input_name
     declare["is_array"] = True
-    declare["dim"] = node["fh"]*node["fw"]
+    declare["dim"] = node["fh"]*(node["fw"]+node["ws"]-1)
 
     block["declare"].append(declare)
 

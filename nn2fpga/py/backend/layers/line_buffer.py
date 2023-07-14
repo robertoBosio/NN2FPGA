@@ -43,6 +43,10 @@ def parse(name, node):
             # Template parameters
             block["template"] = []
             block["template"].append("t_%s_struct" % input_type_name)
+            if out_index < (dindex):
+                block["template"].append("t_%s_struct" % input_type_name)
+            else:
+                block["template"].append("std::nullptr_t")
             block["template"].append("c_%s_ich" % name)
             block["template"].append("c_%s_och" % name)
             block["template"].append("c_%s_ih" % name)
@@ -72,7 +76,11 @@ def parse(name, node):
 
             if out_index < (dindex):
                 block["args"].append(
-                    "s_%s_data[%0d]" % (input_name, out_index-1)
+                    "s_%s_data[%0d]" % (input_name, out_index-ws)
+                )
+            else:
+                block["args"].append(
+                    "s_%s_null[%0d]" % (input_name, dindex-index-1)
                 )
 
             block["declare"] = []
@@ -83,6 +91,13 @@ def parse(name, node):
                 declare["type"] = "t_%s_struct" % output_name
                 declare["is_array"] = True
                 declare["dim"] = dindex-ws
+                block["declare"].append(declare)
+
+                declare = {}
+                declare["name"] = "s_%s_null" % output_name
+                declare["type"] = "std::nullptr_t"
+                declare["is_array"] = True
+                declare["dim"] = ws
                 block["declare"].append(declare)
 
                 declare = {}
