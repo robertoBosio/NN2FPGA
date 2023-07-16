@@ -292,6 +292,8 @@ def parse_comp(name, node):
     block["template"].append("c_%s_och" % name)
     block["template"].append("c_%s_oh" % name)
     block["template"].append("c_%s_ow" % name)
+    block["template"].append("c_%s_fh" % name)
+    block["template"].append("c_%s_fw" % name)
     block["template"].append("c_%s_index" % name)
     block["template"].append("c_%s_stride" % name)
     block["template"].append("c_%s_ops" % name)

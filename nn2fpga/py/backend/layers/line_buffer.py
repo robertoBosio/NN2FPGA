@@ -64,7 +64,7 @@ def parse(name, node):
             block["args"] = []
 
             if index < ws:
-                block["args"].append("s_%s[%0d]" % (input_name, index))
+                block["args"].append("s_%s[%0d]" % (input_name, ws-index-1))
             else:
                 block["args"].append(
                     "s_%s_data[%0d]" % (input_name, index-ws)

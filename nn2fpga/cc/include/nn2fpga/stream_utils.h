@@ -37,6 +37,7 @@ PRODSTR:
     } else {
       doutWrap.last = dinWrap.last;
     }
+
     doutStream[ws_out] << doutWrap;
     din_par >>= 8;
   }

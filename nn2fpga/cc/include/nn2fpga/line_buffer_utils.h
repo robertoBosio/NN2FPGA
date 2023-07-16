@@ -63,7 +63,6 @@ void shift_op(hls::stream<din_t> &din, hls::stream<din_t> &o_compute,
               hls::stream<dout_t> &o_data) {
   /* #pragma HLS inline */
 
-  // std::cout << "shift_op " << IH << " " << IW << std::endl;
   constexpr int c_pad_index_h = c_pad * (c_fh - 1) / 2;
   constexpr int c_pad_index_w = c_pad * (c_fw - 1) / 2;
   constexpr int IH_PAD = IH + c_pad_index_h * 2;
@@ -83,6 +82,7 @@ void shift_op(hls::stream<din_t> &din, hls::stream<din_t> &o_compute,
   constexpr int c_startw = c_pad_index_w + (c_fw - c_pos_w) % c_ws;
   constexpr int c_endh = IH_PAD - c_pad_index_h;
   constexpr int c_endw = IW_PAD - c_pad_index_w + (c_fw - c_pos_w) % c_ws;
+
 
   hls::stream<din_t> s_compute;
 #pragma HLS stream variable = s_compute depth = 2 type = fifo
