@@ -101,6 +101,13 @@ void pad_input(hls::stream<din_t> din[c_fw * c_fh],
       }
     }
   }
+  //check last bit
+  if(s_last) {
+    std::cout << "last bit pad input is true" << std::endl;
+  }
+  else {
+    std::cout << "last bit pad input is false" << std::endl;
+  }
 }
 
 template <typename din_t, int ICH, int OCH, int IH, int IW, int OH, int OW,

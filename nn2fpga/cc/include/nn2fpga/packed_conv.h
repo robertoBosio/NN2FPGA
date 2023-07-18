@@ -89,7 +89,7 @@ void conv_comp(hls::stream<t_input_struct> i_input[c_index],
                hls::stream<t_acc_1x1_struct> o_acc_1x1_stream[c_ops]) {
   /* #pragma HLS inline */
   // Generic Convolution Computation
-
+  
   const auto c_o_index = c_oh * c_ow / c_reuse;
   const auto c_num_och = c_och / c_ops;
   const auto c_iter = c_reuse * c_num_och;
@@ -116,6 +116,8 @@ void conv_comp(hls::stream<t_input_struct> i_input[c_index],
 #pragma HLS array_partition variable = s_acc_struct type = complete
   t_acc_1x1_struct s_acc_1x1_struct[c_ops];
 #pragma HLS array_partition variable = s_acc_1x1_struct type = complete
+    std::cout << "conv_comp: " << c_num_och << " " << c_o_index << " "
+            << c_iter << " " << c_ops << " " << c_reuse << "\n";
 
   for (auto s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
     for (auto s_ich = 0; s_ich < c_ich; s_ich++) {
@@ -234,6 +236,27 @@ void conv_comp(hls::stream<t_input_struct> i_input[c_index],
       }
     }
   }
+  //check if the input stream is empty
+  if (i_input[0].empty()) {
+    std::cout << "i_input[0] conv is empty" << std::endl;
+  }
+  else {
+    std::cout << "i_input[0] conv is not empty" << std::endl;
+  }
+  //check if weight is empty
+  if (i_weights[0].empty()) {
+    std::cout << "i_weights[0] conv is empty" << std::endl;
+  }
+  else {
+    std::cout << "i_weights[0] conv is not empty" << std::endl;
+  }
+  //check last
+  if (s_last) {
+    std::cout << "s_last conv is true" << std::endl;
+  }
+  else {
+    std::cout << "s_last conv is false" << std::endl;
+  }
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -269,6 +292,7 @@ template <class t_output_struct, class t_output, class t_output_clip, class t_ou
           class t_output_1x1_struct, class t_output_1x1, class t_acc_struct, class t_acc,
           class t_acc_1x1_struct, class t_acc_1x1, int c_ich, int c_och,
           int c_oh, int c_ow, int c_index, int c_ops, int c_relu, int c_stride>
+//TODO: remove c_ich
 void stream_output(hls::stream<t_acc_struct> i_acc[c_ops],
                    hls::stream<t_acc_1x1_struct> i_acc_1x1[c_ops],
                    hls::stream<t_output_struct> o_data[1],
@@ -282,13 +306,16 @@ void stream_output(hls::stream<t_acc_struct> i_acc[c_ops],
 
   t_acc_struct s_acc[c_och];
   t_acc_1x1_struct s_acc_1x1[c_och];
-
+  // std::cout << "Stream output conv : " << " c_num_comp: " << c_num_comp << " c_pipe_iter: " << c_pipe_iter << " c_num_och: " << c_num_och << "\n";
   for (auto s_pipe_iter = 0; s_pipe_iter < c_pipe_iter; s_pipe_iter++) {
 #pragma HLS pipeline style = stp
     auto s_ops = s_pipe_iter % c_ops;
     auto s_num_och = s_pipe_iter % c_num_och;
     auto s_och = s_pipe_iter % c_och;
-
+    //code for debugging
+    // std::cout << "s_pipe_iter: " << s_pipe_iter << std::endl;
+    // std::cout << "s_ops: " << s_ops << std::endl;
+    // std::cout << "s_num_och: " << s_num_och << std::endl;
     if (s_och < c_num_och) {
       for (auto s_r_ops = 0; s_r_ops < c_ops; s_r_ops++) {
         auto s_r_och = s_num_och * c_ops + s_r_ops;
