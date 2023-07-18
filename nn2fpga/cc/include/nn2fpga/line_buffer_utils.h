@@ -70,6 +70,7 @@ void pad_input(hls::stream<din_t> din[c_fw * c_fh],
   constexpr int FSZ = c_fh * c_fw;
 
   bool s_last;
+  const auto index_last = (FSZ -1) - FSZ*c_pad/2;
   // std::cout << "pad_input" << std::endl;
   for (auto s_index_h = 0; s_index_h < IH_REM; s_index_h += c_str) {
     for (auto s_index_w = 0; s_index_w < IW_REM; s_index_w += c_str) {
@@ -90,7 +91,8 @@ void pad_input(hls::stream<din_t> din[c_fw * c_fh],
 
             if (s_data_read) {
               s_write = din[FSZ - s_index - 1].read();
-              if (s_index == FSZ - 1) s_last = s_write.last;
+              //if (s_index == FSZ - 1) s_last = s_write.last;
+              if (s_index == index_last) s_last = s_write.last;
             } else {
               s_write.data = 0;
               s_write.last = s_last;
@@ -100,13 +102,6 @@ void pad_input(hls::stream<din_t> din[c_fw * c_fh],
         }
       }
     }
-  }
-  //check last bit
-  if(s_last) {
-    std::cout << "last bit pad input is true" << std::endl;
-  }
-  else {
-    std::cout << "last bit pad input is false" << std::endl;
   }
 }
 

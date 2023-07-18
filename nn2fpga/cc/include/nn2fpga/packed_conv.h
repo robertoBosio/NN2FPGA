@@ -116,8 +116,6 @@ void conv_comp(hls::stream<t_input_struct> i_input[c_index],
 #pragma HLS array_partition variable = s_acc_struct type = complete
   t_acc_1x1_struct s_acc_1x1_struct[c_ops];
 #pragma HLS array_partition variable = s_acc_1x1_struct type = complete
-    std::cout << "conv_comp: " << c_num_och << " " << c_o_index << " "
-            << c_iter << " " << c_ops << " " << c_reuse << "\n";
 
   for (auto s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
     for (auto s_ich = 0; s_ich < c_ich; s_ich++) {
@@ -236,27 +234,6 @@ void conv_comp(hls::stream<t_input_struct> i_input[c_index],
       }
     }
   }
-  //check if the input stream is empty
-  if (i_input[0].empty()) {
-    std::cout << "i_input[0] conv is empty" << std::endl;
-  }
-  else {
-    std::cout << "i_input[0] conv is not empty" << std::endl;
-  }
-  //check if weight is empty
-  if (i_weights[0].empty()) {
-    std::cout << "i_weights[0] conv is empty" << std::endl;
-  }
-  else {
-    std::cout << "i_weights[0] conv is not empty" << std::endl;
-  }
-  //check last
-  if (s_last) {
-    std::cout << "s_last conv is true" << std::endl;
-  }
-  else {
-    std::cout << "s_last conv is false" << std::endl;
-  }
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -299,23 +276,20 @@ void stream_output(hls::stream<t_acc_struct> i_acc[c_ops],
                    hls::stream<t_output_1x1_struct> o_data_1x1[1]) {
   /* #pragma HLS inline */
 
-  // std::cout << "stream_output" << std::endl;
+
   const auto c_num_comp = c_oh * c_ow * c_och;
   const auto c_pipe_iter = c_num_comp;
   const auto c_num_och = c_och / c_ops;
 
   t_acc_struct s_acc[c_och];
   t_acc_1x1_struct s_acc_1x1[c_och];
-  // std::cout << "Stream output conv : " << " c_num_comp: " << c_num_comp << " c_pipe_iter: " << c_pipe_iter << " c_num_och: " << c_num_och << "\n";
+
   for (auto s_pipe_iter = 0; s_pipe_iter < c_pipe_iter; s_pipe_iter++) {
 #pragma HLS pipeline style = stp
     auto s_ops = s_pipe_iter % c_ops;
     auto s_num_och = s_pipe_iter % c_num_och;
     auto s_och = s_pipe_iter % c_och;
-    //code for debugging
-    // std::cout << "s_pipe_iter: " << s_pipe_iter << std::endl;
-    // std::cout << "s_ops: " << s_ops << std::endl;
-    // std::cout << "s_num_och: " << s_num_och << std::endl;
+
     if (s_och < c_num_och) {
       for (auto s_r_ops = 0; s_r_ops < c_ops; s_r_ops++) {
         auto s_r_och = s_num_och * c_ops + s_r_ops;
@@ -329,8 +303,7 @@ void stream_output(hls::stream<t_acc_struct> i_acc[c_ops],
     quant_stream<t_output_struct, t_output, t_output_clip, t_output_mask, t_acc_struct, t_acc, c_ich, c_och,
                  c_oh, c_ow, c_index, c_ops, c_relu>(s_acc[s_och], o_data);
 
-    // if (s_pipe_iter%c_och == (c_och-1))
-    //   std::cout << std::endl;
+
 
     if constexpr(std::is_same<t_acc_1x1_struct, std::nullptr_t>::value == false) {
       quant_stream<t_output_1x1_struct, t_output_1x1, std::nullptr_t, std::nullptr_t, t_acc_1x1_struct, t_acc_1x1,

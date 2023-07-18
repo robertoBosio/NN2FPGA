@@ -103,8 +103,6 @@ void depth_conv_comp(hls::stream<t_input_struct> i_input[c_index],
   t_acc_1x1_struct s_acc_1x1_struct[c_ops];
 #pragma HLS array_partition variable = s_acc_1x1_struct type = complete
 
-  std::cout << "depth_conv_comp: " << c_num_och << " " << c_o_index << " "
-            << c_iter << " " << c_ops << " " << c_reuse << "\n";
   for (auto s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
     for (auto s_reuse = 0; s_reuse < c_reuse; s_reuse++) {
       for (auto s_och = 0; s_och < c_och; s_och++) {
@@ -212,27 +210,6 @@ void depth_conv_comp(hls::stream<t_input_struct> i_input[c_index],
       }
     }
   }
-  //check if input is empty
-  if (i_input[0].empty()) {
-    std::cout << "i_input[0] depth is empty" << std::endl;
-  }
-  else {
-    std::cout << "i_input[0] depth is not empty" << std::endl;
-  }
-  //check if weight is empty
-  if (i_weights[0].empty()) {
-    std::cout << "i_weights[0] depth is empty" << std::endl;
-  }
-  else {
-    std::cout << "i_weights[0] depth is not empty" << std::endl;
-  }
-  //check last bit
-  if (s_last) {
-    std::cout << "s_last depth is true" << std::endl;
-  }
-  else {
-    std::cout << "s_last depth is false" << std::endl;
-  }
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -258,7 +235,6 @@ void quant_stream(t_acc_struct i_acc, hls::stream<t_output_struct> o_data[1]) {
     s_acc = t_output_mask(s_acc);
   }
   s_output.data = t_output(s_acc);
-  // std::cout << s_output.data << " ";
   s_output.last = s_acc_struct.last;
 
   o_data[0].write(s_output);
@@ -278,8 +254,6 @@ void stream_output_depth(hls::stream<t_acc_struct> i_acc[c_ops],
   const auto c_num_comp = c_oh * c_ow * c_och;
   const auto c_pipe_iter = c_num_comp;
   const auto c_num_och = c_och / c_ops;
-  //code for debugging
-  // std::cout << "Stream output depth conv : " << " c_num_comp: " << c_num_comp << " c_pipe_iter: " << c_pipe_iter << " c_num_och: " << c_num_och << "\n";
   t_acc_struct s_acc[c_och];
   t_acc_1x1_struct s_acc_1x1[c_och];
 
@@ -295,7 +269,6 @@ void stream_output_depth(hls::stream<t_acc_struct> i_acc[c_ops],
         auto s_r_och = s_num_och * c_ops + s_r_ops;
 
         s_acc[s_r_och] = i_acc[s_r_ops].read();
-        //std::cout << "s_acc[s_r_och]: " << s_acc[s_r_och].data << "\n";
         if constexpr(std::is_same<t_acc_1x1_struct, std::nullptr_t>::value == false) {
           s_acc_1x1[s_r_och] = i_acc_1x1[s_r_ops].read();
         }
@@ -313,14 +286,6 @@ void stream_output_depth(hls::stream<t_acc_struct> i_acc[c_ops],
                   c_och, c_oh, c_ow, 1, 1, 0>(s_acc_1x1[s_och], o_data_1x1);
     }
   }
-  std::cout << std::endl;
-  if (i_acc[0].empty()) {
-    std::cout << "i_acc[0] depth is empty" << std::endl;
-  }
-  else {
-    std::cout << "i_acc[0]  depth is not empty" << std::endl;
-  }
-
 }
 
 }  // namespace nn2fpga
