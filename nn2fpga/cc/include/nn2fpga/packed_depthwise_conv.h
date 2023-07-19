@@ -36,7 +36,6 @@ t_acc_struct depth_conv_pipe(
   if constexpr(std::is_same<t_bias, std::nullptr_t>::value == false) {
     s_acc = i_bias[ops];
   }
-
   if constexpr(std::is_same<t_add_struct, std::nullptr_t>::value == false) {
     s_acc += t_acc(i_add.data);
   }
@@ -76,7 +75,8 @@ void depth_conv_comp(hls::stream<t_input_struct> i_input[c_index],
   /* #pragma HLS inline */
   // Generic depth_convolution Computation
 
-  const auto c_o_index = c_oh * c_ow / c_reuse;
+  const auto c_o_index = c_oh * c_ow / c_reuse; 
+  const auto c_num_och = c_och / c_ops;
   const auto c_iter = c_reuse * c_num_och;
 
   t_acc s_acc_buff[c_reuse][c_och];
@@ -97,6 +97,11 @@ void depth_conv_comp(hls::stream<t_input_struct> i_input[c_index],
   t_bias_1x1 s_bias_1x1;
 #pragma HLS array_partition variable = s_bias_1x1 type = complete
   t_add_struct s_add;
+#pragma HLS array_partition variable = s_bias_1x1 type = complete
+  t_acc_struct s_acc_struct[c_ops];
+#pragma HLS array_partition variable = s_acc_struct type = complete
+  t_acc_1x1_struct s_acc_1x1_struct[c_ops];
+#pragma HLS array_partition variable = s_acc_1x1_struct type = complete
 
   for (auto s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
     for (auto s_reuse = 0; s_reuse < c_reuse; s_reuse++) {
@@ -105,14 +110,11 @@ void depth_conv_comp(hls::stream<t_input_struct> i_input[c_index],
 #pragma HLS unroll factor = c_ops
 
         auto s_ops = s_och % c_ops;
-
-        if (s_ops == 0) {
-          for (auto s_index = 0; s_index < c_index; s_index++) {
-            t_input_struct s_input_struct = i_input[s_index].read();
-            s_input[s_reuse][s_index] = s_input_struct.data;
-            /* Sending last only at the bottom right data */
-            if (s_index == 0) s_last = s_input_struct.last;
-          }
+        for (auto s_index = 0; s_index < c_index; s_index++) {
+          t_input_struct s_input_struct = i_input[s_index].read();
+          s_input[s_reuse][s_index] = s_input_struct.data;
+          /* Sending last only at the bottom right data */
+          if (s_index == 0) s_last = s_input_struct.last;
         }
 
         /* Buffering to speed up computations */
@@ -121,6 +123,7 @@ void depth_conv_comp(hls::stream<t_input_struct> i_input[c_index],
           for (auto s_index = 0; s_index < c_index; s_index++) {
             s_weight[s_index] = i_weights[s_index].read();
           }
+
 
           // If it is the first reuse iteration, read the 1x1 weights
           if constexpr(std::is_same<t_weight_1x1, std::nullptr_t>::value == false)
@@ -139,7 +142,7 @@ void depth_conv_comp(hls::stream<t_input_struct> i_input[c_index],
         // Theoretically with the add the input and output dimensions should
         // be equal, so we could perform the addition in different iterations
         if constexpr(std::is_same<t_add_struct, std::nullptr_t>::value == false)
-          if (s_iter == 0) s_add = i_add[0].read();
+          s_add = i_add[0].read();
 
         COMPUTE:
         s_acc_struct[s_ops] = depth_conv_pipe<
@@ -162,8 +165,8 @@ void depth_conv_comp(hls::stream<t_input_struct> i_input[c_index],
           s_och,
           s_reuse,
           s_last,
-          s_add,
-          s_acc_buff
+          s_add
+          //s_acc_buff
         );
 
         if constexpr(std::is_same<t_acc_1x1_struct, std::nullptr_t>::value == false) {
@@ -196,10 +199,13 @@ void depth_conv_comp(hls::stream<t_input_struct> i_input[c_index],
         if constexpr(std::is_same<t_acc_1x1_struct, std::nullptr_t>::value == false)
           o_acc_1x1_stream[s_ops].write(s_acc_1x1_struct[s_ops]);
         if constexpr(std::is_same<t_forward_struct, std::nullptr_t>::value == false) {
-          t_forward_struct s_forward;
-          s_forward.data = s_input[s_reuse][c_index / 2];
-          s_forward.last = false;
-          o_forward[0].write(s_forward);
+          if (s_ops == (c_num_och - 1)) {
+            t_forward_struct s_forward;
+            s_forward.data = s_input[s_reuse][c_index / 2];
+            s_forward.last = false;
+            o_forward[0].write(s_forward);
+            // std::cout << "depth_conv_comp: " << s_forward.data << "\n";
+          }
         }
       }
     }
@@ -229,7 +235,6 @@ void quant_stream(t_acc_struct i_acc, hls::stream<t_output_struct> o_data[1]) {
     s_acc = t_output_mask(s_acc);
   }
   s_output.data = t_output(s_acc);
-  // std::cout << s_output.data << " ";
   s_output.last = s_acc_struct.last;
 
   o_data[0].write(s_output);
@@ -239,19 +244,19 @@ template <class t_output_struct, class t_output, class t_output_clip, class t_ou
           class t_output_1x1_struct, class t_output_1x1, class t_acc_struct, class t_acc,
           class t_acc_1x1_struct, class t_acc_1x1, int c_och,
           int c_oh, int c_ow, int c_index, int c_ops, int c_relu, int c_stride>
-void stream_output(hls::stream<t_acc_struct> i_acc[c_ops],
+void stream_output_depth(hls::stream<t_acc_struct> i_acc[c_ops],
                    hls::stream<t_acc_1x1_struct> i_acc_1x1[c_ops],
                    hls::stream<t_output_struct> o_data[1],
                    hls::stream<t_output_1x1_struct> o_data_1x1[1]) {
   /* #pragma HLS inline */
 
-  // std::cout << "stream_output" << std::endl;
+ 
   const auto c_num_comp = c_oh * c_ow * c_och;
   const auto c_pipe_iter = c_num_comp;
   const auto c_num_och = c_och / c_ops;
-
   t_acc_struct s_acc[c_och];
   t_acc_1x1_struct s_acc_1x1[c_och];
+
 
   for (auto s_pipe_iter = 0; s_pipe_iter < c_pipe_iter; s_pipe_iter++) {
 #pragma HLS pipeline style = stp
@@ -262,6 +267,7 @@ void stream_output(hls::stream<t_acc_struct> i_acc[c_ops],
     if (s_och < c_num_och) {
       for (auto s_r_ops = 0; s_r_ops < c_ops; s_r_ops++) {
         auto s_r_och = s_num_och * c_ops + s_r_ops;
+
         s_acc[s_r_och] = i_acc[s_r_ops].read();
         if constexpr(std::is_same<t_acc_1x1_struct, std::nullptr_t>::value == false) {
           s_acc_1x1[s_r_och] = i_acc_1x1[s_r_ops].read();
@@ -280,7 +286,6 @@ void stream_output(hls::stream<t_acc_struct> i_acc[c_ops],
                   c_och, c_oh, c_ow, 1, 1, 0>(s_acc_1x1[s_och], o_data_1x1);
     }
   }
-  // std::cout << std::endl;
 }
 
 }  // namespace nn2fpga

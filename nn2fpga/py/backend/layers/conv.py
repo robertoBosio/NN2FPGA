@@ -19,7 +19,8 @@ def info(io_dict, node, node_name, init_info, tensors_info, ws):
     och      = getattr(output_shape, 'dim')[1].dim_value
     oh       = getattr(output_shape, 'dim')[2].dim_value
     ow       = getattr(output_shape, 'dim')[3].dim_value
-    group    = getattr(attributes[1], 'ints')
+    #get attribute group
+    group    = getattr(attributes[1], 'i')
     fh       = getattr(attributes[2], 'ints')[0]
     fw       = getattr(attributes[2], 'ints')[1]
     stride   = getattr(attributes[4], 'ints')[0]
@@ -80,7 +81,11 @@ def parse_wout(name, node):
         output_1x1_type_name = output_1x1_name.replace("_skip", "")
 
     block = {}
-    block["func"] = "stream_output"
+    #distinguist between depthwise and normal convolution
+    if node["group"] == node["ich"]:
+        block["func"] = "stream_output_depth"
+    else :
+        block["func"] = "stream_output"
 
     # Template parameters
     block["template"] = []
@@ -102,7 +107,9 @@ def parse_wout(name, node):
     else:
         block["template"].append("std::nullptr_t")
         block["template"].append("std::nullptr_t")
-    block["template"].append("c_%s_ich" % name)
+    #distinguist between depthwise and normal convolution
+    if node["group"] == 1:
+        block["template"].append("c_%s_ich" % name)
     block["template"].append("c_%s_och" % name)
     block["template"].append("c_%s_ow" % name)
     block["template"].append("c_%s_oh" % name)
@@ -313,10 +320,13 @@ def parse_comp(name, node):
         output_1x1_type_name = output_1x1_name.replace("_skip", "")
 
     block = {}
-    if group == 1:
-        block["func"] = "conv_comp"
-    else:
+    # function for deptwhise or normal convolution
+    if node["group"] == node["ich"]:
         block["func"] = "depth_conv_comp"
+        print("depth_conv_comp_py")
+    else:
+        block["func"] = "conv_comp"
+        print("conv_comp__py")
     # Template parameters
     block["template"] = []
     block["template"].append("t_%s_struct" % input_type_name)
@@ -361,8 +371,9 @@ def parse_comp(name, node):
         block["template"].append("std::nullptr_t")
         block["template"].append("std::nullptr_t")
 
-
-    block["template"].append("c_%s_ich" % name)
+    # case standard conv no depthwise
+    if node["group"] == 1:
+        block["template"].append("c_%s_ich" % name)
     block["template"].append("c_%s_och" % name)
     block["template"].append("c_%s_oh" % name)
     block["template"].append("c_%s_ow" % name)
