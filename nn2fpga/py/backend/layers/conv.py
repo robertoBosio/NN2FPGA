@@ -248,6 +248,7 @@ def parse_comp(name, node):
     block["template"].append("t_%s_struct" % input_type_name)
     block["template"].append("t_%s" % input_type_name)
     block["template"].append("t_%s" % weight_name)
+    block["template"].append("t_%s_st" % weight_name)
     if (has_bias):
         block["template"].append("t_%s" % bias_name)
     else:
@@ -271,8 +272,10 @@ def parse_comp(name, node):
     if (node["merge_1x1"]):
         block["template"].append("t_%s_1x1" % input_type_name)
         block["template"].append("t_%s" % weight_1x1_name)
+        block["template"].append("t_%s_st" % weight_1x1_name)
         block["template"].append("t_%s" % bias_1x1_name)
     else:
+        block["template"].append("std::nullptr_t")
         block["template"].append("std::nullptr_t")
         block["template"].append("std::nullptr_t")
         block["template"].append("std::nullptr_t")
