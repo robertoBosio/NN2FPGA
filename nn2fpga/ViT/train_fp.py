@@ -1,250 +1,327 @@
-# Copyright 2023 Google LLC.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# coding=utf-8
+from __future__ import absolute_import, division, print_function
 
-import functools
+import logging
+import argparse
 import os
-import time
-
-from absl import logging
-from clu import metric_writers
-from clu import periodic_actions
-import flax
-from flax.training import checkpoints as flax_checkpoints
-import jax
-import jax.numpy as jnp
-import ml_collections
+import random
 import numpy as np
-import optax
-import tensorflow as tf
 
-from vit_jax import checkpoint
-from vit_jax import input_pipeline
-from vit_jax import models
-from vit_jax import utils
+from datetime import timedelta
 
+import torch
+import torch.distributed as dist
 
-def make_update_fn(*, apply_fn, accum_steps, tx):
-  """Returns update step for data parallel training."""
+from tqdm import tqdm
+from torch.utils.tensorboard import SummaryWriter
 
-  def update_fn(params, opt_state, batch, rng):
-
-    _, new_rng = jax.random.split(rng)
-    # Bind the rng key to the device id (which is unique across hosts)
-    # Note: This is only used for multi-host training (i.e. multiple computers
-    # each with multiple accelerators).
-    dropout_rng = jax.random.fold_in(rng, jax.lax.axis_index('batch'))
-
-    def cross_entropy_loss(*, logits, labels):
-      logp = jax.nn.log_softmax(logits)
-      return -jnp.mean(jnp.sum(logp * labels, axis=1))
-
-    def loss_fn(params, images, labels):
-      logits = apply_fn(
-          dict(params=params),
-          rngs=dict(dropout=dropout_rng),
-          inputs=images,
-          train=True)
-      return cross_entropy_loss(logits=logits, labels=labels)
-
-    l, g = utils.accumulate_gradient(
-        jax.value_and_grad(loss_fn), params, batch['image'], batch['label'],
-        accum_steps)
-    g = jax.tree_map(lambda x: jax.lax.pmean(x, axis_name='batch'), g)
-    updates, opt_state = tx.update(g, opt_state)
-    params = optax.apply_updates(params, updates)
-    l = jax.lax.pmean(l, axis_name='batch')
-
-    return params, opt_state, l, new_rng
-
-  return jax.pmap(update_fn, axis_name='batch', donate_argnums=(0,))
+from model.ViT_fp import *
+#from models.modeling import VisionTransformer, CONFIGS
+from utils.scheduler import WarmupLinearSchedule, WarmupCosineSchedule
+from utils.data_utils import get_loader
+from utils.dist_util import get_world_size
 
 
-def train_and_evaluate(config: ml_collections.ConfigDict, workdir: str):
-  """Runs training interleaved with evaluation."""
+logger = logging.getLogger(__name__)
 
-  # Setup input pipeline
-  dataset_info = input_pipeline.get_dataset_info(config.dataset, 'train')
 
-  ds_train, ds_test = input_pipeline.get_datasets(config)
-  batch = next(iter(ds_train))
-  logging.info(ds_train)
-  logging.info(ds_test)
+class AverageMeter(object):
+    """Computes and stores the average and current value"""
+    def __init__(self):
+        self.reset()
 
-  # Build VisionTransformer architecture
-  model_cls = {'ViT': models.VisionTransformer,
-               'Mixer': models.MlpMixer}[config.get('model_type', 'ViT')]
-  model = model_cls(num_classes=dataset_info['num_classes'], **config.model)
+    def reset(self):
+        self.val = 0
+        self.avg = 0
+        self.sum = 0
+        self.count = 0
 
-  def init_model():
-    return model.init(
-        jax.random.PRNGKey(0),
-        # Discard the "num_local_devices" dimension for initialization.
-        jnp.ones(batch['image'].shape[1:], batch['image'].dtype.name),
-        train=False)
+    def update(self, val, n=1):
+        self.val = val
+        self.sum += val * n
+        self.count += n
+        self.avg = self.sum / self.count
 
-  # Use JIT to make sure params reside in CPU memory.
-  variables = jax.jit(init_model, backend='cpu')()
 
-  model_or_filename = config.get('model_or_filename')
-  if model_or_filename:
-    # Loading model from repo published with  "How to train your ViT? Data,
-    # Augmentation, and Regularization in Vision Transformers" paper.
-    # https://arxiv.org/abs/2106.10270
-    if '-' in model_or_filename:
-      filename = model_or_filename
+def simple_accuracy(preds, labels):
+    return (preds == labels).mean()
+
+
+def save_model(args, model):
+    model_to_save = model.module if hasattr(model, 'module') else model
+    model_checkpoint = os.path.join(args.output_dir, "%s_checkpoint.bin" % args.name)
+    torch.save(model_to_save.state_dict(), model_checkpoint)
+    logger.info("Saved model checkpoint to [DIR: %s]", args.output_dir)
+
+
+def setup(args):
+    # Prepare model
+    config = CONFIGS[args.model_type]
+
+    num_classes = 10 if args.dataset == "cifar10" else 100
+
+    model = VisionTransformer(config, args.img_size, zero_head=True, num_classes=num_classes)
+    model.load_from(np.load(args.pretrained_dir))
+    model.to(args.device)
+    num_params = count_parameters(model)
+
+    logger.info("{}".format(config))
+    logger.info("Training parameters %s", args)
+    logger.info("Total Parameter: \t%2.1fM" % num_params)
+    print(num_params)
+    return args, model
+
+
+def count_parameters(model):
+    params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    return params/1000000
+
+
+def set_seed(args):
+    random.seed(args.seed)
+    np.random.seed(args.seed)
+    torch.manual_seed(args.seed)
+    if args.n_gpu > 0:
+        torch.cuda.manual_seed_all(args.seed)
+
+
+def valid(args, model, writer, test_loader, global_step):
+    # Validation!
+    eval_losses = AverageMeter()
+
+    logger.info("***** Running Validation *****")
+    logger.info("  Num steps = %d", len(test_loader))
+    logger.info("  Batch size = %d", args.eval_batch_size)
+
+    model.eval()
+    all_preds, all_label = [], []
+    epoch_iterator = tqdm(test_loader,
+                          desc="Validating... (loss=X.X)",
+                          bar_format="{l_bar}{r_bar}",
+                          dynamic_ncols=True,
+                          disable=args.local_rank not in [-1, 0])
+    loss_fct = torch.nn.CrossEntropyLoss()
+    for step, batch in enumerate(epoch_iterator):
+        batch = tuple(t.to(args.device) for t in batch)
+        x, y = batch
+        with torch.no_grad():
+            logits = model(x)[0]
+
+            eval_loss = loss_fct(logits, y)
+            eval_losses.update(eval_loss.item())
+
+            preds = torch.argmax(logits, dim=-1)
+
+        if len(all_preds) == 0:
+            all_preds.append(preds.detach().cpu().numpy())
+            all_label.append(y.detach().cpu().numpy())
+        else:
+            all_preds[0] = np.append(
+                all_preds[0], preds.detach().cpu().numpy(), axis=0
+            )
+            all_label[0] = np.append(
+                all_label[0], y.detach().cpu().numpy(), axis=0
+            )
+        epoch_iterator.set_description("Validating... (loss=%2.5f)" % eval_losses.val)
+
+    all_preds, all_label = all_preds[0], all_label[0]
+    accuracy = simple_accuracy(all_preds, all_label)
+
+    logger.info("\n")
+    logger.info("Validation Results")
+    logger.info("Global Steps: %d" % global_step)
+    logger.info("Valid Loss: %2.5f" % eval_losses.avg)
+    logger.info("Valid Accuracy: %2.5f" % accuracy)
+
+    writer.add_scalar("test/accuracy", scalar_value=accuracy, global_step=global_step)
+    return accuracy
+
+
+def train(args, model):
+    """ Train the model """
+    if args.local_rank in [-1, 0]:
+        os.makedirs(args.output_dir, exist_ok=True)
+        writer = SummaryWriter(log_dir=os.path.join("logs", args.name))
+
+    args.train_batch_size = args.train_batch_size // args.gradient_accumulation_steps
+
+    # Prepare dataset
+    train_loader, test_loader = get_loader(args)
+
+    # Prepare optimizer and scheduler
+    optimizer = torch.optim.SGD(model.parameters(),
+                                lr=args.learning_rate,
+                                momentum=0.9,
+                                weight_decay=args.weight_decay)
+    t_total = args.num_steps
+    if args.decay_type == "cosine":
+        scheduler = WarmupCosineSchedule(optimizer, warmup_steps=args.warmup_steps, t_total=t_total)
     else:
-      # Select best checkpoint from i21k pretraining by final upstream
-      # validation accuracy.
-      df = checkpoint.get_augreg_df(directory=config.pretrained_dir)
-      sel = df.filename.apply(
-          lambda filename: filename.split('-')[0] == model_or_filename)
-      best = df.loc[sel].query('ds=="i21k"').sort_values('final_val').iloc[-1]
-      filename = best.filename
-      logging.info('Selected fillename="%s" for "%s" with final_val=%.3f',
-                   filename, model_or_filename, best.final_val)
-    pretrained_path = os.path.join(config.pretrained_dir,
-                                   f'{config.model.model_name}.npz')
-  else:
-    # ViT / Mixer papers
-    filename = config.model.model_name
+        scheduler = WarmupLinearSchedule(optimizer, warmup_steps=args.warmup_steps, t_total=t_total)
 
-  pretrained_path = os.path.join(config.pretrained_dir, f'{filename}.npz')
-  if not tf.io.gfile.exists(pretrained_path):
-    raise ValueError(
-        f'Could not find "{pretrained_path}" - you can download models from '
-        '"gs://vit_models/imagenet21k" or directly set '
-        '--config.pretrained_dir="gs://vit_models/imagenet21k".')
-  params = checkpoint.load_pretrained(
-      pretrained_path=pretrained_path,
-      init_params=variables['params'],
-      model_config=config.model)
+    if args.fp16:
+        model, optimizer = amp.initialize(models=model,
+                                          optimizers=optimizer,
+                                          opt_level=args.fp16_opt_level)
+        amp._amp_state.loss_scalers[0]._loss_scale = 2**20
 
-  total_steps = config.total_steps
+    # Distributed training
+    if args.local_rank != -1:
+        model = DDP(model, message_size=250000000, gradient_predivide_factor=get_world_size())
 
-  lr_fn = utils.create_learning_rate_schedule(total_steps, config.base_lr,
-                                              config.decay_type,
-                                              config.warmup_steps)
-  tx = optax.chain(
-      optax.clip_by_global_norm(config.grad_norm_clip),
-      optax.sgd(
-          learning_rate=lr_fn,
-          momentum=0.9,
-          accumulator_dtype='bfloat16',
-      ),
-  )
+    # Train!
+    logger.info("***** Running training *****")
+    logger.info("  Total optimization steps = %d", args.num_steps)
+    logger.info("  Instantaneous batch size per GPU = %d", args.train_batch_size)
+    logger.info("  Total train batch size (w. parallel, distributed & accumulation) = %d",
+                args.train_batch_size * args.gradient_accumulation_steps * (
+                    torch.distributed.get_world_size() if args.local_rank != -1 else 1))
+    logger.info("  Gradient Accumulation steps = %d", args.gradient_accumulation_steps)
 
-  update_fn_repl = make_update_fn(
-      apply_fn=model.apply, accum_steps=config.accum_steps, tx=tx)
-  infer_fn_repl = jax.pmap(functools.partial(model.apply, train=False))
+    model.zero_grad()
+    set_seed(args)  # Added here for reproducibility (even between python 2 and 3)
+    losses = AverageMeter()
+    global_step, best_acc = 0, 0
+    while True:
+        model.train()
+        epoch_iterator = tqdm(train_loader,
+                              desc="Training (X / X Steps) (loss=X.X)",
+                              bar_format="{l_bar}{r_bar}",
+                              dynamic_ncols=True,
+                              disable=args.local_rank not in [-1, 0])
+        for step, batch in enumerate(epoch_iterator):
+            batch = tuple(t.to(args.device) for t in batch)
+            x, y = batch
+            loss = model(x, y)
 
-  initial_step = 1
-  opt_state = tx.init(params)
-  params, opt_state, initial_step = flax_checkpoints.restore_checkpoint(
-      workdir, (params, opt_state, initial_step))
-  logging.info('Will start/continue training at initial_step=%d', initial_step)
+            if args.gradient_accumulation_steps > 1:
+                loss = loss / args.gradient_accumulation_steps
+            if args.fp16:
+                with amp.scale_loss(loss, optimizer) as scaled_loss:
+                    scaled_loss.backward()
+            else:
+                loss.backward()
 
-  params_repl, opt_state_repl = flax.jax_utils.replicate((params, opt_state))
+            if (step + 1) % args.gradient_accumulation_steps == 0:
+                losses.update(loss.item()*args.gradient_accumulation_steps)
+                if args.fp16:
+                    torch.nn.utils.clip_grad_norm_(amp.master_params(optimizer), args.max_grad_norm)
+                else:
+                    torch.nn.utils.clip_grad_norm_(model.parameters(), args.max_grad_norm)
+                scheduler.step()
+                optimizer.step()
+                optimizer.zero_grad()
+                global_step += 1
 
-  # Delete references to the objects that are not needed anymore
-  del opt_state
-  del params
+                epoch_iterator.set_description(
+                    "Training (%d / %d Steps) (loss=%2.5f)" % (global_step, t_total, losses.val)
+                )
+                if args.local_rank in [-1, 0]:
+                    writer.add_scalar("train/loss", scalar_value=losses.val, global_step=global_step)
+                    writer.add_scalar("train/lr", scalar_value=scheduler.get_lr()[0], global_step=global_step)
+                if global_step % args.eval_every == 0 and args.local_rank in [-1, 0]:
+                    accuracy = valid(args, model, writer, test_loader, global_step)
+                    if best_acc < accuracy:
+                        save_model(args, model)
+                        best_acc = accuracy
+                    model.train()
 
-  # Prepare the learning-rate and pre-fetch it to device to avoid delays.
-  update_rng_repl = flax.jax_utils.replicate(jax.random.PRNGKey(0))
+                if global_step % t_total == 0:
+                    break
+        losses.reset()
+        if global_step % t_total == 0:
+            break
 
-  # Setup metric writer & hooks.
-  writer = metric_writers.create_default_writer(workdir, asynchronous=False)
-  writer.write_hparams(config.to_dict())
-  hooks = [
-      periodic_actions.Profile(logdir=workdir),
-      periodic_actions.ReportProgress(
-          num_train_steps=total_steps, writer=writer),
-  ]
+    if args.local_rank in [-1, 0]:
+        writer.close()
+    logger.info("Best Accuracy: \t%f" % best_acc)
+    logger.info("End Training!")
 
-  # Run training loop
-  logging.info('Starting training loop; initial compile can take a while...')
-  t0 = lt0 = time.time()
-  lstep = initial_step
-  for step, batch in zip(
-      range(initial_step, total_steps + 1),
-      input_pipeline.prefetch(ds_train, config.prefetch)):
 
-    with jax.profiler.StepTraceAnnotation('train', step_num=step):
-      params_repl, opt_state_repl, loss_repl, update_rng_repl = update_fn_repl(
-          params_repl, opt_state_repl, batch, update_rng_repl)
+def main():
+    parser = argparse.ArgumentParser()
+    # Required parameters
+    parser.add_argument("--name", required=True,
+                        help="Name of this run. Used for monitoring.")
+    parser.add_argument("--dataset", choices=["cifar10", "cifar100"], default="cifar10",
+                        help="Which downstream task.")
+    parser.add_argument("--model_type", choices=["ViT-B_16", "ViT-B_32", "ViT-L_16",
+                                                 "ViT-L_32", "ViT-H_14", "R50-ViT-B_16"],
+                        default="ViT-B_16",
+                        help="Which variant to use.")
+    parser.add_argument("--pretrained_dir", type=str, default="checkpoint/ViT-B_16.npz",
+                        help="Where to search for pretrained ViT models.")
+    parser.add_argument("--output_dir", default="output", type=str,
+                        help="The output directory where checkpoints will be written.")
 
-    for hook in hooks:
-      hook(step)
+    parser.add_argument("--img_size", default=224, type=int,
+                        help="Resolution size")
+    parser.add_argument("--train_batch_size", default=512, type=int,
+                        help="Total batch size for training.")
+    parser.add_argument("--eval_batch_size", default=64, type=int,
+                        help="Total batch size for eval.")
+    parser.add_argument("--eval_every", default=100, type=int,
+                        help="Run prediction on validation set every so many steps."
+                             "Will always run one evaluation at the end of training.")
 
-    if step == initial_step:
-      logging.info('First step took %.1f seconds.', time.time() - t0)
-      t0 = time.time()
-      lt0, lstep = time.time(), step
+    parser.add_argument("--learning_rate", default=3e-2, type=float,
+                        help="The initial learning rate for SGD.")
+    parser.add_argument("--weight_decay", default=0, type=float,
+                        help="Weight deay if we apply some.")
+    parser.add_argument("--num_steps", default=10000, type=int,
+                        help="Total number of training epochs to perform.")
+    parser.add_argument("--decay_type", choices=["cosine", "linear"], default="cosine",
+                        help="How to decay the learning rate.")
+    parser.add_argument("--warmup_steps", default=500, type=int,
+                        help="Step of training to perform learning rate warmup for.")
+    parser.add_argument("--max_grad_norm", default=1.0, type=float,
+                        help="Max gradient norm.")
 
-    # Report training metrics
-    if config.progress_every and step % config.progress_every == 0:
-      img_sec_core_train = (config.batch * (step - lstep) /
-                            (time.time() - lt0)) / jax.device_count()
-      lt0, lstep = time.time(), step
-      writer.write_scalars(
-          step,
-          dict(
-              train_loss=float(flax.jax_utils.unreplicate(loss_repl)),
-              img_sec_core_train=img_sec_core_train))
-      done = step / total_steps
-      logging.info(f'Step: {step}/{total_steps} {100*done:.1f}%, '  # pylint: disable=logging-fstring-interpolation
-                   f'img/sec/core: {img_sec_core_train:.1f}, '
-                   f'ETA: {(time.time()-t0)/done*(1-done)/3600:.2f}h')
+    parser.add_argument("--local_rank", type=int, default=-1,
+                        help="local_rank for distributed training on gpus")
+    parser.add_argument('--seed', type=int, default=42,
+                        help="random seed for initialization")
+    parser.add_argument('--gradient_accumulation_steps', type=int, default=1,
+                        help="Number of updates steps to accumulate before performing a backward/update pass.")
+    parser.add_argument('--fp16', action='store_true',
+                        help="Whether to use 16-bit float precision instead of 32-bit")
+    parser.add_argument('--fp16_opt_level', type=str, default='O2',
+                        help="For fp16: Apex AMP optimization level selected in ['O0', 'O1', 'O2', and 'O3']."
+                             "See details at https://nvidia.github.io/apex/amp.html")
+    parser.add_argument('--loss_scale', type=float, default=0,
+                        help="Loss scaling to improve fp16 numeric stability. Only used when fp16 set to True.\n"
+                             "0 (default value): dynamic loss scaling.\n"
+                             "Positive power of 2: static loss scaling value.\n")
+    args = parser.parse_args()
 
-    # Run evaluation
-    if ((config.eval_every and step % config.eval_every == 0) or
-        (step == total_steps)):
+    # Setup CUDA, GPU & distributed training
+    if args.local_rank == -1:
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        args.n_gpu = torch.cuda.device_count()
+    else:  # Initializes the distributed backend which will take care of sychronizing nodes/GPUs
+        torch.cuda.set_device(args.local_rank)
+        device = torch.device("cuda", args.local_rank)
+        torch.distributed.init_process_group(backend='nccl',
+                                             timeout=timedelta(minutes=60))
+        args.n_gpu = 1
+    args.device = device
 
-      accuracies = []
-      lt0 = time.time()
-      for test_batch in input_pipeline.prefetch(ds_test, config.prefetch):
-        logits = infer_fn_repl(
-            dict(params=params_repl), test_batch['image'])
-        accuracies.append(
-            (np.argmax(logits,
-                       axis=-1) == np.argmax(test_batch['label'],
-                                             axis=-1)).mean())
-      accuracy_test = np.mean(accuracies)
-      img_sec_core_test = (
-          config.batch_eval * ds_test.cardinality().numpy() /
-          (time.time() - lt0) / jax.device_count())
-      lt0 = time.time()
+    # Setup logging
+    logging.basicConfig(format='%(asctime)s - %(levelname)s - %(name)s - %(message)s',
+                        datefmt='%m/%d/%Y %H:%M:%S',
+                        level=logging.INFO if args.local_rank in [-1, 0] else logging.WARN)
+    logger.warning("Process rank: %s, device: %s, n_gpu: %s, distributed training: %s, 16-bits training: %s" %
+                   (args.local_rank, args.device, args.n_gpu, bool(args.local_rank != -1), args.fp16))
 
-      lr = float(lr_fn(step))
-      logging.info(f'Step: {step} '  # pylint: disable=logging-fstring-interpolation
-                   f'Learning rate: {lr:.7f}, '
-                   f'Test accuracy: {accuracy_test:0.5f}, '
-                   f'img/sec/core: {img_sec_core_test:.1f}')
-      writer.write_scalars(
-          step,
-          dict(
-              accuracy_test=accuracy_test,
-              lr=lr,
-              img_sec_core_test=img_sec_core_test))
+    # Set seed
+    set_seed(args)
 
-    # Store checkpoint.
-    if ((config.checkpoint_every and step % config.eval_every == 0) or
-        step == total_steps):
-      checkpoint_path = flax_checkpoints.save_checkpoint(
-          workdir, (flax.jax_utils.unreplicate(params_repl),
-                    flax.jax_utils.unreplicate(opt_state_repl), step), step)
-      logging.info('Stored checkpoint at step %d to "%s"', step,
-                   checkpoint_path)
+    # Model & Tokenizer Setup
+    args, model = setup(args)
 
-  return flax.jax_utils.unreplicate(params_repl)
+    # Training
+    train(args, model)
+
+
+if __name__ == "__main__":
+    main()
