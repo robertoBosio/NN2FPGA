@@ -5,7 +5,7 @@ import qonnx
 from onnx import numpy_helper
 import numpy as np
 import backend.quant
-from backend.layers.quant import get_quant_type
+from backend.layers.quant import get_quant_type, get_quant_constant
 
 def info(io_dict, node, node_name, init_info, tensors_info, enable_ws):
 
@@ -290,7 +290,6 @@ def parse_comp(name, node):
         block["template"].append("std::nullptr_t")
         block["template"].append("std::nullptr_t")
 
-
     block["template"].append("c_%s_ich" % name)
     block["template"].append("c_%s_och" % name)
     block["template"].append("c_%s_oh" % name)
@@ -302,6 +301,52 @@ def parse_comp(name, node):
     block["template"].append("c_%s_ops" % name)
     block["template"].append("c_%s_reuse" % name)
     block["template"].append("c_%s_ws" % name)
+
+    ####################################################################################
+    # PACKING: providind info on quantization from template because
+    # ap_fixed methods are not available at compile time and the
+    # synthesizer gives an error
+    simd_bits = 3
+    simd = int(np.log2(node["kernel"])/simd_bits) + (0 != (np.log2(node["kernel"]) - int(np.log2(node["kernel"]))))
+    mask = (1 << (simd-1)) - 1;
+    if (node["in_scale_factor"][0] is not None):
+        abits, aibits = get_quant_constant(node["signed"], node["in_bits"][0], node["in_scale_factor"][0])
+    else:
+        abits, aibits = get_quant_constant(node["signed"], node["actbits"][0], node["actscale"][0])
+    block["template"].append("%0d" % abits)
+    block["template"].append("%0d" % aibits)
+    abits, aibits = get_quant_constant(node["signed"], node["wbits"][0], node["wscale"][0])
+    block["template"].append("%0d" % abits)
+    block["template"].append("%0d" % aibits)
+    block["template"].append("%0d" % simd_bits)
+    block["template"].append("%0d" % simd)
+    block["template"].append("%0d" % mask)
+
+    simd_bits = 3
+    simd = int(np.log2(1)/simd_bits) + (0 != (np.log2(1) - int(np.log2(1))))
+    mask = (1 << (simd-1)) - 1;
+    if (node["merge_1x1"]):
+        if (node["in_scale_factor"][1] is not None):
+            abits, aibits = get_quant_constant(True, node["bits"][1], node["in_scale_factor"][1])
+        else:
+            abits, aibits = get_quant_constant(True, node["actbits"][0], node["actscale"][0])
+    else:
+        abits = 0
+        aibits = 0
+    block["template"].append("%0d" % abits)
+    block["template"].append("%0d" % aibits)
+
+    if (node["merge_1x1"]):
+        abits, aibits = get_quant_constant(node["signed"], node["wbits"][1], node["wscale"][1])
+    else:
+        abits = 0
+        aibits = 0
+    block["template"].append("%0d" % abits)
+    block["template"].append("%0d" % aibits)
+    block["template"].append("%0d" % simd_bits)
+    block["template"].append("%0d" % simd)
+    block["template"].append("%0d" % mask)
+    ####################################################################################
 
     acc_type = get_quant_type(True, 32, node["actscale"][0]+node["wscale"][0], acc_reg=True)
     block["defines"] = {}

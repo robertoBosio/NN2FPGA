@@ -8,7 +8,7 @@
 #include "nn2fpga/stream_utils.h"
 #include "nn2fpga/quantisation.h"
 #include <type_traits>
-#include "hls_math.h"
+#include <math.h>
 
 namespace nn2fpga {
 
@@ -17,9 +17,10 @@ namespace nn2fpga {
 
 // Write template for the conv_pipe function.
 template <class t_input, class t_weight, class t_weight_st, class t_bias, class t_add_struct,
-          class t_input_mod, class t_acc_struct, class t_acc,
+          class t_input_mod, class t_acc_struct, class t_acc, class t_acc_simd,
           int c_reuse, int c_ws, int c_fh, int c_fw, int c_index,
-          int c_ops, int c_ich, int c_och>
+          int c_ops, int c_ich, int c_och, int c_bits, int c_simd_bits,
+          int c_simd, int c_pad_bits, int c_int_pad_bits, int c_mask, int c_w_bits>
 void conv_pipe(
     t_input i_input[c_fh*(c_fw+c_ws-1)],
     t_weight i_weight[c_index],
@@ -42,26 +43,16 @@ void conv_pipe(
       s_acc_struct[s_ws].last = last & (och == (c_och - 1));
     }
 
-    const auto c_bits = t_input::width;
-    // TODO: use t_weight which right now is an hls::vector to extract the weight
-    // const auto c_pad_bits = t_weight::width*t_input::width+2;
-    // round to the higher integer
-    const auto c_simd_bits = 3;
-    const auto c_simd = int(log2(c_index)/c_simd_bits) + (0 != (log2(c_index) - int(log2(c_index))));
-    // round to the higher log2 c_simd
-    const auto c_pad_bits = t_input::width+t_weight_st::width+c_simd_bits;
-    // mask on c_simd bits
-    const auto c_mask = (1 << (c_simd-1)) - 1;
     ap_uint<48> s_acc_simd[c_simd];
 
-    // TODO: the numbre of integer bits of the weights type must be considered
-    typedef ap_fixed<c_pad_bits, c_simd_bits+t_input::iwidth+t_weight_st::iwidth> t_acc_simd;
-
     if constexpr(std::is_same<t_bias, std::nullptr_t>::value == false) {
-      for (auto s_ws = 0; s_ws < c_ws; s_ws++) {
-        if (ich == 0) {
-          s_acc[s_ws] = i_bias[ops];
-        } else {
+      if (ich == 0) {
+        auto s_bias = i_bias[ops];
+        for (auto s_ws = 0; s_ws < c_ws; s_ws++) {
+          s_acc[s_ws] = s_bias;
+        }
+      } else {
+        for (auto s_ws = 0; s_ws < c_ws; s_ws++) {
           s_acc[s_ws] = 0;
         }
       }
@@ -112,9 +103,9 @@ void conv_pipe(
         }
         auto s_index = s_fh*c_fw+s_fw;
 
-        s_weight.range(t_weight_st::width - 1, 0) = i_weight[s_index][ops].range(t_weight_st::width - 1, 0);
-        for (auto pos = t_weight_st::width; pos < 18; pos++) {
-          s_weight.range(pos,pos) = s_weight.range(t_weight_st::width - 1, t_weight_st::width - 1);
+        s_weight.range(c_w_bits - 1, 0) = i_weight[s_index][ops].range(c_w_bits - 1, 0);
+        for (auto pos = c_w_bits; pos < 18; pos++) {
+          s_weight.range(pos,pos) = s_weight.range(c_w_bits - 1, c_w_bits - 1);
         }
 
         s_acc_simd[s_index & c_mask] += s_data * s_weight;
@@ -195,7 +186,11 @@ template <class t_input_struct, class t_input, class t_weight, class t_weight_st
           class t_add_struct, class t_forward_struct, class t_input_mod, class t_input_1x1,
           class t_weight_1x1, class t_weight_1x1_st, class t_bias_1x1, class t_acc_struct, class t_acc,
           class t_acc_1x1_struct, class t_acc_1x1, int c_ich, int c_och,
-          int c_oh, int c_ow, int c_fh, int c_fw, int c_index, int c_str, int c_ops, int c_reuse, int c_ws>
+          int c_oh, int c_ow, int c_fh, int c_fw, int c_index, int c_str, int c_ops, int c_reuse, int c_ws,
+          int c_in_bits, int c_in_ibits, int c_w_bits, int c_w_ibits, 
+          int c_simd_bits, int c_simd, int c_mask,
+          int c_in_bits_1x1, int c_in_ibits_1x1, int c_w_bits_1x1, int c_w_ibits_1x1,
+          int c_simd_bits_1x1, int c_simd_1x1, int c_mask_1x1>
 void conv_comp(hls::stream<t_input_struct> i_input[c_fh*(c_fw+c_ws-1)],
                hls::stream<t_weight> i_weights[c_index],
                hls::stream<t_bias> i_bias[1],
@@ -235,6 +230,28 @@ void conv_comp(hls::stream<t_input_struct> i_input[c_fh*(c_fw+c_ws-1)],
 #pragma HLS array_partition variable = s_acc_struct type = complete
   t_acc_1x1_struct s_acc_1x1_struct[c_ops*c_ws];
 #pragma HLS array_partition variable = s_acc_1x1_struct type = complete
+
+
+  ////////////////////////////////////////////////////////////////////////////
+  // Constants for the first pipeline
+  // round to the higher log2 c_simd
+  const int c_pad_bits = c_in_bits+c_w_bits+c_simd_bits;
+  const int c_int_pad_bits = c_simd_bits+c_in_ibits+c_w_ibits;
+  // mask on c_simd bits
+  ////////////////////////////////////////////////////////////////////////////
+
+  ////////////////////////////////////////////////////////////////////////////
+  // Constants for the second pipeline
+  // mask on c_simd bits
+
+  const int c_pad_bits_1x1 = c_in_bits_1x1+c_w_bits_1x1+c_simd_bits_1x1;
+  const int c_int_pad_bits_1x1 = c_simd_bits+c_in_ibits_1x1+c_w_ibits_1x1;
+
+  ////////////////////////////////////////////////////////////////////////////
+
+  // TODO: the numbre of integer bits of the weights type must be considered
+  typedef ap_fixed<c_pad_bits, c_int_pad_bits> t_acc_simd;
+  typedef ap_fixed<c_pad_bits_1x1, c_int_pad_bits_1x1> t_acc_simd_1x1;
 
   for (auto s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
     for (auto s_ich = 0; s_ich < c_ich; s_ich++) {
@@ -292,6 +309,7 @@ void conv_comp(hls::stream<t_input_struct> i_input[c_fh*(c_fw+c_ws-1)],
             t_input_mod,
             t_acc_struct,
             t_acc,
+            t_acc_simd,
             c_reuse_iter,
             c_ws,
             c_fh,
@@ -299,7 +317,14 @@ void conv_comp(hls::stream<t_input_struct> i_input[c_fh*(c_fw+c_ws-1)],
             c_index,
             c_ops,
             c_ich,
-            c_och
+            c_och,
+            c_in_bits,
+            c_simd_bits,
+            c_simd,
+            c_pad_bits,
+            c_int_pad_bits,
+            c_mask,
+            c_w_bits
           > (
             s_input,
             s_weight,
@@ -332,6 +357,7 @@ void conv_comp(hls::stream<t_input_struct> i_input[c_fh*(c_fw+c_ws-1)],
               t_input_1x1,
               t_acc_1x1_struct,
               t_acc_1x1,
+              t_acc_simd_1x1,
               c_reuse_iter,
               c_ws,
               1,
@@ -339,7 +365,14 @@ void conv_comp(hls::stream<t_input_struct> i_input[c_fh*(c_fw+c_ws-1)],
               1,
               c_ops,
               c_ich,
-              c_och
+              c_och,
+              c_in_bits_1x1,
+              c_simd_bits,
+              c_simd_1x1,
+              c_pad_bits,
+              c_int_pad_bits,
+              c_mask_1x1,
+              c_w_bits_1x1
             > (
               s_input_1x1,
               s_weight_1x1,
