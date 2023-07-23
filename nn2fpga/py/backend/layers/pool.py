@@ -67,6 +67,8 @@ def info(io_dict, node, node_name, init_info, tensors_info, enable_ws):
     io_dict[node_name]["actbits"] = []
     io_dict[node_name]["enable_ws"] = enable_ws
     io_dict[node_name]["ws"] = 1
+    io_dict[node_name]["ops"] = 1
+    io_dict[node_name]["in_ops"] = 1
 
     return io_dict
 
@@ -85,7 +87,7 @@ def parse(name, node):
     # Template parameters
     block["template"] = []
     block["template"].append("t_%s_struct" % input_type_name)
-    block["template"].append("t_%s" % input_type_name)
+    block["template"].append("t_%s_vector" % input_type_name)
     block["template"].append("t_%s_struct" % output_type_name)
     block["template"].append("t_%s" % output_type_name)
     block["template"].append("t_%s_acc" % name)
@@ -101,6 +103,7 @@ def parse(name, node):
     block["template"].append("c_%s_pad" % name)
     block["template"].append("c_%s_pool" % name)
     block["template"].append("c_%s_ws" % name)
+    block["template"].append("c_%s_in_ops" % name)
     if (node["is_adaptive"]):
         block["template"].append("1")
     # block["template"].append("c_ws")
@@ -119,9 +122,11 @@ def parse(name, node):
     block["defines"] = {}
     output_type = get_quant_type(node["signed"], node["bits"][0], node["scale_factor"][0])
     block["defines"]["t_%s" % output_type_name] = ["type", output_type]
+    output_vector_type = "hls::vector<t_%s, %s>" % (output_type_name, node["ops"])
+    block["defines"]["t_%s_vector" % output_type_name] = ["type", output_vector_type]
     block["defines"]["t_%s_struct" % output_type_name] = [
         "struct",
-        [["data", "t_%s" % output_type_name], ["last", "bool"]]
+        [["data", "t_%s_vector" % output_type_name], ["last", "bool"]]
     ]
 
     if node["pool"] == 1:
@@ -141,6 +146,7 @@ def parse(name, node):
     block["defines"]["c_%s_pad" % name]            = ["const", node["pad"]]
     block["defines"]["c_%s_pool" % name]           = ["const", node["pool"]]
     block["defines"]["c_%s_ws" % name]             = ["const", node["ws"]]
+    block["defines"]["c_%s_in_ops" % name]         = ["const", node["in_ops"]]
 
     block["declare"] = []
 

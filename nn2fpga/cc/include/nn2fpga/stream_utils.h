@@ -8,7 +8,7 @@ namespace nn2fpga {
 // Read a stream, quantise it, stream it out.
 template <typename din_wrap_t, typename din_t, typename dout_wrap_t,
           typename dout_t, unsigned ICH, unsigned IW, unsigned IH,
-          unsigned c_ws_out, unsigned BITS>
+          unsigned c_ws_out, unsigned BITS, unsigned OPS>
 void produce_stream(hls::stream<din_wrap_t>& dinStream,
                     hls::stream<dout_wrap_t> doutStream[c_ws_out]) {
   constexpr auto PAR = BITS / 8;
@@ -20,6 +20,7 @@ PRODSTR:
   for (auto i = 0; i < ISZ; i++) {
 #pragma HLS pipeline style = stp
     auto par = i % PAR;
+    auto ops = i % OPS;
     auto ws_out = (i / ICH) % c_ws_out;
 
     ap_ufixed<8,0, AP_RND, AP_SAT> din;
@@ -30,7 +31,7 @@ PRODSTR:
 
     dout_wrap_t doutWrap;
     din.range(7,0) = din_par & 0xff;
-    doutWrap.data = dout_t(din);
+    doutWrap.data[ops] = dout_t(din);
 
     if (par < (PAR - 1)) {
       doutWrap.last = false;
@@ -61,8 +62,8 @@ void consume_stream(hls::stream<din_wrap_t> dinStream[WS],
   for (auto i = 0; i < OSZ; i++) {
     auto wrap = dinStream[0].read();
     dout_wrap_t dout;
-    dout.data = wrap.data;
-    dout.last = wrap.last;
+    dout.data = wrap.data[0];
+    dout.last = wrap.last & (i == (OSZ - 1));
     dout.keep = -1;
     doutStream << dout;
   }

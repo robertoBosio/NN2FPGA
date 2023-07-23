@@ -33,6 +33,7 @@ def info(io_dict, tensors_info, model, ws):
     io_dict[node_name]["iw"]     = iw
     io_dict[node_name]["enable_ws"] = ws
     io_dict[node_name]["ws_out"]     = 1
+    io_dict[node_name]["ops"]     = 1
 
     return io_dict
 
@@ -58,6 +59,7 @@ def parse(name, node):
     block["template"].append("c_%s_ih" % name)
     block["template"].append("c_%s_ws_out" % name)
     block["template"].append("c_%s" % input_name)
+    block["template"].append("%0d" % node["ops"])
     # block["template"].append("c_ws")
 
     block["args"] = []
@@ -83,9 +85,14 @@ def parse(name, node):
         "type",
         output_type
     ]
+    output_vector_type = "hls::vector<t_%s, %0d>" % (output_type_name, node["ops"])
+    block["defines"]["t_%s_vector" % output_type_name] = [
+        "type",
+        output_vector_type
+    ]
     block["defines"]["t_%s_struct" % output_type_name] = [
         "struct",
-        [["data", output_type], ["last", "bool"]]
+        [["data", "t_%s_vector" % output_type_name], ["last", "bool"]]
     ]
 
     block["defines"]["c_produce_stream_ich"] = [

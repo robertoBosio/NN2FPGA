@@ -60,6 +60,7 @@ def parse(name, node):
             block["template"].append("%0d" % (dfh - 1 - fh))
             block["template"].append("%0d" % (dfw - 1 - fw))
             block["template"].append("c_%s_ws" % name)
+            block["template"].append("%0d" % node["in_ops"])
 
             block["args"] = []
 
@@ -144,9 +145,9 @@ def parse(name, node):
             pragma = {}
 
             if (fw == (dfw-1)):
-                depth = node["iw"]*node["ich"]
+                depth = node["iw"]*int(node["ich"]/node["in_ops"])
             else:
-                depth = node["ich"]
+                depth = int(node["ich"]/node["in_ops"])
 
             if not((fh == (dfh-1)) and (fw == (dfw-1))):
 

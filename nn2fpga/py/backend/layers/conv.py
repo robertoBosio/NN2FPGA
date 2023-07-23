@@ -64,6 +64,8 @@ def info(io_dict, node, node_name, init_info, tensors_info, enable_ws):
     io_dict[node_name]["actbits"] = []
     io_dict[node_name]["wscale"]  = []
     io_dict[node_name]["actscale"] = []
+    io_dict[node_name]["ops"] = 1
+    io_dict[node_name]["in_ops"] = 1
 
     return io_dict
 
@@ -246,7 +248,7 @@ def parse_comp(name, node):
     # Template parameters
     block["template"] = []
     block["template"].append("t_%s_struct" % input_type_name)
-    block["template"].append("t_%s" % input_type_name)
+    block["template"].append("t_%s_vector" % input_type_name)
     block["template"].append("t_%s" % weight_name)
     block["template"].append("t_%s_st" % weight_name)
     if (has_bias):
@@ -290,6 +292,17 @@ def parse_comp(name, node):
         block["template"].append("std::nullptr_t")
         block["template"].append("std::nullptr_t")
 
+    block["template"].append("t_%s_struct" % output_type_name)
+    block["template"].append("t_%s" % output_type_name)
+    block["template"].append("t_%s_clip" % output_type_name)
+    block["template"].append("t_%s_mask" % output_type_name)
+    if (node["merge_1x1"]):
+        block["template"].append("t_%s_struct" % output_1x1_name)
+        block["template"].append("t_%s" % output_1x1_name)
+    else:
+        block["template"].append("std::nullptr_t")
+        block["template"].append("std::nullptr_t")
+
     block["template"].append("c_%s_ich" % name)
     block["template"].append("c_%s_och" % name)
     block["template"].append("c_%s_oh" % name)
@@ -299,6 +312,8 @@ def parse_comp(name, node):
     block["template"].append("c_%s_index" % name)
     block["template"].append("c_%s_stride" % name)
     block["template"].append("c_%s_ops" % name)
+    block["template"].append("c_%s_in_ops" % name)
+    block["template"].append("c_%s_relu" % name)
     block["template"].append("c_%s_reuse" % name)
     block["template"].append("c_%s_ws" % name)
 
@@ -356,6 +371,30 @@ def parse_comp(name, node):
         [["data", "t_%s_acc" % output_name], ["last", "bool"]]
     ]
 
+    output_type = get_quant_type(node["signed"], node["bits"][0], node["scale_factor"][0])
+    output_type_clip = get_quant_type(node["clip_signed"][0], node["bits"][0], node["clip_factor"][0])
+    output_type_mask = get_quant_type(node["mask_signed"][0], node["bits"][0], node["mask_factor"][0])
+
+    block["defines"]["t_%s" % output_name] = ["type", output_type]
+    output_vector_type = "hls::vector<%s, %0d>" % (output_type, node["ops"])
+    block["defines"]["t_%s_vector" % output_name] = ["type", output_vector_type]
+    block["defines"]["t_%s_struct" % output_name] = [
+        "struct",
+        [["data", "t_%s_vector" % output_name], ["last", "bool"]]
+    ]
+    block["defines"]["t_%s_clip" % output_name] = ["type", output_type_clip]
+    block["defines"]["t_%s_mask" % output_name] = ["type", output_type_mask]
+
+    if (node["merge_1x1"]):
+        output_type_1x1 = get_quant_type(True, node["bits"][1], node["scale_factor"][1])
+        # TODO: implement array of signed values for multi-output conv
+        block["defines"]["t_%s" % output_1x1_name] = ["type", output_type_1x1]
+        output_stream_type = "hls::vector<t_%s, %0d>" % (output_1x1_name, node["ops"])
+        block["defines"]["t_%s_struct" % output_1x1_name] = [
+            "struct",
+            [["data", output_stream_type], ["last", "bool"]]
+        ]
+
     if (node["in_scale_factor"][0] is not None):
         input_type_mod = get_quant_type(True, node["in_bits"][0], node["in_scale_factor"][0])
 
@@ -395,6 +434,7 @@ def parse_comp(name, node):
     block["defines"]["c_%s_stride" % name]         = ["const", node["stride"]]
     block["defines"]["c_%s_pad" % name]            = ["const", node["pad"]]
     block["defines"]["c_%s_ops" % name]            = ["const", node["ops"]]
+    block["defines"]["c_%s_in_ops" % name]         = ["const", node["in_ops"]]
     block["defines"]["c_%s_index" % name]          = ["const", node["kernel"]]
     block["defines"]["c_%s_reuse" % name]          = ["const", node["reuse"]]
     block["defines"]["c_%s_ws" % name]             = ["const", node["ws"]]
@@ -429,28 +469,32 @@ def parse_comp(name, node):
     else:
         block["args"].append("(hls::stream<std::nullptr_t>*)(nullptr)")
 
-    block["args"].append("s_%s_acc" % output_name)
+    block["args"].append("s_%s" % output_name)
 
     if (node["merge_1x1"]):
-        block["args"].append("s_%s_acc" % output_1x1_name)
+        block["args"].append("s_%s" % output_1x1_name)
     else:
         block["args"].append("(hls::stream<std::nullptr_t>*)(nullptr)")
+
+    block["output"] = []
+    block["output"].append("s_%s" % output_name)
 
     block["declare"] = []
 
     declare = {}
-    declare["name"] = "s_%s_acc" % output_name
-    declare["type"] = "t_%s_acc_struct" % output_name
+    declare["name"] = "s_%s" % output_name
+    declare["type"] = "t_%s_struct" % output_name
     declare["is_array"] = True
-    declare["dim"] = node["ops"]*node["ws"]
+    declare["dim"] = node["ws"]
     block["declare"].append(declare)
+
 
     if (node["merge_1x1"]):
         declare = {}
-        declare["name"] = "s_%s_acc" % output_1x1_name
-        declare["type"] = "t_%s_acc_struct" % output_1x1_name
+        declare["name"] = "s_%s" % output_1x1_name
+        declare["type"] = "t_%s_struct" % output_1x1_name
         declare["is_array"] = True
-        declare["dim"] = node["ops"]*node["ws"]
+        declare["dim"] = node["ws"]
         block["declare"].append(declare)
 
     if (node["has_forward"]):
@@ -464,33 +508,12 @@ def parse_comp(name, node):
     block["pragma"] = []
 
     # depth = int(node["och"]/node["ops"] + 1)
-    depth = 3
-    pragma = {}
-    pragma["name"] = "stream"
-    options = [
-        ["variable", "s_%s_acc" % (output_name)],
-        ["depth", depth],
-        ["type", "fifo"],
-    ]
-    pragma["options"] = options
-    block["pragma"].append(pragma)
-
-    if (node["merge_1x1"]):
-        pragma = {}
-        pragma["name"] = "stream"
-        options = [
-            ["variable", "s_%s_acc" % (output_1x1_name)],
-            ["depth", depth],
-            ["type", "fifo"],
-        ]
-        pragma["options"] = options
-        block["pragma"].append(pragma)
 
     if (node["has_forward"]):
         # First two lines
-        depth = (node["fh"]-1)*node["iw"]*node["ich"]
+        depth = (node["fh"]-1)*node["iw"]*node["ich"]/node["in_ops"]
         # first two pixels of the third line
-        depth += (node["fw"]-1)*node["ich"]
+        depth += (node["fw"]-1)*node["ich"]/node["in_ops"]
         depth += node["och"]+1
         pragma = {}
         pragma["name"] = "stream"
@@ -503,6 +526,33 @@ def parse_comp(name, node):
         pragma["options"] = options
         block["pragma"].append(pragma)
 
+    depth = int(node["och"]/node["ops"]) + 1
+
+    pragma = {}
+    pragma["name"] = "stream"
+    pragma_name = "s_%s" % (output_name)
+    options = [
+        ["variable", pragma_name],
+        ["depth", depth],
+        ["type", "fifo"],
+    ]
+    pragma["options"] = options
+    block["pragma"].append(pragma)
+
+    if (node["merge_1x1"]):
+        pragma = {}
+        pragma["name"] = "stream"
+        pragma_name = "s_%s" % (output_1x1_name)
+
+        depth = node["ow"]*int(node["och"]/node["ops"])*(node["fh"]-1)-node["ich"]
+
+        options = [
+            ["variable", pragma_name],
+            ["depth", depth],
+            ["type", "fifo"],
+        ]
+        pragma["options"] = options
+        block["pragma"].append(pragma)
 
     return [block]
 
@@ -511,7 +561,7 @@ def parse_split(name, node):
     blocks = []
 
     blocks = blocks + parse_comp(name, node)
-    blocks = blocks + parse_wout(name, node)
+    # blocks = blocks + parse_wout(name, node)
 
     return blocks
 

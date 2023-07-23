@@ -8,7 +8,7 @@
 namespace nn2fpga {
 
 template <typename din_t, int ICH, int IH, int IW, int c_fw, int c_fh,
-          int c_str, int c_pad, int c_ws>
+          int c_str, int c_pad, int c_ws, int c_ops>
 void pad_input(hls::stream<din_t> din[(c_fw+c_ws-1) * c_fh],
                hls::stream<din_t> o_data[(c_fw+c_ws-1) * c_fh]) {
   /* #pragma HLS inline */
@@ -27,7 +27,7 @@ void pad_input(hls::stream<din_t> din[(c_fw+c_ws-1) * c_fh],
   
   for (auto s_index_h = 0; s_index_h < IH_REM; s_index_h += c_str) {
     for (auto s_index_w = 0; s_index_w < IW_REM; s_index_w += c_str*c_ws) {
-      for (auto s_index_ich = 0; s_index_ich < ICH; s_index_ich++) {
+      for (auto s_index_ich = 0; s_index_ich < ICH; s_index_ich+=c_ops) {
 #pragma HLS pipeline style = stp
         for (auto s_fh = 0; s_fh < c_fh; s_fh++) {
           for (auto s_fw = 0; s_fw < c_fw+c_ws-1; s_fw++) {
@@ -46,7 +46,7 @@ void pad_input(hls::stream<din_t> din[(c_fw+c_ws-1) * c_fh],
               s_write = din[FSZ - s_index - 1].read();
               if (s_index == FSZ - 1) s_last = s_write.last;
             } else {
-              s_write.data = 0;
+              for (auto s_ops = 0; s_ops < c_ops; s_ops++) s_write.data[s_ops] = 0;
               s_write.last = s_last;
             }
             o_data[FSZ - s_index - 1].write(s_write);
@@ -58,7 +58,7 @@ void pad_input(hls::stream<din_t> din[(c_fw+c_ws-1) * c_fh],
 }
 
 template <typename din_t, typename dout_t, int ICH, int OCH, int IH, int IW, int OH, int OW,
-          int c_fh, int c_fw, int c_str, int c_pad, int c_pos_h, int c_pos_w, int c_ws>
+          int c_fh, int c_fw, int c_str, int c_pad, int c_pos_h, int c_pos_w, int c_ws, int c_ops>
 void shift_op(hls::stream<din_t> &din, hls::stream<din_t> &o_compute,
               hls::stream<dout_t> &o_data) {
   /* #pragma HLS inline */
@@ -89,7 +89,7 @@ void shift_op(hls::stream<din_t> &din, hls::stream<din_t> &o_compute,
 
   for (auto s_index_h = c_starth; s_index_h < c_endh; s_index_h++) {
     for (auto s_index_w = c_startw; s_index_w < c_endw; s_index_w+=c_ws) {
-      for (auto s_index_ich = 0; s_index_ich < ICH; s_index_ich++) {
+      for (auto s_index_ich = 0; s_index_ich < ICH; s_index_ich+=c_ops) {
 #pragma HLS pipeline style = stp
         bool s_compute_write = true;
         auto s_index_h_str = s_index_h % c_str;

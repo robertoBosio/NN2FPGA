@@ -59,6 +59,7 @@ def write_network(
     io_dict = balance_computations.ilp(
         io_dict,
         off_chip_storage,
+        inferred_model,
         board, 
         prj_root=prj_root
     )

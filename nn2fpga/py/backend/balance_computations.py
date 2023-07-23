@@ -4,6 +4,7 @@ import pulp
 import math
 from backend.ilp_utils import find_divisors
 from backend.ilp_utils import find_range
+from backend.graph import extract_connections
 
 def parallel_ops_number(layers_info, clamp=None, board="ULTRA96v2", prj_root="/tmp"):
 
@@ -87,7 +88,7 @@ def parallel_ops_number(layers_info, clamp=None, board="ULTRA96v2", prj_root="/t
 
     return parallel_op
 
-def ilp(io_dict, off_chip_storage, board="ULTRA96v2", double_packing=True, prj_root="/tmp"):
+def ilp(io_dict, off_chip_storage, model, board="ULTRA96v2", double_packing=True, prj_root="/tmp"):
 
     if off_chip_storage:
         clamp = 8
@@ -134,6 +135,8 @@ def ilp(io_dict, off_chip_storage, board="ULTRA96v2", double_packing=True, prj_r
 
     print(parallel_ops)
 
+    io_connect = extract_connections(model, io_dict)
+
     for node_name, ops in parallel_ops.items():
         io_dict[node_name]["ops"] = ops
         io_dict[node_name]["dp"] = False
@@ -142,6 +145,17 @@ def ilp(io_dict, off_chip_storage, board="ULTRA96v2", double_packing=True, prj_r
         io_dict[node_name]["out_par"] = int(io_dict[node_name]["oh"] * io_dict[node_name]["ow"] * io_dict[node_name]["och"] * io_dict[node_name]["total"])
         if io_dict[node_name]["out_par"] == 0:
             io_dict[node_name]["out_par"] = 1
+
+
+    for node_name, ops in parallel_ops.items():
+        output_name = io_dict[node_name]["output"][0]
+        output_node_name = io_connect[output_name][1][0]
+        if output_node_name != "consume_stream":
+            io_dict[output_node_name]["in_ops"] = ops
+
+    for name, node in io_dict.items():
+        if "in_ops" not in node:
+            node["in_ops"] = 1
 
     # if double_packing:
     #     for node_name, ops in parallel_ops.items():
