@@ -41,20 +41,22 @@ void line_buffer(hls::stream<din_t> &din, hls::stream<din_t> o_compute[c_fh*c_fw
     for (auto s_index_w = c_startw; s_index_w < c_endw; s_index_w+=c_ws) {
       for (auto s_index_ich = 0; s_index_ich < ICH; s_index_ich++) {
 #pragma HLS pipeline style = stp
-        bool s_compute_write = true;
-        auto s_index_h_str = s_index_h % c_str;
-        auto s_index_w_str = s_index_w % c_str;
+        for (auto s_index = 0; s_index < c_fh*(c_fw+c_ws-1); s_index++) {
+          bool s_compute_write = true;
+          auto s_index_h_str = s_index_h % c_str;
+          auto s_index_w_str = s_index_w % c_str;
 
-        s_compute_write &= (s_index_h >= c_paddingh_shift);
-        s_compute_write &= (s_index_h < (IH_PAD - c_end_paddingh_shift));
-        s_compute_write &= (s_index_w >= c_paddingw_shift);
-        s_compute_write &= (s_index_w < (IW_PAD - c_end_paddingw_shift));
-        s_compute_write &= (s_index_h_str == (c_paddingh_shift % c_str));
-        s_compute_write &= (s_index_w_str == (c_paddingw_shift % c_str));
+          s_compute_write &= (s_index_h >= c_paddingh_shift);
+          s_compute_write &= (s_index_h < (IH_PAD - c_end_paddingh_shift));
+          s_compute_write &= (s_index_w >= c_paddingw_shift);
+          s_compute_write &= (s_index_w < (IW_PAD - c_end_paddingw_shift));
+          s_compute_write &= (s_index_h_str == (c_paddingh_shift % c_str));
+          s_compute_write &= (s_index_w_str == (c_paddingw_shift % c_str));
 
-        din_t s_input = din.read();
-        if (s_compute_write) o_compute.write(s_input);
-        if constexpr(std::is_same<dout_t, std::nullptr_t>::value == false) o_data.write(s_input);
+          din_t s_input = din.read();
+          if (s_compute_write) o_compute[s_index].write(s_input);
+          if constexpr(std::is_same<dout_t, std::nullptr_t>::value == false) o_data.write(s_input);
+        }
       }
     }
   }

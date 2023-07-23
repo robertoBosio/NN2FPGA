@@ -103,9 +103,9 @@ def parse(name, node):
     block["template"].append("c_%s_pad" % name)
     block["template"].append("c_%s_pool" % name)
     block["template"].append("c_%s_ws" % name)
-    block["template"].append("c_%s_in_ops" % name)
+    block["template"].append("c_%s_ops" % name)
     if (node["is_adaptive"]):
-        block["template"].append("1")
+        block["template"].append("c_%s_in_ops" % name)
     # block["template"].append("c_ws")
     # block["template"].append("c_%s_in_scale_factor" % name)
 
@@ -146,6 +146,7 @@ def parse(name, node):
     block["defines"]["c_%s_pad" % name]            = ["const", node["pad"]]
     block["defines"]["c_%s_pool" % name]           = ["const", node["pool"]]
     block["defines"]["c_%s_ws" % name]             = ["const", node["ws"]]
+    block["defines"]["c_%s_ops" % name]            = ["const", node["ops"]]
     block["defines"]["c_%s_in_ops" % name]         = ["const", node["in_ops"]]
 
     block["declare"] = []
