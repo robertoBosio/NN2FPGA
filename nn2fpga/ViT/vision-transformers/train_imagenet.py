@@ -102,7 +102,7 @@ trainloader = dataloader = DataLoader(
 val_dataset = ImageNetKaggle(args.data, "val", val_transform) 
 testloader = dataloader = DataLoader(
             val_dataset,
-            batch_size=100, # may need to reduce this depending on your GPU 
+            batch_size=8, # may need to reduce this depending on your GPU 
             num_workers=8, # may need to reduce this depending on your num of CPUs and RAM
             shuffle=False,
             drop_last=False,
