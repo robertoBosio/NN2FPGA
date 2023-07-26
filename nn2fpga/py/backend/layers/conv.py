@@ -69,153 +69,6 @@ def info(io_dict, node, node_name, init_info, tensors_info, enable_ws):
 
     return io_dict
 
-def parse_wout(name, node):
-    input_name  = node["input"][0]
-    input_type_name = input_name.replace("_skip", "")
-    weight_name = node["input"][1]
-
-    # If no batchnorm merge then there is no bias
-
-    output_name = node["output"][0]
-    output_type_name = output_name.replace("_skip", "")
-    if (node["merge_1x1"]):
-        output_1x1_name = node["output"][1]
-        output_1x1_type_name = output_1x1_name.replace("_skip", "")
-
-    block = {}
-    block["func"] = "stream_output"
-
-    # Template parameters
-    block["template"] = []
-    block["template"].append("t_%s_struct" % output_type_name)
-    block["template"].append("t_%s" % output_type_name)
-    block["template"].append("t_%s_clip" % output_type_name)
-    block["template"].append("t_%s_mask" % output_type_name)
-    if (node["merge_1x1"]):
-        block["template"].append("t_%s_struct" % output_1x1_name)
-        block["template"].append("t_%s" % output_1x1_name)
-    else:
-        block["template"].append("std::nullptr_t")
-        block["template"].append("std::nullptr_t")
-    block["template"].append("t_%s_acc_struct" % output_name)
-    block["template"].append("t_%s_acc" % output_name)
-    if (node["merge_1x1"]):
-        block["template"].append("t_%s_acc_struct" % output_1x1_name)
-        block["template"].append("t_%s_acc" % output_1x1_name)
-    else:
-        block["template"].append("std::nullptr_t")
-        block["template"].append("std::nullptr_t")
-    block["template"].append("c_%s_ich" % name)
-    block["template"].append("c_%s_och" % name)
-    block["template"].append("c_%s_ow" % name)
-    block["template"].append("c_%s_oh" % name)
-    block["template"].append("c_%s_index" % name)
-    block["template"].append("c_%s_ops" % name)
-    block["template"].append("c_%s_relu" % name)
-    block["template"].append("c_%s_stride" % name)
-    block["template"].append("c_%s_ws" % name)
-    # block["template"].append("c_ws")
-
-    block["defines"] = {}
-
-    output_type = get_quant_type(node["signed"], node["bits"][0], node["scale_factor"][0])
-    output_type_clip = get_quant_type(node["clip_signed"][0], node["bits"][0], node["clip_factor"][0])
-    output_type_mask = get_quant_type(node["mask_signed"][0], node["bits"][0], node["mask_factor"][0])
-
-    block["defines"] = {}
-    block["defines"]["t_%s" % output_name] = ["type", output_type]
-    block["defines"]["t_%s_struct" % output_name] = [
-        "struct",
-        [["data", "t_%s" % output_name], ["last", "bool"]]
-    ]
-    block["defines"]["t_%s_clip" % output_name] = ["type", output_type_clip]
-    block["defines"]["t_%s_mask" % output_name] = ["type", output_type_mask]
-
-    if (node["merge_1x1"]):
-        output_type_1x1 = get_quant_type(True, node["bits"][1], node["scale_factor"][1])
-        # TODO: implement array of signed values for multi-output conv
-        block["defines"]["t_%s" % output_1x1_name] = ["type", output_type_1x1]
-        block["defines"]["t_%s_struct" % output_1x1_name] = [
-            "struct",
-            [["data", "t_%s" % output_1x1_name], ["last", "bool"]]
-        ]
-
-    block["args"] = []
-    block["args"].append("s_%s_acc" % output_name)
-    if (node["merge_1x1"]):
-        block["args"].append("s_%s_acc" % output_1x1_name)
-    else:
-        block["args"].append("(hls::stream<std::nullptr_t>*)(nullptr)")
-
-    block["args"].append("s_%s" % output_name)
-
-    if (node["merge_1x1"]):
-        block["args"].append("s_%s" % output_1x1_name)
-    else:
-        block["args"].append("(hls::stream<std::nullptr_t>*)(nullptr)")
-
-    block["output"] = []
-    block["output"].append("s_%s" % output_name)
-
-    block["declare"] = []
-
-    declare = {}
-    declare["name"] = "s_%s" % output_name
-    declare["type"] = "t_%s_struct" % output_name
-    declare["is_array"] = True
-    declare["dim"] = 1
-    block["declare"].append(declare)
-
-
-    if (node["merge_1x1"]):
-        declare = {}
-        declare["name"] = "s_%s" % output_1x1_name
-        declare["type"] = "t_%s_struct" % output_1x1_name
-        declare["is_array"] = True
-        declare["dim"] = node["ws"]
-        block["declare"].append(declare)
-
-    block["pragma"] = []
-
-    # FIX BUG HALF SPEED, WHEN CHANGING THE OUTPUT CHANNEL THE DEPTH MUST BE
-    # PROPORTIONAL TO THE SIZE OF THE CHANGE
-      # if (node["och"] > node["ich"]):
-    #   depth = node["och"]
-    # else:
-    #   depth = 2
-
-    # depth = node["och"]*(node["ow"]+node["fw"]-1)
-    # depth = node["och"] + node["och"]*int(node["och"]/node["ich"])
-    depth = node["och"] + 1
-
-    pragma = {}
-    pragma["name"] = "stream"
-    pragma_name = "s_%s" % (output_name)
-    options = [
-        ["variable", pragma_name],
-        ["depth", depth],
-        ["type", "fifo"],
-    ]
-    pragma["options"] = options
-    block["pragma"].append(pragma)
-
-    if (node["merge_1x1"]):
-        pragma = {}
-        pragma["name"] = "stream"
-        pragma_name = "s_%s" % (output_1x1_name)
-
-        depth = node["ow"]*node["och"]*(node["fh"]-1)-node["ich"]
-
-        options = [
-            ["variable", pragma_name],
-            ["depth", depth],
-            ["type", "fifo"],
-        ]
-        pragma["options"] = options
-        block["pragma"].append(pragma)
-
-    return [block]
-
 def parse_comp(name, node):
     input_name  = node["input"][0]
     input_type_name = input_name.replace("_skip", "")
@@ -247,8 +100,12 @@ def parse_comp(name, node):
 
     # Template parameters
     block["template"] = []
-    block["template"].append("t_%s_struct" % input_type_name)
-    block["template"].append("t_%s_vector" % input_type_name)
+    if (node["is_1x1"]):
+        block["template"].append("t_%s_struct" % input_type_name)
+        block["template"].append("hls::vector<t_%s_vector, 1>" % input_type_name)
+    else:
+        block["template"].append("t_%s_window_struct" % input_type_name)
+        block["template"].append("t_%s_window" % input_type_name)
     block["template"].append("t_%s" % weight_name)
     block["template"].append("t_%s_st" % weight_name)
     if (has_bias):
@@ -375,12 +232,22 @@ def parse_comp(name, node):
     output_type_clip = get_quant_type(node["clip_signed"][0], node["bits"][0], node["clip_factor"][0])
     output_type_mask = get_quant_type(node["mask_signed"][0], node["bits"][0], node["mask_factor"][0])
 
+    # TODO: check type declaration
+    # input window type declaration
+    input_window_type = "hls::vector<t_%s_vector, %0d>" % (input_name, node["fh"]*(node["fw"]+node["ws"]-1))
+    block["defines"]["t_%s_window" % input_name] = ["type", input_window_type]
+    block["defines"]["t_%s_window_struct" % input_name] = [
+        "struct",
+        [["data", "t_%s_window" % input_name], ["last", "bool"]]
+    ]
+
+    # Output type declaration
     block["defines"]["t_%s" % output_name] = ["type", output_type]
     output_vector_type = "hls::vector<%s, %0d>" % (output_type, node["ops"])
     block["defines"]["t_%s_vector" % output_name] = ["type", output_vector_type]
     block["defines"]["t_%s_struct" % output_name] = [
         "struct",
-        [["data", "t_%s_vector" % output_name], ["last", "bool"]]
+        [["data", "hls::vector<t_%s_vector, 1>" % output_name], ["last", "bool"]]
     ]
     block["defines"]["t_%s_clip" % output_name] = ["type", output_type_clip]
     block["defines"]["t_%s_mask" % output_name] = ["type", output_type_mask]

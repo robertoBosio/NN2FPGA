@@ -31,7 +31,7 @@ PRODSTR:
 
     dout_wrap_t doutWrap;
     din.range(7,0) = din_par & 0xff;
-    doutWrap.data[ops] = dout_t(din);
+    doutWrap.data[0][ops] = dout_t(din);
 
     if (par < (PAR - 1)) {
       doutWrap.last = false;
@@ -62,7 +62,7 @@ void consume_stream(hls::stream<din_wrap_t> dinStream[WS],
   for (auto i = 0; i < OSZ; i++) {
     auto wrap = dinStream[0].read();
     dout_wrap_t dout;
-    dout.data = wrap.data[0];
+    dout.data = wrap.data[0][0];
     dout.last = wrap.last & (i == (OSZ - 1));
     dout.keep = -1;
     doutStream << dout;

@@ -3,14 +3,13 @@
 
 #include "ap_int.h"
 #include "hls_stream.h"
-#include "nn2fpga/line_buffer.h"
 
 namespace nn2fpga {
 
-template <typename din_t, int ICH, int IH, int IW, int c_fw, int c_fh,
+template <typename din_t, typename dout_t, int ICH, int IH, int IW, int c_fw, int c_fh,
           int c_str, int c_pad, int c_ws, int c_ops>
 void pad_input(hls::stream<din_t> din[(c_fw+c_ws-1) * c_fh],
-               hls::stream<din_t> o_data[(c_fw+c_ws-1) * c_fh]) {
+               hls::stream<dout_t> o_data[1]) {
   /* #pragma HLS inline */
 
   /* This handles padding aware inputs */
@@ -22,18 +21,19 @@ void pad_input(hls::stream<din_t> din[(c_fw+c_ws-1) * c_fh],
   constexpr int IH_PAD = IH + c_pad_index_h * 2 - IH_REM*(1-c_pad);
   constexpr int IW_PAD = IW + c_pad_index_w * 2 - IW_REM*(1-c_pad);
   constexpr int FSZ = c_fh * (c_fw+c_ws-1);
+  constexpr int FW = (c_fw+c_ws-1);
 
   bool s_last;
   
   for (auto s_index_h = 0; s_index_h < IH_REM; s_index_h += c_str) {
     for (auto s_index_w = 0; s_index_w < IW_REM; s_index_w += c_str*c_ws) {
-      for (auto s_index_ich = 0; s_index_ich < ICH; s_index_ich+=c_ops) {
+      for (auto s_index_ich = 0; s_index_ich < (ICH/c_ops); s_index_ich++) {
 #pragma HLS pipeline style = stp
+        dout_t s_write;
         for (auto s_fh = 0; s_fh < c_fh; s_fh++) {
-          for (auto s_fw = 0; s_fw < c_fw+c_ws-1; s_fw++) {
-            din_t s_write;
+          for (auto s_fw = 0; s_fw < FW; s_fw++) {
 
-            auto s_index = s_fh * (c_fw+c_ws-1) + s_fw;
+            auto s_index = s_fh * FW + s_fw;
 
             bool s_data_read = true;
 
@@ -43,15 +43,18 @@ void pad_input(hls::stream<din_t> din[(c_fw+c_ws-1) * c_fh],
             s_data_read &= (s_index_w < (IW + c_pad_index_w - s_fw));
 
             if (s_data_read) {
-              s_write = din[FSZ - s_index - 1].read();
-              if (s_index == FSZ - 1) s_last = s_write.last;
+              din_t s_read = din[FSZ - s_index - 1].read();
+              s_write.data[FSZ - s_index - 1] = s_read.data[0];
+              s_write.last = s_read.last;
+              if (s_index == FSZ - 1) s_last = s_read.last;
             } else {
-              for (auto s_ops = 0; s_ops < c_ops; s_ops++) s_write.data[s_ops] = 0;
+              // TODO: solve deadlock
+              s_write.data[FSZ - s_index - 1] = {0};
               s_write.last = s_last;
             }
-            o_data[FSZ - s_index - 1].write(s_write);
           }
         }
+        o_data[0].write(s_write);
       }
     }
   }
@@ -89,7 +92,8 @@ void shift_op(hls::stream<din_t> &din, hls::stream<din_t> &o_compute,
 
   for (auto s_index_h = c_starth; s_index_h < c_endh; s_index_h++) {
     for (auto s_index_w = c_startw; s_index_w < c_endw; s_index_w+=c_ws) {
-      for (auto s_index_ich = 0; s_index_ich < ICH; s_index_ich+=c_ops) {
+      for (auto s_index_ich = 0; s_index_ich < (ICH/c_ops); s_index_ich++) {
+      // for (auto s_index_ich = 0; s_index_ich < ICH; s_index_ich+=c_ops) {
 #pragma HLS pipeline style = stp
         bool s_compute_write = true;
         auto s_index_h_str = s_index_h % c_str;

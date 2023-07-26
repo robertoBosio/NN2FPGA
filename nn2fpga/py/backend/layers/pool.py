@@ -126,7 +126,7 @@ def parse(name, node):
     block["defines"]["t_%s_vector" % output_type_name] = ["type", output_vector_type]
     block["defines"]["t_%s_struct" % output_type_name] = [
         "struct",
-        [["data", "t_%s_vector" % output_type_name], ["last", "bool"]]
+        [["data", "hls::vector<t_%s_vector, 1>" % output_type_name], ["last", "bool"]]
     ]
 
     if node["pool"] == 1:

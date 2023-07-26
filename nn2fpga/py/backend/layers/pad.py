@@ -19,6 +19,7 @@ def parse(name, node):
     # Template parameters
     block["template"] = []
     block["template"].append("t_%s_struct" % input_type_name)
+    block["template"].append("t_%s_window_struct" % input_type_name)
     block["template"].append("c_%s_ich" % name)
     block["template"].append("c_%s_ih" % name)
     block["template"].append("c_%s_iw" % name)
@@ -38,7 +39,7 @@ def parse(name, node):
 
     declare = {}
     declare["name"] = "s_%s_compute" % input_name
-    declare["type"] = "t_%s_struct" % input_name
+    declare["type"] = "t_%s_window_struct" % input_name
     declare["is_array"] = True
     declare["dim"] = node["fh"]*(node["fw"]+node["ws"]-1)
 

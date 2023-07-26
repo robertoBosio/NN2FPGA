@@ -92,7 +92,7 @@ def parse(name, node):
     ]
     block["defines"]["t_%s_struct" % output_type_name] = [
         "struct",
-        [["data", "t_%s_vector" % output_type_name], ["last", "bool"]]
+        [["data", "hls::vector<t_%s_vector, 1>" % output_type_name], ["last", "bool"]]
     ]
 
     block["defines"]["c_produce_stream_ich"] = [
@@ -140,7 +140,8 @@ def parse(name, node):
     pragma["name"] = "stream"
     options = [
         ["variable", "s_%s" % (output_name)],
-        ["depth", node["ich"]],
+        # ["depth", node["ich"]],
+        ["depth", 2],
         ["type", "fifo"],
     ]
     pragma["options"] = options

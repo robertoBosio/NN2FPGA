@@ -44,7 +44,7 @@ template <class t_input, class t_weight, class t_weight_st, class t_bias, class 
           int c_ops, int c_in_ops, int c_relu, int c_ich, int c_och, int c_bits, int c_simd_bits,
           int c_simd, int c_pad_bits, int c_int_pad_bits, int c_mask, int c_w_bits>
 void conv_pipe(
-    t_input i_input[c_fh*(c_fw+c_ws-1)],
+    t_input i_input,
     t_weight i_weight[c_index],
     t_bias i_bias,
     uint32_t ops,
@@ -106,7 +106,7 @@ void conv_pipe(
 
         for (auto s_ws = 0; s_ws < c_ws; s_ws++) {
 
-          auto s_index = s_fh*(c_fw+c_ws-1)+s_fw+(c_ws - s_ws - 1);
+          auto s_index = s_fh*(c_fw+c_ws-1)+s_fw+(c_ws-s_ws-1);
 
           ap_int<27> s_input_ext = 0;
 
@@ -154,7 +154,7 @@ void conv_pipe(
 
 
     for (auto s_ws = 0; s_ws < c_ws; s_ws++) {
-      s_output_struct[s_ws].data[ops] = quant_stream<
+      s_output_struct[s_ws].data[0][ops] = quant_stream<
         t_output, t_output_clip, t_output_mask, t_acc, c_relu
       >(s_acc[s_ws]);
       s_output_struct[s_ws].last = last;
@@ -197,7 +197,7 @@ void conv_pipe(
 
     i_acc_buff[reuse][och] = s_acc;
 
-    s_output_struct[0].data[ops] = quant_stream<
+    s_output_struct[0].data[0][ops] = quant_stream<
       t_output, t_output_clip, t_output_mask, t_acc, c_relu
     >(s_acc);
     s_output_struct[0].last = last;
@@ -220,7 +220,7 @@ template <class t_input_struct, class t_input, class t_weight, class t_weight_st
           int c_w_bits, int c_w_ibits, int c_simd_bits, int c_simd, int c_mask,
           int c_in_bits_1x1, int c_in_ibits_1x1, int c_w_bits_1x1, int c_w_ibits_1x1,
           int c_simd_bits_1x1, int c_simd_1x1, int c_mask_1x1>
-void conv_comp(hls::stream<t_input_struct> i_input[c_fh*(c_fw+c_ws-1)],
+void conv_comp(hls::stream<t_input_struct> i_input[1],
                hls::stream<t_weight> i_weights[c_index],
                hls::stream<t_bias> i_bias[1],
                hls::stream<t_weight_1x1> i_weights_1x1[1],
@@ -241,7 +241,7 @@ void conv_comp(hls::stream<t_input_struct> i_input[c_fh*(c_fw+c_ws-1)],
 #pragma HLS array_partition variable = s_acc_buff type = cyclic factor = c_ops*c_ws dim = 2
   t_acc_1x1 s_acc_1x1_buff[c_reuse_iter][c_och*c_ws];
 #pragma HLS array_partition variable = s_acc_1x1_buff type = cyclic factor = c_ops*c_ws dim = 2
-  t_input s_input[c_index+c_reuse-1];
+  t_input s_input;
 #pragma HLS array_partition variable = s_input type = complete dim = 2
   t_input s_input_1x1[c_reuse];
 #pragma HLS array_partition variable = s_input_1x1 type = complete
@@ -290,12 +290,10 @@ void conv_comp(hls::stream<t_input_struct> i_input[c_fh*(c_fw+c_ws-1)],
         auto s_ich_idx = s_ich % c_in_ops;
 
         if ((s_num_och == 0) && ((s_ich_idx) == 0)) {
-          for (auto s_index = 0; s_index < (c_fh*(c_fw+c_ws-1)); s_index++) {
-            t_input_struct s_input_struct = i_input[s_index].read();
-            s_input[s_index] = s_input_struct.data;
-            /* Sending last only at the bottom right data */
-            if (s_index == 0) s_last = s_input_struct.last;
-          }
+          t_input_struct s_input_struct = i_input[0].read();
+          s_input = s_input_struct.data;
+          /* Sending last only at the bottom right data */
+          s_last = s_input_struct.last;
         }
 
         /* Buffering to speed up computations */
@@ -425,7 +423,7 @@ void conv_comp(hls::stream<t_input_struct> i_input[c_fh*(c_fw+c_ws-1)],
             );
           }
         }
-        if ((s_ich == (c_ich-1))) {
+        if (s_ich == (c_ich-1)) {
           for (auto s_ws = 0; s_ws < c_ws; s_ws++) {
             o_output[s_ws].write(s_output_struct[s_ws]);
             if constexpr(std::is_same<t_output_struct_1x1, std::nullptr_t>::value == false)
