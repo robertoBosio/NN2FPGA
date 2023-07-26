@@ -85,14 +85,14 @@ def parse(name, node):
         "type",
         output_type
     ]
-    output_vector_type = "hls::vector<t_%s, %0d>" % (output_type_name, node["ops"])
+    output_vector_type = "std::array<t_%s, %0d>" % (output_type_name, node["ops"])
     block["defines"]["t_%s_vector" % output_type_name] = [
         "type",
         output_vector_type
     ]
     block["defines"]["t_%s_struct" % output_type_name] = [
         "struct",
-        [["data", "hls::vector<t_%s_vector, 1>" % output_type_name], ["last", "bool"]]
+        [["data", "std::array<t_%s_vector, 1>" % output_type_name], ["last", "bool"]]
     ]
 
     block["defines"]["c_produce_stream_ich"] = [

@@ -102,7 +102,7 @@ def parse_comp(name, node):
     block["template"] = []
     if (node["is_1x1"]):
         block["template"].append("t_%s_struct" % input_type_name)
-        block["template"].append("hls::vector<t_%s_vector, 1>" % input_type_name)
+        block["template"].append("std::array<t_%s_vector, 1>" % input_type_name)
     else:
         block["template"].append("t_%s_window_struct" % input_type_name)
         block["template"].append("t_%s_window" % input_type_name)
@@ -234,7 +234,7 @@ def parse_comp(name, node):
 
     # TODO: check type declaration
     # input window type declaration
-    input_window_type = "hls::vector<t_%s_vector, %0d>" % (input_name, node["fh"]*(node["fw"]+node["ws"]-1))
+    input_window_type = "std::array<t_%s_vector, %0d>" % (input_name, node["fh"]*(node["fw"]+node["ws"]-1))
     block["defines"]["t_%s_window" % input_name] = ["type", input_window_type]
     block["defines"]["t_%s_window_struct" % input_name] = [
         "struct",
@@ -243,11 +243,11 @@ def parse_comp(name, node):
 
     # Output type declaration
     block["defines"]["t_%s" % output_name] = ["type", output_type]
-    output_vector_type = "hls::vector<%s, %0d>" % (output_type, node["ops"])
+    output_vector_type = "std::array<%s, %0d>" % (output_type, node["ops"])
     block["defines"]["t_%s_vector" % output_name] = ["type", output_vector_type]
     block["defines"]["t_%s_struct" % output_name] = [
         "struct",
-        [["data", "hls::vector<t_%s_vector, 1>" % output_name], ["last", "bool"]]
+        [["data", "std::array<t_%s_vector, 1>" % output_name], ["last", "bool"]]
     ]
     block["defines"]["t_%s_clip" % output_name] = ["type", output_type_clip]
     block["defines"]["t_%s_mask" % output_name] = ["type", output_type_mask]
@@ -256,7 +256,7 @@ def parse_comp(name, node):
         output_type_1x1 = get_quant_type(True, node["bits"][1], node["scale_factor"][1])
         # TODO: implement array of signed values for multi-output conv
         block["defines"]["t_%s" % output_1x1_name] = ["type", output_type_1x1]
-        output_stream_type = "hls::vector<t_%s, %0d>" % (output_1x1_name, node["ops"])
+        output_stream_type = "std::array<t_%s, %0d>" % (output_1x1_name, node["ops"])
         block["defines"]["t_%s_struct" % output_1x1_name] = [
             "struct",
             [["data", output_stream_type], ["last", "bool"]]
