@@ -8,6 +8,7 @@ import argparse
 import os
 #import qcdq_to_qonnx.py
 from  qonnx.transformation.qcdq_to_qonnx import QCDQToQuant
+from utils import ImageNetKaggle
 
 
 
@@ -28,7 +29,19 @@ def main():
     qonnx_model = onnx_model.transform(QCDQToQuant())
     #from model wrapper to onnx model
     qonnx_model = qonnx_model.model
+    onnx.save(qonnx_model,args.onnx_model)
+    exit()
     #save qonnx model
+    # val_dataset = ImageNetKaggle(cfg.data, "val", val_transform) 
+    # eval_loader = dataloader = DataLoader(
+    #             val_dataset,
+    #             batch_size=cfg.eval_batch_size, # may need to reduce this depending on your GPU 
+    #             num_workers=8, # may need to reduce this depending on your num of CPUs and RAM
+    #             shuffle=False,
+    #             drop_last=False,
+    #             pin_memory=True
+    #         )
+    
     onnx.save(qonnx_model,args.qonnx_model)
     print("QONNX model converted")    
     #save qonnx model
