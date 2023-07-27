@@ -106,6 +106,7 @@ def parse_comp(name, node):
     else:
         block["template"].append("t_%s_window_struct" % input_type_name)
         block["template"].append("t_%s_window" % input_type_name)
+    block["template"].append("t_%s_vector" % input_type_name)
     block["template"].append("t_%s" % weight_name)
     block["template"].append("t_%s_st" % weight_name)
     if (has_bias):
@@ -115,7 +116,9 @@ def parse_comp(name, node):
 
     if (node["add"]):
         block["template"].append("t_%s_struct" % add_type_name)
+        block["template"].append("t_%s_vector" % add_type_name)
     else:
+        block["template"].append("std::nullptr_t")
         block["template"].append("std::nullptr_t")
 
     if (node["has_forward"]):
@@ -170,6 +173,10 @@ def parse_comp(name, node):
     block["template"].append("c_%s_stride" % name)
     block["template"].append("c_%s_ops" % name)
     block["template"].append("c_%s_in_ops" % name)
+    if (node["add"]):
+        block["template"].append("c_%s_add_ops" % add_name)
+    else:
+        block["template"].append("1")
     block["template"].append("c_%s_relu" % name)
     block["template"].append("c_%s_reuse" % name)
     block["template"].append("c_%s_ws" % name)
@@ -256,10 +263,11 @@ def parse_comp(name, node):
         output_type_1x1 = get_quant_type(True, node["bits"][1], node["scale_factor"][1])
         # TODO: implement array of signed values for multi-output conv
         block["defines"]["t_%s" % output_1x1_name] = ["type", output_type_1x1]
-        output_stream_type = "std::array<t_%s, %0d>" % (output_1x1_name, node["ops"])
+        output_vector_type = "std::array<t_%s, %0d>" % (output_1x1_name, node["ops"])
+        block["defines"]["t_%s_vector" % output_1x1_name] = ["type", output_vector_type]
         block["defines"]["t_%s_struct" % output_1x1_name] = [
             "struct",
-            [["data", output_stream_type], ["last", "bool"]]
+            [["data", "std::array<t_%s_vector, 1>" % output_1x1_name], ["last", "bool"]]
         ]
 
     if (node["in_scale_factor"][0] is not None):
@@ -289,6 +297,8 @@ def parse_comp(name, node):
             [["data", "t_%s_acc" % output_1x1_name], ["last", "bool"]]
         ]
 
+        block["defines"]["c_%s_add_ops" % output_1x1_name]         = ["const", node["ops"]]
+
     block["defines"]["c_%s_ich" % name]            = ["const", node["ich"]]
     block["defines"]["c_%s_och" % name]            = ["const", node["och"]]
     block["defines"]["c_%s_iw" % name]             = ["const", node["iw"]]
@@ -305,6 +315,8 @@ def parse_comp(name, node):
     block["defines"]["c_%s_index" % name]          = ["const", node["kernel"]]
     block["defines"]["c_%s_reuse" % name]          = ["const", node["reuse"]]
     block["defines"]["c_%s_ws" % name]             = ["const", node["ws"]]
+    if (node["has_forward"]):
+        block["defines"]["c_%s_add_ops" % forward_name]         = ["const", node["in_ops"]]
 
     block["args"] = []
 
