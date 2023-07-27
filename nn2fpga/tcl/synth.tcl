@@ -23,6 +23,11 @@ add_files -cflags "-Icc/include -I${NN2FPGA_ROOT}/cc/include" \
   cc/src/memory_management_${TOP_NAME}.cc
 add_files -cflags "-Icc/include -I${NN2FPGA_ROOT}/cc/include" \
   cc/src/${TOP_NAME}.cc
+
+add_files -blackbox \
+  ${NN2FPGA_ROOT}/cc/include/nn2fpga/black_box/mac/mac_simd.json
+set_directive_interface -mode ap_ctrl_none mac_simd
+
 if {${DATASET} == "dac2023"} {
   puts ${PRJ_ROOT}/Vitis_Libraries/vision/L1/include/common/
 
