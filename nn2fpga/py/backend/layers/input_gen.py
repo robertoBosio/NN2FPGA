@@ -141,7 +141,8 @@ def parse(name, node):
     options = [
         ["variable", "s_%s" % (output_name)],
         # ["depth", node["ich"]],
-        ["depth", 2],
+        ["depth", node["ich"]],
+        # ["depth", 2],
         ["type", "fifo"],
     ]
     pragma["options"] = options

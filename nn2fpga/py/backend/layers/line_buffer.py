@@ -144,8 +144,9 @@ def parse(name, node):
 
             pragma = {}
 
-            if (fw == (dfw-1)):
-                depth = node["iw"]*int(node["ich"]/node["in_ops"])
+            # Line buffer long branch must be split in ws parts
+            if (fw > (dfw-ws-1)):
+                depth = int(node["iw"]/node["ws"])*int(node["ich"]/node["in_ops"])
             else:
                 depth = int(node["ich"]/node["in_ops"])
 

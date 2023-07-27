@@ -28,7 +28,7 @@ void pad_input(hls::stream<din_t> din[(c_fw+c_ws-1) * c_fh],
   for (auto s_index_h = 0; s_index_h < IH_REM; s_index_h += c_str) {
     for (auto s_index_w = 0; s_index_w < IW_REM; s_index_w += c_str*c_ws) {
       for (auto s_index_ich = 0; s_index_ich < (ICH/c_ops); s_index_ich++) {
-#pragma HLS pipeline style = stp
+#pragma HLS pipeline style = flp
         dout_t s_write;
         for (auto s_fh = 0; s_fh < c_fh; s_fh++) {
           for (auto s_fw = 0; s_fw < FW; s_fw++) {
