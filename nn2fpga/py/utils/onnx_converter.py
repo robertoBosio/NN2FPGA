@@ -14,7 +14,7 @@ from utils import ImageNetKaggle
 
 def main():
     parser = argparse.ArgumentParser(description='Convert onnx model to qonnx model')
-    parser.add_argument('--onnx_model', type=str, default='/home/teodoro/nn2fpga/py/utils/model.onnx', help='onnx model path')
+    parser.add_argument('--onnx_model', type=str, default='/home/teodoro/nn2fpga/py/utils/model_vit.onnx', help='onnx model path')
     parser.add_argument('--qonnx_model', type=str, default='modelq.onnx', help='qonnx model path')
     args = parser.parse_args()
 
