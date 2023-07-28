@@ -1,8 +1,8 @@
 #include "mac_simd.h"
 
-void mac_simd(ap_int<27> a, ap_int<27> d, ap_int<18> b, ap_uint<48> &p) {
+ap_uint<48> mac_simd(ap_int<27> A, ap_int<18> B, ap_uint<48> C, ap_int<27> D) {
 #pragma HLS inline off
 
-  p += (a + d) * b;
+  return C + (A + D) * B;
 
 }

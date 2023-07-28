@@ -3,6 +3,6 @@
 
 #include <ap_int.h>
 
-void mac_simd(ap_int<27> a, ap_int<27> d, ap_int<18> b, ap_uint<48> &p);
+ap_uint<48> mac_simd(ap_int<27> A, ap_int<18> B, ap_uint<48> C, ap_int<27> D);
 
 #endif  // MUL_SIMD_H_

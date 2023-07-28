@@ -10,7 +10,7 @@
 #include "nn2fpga/stream_utils.h"
 #include "nn2fpga/quantisation.h"
 #ifdef SIMD_DSP
-  #include "nn2fpga/black_box/mac/mac_simd_wrapper.h"
+  #include "nn2fpga/black_box/mac/mac_simd.h"
 #endif
 #include <cstddef>
 #include <type_traits>
@@ -140,12 +140,10 @@ void conv_pipe(
         }
 
         #ifdef SIMD_DSP
-          auto s_acc_simd_tmp = s_acc_simd[s_index & c_mask];
           auto s_simd_in1 = s_input_ext[0];
           auto s_simd_in2 = s_input_ext[1];
 
-          mac_simd_wrapper(s_simd_in1, s_simd_in2, s_weight, s_acc_simd_tmp);
-          s_acc_simd[s_index & c_mask] = s_acc_simd_tmp;
+          s_acc_simd[s_index & c_mask] = mac_simd(s_simd_in1, s_weight, s_acc_simd[s_index & c_mask], s_simd_in2);
         #else
           s_acc_simd[s_index & c_mask] += s_data * s_weight;
         #endif

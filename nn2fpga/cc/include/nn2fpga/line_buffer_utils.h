@@ -25,6 +25,7 @@ void pad_input(hls::stream<din_t> din[(c_fw+c_ws-1) * c_fh],
 
   bool s_last;
   
+  // std::cout << "pad_input: " << ICH << " " << IH << " " << IW << " " << ICH/c_ops << " " << c_ops << "\n";
   for (auto s_index_h = 0; s_index_h < IH_REM; s_index_h += c_str) {
     for (auto s_index_w = 0; s_index_w < IW_REM; s_index_w += c_str*c_ws) {
       for (auto s_index_ich = 0; s_index_ich < (ICH/c_ops); s_index_ich++) {
