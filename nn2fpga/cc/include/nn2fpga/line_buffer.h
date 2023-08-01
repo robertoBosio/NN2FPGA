@@ -33,9 +33,13 @@ void line_buffer(hls::stream<din_t> &din, hls::stream<din_t> &o_compute,
   constexpr int c_endh = IH_PAD - c_pad_index_h;
   constexpr int c_endw = IW_PAD - c_pad_index_w;
 
+  constexpr int c_fw_ext = c_fw + (c_ws - 1)*c_str;
+
 
   hls::stream<din_t> s_compute;
 #pragma HLS stream variable = s_compute depth = 2 type = fifo
+
+  din_t mem[ICH/c_ops][c_fw_ext];
 
   dout_t s_output;
 
@@ -44,11 +48,11 @@ void line_buffer(hls::stream<din_t> &din, hls::stream<din_t> &o_compute,
       for (auto s_index_ich = 0; s_index_ich < (ICH/c_ops); s_index_ich++) {
       // for (auto s_index_ich = 0; s_index_ich < ICH; s_index_ich+=c_ops) {
 #pragma HLS pipeline style = stp
-        for (auto s_fw = 0; s_fw < (c_fw+c_ws-1); s_fw++) {
+        for (auto s_fw = 0; s_fw < c_fw_ext; s_fw++) {
           auto s_index_h_str = s_index_h % c_str;
           auto s_index_w_str = s_index_w % c_str;
 
-          auto c_paddingw_shift = (c_fw + c_ws - 1) - s_fw;
+          auto c_paddingw_shift = c_fw_ext - s_fw;
           bool s_compute_value = true;
           s_compute_value &= (s_index_h >= c_paddingh_shift);
           s_compute_value &= (s_index_h < (IH_PAD - c_end_paddingh_shift));

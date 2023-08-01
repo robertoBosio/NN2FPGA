@@ -241,7 +241,7 @@ def parse_comp(name, node):
 
     # TODO: check type declaration
     # input window type declaration
-    input_window_type = "std::array<t_%s_vector, %0d>" % (input_name, node["fh"]*(node["fw"]+node["ws"]-1))
+    input_window_type = "std::array<t_%s_vector, %0d>" % (input_name, node["fh"]*(node["fw"]+(node["ws"]-1)*node["stride"]))
     block["defines"]["t_%s_window" % input_name] = ["type", input_window_type]
     block["defines"]["t_%s_window_struct" % input_name] = [
         "struct",

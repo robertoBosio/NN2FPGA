@@ -24,7 +24,7 @@ add_files -cflags "-Icc/include -I${NN2FPGA_ROOT}/cc/include" \
 add_files -cflags "-Icc/include -I${NN2FPGA_ROOT}/cc/include" \
   cc/src/${TOP_NAME}.cc
 
-set USE_SIMD 1 
+set USE_SIMD 0 
 if {${USE_SIMD} == 1} {
   add_files -blackbox \
     ${NN2FPGA_ROOT}/cc/include/nn2fpga/black_box/mac/mac_simd.json

@@ -5,20 +5,21 @@ import qonnx
 from onnx import numpy_helper
 import numpy as np
 
-def return_index(fh, fw, ws, iw, ih):
-    base_index = ih*(fw+ws-1)+iw
+def return_index(fh, fw, ws, stride, iw, ih):
+    base_index = ih*(fw+(ws-1)*stride)+iw
     if (iw >= (fw-1)) and (iw < (ws)):
         return base_index+fw+ws-1
-    elif iw < (fw):
+    elif iw < (fw+stride-1):
         return base_index+ws
     else:
         return base_index+fw-1
 
 def parse(name, node):
 
+    stride = node["stride"]
     ws = node["ws"]
     dfh = node["fh"]
-    dfw = node["fw"] + (ws-1)
+    dfw = node["fw"] + (ws-1)*(stride)
     dindex = dfh*dfw
 
     line_buffer_blocks = []
@@ -30,11 +31,12 @@ def parse(name, node):
     output_name = input_name
     output_type_name = output_name.replace("_skip", "")
 
+    pad_value = int(node["pad"]*(node["fw"]-1)/2)
     for fh in range(dfh):
         for fw in range(dfw):
             
             index = fh*dfw+fw
-            out_index = return_index(node["fh"], node["fw"], ws, fw, fh)
+            out_index = return_index(node["fh"], node["fw"], ws, stride, fw, fh)
             print("index: %0d" % index, "out_index: %0d" % out_index, "fh: %0d" % fh, "fw: %0d" % fw)
 
             block = {}
@@ -65,7 +67,8 @@ def parse(name, node):
             block["args"] = []
 
             if index < ws:
-                block["args"].append("s_%s[%0d]" % (input_name, ws-index-1))
+                block["args"].append("s_%s[%0d]" % (input_name, (dfw - 1 - fw - pad_value)%ws))
+                # block["args"].append("s_%s[%0d]" % (input_name, index))
             else:
                 block["args"].append(
                     "s_%s_data[%0d]" % (input_name, index-ws)

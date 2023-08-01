@@ -1,7 +1,7 @@
 #ifndef NN2FPGA_PACKED_CONV_H_
 #define NN2FPGA_PACKED_CONV_H_
 
-#define SIMD_DSP
+// #define SIMD_DSP
 
 #include "ap_int.h"
 #include "hls_stream.h"
@@ -45,7 +45,7 @@ t_output quant_stream(t_acc i_acc) {
 template <class t_input, class t_weight, class t_weight_st, class t_bias, class t_add_struct,
           class t_input_mod, class t_acc_struct, class t_acc, class t_acc_simd,
           class t_output_struct, class t_output, class t_output_clip, 
-          class t_output_mask, int c_reuse, int c_ws, int c_fh, int c_fw, int c_index,
+          class t_output_mask, int c_reuse, int c_ws, int c_fh, int c_fw, int c_index, int c_str,
           int c_ops, int c_in_ops, int c_relu, int c_ich, int c_och, int c_bits, int c_simd_bits,
           int c_simd, int c_pad_bits, int c_int_pad_bits, int c_mask, int c_w_bits>
 void conv_pipe(
@@ -68,6 +68,7 @@ void conv_pipe(
     
     t_acc s_acc[c_ws];
     t_acc s_acc_base[c_ws];
+    const int FW = (c_fw+(c_ws-1)*c_str);
 
     ap_uint<48> s_acc_simd[c_simd];
 
@@ -114,7 +115,7 @@ void conv_pipe(
 
         for (auto s_ws = 0; s_ws < c_ws; s_ws++) {
 
-          auto s_index = s_fh*(c_fw+c_ws-1)+s_fw+(c_ws-s_ws-1);
+          auto s_index = s_fh*FW+s_fw+(c_ws-s_ws-1)*c_str;
 
           s_input_ext[s_ws] = 0;
 
@@ -367,6 +368,7 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
             c_fh,
             c_fw,
             c_index,
+            c_str,
             c_ops,
             c_in_ops,
             c_relu,
@@ -420,6 +422,7 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
               1,
               1,
               1,
+              c_str,
               c_ops,
               c_in_ops,
               0,
