@@ -215,11 +215,12 @@ void conv_pipe(
 
     i_acc_buff[reuse][och] = s_acc;
 
-    s_output_struct[0].data[0][ops] = quant_stream<
-      t_output, t_output_clip, t_output_mask, t_acc, c_relu
-    >(s_acc);
-    s_output_struct[0].last = last;
-
+    if (ich == c_ich-1) {
+      s_output_struct[0].data[0][ops] = quant_stream<
+        t_output, t_output_clip, t_output_mask, t_acc, c_relu
+      >(s_acc);
+      s_output_struct[0].last = last;
+    }
     // return s_acc_struct;
 
   }
@@ -469,6 +470,11 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
             }
           }
         }
+      }
+    }
+    if constexpr(std::is_same<t_add_struct, std::nullptr_t>::value == false){
+      for (auto s_ws = 0; s_ws < c_ws; s_ws++) {
+        std::cout << "Addition: " << s_add[s_ws].size() << std::endl;
       }
     }
   }

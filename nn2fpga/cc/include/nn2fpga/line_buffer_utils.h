@@ -52,7 +52,10 @@ void pad_input(hls::stream<din_t> din[(c_fw+c_ws-1) * c_fh],
               if (s_index == LAST_IDX) s_last = s_read.last;
             } else {
               // TODO: solve deadlock
-              s_write.data[FSZ - s_index - 1] = {0};
+              for (auto s_i = 0; s_i < c_ops; s_i++) {
+                s_write.data[FSZ - s_index - 1][s_i] = 0;
+              }
+              // s_write.data[FSZ - s_index - 1] = {0};
               s_write.last = s_last;
             }
           }
