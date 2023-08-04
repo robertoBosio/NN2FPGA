@@ -241,7 +241,7 @@ template <class t_input_struct, class t_input, class t_input_data, class t_weigh
           class t_output_struct, class t_output, class t_output_clip, class t_output_mask, 
           class t_output_struct_1x1, class t_output_1x1,
           int c_ich, int c_och, int c_oh, int c_ow, int c_fh, int c_fw, int c_index, 
-          int c_str, int c_ops, int c_in_ops, int c_add_ops, int c_relu, int c_reuse, int c_ws, int c_in_bits, int c_in_ibits, 
+          int c_str, int c_ops, int c_in_ops, int c_add_ops, int c_relu, int c_reuse, int c_ws, int c_ws_out, int c_in_bits, int c_in_ibits, 
           int c_w_bits, int c_w_ibits, int c_simd_bits, int c_simd, int c_mask,
           int c_in_bits_1x1, int c_in_ibits_1x1, int c_w_bits_1x1, int c_w_ibits_1x1,
           int c_simd_bits_1x1, int c_simd_1x1, int c_mask_1x1>
@@ -309,7 +309,6 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
 
   auto s_ich_idx_add = 0;
 
-  std::cout << "packed_conv" << std::endl;
   for (auto s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
     for (auto s_ich = 0; s_ich < c_ich; s_ich++) {
       for (auto s_iter = 0; s_iter < c_iter; s_iter++) {
@@ -468,9 +467,9 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
         }
         if (s_ich == (c_ich-1)) {
           for (auto s_ws = 0; s_ws < c_ws; s_ws++) {
-            o_output[s_ws].write(s_output_struct[s_ws]);
+            o_output[s_ws % c_ws_out].write(s_output_struct[s_ws]);
             if constexpr(std::is_same<t_output_struct_1x1, std::nullptr_t>::value == false)
-              o_output_1x1[s_ws].write(s_output_1x1_struct[s_ws]);
+              o_output_1x1[s_ws % c_ws_out].write(s_output_1x1_struct[s_ws]);
           }
         }
         if constexpr(std::is_same<t_forward_struct, std::nullptr_t>::value == false) {
@@ -479,20 +478,8 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
               t_forward_struct s_forward;
               s_forward.data[0] = s_input[MO + MO%c_str - s_ws*c_str];
               s_forward.last = false;
-              o_forward[s_ws].write(s_forward);
+              o_forward[s_ws % c_ws_out].write(s_forward);
             }
-          }
-        }
-      }
-      if (s_ich == (c_ich-1)) {
-        for (auto s_ws = 0; s_ws < c_ws; s_ws++) {
-          for (auto s_och = 0; s_och < c_och; s_och++) {
-            std::cout << "s_acc_buff[" << s_och << "] " << s_acc_buff[0][s_och*c_ws+s_ws] << std::endl;
-            if constexpr(std::is_same<t_output_struct_1x1, std::nullptr_t>::value == false)
-              std::cout << "s_acc_buff_1x1[" << s_och << "] " << s_acc_1x1_buff[0][s_och*c_ws+s_ws] << std::endl;
-            // std::cout << "s_output_struct[" << s_o_index*c_ws+s_ws << "] " << quant_stream<
-            //   t_output, t_output_clip, t_output_mask, t_acc, c_relu
-            // >(s_acc_buff[0][s_och*c_ws+s_ws]) << std::endl;
           }
         }
       }

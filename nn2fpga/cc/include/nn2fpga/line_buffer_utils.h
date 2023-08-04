@@ -52,23 +52,32 @@ void pad_input(hls::stream<din_t> din[(c_fw+(c_ws-1)*c_str) * c_fh],
               for (auto s_i = 0; s_i < c_ops; s_i++) {
                 s_write.data[FSZ - s_index - 1][s_i] = 0;
               }
-              // s_write.data[FSZ - s_index - 1] = {0};
               s_write.last = s_last;
             }
           }
         }
-        // if (c_str == 2) {
-        //   for (auto s_ich_idx = 0; s_ich_idx < c_ops; s_ich_idx++) {         
-        //     for (auto s_index = 0; s_index < FSZ; s_index++) {                
-        //       std::cout << s_write.data[s_index][s_ich_idx] << " ";           
-        //     }
-        //     std::cout << std::endl;                                               
-        //   }                                                                     
-        // }
         o_data[0].write(s_write);
       }
     }
   }
+}
+
+template <typename din_t, typename dout_t, int ICH, int IH, int IW,
+          int c_ws, int c_ws_out, int c_ops>
+void change_ws(hls::stream<din_t> din[c_ws], 
+              hls::stream<dout_t> o_data[c_ws_out]) {
+
+  constexpr int c_i_index = IH * IW;
+  constexpr int c_num_ich = ICH/c_ops;
+
+  din_t s_read[c_ws];
+  for (auto s_index = 0; s_index < c_i_index; s_index++) {
+    for (auto s_ich = 0; s_ich < c_num_ich; s_ich++) {
+      #pragma HLS pipeline style = stp
+      o_data[s_index % c_ws_out].write(din[s_index % c_ws].read());
+    }
+  }
+
 }
 
 template <typename din_t, typename dout_t, int ICH, int OCH, int IH, int IW, int OH, int OW,

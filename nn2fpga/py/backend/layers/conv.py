@@ -180,6 +180,7 @@ def parse_comp(name, node):
     block["template"].append("c_%s_relu" % name)
     block["template"].append("c_%s_reuse" % name)
     block["template"].append("c_%s_ws" % name)
+    block["template"].append("c_%s_ws_out" % name)
 
     ##############################################################################
     # PACKING: providing info on quantization from template because
@@ -321,6 +322,7 @@ def parse_comp(name, node):
     block["defines"]["c_%s_index" % name]          = ["const", node["kernel"]]
     block["defines"]["c_%s_reuse" % name]          = ["const", node["reuse"]]
     block["defines"]["c_%s_ws" % name]             = ["const", node["ws"]]
+    block["defines"]["c_%s_ws_out" % name]         = ["const", node["ws_out"]]
     if (node["has_forward"]):
         block["defines"]["c_%s_add_ops" % forward_name]         = ["const", node["in_ops"]]
 

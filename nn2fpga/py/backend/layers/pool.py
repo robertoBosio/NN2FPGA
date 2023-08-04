@@ -67,6 +67,7 @@ def info(io_dict, node, node_name, init_info, tensors_info, enable_ws):
     io_dict[node_name]["actbits"] = []
     io_dict[node_name]["enable_ws"] = enable_ws
     io_dict[node_name]["ws"] = 1
+    io_dict[node_name]["ws_out"] = 1
     io_dict[node_name]["ops"] = 1
     io_dict[node_name]["in_ops"] = 1
 
@@ -103,6 +104,7 @@ def parse(name, node):
     block["template"].append("c_%s_pad" % name)
     block["template"].append("c_%s_pool" % name)
     block["template"].append("c_%s_ws" % name)
+    block["template"].append("c_%s_ws_out" % name)
     block["template"].append("c_%s_ops" % name)
     if (node["is_adaptive"]):
         block["template"].append("c_%s_in_ops" % name)
@@ -146,6 +148,7 @@ def parse(name, node):
     block["defines"]["c_%s_pad" % name]            = ["const", node["pad"]]
     block["defines"]["c_%s_pool" % name]           = ["const", node["pool"]]
     block["defines"]["c_%s_ws" % name]             = ["const", node["ws"]]
+    block["defines"]["c_%s_ws_out" % name]         = ["const", node["ws_out"]]
     block["defines"]["c_%s_ops" % name]            = ["const", node["ops"]]
     block["defines"]["c_%s_in_ops" % name]         = ["const", node["in_ops"]]
 
