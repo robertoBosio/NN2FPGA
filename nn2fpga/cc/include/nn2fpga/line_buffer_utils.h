@@ -8,7 +8,7 @@ namespace nn2fpga {
 
 template <typename din_t, typename dout_t, int ICH, int IH, int IW, int c_fw, int c_fh,
           int c_str, int c_pad, int c_ws, int c_ops>
-void pad_input(hls::stream<din_t> din[(c_fw+c_ws-1) * c_fh],
+void pad_input(hls::stream<din_t> din[(c_fw+(c_ws-1)*c_str) * c_fh],
                hls::stream<dout_t> o_data[1]) {
   /* #pragma HLS inline */
 
@@ -26,7 +26,6 @@ void pad_input(hls::stream<din_t> din[(c_fw+c_ws-1) * c_fh],
 
   bool s_last;
   
-  // if (c_str > 1){
   for (auto s_index_h = 0; s_index_h < IH_REM; s_index_h += c_str) {
     for (auto s_index_w = 0; s_index_w < IW_REM; s_index_w += c_str*c_ws) {
       for (auto s_index_ich = 0; s_index_ich < (ICH/c_ops); s_index_ich++) {
@@ -45,13 +44,11 @@ void pad_input(hls::stream<din_t> din[(c_fw+c_ws-1) * c_fh],
             s_data_read &= (s_index_w < (IW + c_pad_index_w - s_fw));
 
             if (s_data_read) {
-
               din_t s_read = din[FSZ - s_index - 1].read();
               s_write.data[FSZ - s_index - 1] = s_read.data[0];
               s_write.last = s_read.last;
               if (s_index == LAST_IDX) s_last = s_read.last;
             } else {
-              // TODO: solve deadlock
               for (auto s_i = 0; s_i < c_ops; s_i++) {
                 s_write.data[FSZ - s_index - 1][s_i] = 0;
               }
@@ -60,6 +57,14 @@ void pad_input(hls::stream<din_t> din[(c_fw+c_ws-1) * c_fh],
             }
           }
         }
+        // if (c_str == 2) {
+        //   for (auto s_ich_idx = 0; s_ich_idx < c_ops; s_ich_idx++) {         
+        //     for (auto s_index = 0; s_index < FSZ; s_index++) {                
+        //       std::cout << s_write.data[s_index][s_ich_idx] << " ";           
+        //     }
+        //     std::cout << std::endl;                                               
+        //   }                                                                     
+        // }
         o_data[0].write(s_write);
       }
     }
@@ -112,8 +117,8 @@ void shift_op(hls::stream<din_t> &din, hls::stream<din_t> &o_compute,
   const int c_str_adj = (c_str == 1) ? 1 : (c_ws);
 
   // Stride selects which pixels are sent for computations
-  constexpr int c_strh = (c_paddingh_shift % c_str > 0) ? (c_paddingh_shift % c_str) : -1 * (c_paddingh_shift % c_str);
-  constexpr int c_strw = (c_paddingw_shift % (c_str*c_str_adj) > 0) ? (c_paddingw_shift % (c_str*c_str_adj)) : -1 * (c_paddingw_shift % (c_str*c_str_adj));
+  constexpr int c_strh = (c_paddingh_shift > 0) ? (c_paddingh_shift % c_str) : -1 * (c_paddingh_shift % c_str);
+  constexpr int c_strw = (c_paddingw_shift > 0) ? (c_paddingw_shift % (c_str*c_str_adj)) : (FW - 1 + c_paddingw_shift) % (c_str*c_str_adj);
 
   for (auto s_index_h = c_starth; s_index_h < IH; s_index_h++) {
     for (auto s_index_w = c_startw; s_index_w < IW; s_index_w+=c_ws) {

@@ -154,9 +154,13 @@ void conv_pipe(
 
     for (auto s_simd = 0; s_simd < c_simd; s_simd++) {
       for (auto s_ws = 0; s_ws < c_ws; s_ws++) {
+
         t_acc_simd s_acc_simd_value = 0;
+        t_acc_simd s_acc_adj = 0;
+        if (s_ws > 0)
+          s_acc_adj.range(0,0) = s_acc_simd[s_simd].range(c_pad_bits*(s_ws)-1, c_pad_bits*(s_ws)-1);
         s_acc_simd_value.range(c_pad_bits-1, 0) = s_acc_simd[s_simd].range(c_pad_bits*(s_ws+1)-1, c_pad_bits*s_ws);
-        s_acc[s_ws] += s_acc_simd_value;
+        s_acc[s_ws] += s_acc_simd_value + s_acc_adj;
       }
     }
 
@@ -171,11 +175,13 @@ void conv_pipe(
     }
 
 
-    for (auto s_ws = 0; s_ws < c_ws; s_ws++) {
-      s_output_struct[s_ws].data[0][ops] = quant_stream<
-        t_output, t_output_clip, t_output_mask, t_acc, c_relu
-      >(s_acc[s_ws]);
-      s_output_struct[s_ws].last = last;
+    if (ich == c_ich-1) {
+      for (auto s_ws = 0; s_ws < c_ws; s_ws++) {
+        s_output_struct[s_ws].data[0][ops] = quant_stream<
+          t_output, t_output_clip, t_output_mask, t_acc, c_relu
+        >(s_acc[s_ws]);
+        s_output_struct[s_ws].last = last;
+      }
     }
 
     // return s_acc_struct;
@@ -255,6 +261,9 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
   const auto c_reuse_iter = c_reuse / c_ws;
   const auto c_num_och = c_och / c_ops;
   const auto c_iter = c_reuse_iter * c_num_och;
+  // constexpr int FW = (c_fw);
+  constexpr int FW = (c_fw+(c_ws-1)*c_str);
+  constexpr int MO = (c_fh*FW)/2;
 
   t_acc s_acc_buff[c_reuse_iter][c_och*c_ws];
 #pragma HLS array_partition variable = s_acc_buff type = cyclic factor = c_ops*c_ws dim = 2
@@ -295,11 +304,12 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
   ////////////////////////////////////////////////////////////////////////////
 
   // TODO: the numbre of integer bits of the weights type must be considered
-  typedef ap_fixed<c_pad_bits, c_int_pad_bits> t_acc_simd;
-  typedef ap_fixed<c_pad_bits_1x1, c_int_pad_bits_1x1> t_acc_simd_1x1;
+  typedef ap_fixed<c_pad_bits, c_int_pad_bits, AP_RND, AP_WRAP> t_acc_simd;
+  typedef ap_fixed<c_pad_bits_1x1, c_int_pad_bits_1x1, AP_RND, AP_WRAP> t_acc_simd_1x1;
 
   auto s_ich_idx_add = 0;
 
+  std::cout << "packed_conv" << std::endl;
   for (auto s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
     for (auto s_ich = 0; s_ich < c_ich; s_ich++) {
       for (auto s_iter = 0; s_iter < c_iter; s_iter++) {
@@ -342,7 +352,9 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
         // be equal, so we could perform the addition in different iterations
         if constexpr(std::is_same<t_add_struct, std::nullptr_t>::value == false){
           for (auto s_ws = 0; s_ws < c_ws; s_ws++) {
-            if ((s_iter == 0) && (s_ich_idx_add == 0)) s_add[s_ws] = i_add[s_ws].read();
+            if ((s_iter == 0) && (s_ich_idx_add == 0)){
+              s_add[s_ws] = i_add[s_ws].read();   
+            }
           }
         }
 
@@ -402,7 +414,8 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
             std::array<t_input_data, c_ws> s_input_1x1;
           #pragma HLS array_partition variable = s_input_1x1 type = complete
             for (auto s_ws = 0; s_ws < c_ws; s_ws++) {
-              s_input_1x1[s_ws] = s_input[c_index / 2 + s_ws*c_str];
+              // s_input_1x1[s_ws] = s_input[MO + MO%c_str - s_ws*c_str];
+              s_input_1x1[c_ws - s_ws - 1] = s_input[MO + MO%c_str - s_ws*c_str];
             }
             conv_pipe<
               std::array<t_input_data, c_ws>,
@@ -423,7 +436,7 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
               1,
               1,
               1,
-              c_str,
+              1,
               c_ops,
               c_in_ops,
               0,
@@ -464,17 +477,24 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
           for (auto s_ws = 0; s_ws < c_ws; s_ws++) {
             if ((s_num_och == (c_num_och - 1)) && (s_ich_idx == 0)) {
               t_forward_struct s_forward;
-              s_forward.data[0] = s_input[c_index / 2 + s_ws*c_str];
+              s_forward.data[0] = s_input[MO + MO%c_str - s_ws*c_str];
               s_forward.last = false;
               o_forward[s_ws].write(s_forward);
             }
           }
         }
       }
-    }
-    if constexpr(std::is_same<t_add_struct, std::nullptr_t>::value == false){
-      for (auto s_ws = 0; s_ws < c_ws; s_ws++) {
-        std::cout << "Addition: " << s_add[s_ws].size() << std::endl;
+      if (s_ich == (c_ich-1)) {
+        for (auto s_ws = 0; s_ws < c_ws; s_ws++) {
+          for (auto s_och = 0; s_och < c_och; s_och++) {
+            std::cout << "s_acc_buff[" << s_och << "] " << s_acc_buff[0][s_och*c_ws+s_ws] << std::endl;
+            if constexpr(std::is_same<t_output_struct_1x1, std::nullptr_t>::value == false)
+              std::cout << "s_acc_buff_1x1[" << s_och << "] " << s_acc_1x1_buff[0][s_och*c_ws+s_ws] << std::endl;
+            // std::cout << "s_output_struct[" << s_o_index*c_ws+s_ws << "] " << quant_stream<
+            //   t_output, t_output_clip, t_output_mask, t_acc, c_relu
+            // >(s_acc_buff[0][s_och*c_ws+s_ws]) << std::endl;
+          }
+        }
       }
     }
   }

@@ -8,11 +8,13 @@ import numpy as np
 def return_index(fh, fw, ws, stride, iw, ih):
     base_index = ih*(fw+(ws-1)*stride)+iw
     if (iw >= (fw-1)) and (iw < (ws)):
-        return base_index+fw+ws-1
-    elif iw < (fw+stride-1):
+        return (ih+1)*(fw+(ws-1)*stride)+iw
+    elif iw < (fw):
         return base_index+ws
     else:
-        return base_index+fw-1
+        return (ih+1)*(fw+(ws-1)*stride)+iw%ws
+    print("ERROR: return_index")
+    sys.exit(1)
 
 def parse(name, node):
 
