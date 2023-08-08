@@ -7,7 +7,7 @@
 namespace nn2fpga {
 
 template <typename din_t, typename dout_t, int ICH, int IH, int IW, int c_fw, int c_fh,
-          int c_str, int c_pad, int c_ws, int c_ops>
+          int c_str, int c_pad, int c_ws, int c_ops, int c_ops_out>
 void pad_input(hls::stream<din_t> din[(c_fw+(c_ws-1)*c_str) * c_fh],
                hls::stream<dout_t> o_data[1]) {
   /* #pragma HLS inline */
@@ -26,11 +26,14 @@ void pad_input(hls::stream<din_t> din[(c_fw+(c_ws-1)*c_str) * c_fh],
 
   bool s_last;
   
+  din_t s_read[FSZ];
+
   for (auto s_index_h = 0; s_index_h < IH_REM; s_index_h += c_str) {
     for (auto s_index_w = 0; s_index_w < IW_REM; s_index_w += c_str*c_ws) {
-      for (auto s_index_ich = 0; s_index_ich < (ICH/c_ops); s_index_ich++) {
+      for (auto s_index_ich = 0; s_index_ich < ICH; s_index_ich+=c_ops_out) {
 #pragma HLS pipeline style = stp
         dout_t s_write;
+        auto s_ops = s_index_ich % c_ops;
         for (auto s_fh = 0; s_fh < c_fh; s_fh++) {
           for (auto s_fw = 0; s_fw < FW; s_fw++) {
 
@@ -44,12 +47,19 @@ void pad_input(hls::stream<din_t> din[(c_fw+(c_ws-1)*c_str) * c_fh],
             s_data_read &= (s_index_w < (IW + c_pad_index_w - s_fw));
 
             if (s_data_read) {
-              din_t s_read = din[FSZ - s_index - 1].read();
-              s_write.data[FSZ - s_index - 1] = s_read.data[0];
-              s_write.last = s_read.last;
-              if (s_index == LAST_IDX) s_last = s_read.last;
+              if (s_ops == 0) {
+                s_read[FSZ - s_index - 1] = din[FSZ - s_index - 1].read();
+                s_write.last = s_read[FSZ - s_index - 1].last;
+                if (s_index == LAST_IDX) s_last = s_read[FSZ - s_index - 1].last;
+              }
+              for (auto s_i = 0; s_i < c_ops_out; s_i++) {
+                s_write.data[FSZ - s_index - 1][s_i] = s_read[FSZ - s_index - 1].data[0][s_ops + s_i];
+              }
             } else {
-              for (auto s_i = 0; s_i < c_ops; s_i++) {
+              // for (auto s_i = 0; s_i < c_ops; s_i++) {
+              // This is padding branch, if the data of the window should not be read
+              // form the input stream then we pad it with zeros
+              for (auto s_i = 0; s_i < c_ops_out; s_i++) {
                 s_write.data[FSZ - s_index - 1][s_i] = 0;
               }
               s_write.last = s_last;

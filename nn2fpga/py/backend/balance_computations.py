@@ -153,6 +153,9 @@ def ilp(io_dict, off_chip_storage, model, board="ULTRA96v2", double_packing=True
         output_node_name = io_connect[output_name][1][0]
         if output_node_name != "consume_stream":
             io_dict[output_node_name]["in_ops"] = ops
+            if ('is_1x1' in io_dict[output_node_name]):
+                if (io_dict[output_node_name]['is_1x1'] == True):
+                    io_dict[output_node_name]["ich_ops"] = ops
             if "pool" in io_dict[output_node_name]["type"]:
                 io_dict[output_node_name]["ops"] = ops
 
@@ -163,6 +166,9 @@ def ilp(io_dict, off_chip_storage, model, board="ULTRA96v2", double_packing=True
             ops = node["ops"]
             if output_node_name != "consume_stream":
                 io_dict[output_node_name]["in_ops"] = ops
+                if ('is_1x1' in io_dict[output_node_name]):
+                    if (io_dict[output_node_name]['is_1x1'] == True):
+                        io_dict[output_node_name]["ich_ops"] = ops
                 if "pool" in io_dict[output_node_name]["type"]:
                     io_dict[output_node_name]["ops"] = ops
 

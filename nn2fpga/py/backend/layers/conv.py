@@ -66,6 +66,7 @@ def info(io_dict, node, node_name, init_info, tensors_info, enable_ws):
     io_dict[node_name]["actscale"] = []
     io_dict[node_name]["ops"] = 1
     io_dict[node_name]["in_ops"] = 1
+    io_dict[node_name]["ich_ops"] = 1
 
     return io_dict
 
@@ -85,7 +86,8 @@ def parse_comp(name, node):
 
     if (node["add"]):
         add_name = node["input"][3]
-        add_type_name = add_name.replace("_skip", "")
+        add_type_name = add_name
+        # add_type_name = add_name.replace("_skip", "")
 
     output_name = node["output"][0]
     output_type_name = output_name.replace("_skip", "")
@@ -103,10 +105,11 @@ def parse_comp(name, node):
     if (node["is_1x1"]):
         block["template"].append("t_%s_struct" % input_type_name)
         block["template"].append("std::array<t_%s_vector, 1>" % input_type_name)
+        block["template"].append("t_%s_vector" % input_type_name)
     else:
         block["template"].append("t_%s_window_struct" % input_type_name)
         block["template"].append("t_%s_window" % input_type_name)
-    block["template"].append("t_%s_vector" % input_type_name)
+        block["template"].append("t_%s_reduce" % input_type_name)
     block["template"].append("t_%s" % weight_name)
     block["template"].append("t_%s_st" % weight_name)
     if (has_bias):
@@ -116,13 +119,15 @@ def parse_comp(name, node):
 
     if (node["add"]):
         block["template"].append("t_%s_struct" % add_type_name)
+        # TODO: add case of 1x1 forward
+        # block["template"].append("t_%s_vector" % add_type_name)
         block["template"].append("t_%s_vector" % add_type_name)
     else:
         block["template"].append("std::nullptr_t")
         block["template"].append("std::nullptr_t")
 
     if (node["has_forward"]):
-        block["template"].append("t_%s_struct" % input_type_name)
+        block["template"].append("t_%s_struct" % forward_name)
     else:
         block["template"].append("std::nullptr_t")
 
@@ -172,7 +177,7 @@ def parse_comp(name, node):
     block["template"].append("c_%s_index" % name)
     block["template"].append("c_%s_stride" % name)
     block["template"].append("c_%s_ops" % name)
-    block["template"].append("c_%s_in_ops" % name)
+    block["template"].append("c_%s_ich_ops" % name)
     if (node["add"]):
         block["template"].append("c_%s_add_ops" % add_name)
     else:
@@ -248,12 +253,20 @@ def parse_comp(name, node):
 
     # TODO: check type declaration
     # input window type declaration
-    input_window_type = "std::array<t_%s_vector, %0d>" % (input_name, node["fh"]*(node["fw"]+(node["ws"]-1)*node["stride"]))
+    input_reduce_type = "std::array<t_%s, %0d>" % (input_name, node["ich_ops"])
+    block["defines"]["t_%s_reduce" % input_name] = ["type", input_reduce_type]
+    input_window_type = "std::array<t_%s_reduce, %0d>" % (input_name, node["fh"]*(node["fw"]+(node["ws"]-1)*node["stride"]))
     block["defines"]["t_%s_window" % input_name] = ["type", input_window_type]
     block["defines"]["t_%s_window_struct" % input_name] = [
         "struct",
         [["data", "t_%s_window" % input_name], ["last", "bool"]]
     ]
+    if (node["has_forward"]):
+        block["defines"]["t_%s_vector" % forward_name] = ["type", input_reduce_type]
+        block["defines"]["t_%s_struct" % forward_name] = [
+            "struct",
+            [["data", "std::array<t_%s_reduce, 1>" % input_name], ["last", "bool"]]
+        ]
 
     # Output type declaration
     block["defines"]["t_%s" % output_name] = ["type", output_type]
@@ -319,12 +332,13 @@ def parse_comp(name, node):
     block["defines"]["c_%s_pad" % name]            = ["const", node["pad"]]
     block["defines"]["c_%s_ops" % name]            = ["const", node["ops"]]
     block["defines"]["c_%s_in_ops" % name]         = ["const", node["in_ops"]]
+    block["defines"]["c_%s_ich_ops" % name]        = ["const", node["ich_ops"]]
     block["defines"]["c_%s_index" % name]          = ["const", node["kernel"]]
     block["defines"]["c_%s_reuse" % name]          = ["const", node["reuse"]]
     block["defines"]["c_%s_ws" % name]             = ["const", node["ws"]]
     block["defines"]["c_%s_ws_out" % name]         = ["const", node["ws_out"]]
     if (node["has_forward"]):
-        block["defines"]["c_%s_add_ops" % forward_name]         = ["const", node["in_ops"]]
+        block["defines"]["c_%s_add_ops" % forward_name]         = ["const", node["ich_ops"]]
 
     block["args"] = []
 
@@ -387,7 +401,7 @@ def parse_comp(name, node):
     if (node["has_forward"]):
         declare = {}
         declare["name"] = "s_%s" % forward_name
-        declare["type"] = "t_%s_struct" % input_name
+        declare["type"] = "t_%s_struct" % forward_name
         declare["is_array"] = True
         declare["dim"] = node["ws"]
         block["declare"].append(declare)
@@ -398,9 +412,9 @@ def parse_comp(name, node):
 
     if (node["has_forward"]):
         # First two lines
-        depth = (node["fh"]-1)*node["iw"]*node["ich"]/node["in_ops"]
+        depth = int((node["fh"]-1)*node["iw"]*node["ich"]/node["ich_ops"])
         # first two pixels of the third line
-        depth += (node["fw"]-1)*node["ich"]/node["in_ops"]
+        depth += int((node["fw"]-1)*node["ich"]/node["ich_ops"])
         depth += node["och"]+1
         pragma = {}
         pragma["name"] = "stream"

@@ -270,7 +270,8 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
   t_acc_1x1 s_acc_1x1_buff[c_reuse_iter][c_och*c_ws];
 #pragma HLS array_partition variable = s_acc_1x1_buff type = cyclic factor = c_ops*c_ws dim = 2
   t_input s_input;
-#pragma HLS array_partition variable = s_input type = complete dim = 2
+// #pragma HLS array_partition variable = s_input type = complete dim = 0
+#pragma HLS array_partition variable = s_input type = complete
   bool s_last = false;
   t_weight s_weight[c_index];
 #pragma HLS array_partition variable = s_weight type = complete
