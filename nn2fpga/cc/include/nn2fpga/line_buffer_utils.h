@@ -49,12 +49,12 @@ void pad_input(hls::stream<din_t> din[(c_fw+(c_ws-1)*c_str) * c_fh],
             if (s_data_read) {
               if (s_ops == 0) {
                 s_read[FSZ - s_index - 1] = din[FSZ - s_index - 1].read();
-                s_write.last = s_read[FSZ - s_index - 1].last;
                 if (s_index == LAST_IDX) s_last = s_read[FSZ - s_index - 1].last;
               }
               for (auto s_i = 0; s_i < c_ops_out; s_i++) {
                 s_write.data[FSZ - s_index - 1][s_i] = s_read[FSZ - s_index - 1].data[0][s_ops + s_i];
               }
+              s_write.last = s_read[FSZ - s_index - 1].last;
             } else {
               // for (auto s_i = 0; s_i < c_ops; s_i++) {
               // This is padding branch, if the data of the window should not be read
