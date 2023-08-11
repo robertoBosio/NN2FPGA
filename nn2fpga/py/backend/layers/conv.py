@@ -103,8 +103,8 @@ def parse_comp(name, node):
     # Template parameters
     block["template"] = []
     if (node["is_1x1"]):
-        block["template"].append("t_%s_struct" % input_type_name)
-        block["template"].append("std::array<t_%s_vector, 1>" % input_type_name)
+        block["template"].append("t_%s_lb_struct" % input_type_name)
+        block["template"].append("t_%s_lb" % input_type_name)
         block["template"].append("t_%s_vector" % input_type_name)
     else:
         block["template"].append("t_%s_window_struct" % input_type_name)
@@ -260,6 +260,12 @@ def parse_comp(name, node):
     block["defines"]["t_%s_window_struct" % input_name] = [
         "struct",
         [["data", "t_%s_window" % input_name], ["last", "bool"]]
+    ]
+    input_lb_type = "std::array<t_%s_reduce, %0d>" % (input_name, 1)
+    block["defines"]["t_%s_lb" % input_name] = ["type", input_lb_type]
+    block["defines"]["t_%s_lb_struct" % input_name] = [
+        "struct",
+        [["data", "t_%s_lb" % input_name], ["last", "bool"]]
     ]
     if (node["has_forward"]):
         block["defines"]["t_%s_vector" % forward_name] = ["type", input_reduce_type]

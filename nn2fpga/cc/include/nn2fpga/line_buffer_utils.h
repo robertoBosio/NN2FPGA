@@ -90,9 +90,9 @@ void change_ws(hls::stream<din_t> din[c_ws],
 
 }
 
-template <typename din_t, typename dout_t, int ICH, int OCH, int IH, int IW, int OH, int OW,
-          int c_fh, int c_fw, int c_str, int c_pad, int c_pos_h, int c_pos_w, int c_ws, int c_ops>
-void shift_op(hls::stream<din_t> &din, hls::stream<din_t> &o_compute,
+template <typename din_t, typename dcomp_t, typename dout_t, int ICH, int OCH, int IH, int IW, int OH, int OW,
+          int c_fh, int c_fw, int c_str, int c_pad, int c_pos_h, int c_pos_w, int c_ws, int c_ops, int c_ops_out>
+void shift_op(hls::stream<din_t> &din, hls::stream<dcomp_t> &o_compute,
               hls::stream<dout_t> &o_data) {
   /* #pragma HLS inline */
 
@@ -139,11 +139,16 @@ void shift_op(hls::stream<din_t> &din, hls::stream<din_t> &o_compute,
   constexpr int c_strh = (c_paddingh_shift > 0) ? (c_paddingh_shift % c_str) : -1 * (c_paddingh_shift % c_str);
   constexpr int c_strw = (c_paddingw_shift > 0) ? (c_paddingw_shift % (c_str*c_str_adj)) : (FW - 1 + c_paddingw_shift) % (c_str*c_str_adj);
 
+  din_t s_input;
+  dcomp_t s_output;
   for (auto s_index_h = c_starth; s_index_h < IH; s_index_h++) {
     for (auto s_index_w = c_startw; s_index_w < IW; s_index_w+=c_ws) {
-      for (auto s_index_ich = 0; s_index_ich < (ICH/c_ops); s_index_ich++) {
+      for (auto s_index_ich = 0; s_index_ich < (ICH); s_index_ich+=c_ops_out) {
       // for (auto s_index_ich = 0; s_index_ich < ICH; s_index_ich+=c_ops) {
 #pragma HLS pipeline style = stp
+        auto s_index_read = s_index_ich % c_ops;
+        auto s_data_read = s_index_read == 0;
+
         bool s_compute_write = true;
         auto s_index_h_str = s_index_h % c_str;
         auto s_index_w_str = s_index_w % (c_str*c_str_adj);
@@ -155,9 +160,13 @@ void shift_op(hls::stream<din_t> &din, hls::stream<din_t> &o_compute,
         s_compute_write &= (s_index_h_str == (c_strh));
         s_compute_write &= (s_index_w_str == (c_strw));
 
-        din_t s_input = din.read();
-        if (s_compute_write) o_compute.write(s_input);
-        if constexpr(std::is_same<dout_t, std::nullptr_t>::value == false) o_data.write(s_input);
+        if (s_data_read) s_input = din.read();
+        for (auto s_index_ops = 0; s_index_ops < c_ops_out; s_index_ops++) {
+          s_output.data[0][s_index_ops] = s_input.data[0][s_index_read + s_index_ops];
+        }
+        s_output.last = s_input.last;
+        if (s_compute_write) o_compute.write(s_output);
+        if constexpr(std::is_same<dout_t, std::nullptr_t>::value == false) o_data.write(s_output);
       }
     }
   }

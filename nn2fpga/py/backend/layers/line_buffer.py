@@ -46,9 +46,13 @@ def parse(name, node):
 
             # Template parameters
             block["template"] = []
-            block["template"].append("t_%s_struct" % input_type_name)
-            if out_index < (dindex):
+            if index < ws:
                 block["template"].append("t_%s_struct" % input_type_name)
+            else:
+                block["template"].append("t_%s_lb_struct" % input_type_name)
+            block["template"].append("t_%s_lb_struct" % input_type_name)
+            if out_index < (dindex):
+                block["template"].append("t_%s_lb_struct" % input_type_name)
             else:
                 block["template"].append("std::nullptr_t")
             block["template"].append("c_%s_ich" % name)
@@ -64,7 +68,11 @@ def parse(name, node):
             block["template"].append("%0d" % (dfh - 1 - fh))
             block["template"].append("%0d" % (dfw - 1 - fw))
             block["template"].append("c_%s_ws" % name)
-            block["template"].append("%0d" % node["in_ops"])
+            if index < ws:
+                block["template"].append("%0d" % node["in_ops"])
+            else:
+                block["template"].append("%0d" % node["ich_ops"])
+            block["template"].append("%0d" % node["ich_ops"])
 
             block["args"] = []
 
@@ -94,7 +102,7 @@ def parse(name, node):
             if (index == 0):
                 declare = {}
                 declare["name"] = "s_%s_data" % output_name
-                declare["type"] = "t_%s_struct" % output_name
+                declare["type"] = "t_%s_lb_struct" % output_name
                 declare["is_array"] = True
                 declare["dim"] = dindex-ws
                 block["declare"].append(declare)
@@ -108,7 +116,7 @@ def parse(name, node):
 
                 declare = {}
                 declare["name"] = "s_%s_pre_pad" % output_name
-                declare["type"] = "t_%s_struct" % output_name
+                declare["type"] = "t_%s_lb_struct" % output_name
                 declare["is_array"] = True
                 declare["dim"] = dindex
                 block["declare"].append(declare)
@@ -116,12 +124,12 @@ def parse(name, node):
             block["pragma"] = []
 
             output_ratio = int((node["ih"]*node["iw"])/(node["oh"]*node["ow"]))
-            # if output_ratio > 1: 
-            #     depth = node["och"]*output_ratio+1
-            #     # impl = "BRAM"
-            #     impl = "AUTO"
-            # else:
-            depth = node["fh"]*node["fw"]+1
+            if output_ratio > 1: 
+                depth = node["och"]*output_ratio+1
+                # impl = "BRAM"
+                impl = "AUTO"
+            else:
+                depth = node["fh"]*node["fw"]+1
             # depth = 2
             impl = "AUTO"
 
@@ -152,9 +160,9 @@ def parse(name, node):
 
             # Line buffer long branch must be split in ws parts
             if (fw > (dfw-ws-1)):
-                depth = int(node["iw"]/node["ws"])*int(node["ich"]/node["in_ops"])
+                depth = int(node["iw"]/node["ws"])*int(node["ich"]/node["ich_ops"])
             else:
-                depth = int(node["ich"]/node["in_ops"])
+                depth = int(node["ich"]/node["ich_ops"])
 
             if (index < (dindex-ws)):
 

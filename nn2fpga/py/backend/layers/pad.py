@@ -18,7 +18,7 @@ def parse(name, node):
 
     # Template parameters
     block["template"] = []
-    block["template"].append("t_%s_struct" % input_type_name)
+    block["template"].append("t_%s_lb_struct" % input_type_name)
     block["template"].append("t_%s_window_struct" % input_type_name)
     block["template"].append("c_%s_ich" % name)
     block["template"].append("c_%s_ih" % name)
@@ -28,7 +28,7 @@ def parse(name, node):
     block["template"].append("c_%s_stride" % name)
     block["template"].append("c_%s_pad" % name)
     block["template"].append("c_%s_ws" % name)
-    block["template"].append("%0d" % node["in_ops"])
+    block["template"].append("%0d" % node["ich_ops"])
     block["template"].append("%0d" % node["ich_ops"])
 
     block["args"] = []
