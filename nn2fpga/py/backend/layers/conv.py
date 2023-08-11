@@ -433,7 +433,7 @@ def parse_comp(name, node):
         pragma["options"] = options
         block["pragma"].append(pragma)
 
-    depth = int(node["och"]/node["ops"]) + 1
+    depth = int(node["och"]/node["ops"])*node["ws"] + 1
 
     pragma = {}
     pragma["name"] = "stream"
