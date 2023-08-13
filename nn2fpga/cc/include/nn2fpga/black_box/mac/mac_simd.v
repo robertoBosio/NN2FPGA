@@ -18,36 +18,22 @@ module top_ama_addmuladd_26s_26s_18s_28s_45_4_1_DSP48_0 (
     output signed [48 - 1:0]  dout);
 
 
-wire signed [45 - 1:0]     m;
 wire signed [48 - 1:0]     p;
-wire signed [27 - 1:0]     ad;
-reg  signed [45 - 1:0]     m_reg;
-reg  signed [27 - 1:0]     ad_reg;
-reg  signed [18 - 1:0]     b_reg;
 reg  signed [48 - 1:0]     p_reg;
-reg  signed [48 - 1:0]     c_reg;
-reg  signed [48 - 1:0]     c_reg1;
 
-assign ad = d + a;
-assign m  = ad_reg * b_reg;
-assign p  = m_reg + c_reg1;
+assign p = (d + a) * b + c;
 
-always @(posedge clk) begin
-    if (ce) begin
-        m_reg  <= m;
-        ad_reg <= ad;
-        b_reg  <= b;
-        c_reg  <= c;
-        c_reg1  <= c_reg;
-        p_reg  <= p;
-    end
-end
+// always @(posedge clk) begin
+//     if (ce) begin
+//         p_reg  <= p;
+//     end
+// end
 
-assign dout = p_reg;
+assign dout = p;
 
 endmodule
 
-`timescale 1 ns / 1 ps
+(* use_dsp = "yes" *)
 module mac_simd(
     clk,
     reset,

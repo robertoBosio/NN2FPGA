@@ -21,7 +21,14 @@ set_part ${FPGA_PART}
 
 add_files -cflags "-Icc/include -I${NN2FPGA_ROOT}/cc/include" \
   cc/src/memory_management_${TOP_NAME}.cc
-add_files -cflags "-Icc/include -I${NN2FPGA_ROOT}/cc/include" \
+
+if {${SIMD_DSP} == 1} {
+  set simd_flag "-DSIMD_DSP"
+} else {
+  set simd_flag ""
+}
+
+add_files -cflags "-Icc/include -I${NN2FPGA_ROOT}/cc/include ${simd_flag}" \
   cc/src/${TOP_NAME}.cc
 
 if {${SIMD_DSP} == 1} {

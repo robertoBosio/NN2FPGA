@@ -58,7 +58,7 @@
 		"ap_ctrl_chain_protocol_continue":""
 	},
 	"rtl_performance":{
-		"latency":"3",
+		"latency":"0",
 		"II":"1"
 	},
 	"rtl_resource_usage":{

@@ -1,8 +1,6 @@
 #ifndef NN2FPGA_PACKED_CONV_H_
 #define NN2FPGA_PACKED_CONV_H_
 
-// #define SIMD_DSP
-
 #include "ap_int.h"
 #include "hls_stream.h"
 #include "nn2fpga/debug.h"
