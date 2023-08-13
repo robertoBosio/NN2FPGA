@@ -13,6 +13,7 @@ export URAM_STORAGE := 0
 export DATASET := cifar-0
 export OBJECT_DETECTION := 0
 export PACKING := 0
+export SIMD_DSP := 0
 export NN2FPGA_CC_ROOT := $(shell pwd)/cc
 export NN2FPGA_ROOT := $(shell pwd)
 
