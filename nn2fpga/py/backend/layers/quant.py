@@ -6,6 +6,9 @@ import qonnx
 from onnx import numpy_helper
 import numpy as np
 
+def get_quant_constant(signed, bit_width, scale_factor, acc_reg=False):
+    return int(bit_width), int(bit_width+scale_factor)
+
 def get_quant_type(signed, bit_width, scale_factor, acc_reg=False):
     type_name = ""
     type_name += "ap_fixed" if signed else "ap_ufixed"

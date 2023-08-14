@@ -60,6 +60,12 @@ def main():
         if int(os.environ.get("OBJECT_DETECTION")) == 1:
             object_detection = True
 
+    if "PACKING" in os.environ:
+        if int(os.environ.get("PACKING")) == 1:
+            packing = True
+        else:
+            packing = False
+
     # onnx_path = "./onnx/Brevonnx_resnet_final_fx.onnx"
     # onnx_path = "./onnx/Brevonnx_resnet8_final_fx.onnx"
     # onnx_path = "./onnx/2layer.onnx"
@@ -96,7 +102,8 @@ def main():
         uram_storage=uram_storage,
         object_detection=object_detection,
         anchors=anchors,
-        prj_root=PRJ_ROOT
+        prj_root=PRJ_ROOT,
+        enable_ws=packing
     )
 
 if __name__ == '__main__':

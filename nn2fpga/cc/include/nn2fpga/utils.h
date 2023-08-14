@@ -6,7 +6,7 @@
 #include "ap_int.h"
 #include "hls_math.h"
 #include "nn2fpga/debug.h"
-#include "nn2fpga/line_buffer.h"
+// #include "nn2fpga/line_buffer.h"
 
 namespace nn2fpga {
 

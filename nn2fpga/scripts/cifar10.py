@@ -10,5 +10,4 @@ def postprocess(out_buffer, results, accuracy, batch_size):
     accuracy_batch = np.equal(predicted, results)
     accuracy_batch = accuracy_batch.sum()
     accuracy += accuracy_batch
-    print(predicted, results, accuracy_batch)
     return accuracy, accuracy_batch

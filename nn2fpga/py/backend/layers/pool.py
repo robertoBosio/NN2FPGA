@@ -6,7 +6,7 @@ from onnx import numpy_helper
 import numpy as np
 from backend.layers.quant import get_quant_type
 
-def info(io_dict, node, node_name, init_info, tensors_info, ws):
+def info(io_dict, node, node_name, init_info, tensors_info, enable_ws):
 
     attributes = getattr(node, "attribute" )
     input_shape = tensors_info[node.input[0]].tensor_type.shape
@@ -65,7 +65,11 @@ def info(io_dict, node, node_name, init_info, tensors_info, ws):
     io_dict[node_name]["actscale"] = []
     io_dict[node_name]["is_adaptive"] = adaptive
     io_dict[node_name]["actbits"] = []
-    io_dict[node_name]["ws"] = ws
+    io_dict[node_name]["enable_ws"] = enable_ws
+    io_dict[node_name]["ws"] = 1
+    io_dict[node_name]["ws_out"] = 1
+    io_dict[node_name]["ops"] = 1
+    io_dict[node_name]["in_ops"] = 1
 
     return io_dict
 
@@ -84,7 +88,7 @@ def parse(name, node):
     # Template parameters
     block["template"] = []
     block["template"].append("t_%s_struct" % input_type_name)
-    block["template"].append("t_%s" % input_type_name)
+    block["template"].append("t_%s_vector" % input_type_name)
     block["template"].append("t_%s_struct" % output_type_name)
     block["template"].append("t_%s" % output_type_name)
     block["template"].append("t_%s_acc" % name)
@@ -99,25 +103,32 @@ def parse(name, node):
     block["template"].append("c_%s_stride" % name)
     block["template"].append("c_%s_pad" % name)
     block["template"].append("c_%s_pool" % name)
+    block["template"].append("c_%s_ws" % name)
+    block["template"].append("c_%s_ws_out" % name)
+    block["template"].append("c_%s_ops" % name)
+    if (node["is_adaptive"]):
+        block["template"].append("c_%s_in_ops" % name)
     # block["template"].append("c_ws")
     # block["template"].append("c_%s_in_scale_factor" % name)
 
     block["args"] = []
     if (node["is_adaptive"]):
-        block["args"].append("s_%s[0]" % input_name)
+        block["args"].append("s_%s" % input_name)
     else:
         if node["pad"] == 0:
             block["args"].append("s_%s_pre_pad" % input_name)
         else:
             block["args"].append("s_%s_compute" % input_name)
-    block["args"].append("s_%s[0]" % output_name)
+    block["args"].append("s_%s" % output_name)
 
     block["defines"] = {}
     output_type = get_quant_type(node["signed"], node["bits"][0], node["scale_factor"][0])
     block["defines"]["t_%s" % output_type_name] = ["type", output_type]
+    output_vector_type = "std::array<t_%s, %s>" % (output_type_name, node["ops"])
+    block["defines"]["t_%s_vector" % output_type_name] = ["type", output_vector_type]
     block["defines"]["t_%s_struct" % output_type_name] = [
         "struct",
-        [["data", "t_%s" % output_type_name], ["last", "bool"]]
+        [["data", "std::array<t_%s_vector, 1>" % output_type_name], ["last", "bool"]]
     ]
 
     if node["pool"] == 1:
@@ -136,6 +147,10 @@ def parse(name, node):
     block["defines"]["c_%s_stride" % name]         = ["const", node["stride"]]
     block["defines"]["c_%s_pad" % name]            = ["const", node["pad"]]
     block["defines"]["c_%s_pool" % name]           = ["const", node["pool"]]
+    block["defines"]["c_%s_ws" % name]             = ["const", node["ws"]]
+    block["defines"]["c_%s_ws_out" % name]         = ["const", node["ws_out"]]
+    block["defines"]["c_%s_ops" % name]            = ["const", node["ops"]]
+    block["defines"]["c_%s_in_ops" % name]         = ["const", node["in_ops"]]
 
     block["declare"] = []
 

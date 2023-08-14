@@ -26,6 +26,7 @@ def write_network(
     object_detection=False,
     anchors=[],
     prj_root="/tmp",
+    enable_ws=False
 ):
 
     # Cases in which a master axi interface is needed
@@ -45,7 +46,8 @@ def write_network(
         inferred_model,
         init_info,
         object_detection,
-        anchors
+        anchors,
+        enable_ws=enable_ws
     )
 
     io_dict = opt_steps(
@@ -57,6 +59,7 @@ def write_network(
     io_dict = balance_computations.ilp(
         io_dict,
         off_chip_storage,
+        inferred_model,
         board, 
         prj_root=prj_root
     )

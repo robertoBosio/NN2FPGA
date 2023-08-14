@@ -21,8 +21,21 @@ set_part ${FPGA_PART}
 
 add_files -cflags "-Icc/include -I${NN2FPGA_ROOT}/cc/include" \
   cc/src/memory_management_${TOP_NAME}.cc
-add_files -cflags "-Icc/include -I${NN2FPGA_ROOT}/cc/include" \
+
+if {${SIMD_DSP} == 1} {
+  set simd_flag "-DSIMD_DSP"
+} else {
+  set simd_flag ""
+}
+
+add_files -cflags "-Icc/include -I${NN2FPGA_ROOT}/cc/include ${simd_flag}" \
   cc/src/${TOP_NAME}.cc
+
+if {${SIMD_DSP} == 1} {
+  add_files -blackbox \
+    ${NN2FPGA_ROOT}/cc/include/nn2fpga/black_box/mac/mac_simd.json
+}
+
 if {${DATASET} == "dac2023"} {
   puts ${PRJ_ROOT}/Vitis_Libraries/vision/L1/include/common/
 
