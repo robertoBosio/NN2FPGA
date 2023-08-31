@@ -103,13 +103,14 @@ def ilp(io_dict, off_chip_storage, model, board="ULTRA96v2", double_packing=True
             if max_total > node_info["total"]:
                 max_total = node_info["total"]
 
+    total_computations = 0
     for node_name, node_info in io_dict.items():
         if 'conv' in node_info["type"]:
 
             value = node_info["total"]/max_total
             # value = 2**value
             print(node_name, node_info["total"], value)
-
+            total_computations += node_info["total_log"]
             layers_info.append(
                 [
                     node_name,
@@ -121,6 +122,8 @@ def ilp(io_dict, off_chip_storage, model, board="ULTRA96v2", double_packing=True
                     node_info["och"]
                 ]
             )
+    
+    print("Total computations:", total_computations)
 
     parallel_ops = parallel_ops_number(layers_info, clamp, board, prj_root=prj_root)
 
