@@ -16,15 +16,7 @@ def info(io_dict, node, node_name, init_info, tensors_info, enable_ws):
     ich      = getattr(input_shape, 'dim')[1].dim_value
     ih       = getattr(input_shape, 'dim')[2].dim_value
     iw       = getattr(input_shape, 'dim')[3].dim_value
-    if ('depth' in node.op_type.lower()):
-        depth = 1
-    else:
-        depth = 0
-
-    if (depth):
-        och = 1
-    else:
-        och      = getattr(output_shape, 'dim')[1].dim_value
+    och      = getattr(output_shape, 'dim')[1].dim_value
     oh       = getattr(output_shape, 'dim')[2].dim_value
     ow       = getattr(output_shape, 'dim')[3].dim_value
     fh       = getattr(attributes[2], 'ints')[0]
@@ -40,6 +32,13 @@ def info(io_dict, node, node_name, init_info, tensors_info, enable_ws):
     add      = False
     in_scale_factor = [None]
     in_bits = [None]
+
+    groups = getattr(attributes[1], 'ints')
+
+    if (groups == och):
+        depth = 1
+    else:
+        depth = 0
 
     io_dict[node_name]["ich"]    = ich
     io_dict[node_name]["ih"]     = ih

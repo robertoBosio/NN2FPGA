@@ -256,6 +256,7 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
   // Generic Convolution Computation
 
   const auto c_och_depth = (c_depth == 1) ? 1 : c_och;
+  std::cout << "conv " << c_och_depth << " " << c_fh << " " << c_fw << " " << c_ws <<  " " << c_depth << std::endl;
   const auto c_o_index = c_oh * c_ow / c_reuse;
   const auto c_reuse_iter = c_reuse / c_ws;
   const auto c_num_och = c_och_depth / c_ops;
@@ -485,6 +486,7 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
       }
     }
   }
+  std::cout << "conv end " << c_och_depth << std::endl;
 }
 
 //////////////////////////////////////////////////////////////////////////////

@@ -28,6 +28,7 @@ void pad_input(hls::stream<din_t> din[(c_fw+(c_ws-1)*c_str) * c_fh],
   
   din_t s_read[FSZ];
 
+  std::cout << "pad_input" << std::endl;
   for (auto s_index_h = 0; s_index_h < IH_REM; s_index_h += c_str) {
     for (auto s_index_w = 0; s_index_w < IW_REM; s_index_w += c_str*c_ws) {
       for (auto s_index_ich = 0; s_index_ich < ICH; s_index_ich+=c_ops_out) {
@@ -96,6 +97,7 @@ void shift_op(hls::stream<din_t> &din, hls::stream<dcomp_t> &o_compute,
               hls::stream<dout_t> &o_data) {
   /* #pragma HLS inline */
 
+  std::cout << "shift_op" << std::endl;
   constexpr int c_pad_index_h = c_pad * (c_fh - 1) / 2;
   constexpr int c_pad_index_w = c_pad * (c_fw - 1) / 2;
   constexpr int IH_PAD = IH + c_pad_index_h * 2;

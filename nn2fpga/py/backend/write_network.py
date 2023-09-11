@@ -56,6 +56,9 @@ def write_network(
         init_info
     )
 
+    for node_name, node in io_dict.items():
+        print(node_name, node)
+
     io_dict = balance_computations.ilp(
         io_dict,
         off_chip_storage,
