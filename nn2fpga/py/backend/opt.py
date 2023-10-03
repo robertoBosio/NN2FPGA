@@ -640,6 +640,31 @@ def share_reuse(model, io_dict):
 
     return io_dict
 
+def opt_flatten(io_dict, model):
+
+    io_connect = extract_connections(model, io_dict)
+
+    # cycling on io_dict to find flatten layers
+    for layer_name, layer_info in io_dict.items():
+            
+        if layer_info["type"] == "flatten":
+
+            # getting input and output of flatten layer
+            input = layer_info["input"][0]
+            output = layer_info["output"][0]
+
+            # getting input and output layer before flatten
+            input_layer = io_connect[input][0][0]
+
+            # getting input and output of the layer after flatten
+            io_dict[input_layer]["output"][0] = output
+
+            # removing flatten layer
+            del io_dict[layer_name]
+            break
+
+    return io_dict
+
 def opt_steps(
     inferred_model,
     io_dict,
@@ -670,6 +695,11 @@ def opt_steps(
                 #     inferred_model,
                 #     io_dict
                 # )
+
+                io_dict = opt_flatten(
+                    io_dict,
+                    inferred_model
+                )
 
                 io_dict = opt_quant(
                     inferred_model,

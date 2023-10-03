@@ -5,6 +5,7 @@ import qonnx
 from onnx import numpy_helper
 import numpy as np
 import backend.layers.conv as conv
+import backend.layers.gemm as gemm
 import backend.layers.pool as pool
 import backend.layers.input_gen as input_gen
 import backend.layers.quant as quant
@@ -230,6 +231,18 @@ def graph_info(model, init_info, object_detection=False, anchors=None, enable_ws
             last_layer_name = node_name
             continue
 
+        if 'gemm' in node.op_type.lower():
+            io_dict = gemm.info(
+                io_dict,
+                node,
+                node_name,
+                init_info,
+                tensors_info,
+                enable_ws
+            )
+            last_layer_name = node_name
+            continue
+
         if 'pool' in node.op_type.lower():
             io_dict = pool.info(
                 io_dict,
@@ -267,6 +280,11 @@ def graph_info(model, init_info, object_detection=False, anchors=None, enable_ws
             last_layer_name = node_name
             continue
         
+        if 'flatten' in node.op_type.lower():
+            io_dict[node_name]["type"] = "flatten"
+            last_layer_name = node_name
+            continue
+
         if 'concat' in node.op_type.lower() and cut_name == []:
             io_dict = concat.info(
                 io_dict,
@@ -308,6 +326,7 @@ def graph_info(model, init_info, object_detection=False, anchors=None, enable_ws
         io_dict.pop(node_name)
 
     # check if the last layer output is the graph output
+    print(cut_name)
     assert (len(cut_name) < 2 or object_detection)
     if len(cut_name) > 0:
         assert (len(cut_name) == len(anchors))

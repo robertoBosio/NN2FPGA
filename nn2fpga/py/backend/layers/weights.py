@@ -166,7 +166,7 @@ def extract_info(
     shape = pre_values.shape
 
     och = shape[0]
-    if not("bias" in weight_name):
+    if len(shape) > 1:
         ich = shape[1]
         is_bias = False
     else:
@@ -269,7 +269,7 @@ def weights_info(
 
             conv_name = io_connect[node_info["output"][0]][1][0]
 
-            assert 'conv' in conv_name.lower()
+            assert 'conv' in io_dict[conv_name]["type"].lower()
 
             conv_info = io_dict[conv_name]
 

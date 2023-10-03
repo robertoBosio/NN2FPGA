@@ -141,7 +141,10 @@ def ilp(io_dict, off_chip_storage, model, board="ULTRA96v2", double_packing=True
     io_connect = extract_connections(model, io_dict)
 
     for node_name, ops in parallel_ops.items():
-        io_dict[node_name]["ops"] = ops
+        if io_dict[node_name]["depth"] == 0:
+            io_dict[node_name]["ops"] = ops
+        else: 
+            io_dict[node_name]["ops"] = 1
         io_dict[node_name]["dp"] = False
 
         # Evaluating neccessary output channels to avoid losing performance
