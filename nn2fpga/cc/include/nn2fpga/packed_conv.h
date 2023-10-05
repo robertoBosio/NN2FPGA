@@ -312,7 +312,7 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
   for (auto s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
     for (auto s_ich = 0; s_ich < c_ich; s_ich++) {
       for (auto s_iter = 0; s_iter < c_iter; s_iter++) {
-#pragma HLS pipeline style = stp
+#pragma HLS pipeline style = stp II=1
         auto s_reuse = s_iter % c_reuse_iter;
         auto s_num_och = s_iter / c_reuse_iter;
         auto s_ich_idx = s_ich % c_in_ops;
