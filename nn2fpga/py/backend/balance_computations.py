@@ -145,6 +145,7 @@ def ilp(io_dict, off_chip_storage, model, board="ULTRA96v2", double_packing=True
             io_dict[node_name]["ops"] = ops
         else: 
             io_dict[node_name]["ops"] = 1
+            # io_dict[node_name]["ich_ops"] = ops
         io_dict[node_name]["dp"] = False
 
         # Evaluating neccessary output channels to avoid losing performance

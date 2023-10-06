@@ -45,7 +45,7 @@ template <class t_input, class t_weight, class t_weight_st, class t_bias, class 
           class t_output_struct, class t_output, class t_output_clip, 
           class t_output_mask, int c_reuse, int c_ws, int c_fh, int c_fw, int c_index, int c_str,
           int c_ops, int c_in_ops, int c_relu, int c_ich, int c_och, int c_bits, int c_simd_bits,
-          int c_simd, int c_pad_bits, int c_int_pad_bits, int c_mask, int c_w_bits>
+          int c_simd, int c_pad_bits, int c_int_pad_bits, int c_mask, int c_w_bits, int c_depth>
 void conv_pipe(
     t_input i_input,
     t_weight i_weight[c_index],
@@ -96,8 +96,16 @@ void conv_pipe(
       }
     }
 
-    for (auto s_ws = 0; s_ws < c_ws; s_ws++) {
-      s_acc_base[s_ws] = i_acc_buff[reuse][och*c_ws+s_ws];
+    // If c_depth is 1 then there is no need to accumulate the previous
+    // results
+    if constexpr(c_depth == 1) {
+      for (auto s_ws = 0; s_ws < c_ws; s_ws++) {
+        s_acc_base[s_ws] = 0;
+      }
+    } else {
+      for (auto s_ws = 0; s_ws < c_ws; s_ws++) {
+        s_acc_base[s_ws] = i_acc_buff[reuse][och*c_ws+s_ws];
+      }
     }
 
     for (auto s_simd = 0; s_simd < c_simd; s_simd++) {
@@ -168,10 +176,13 @@ void conv_pipe(
       }
     }
 
-    for (auto s_ws = 0; s_ws < c_ws; s_ws++) {
-      i_acc_buff[reuse][och*c_ws+s_ws] = s_acc[s_ws];
+    // If c_depth is 1 then there is no need to store the previous
+    // results
+    if constexpr(c_depth == 0) {
+      for (auto s_ws = 0; s_ws < c_ws; s_ws++) {
+        i_acc_buff[reuse][och*c_ws+s_ws] = s_acc[s_ws];
+      }
     }
-
 
     if (ich == c_ich-1) {
       for (auto s_ws = 0; s_ws < c_ws; s_ws++) {
@@ -206,7 +217,13 @@ void conv_pipe(
       }
     }
 
-    s_acc_base = i_acc_buff[reuse][och];
+    // If c_depth is 1 then there is no need to accumulate the previous
+    // results
+    if constexpr(c_depth == 1) {
+      s_acc_base = 0;
+    } else {
+      s_acc_base = i_acc_buff[reuse][och];
+    }
 
     for (auto s_index = 0; s_index < c_index; s_index++) {
       auto s_data = i_input[s_index][ich_idx];
@@ -217,7 +234,10 @@ void conv_pipe(
 
     if (ich != 0) s_acc += s_acc_base;
 
-    i_acc_buff[reuse][och] = s_acc;
+    // If c_depth is 1 then there is no need to store the previous
+    // results
+    if constexpr(c_depth == 0)
+      i_acc_buff[reuse][och] = s_acc;
 
     if (ich == c_ich-1) {
       s_output_struct[0].data[0][ops] = quant_stream<
@@ -309,8 +329,16 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
 
   auto s_ich_idx_add = 0;
 
+  #ifndef __SYNTHESIS__
+    if (c_depth == 1)
+      std::cout << "depth_conv_op " << c_ich << " " << c_depth << " " << c_ops << std::endl;
+    else
+      std::cout << "conv_op " << c_ich << " " << c_depth << " " << c_ops << std::endl;
+  #endif
   for (auto s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
     for (auto s_ich = 0; s_ich < c_ich; s_ich++) {
+//       if constexpr(c_depth == 1)
+// #pragma HLS unroll factor=c_in_ops
       for (auto s_iter = 0; s_iter < c_iter; s_iter++) {
 #pragma HLS pipeline style = stp II=1
         auto s_reuse = s_iter % c_reuse_iter;
@@ -351,7 +379,12 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
         // be equal, so we could perform the addition in different iterations
         if constexpr(std::is_same<t_add_struct, std::nullptr_t>::value == false){
           for (auto s_ws = 0; s_ws < c_ws; s_ws++) {
+            // FIX FOR MOBILENETv2: Taking into account different output and
+            // input channels
             if ((s_iter == 0) && (s_ich_idx_add == 0)){
+              if constexpr(c_ich > c_och)
+                if (s_ich >= c_och)
+                  continue;
               s_add[s_ws] = i_add[s_ws].read();   
             }
           }
@@ -392,7 +425,8 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
             c_pad_bits,
             c_int_pad_bits,
             c_mask,
-            c_w_bits
+            c_w_bits,
+            c_depth
           > (
             s_input,
             s_weight,
@@ -447,7 +481,8 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
               c_pad_bits,
               c_int_pad_bits,
               c_mask_1x1,
-              c_w_bits_1x1
+              c_w_bits_1x1,
+              c_depth
             > (
               s_input_1x1,
               s_weight_1x1,
@@ -485,6 +520,12 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
       }
     }
   }
+  #ifndef __SYNTHESIS__
+    if (c_depth == 1)
+      std::cout << "end depth_conv_op " << c_ich << " " << c_depth << std::endl;
+    else
+      std::cout << "end conv_op " << c_ich << " " << c_depth << std::endl;
+  #endif
 }
 
 //////////////////////////////////////////////////////////////////////////////

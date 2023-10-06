@@ -488,6 +488,21 @@ def parse_comp(name, node):
     pragma["options"] = options
     block["pragma"].append(pragma)
 
+    # FIX: Adding because with big pointwise layers there are II violations
+    # because the array width is too high for a memory element
+    if node["is_1x1"] and node["ops"] > 16:
+        pragma = {}
+        pragma["name"] = "array_partition"
+        options = [
+            ["variable", "s_%s" % (output_name)],
+            # ["type", "cyclic"],
+            ["type", "complete"],
+            # ["factor", node["ops"]],
+            # ["dim", 3],
+        ]
+        pragma["options"] = options
+        block["pragma"].append(pragma)
+
     if (node["merge_1x1"]):
         pragma = {}
         pragma["name"] = "stream"
@@ -502,6 +517,22 @@ def parse_comp(name, node):
         ]
         pragma["options"] = options
         block["pragma"].append(pragma)
+
+        # FIX: Adding because with big pointwise layers there are II violations
+        # because the array width is too high for a memory element
+        if node["merge_1x1"] and node["ops"] > 16:
+            pragma = {}
+            pragma["name"] = "array_partition"
+            options = [
+                ["variable", "s_%s" % (output_1x1_name)],
+                # ["type", "cyclic"],
+                ["type", "complete"],
+                # ["factor", node["ops"]],
+                # ["dim", 3],
+            ]
+            pragma["options"] = options
+            block["pragma"].append(pragma)
+
 
     return [block]
 

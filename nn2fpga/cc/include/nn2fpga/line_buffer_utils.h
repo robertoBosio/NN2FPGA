@@ -141,6 +141,9 @@ void shift_op(hls::stream<din_t> &din, hls::stream<dcomp_t> &o_compute,
 
   din_t s_input;
   dcomp_t s_output;
+  #ifndef __SYNTHESIS__
+      std::cout << "shift_op " << ICH << " " << c_ops << " " << c_ops_out << std::endl;
+  #endif
   for (auto s_index_h = c_starth; s_index_h < IH; s_index_h++) {
     for (auto s_index_w = c_startw; s_index_w < IW; s_index_w+=c_ws) {
       for (auto s_index_ich = 0; s_index_ich < (ICH); s_index_ich+=c_ops_out) {
@@ -170,6 +173,9 @@ void shift_op(hls::stream<din_t> &din, hls::stream<dcomp_t> &o_compute,
       }
     }
   }
+  #ifndef __SYNTHESIS__
+      std::cout << "end shift_op " << ICH << " " << c_ops << " " << c_ops_out << std::endl;
+  #endif
 }
 
 }  // namespace nn2fpga

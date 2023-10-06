@@ -77,6 +77,7 @@ def parse_all_main(io_dict):
     parsed_const = []
 
     no_output_gen = False
+    last_node = None
 
     for name, node in io_dict.items():
 
@@ -95,6 +96,7 @@ def parse_all_main(io_dict):
                     pad.parse(name, node)
                 )
             parsed_write = parsed_write + conv.parse(name, node)
+            last_node = node
 
         if 'pool' == node["type"]:
             if (not node["is_adaptive"]):
@@ -106,6 +108,7 @@ def parse_all_main(io_dict):
             parsed_write.append(
                 pool.parse(name, node)
             )
+            last_node = node
 
         # Just for the sake of constant definition
         if 'const' == node["type"]:
@@ -130,7 +133,7 @@ def parse_all_main(io_dict):
 
     if not no_output_gen:
         parsed_write.append(
-            output_gen.parse(parsed_write, last_node_name)
+            output_gen.parse(last_node, last_node_name)
         )
 
     return parsed_write, parsed_const
