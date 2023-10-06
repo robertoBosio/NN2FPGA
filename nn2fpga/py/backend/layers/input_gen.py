@@ -75,6 +75,13 @@ def parse(name, node):
         "ap_axiu<c_%s, 0, 0, 0>" % input_name
     ]
 
+    if input_name != "inp_1":
+        block["defines"]["c_inp_1"] = ["const", 64]
+        block["defines"]["t_inp_1"] = [
+            "type",
+            "t_%s" % input_name
+        ]
+
     output_type = get_quant_type(node["signed"], node["bits"][0], node["scale_factor"][0])
 
     block["defines"]["t_%s_part" % input_type_name] = [
