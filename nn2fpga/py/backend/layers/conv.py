@@ -13,16 +13,37 @@ def info(io_dict, node, node_name, init_info, tensors_info, enable_ws):
     input_shape = tensors_info[node.input[0]].tensor_type.shape
     output_shape = tensors_info[node.output[0]].tensor_type.shape
 
+    for i, attribute in enumerate(attributes):
+        if getattr(attribute, 'name') == "kernel_shape":
+            kernel_index = i
+        if getattr(attribute, 'name') == "strides":
+            strides_index = i
+        if getattr(attribute, 'name') == "pads":
+            pads_index = i
+        if getattr(attribute, 'name') == "group":
+            group_index = i
+    
+    # Check if kernel strides and pads exist and if not set terminate
+    if 'kernel_index' not in locals():
+        print("Kernel index not found in conv")
+        exit(0)
+    if 'strides_index' not in locals():
+        print("Strides index not found in conv")
+        exit(0)
+    if 'pads_index' not in locals():
+        print("Pads index not found in conv")
+        exit(0)
+
     ich      = getattr(input_shape, 'dim')[1].dim_value
     ih       = getattr(input_shape, 'dim')[2].dim_value
     iw       = getattr(input_shape, 'dim')[3].dim_value
     och      = getattr(output_shape, 'dim')[1].dim_value
     oh       = getattr(output_shape, 'dim')[2].dim_value
     ow       = getattr(output_shape, 'dim')[3].dim_value
-    fh       = getattr(attributes[2], 'ints')[0]
-    fw       = getattr(attributes[2], 'ints')[1]
-    stride   = getattr(attributes[4], 'ints')[0]
-    pad      = getattr(attributes[3], 'ints')[0]
+    fh       = getattr(attributes[kernel_index], 'ints')[0]
+    fw       = getattr(attributes[kernel_index], 'ints')[1]
+    stride   = getattr(attributes[strides_index], 'ints')[0]
+    pad      = getattr(attributes[pads_index], 'ints')[0]
     is_1x1   = (fh == 1) and (fw == 1)
     kernel   = fh*fw
     img_ch   = ich*och
@@ -31,9 +52,14 @@ def info(io_dict, node, node_name, init_info, tensors_info, enable_ws):
     in_scale_factor = [None]
     in_bits = [None]
 
-    groups = getattr(attributes[1], 'ints')
+    # Check if groups exist and if not set to 1
+    if 'group_index' not in locals():
+        group = 1
+    else:
+        # group = getattr(attributes[group_index], 'ints')
+        group = ich
 
-    if (groups == och):
+    if (group == och):
         depth = 1
     else:
         depth = 0
