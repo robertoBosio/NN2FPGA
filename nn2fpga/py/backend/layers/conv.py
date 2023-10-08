@@ -446,6 +446,17 @@ def parse_comp(name, node):
     pragma["options"] = options
     block["pragma"].append(pragma)
 
+    pragma = {}
+    pragma["name"] = "bind_storage"
+    pragma_name = "s_%s" % (output_name)
+    options = [
+        ["variable", pragma_name],
+        ["impl", "bram"],
+        ["type", "fifo"],
+    ]
+    pragma["options"] = options
+    block["pragma"].append(pragma)
+
     if (node["merge_1x1"]):
         pragma = {}
         pragma["name"] = "stream"
@@ -456,6 +467,17 @@ def parse_comp(name, node):
         options = [
             ["variable", pragma_name],
             ["depth", depth],
+            ["type", "fifo"],
+        ]
+        pragma["options"] = options
+        block["pragma"].append(pragma)
+
+        pragma = {}
+        pragma["name"] = "bind_storage"
+        pragma_name = "s_%s" % (output_1x1_name)
+        options = [
+            ["variable", pragma_name],
+            ["impl", "bram"],
             ["type", "fifo"],
         ]
         pragma["options"] = options
