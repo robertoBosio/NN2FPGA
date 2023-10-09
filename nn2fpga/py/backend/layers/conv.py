@@ -2,6 +2,7 @@ import os
 import sys
 #import onnx
 import qonnx
+import math
 from onnx import numpy_helper
 import numpy as np
 import backend.quant
@@ -10,6 +11,7 @@ from backend.layers.quant import get_quant_type, get_quant_constant
 def info(io_dict, node, node_name, init_info, tensors_info, enable_ws):
 
     attributes = getattr(node, "attribute" )
+    inputs = getattr(node, "input" )
     input_shape = tensors_info[node.input[0]].tensor_type.shape
     output_shape = tensors_info[node.output[0]].tensor_type.shape
 
@@ -22,6 +24,11 @@ def info(io_dict, node, node_name, init_info, tensors_info, enable_ws):
             pads_index = i
         if getattr(attribute, 'name') == "group":
             group_index = i
+
+    weight_name = inputs[1] 
+            
+    if (len(inputs) > 2):
+        bias_name = inputs[2]
     
     # Check if kernel strides and pads exist and if not set terminate
     if 'kernel_index' not in locals():
@@ -56,8 +63,7 @@ def info(io_dict, node, node_name, init_info, tensors_info, enable_ws):
     if 'group_index' not in locals():
         group = 1
     else:
-        # group = getattr(attributes[group_index], 'ints')
-        group = ich
+        group = getattr(attributes[group_index], 'i')
 
     if (group == och):
         depth = 1
@@ -108,6 +114,9 @@ def info(io_dict, node, node_name, init_info, tensors_info, enable_ws):
     io_dict[node_name]["in_ops"] = 1
     io_dict[node_name]["ich_ops"] = 1
     io_dict[node_name]["depth"] = depth
+    io_dict[node_name]["weights_name"] = [weight_name]
+    if 'bias_name' in locals():
+        io_dict[node_name]["bias_name"] = [bias_name]
 
     return io_dict
 
@@ -234,6 +243,8 @@ def parse_comp(name, node):
     # synthesizer gives an error
     simd_bits = 2
     simd = int(np.log2(node["kernel"])/simd_bits) + (0 != (np.log2(node["kernel"]) - int(np.log2(node["kernel"]))))
+    if (simd == 0):
+        simd = 1
     mask = (1 << (simd-1)) - 1;
     if (node["in_scale_factor"][0] is not None):
         abits, aibits = get_quant_constant(node["signed"], node["in_bits"][0], node["in_scale_factor"][0])
@@ -281,7 +292,11 @@ def parse_comp(name, node):
     ####################################################################################
     block["template"].append("%0d" % node["depth"])
 
-    acc_type = get_quant_type(True, 32, node["actscale"][0]+node["wscale"][0], acc_reg=True)
+    if (node["depth"] == 1):
+        acc_bits = node["actbits"][0] + node["wbits"][0] + math.ceil(math.log2(node["kernel"]))
+    else:
+        acc_bits = node["actbits"][0] + node["wbits"][0] + math.ceil(math.log2(node["kernel"]*node["ich"]))
+    acc_type = get_quant_type(True, acc_bits, node["actscale"][0]+node["wscale"][0], acc_reg=True)
     block["defines"] = {}
     block["defines"]["t_%s_acc" % output_name] = ["type", acc_type]
     block["defines"]["t_%s_acc_struct" % output_name] = [
@@ -355,8 +370,16 @@ def parse_comp(name, node):
         block["defines"]["t_%s_1x1" % input_name] = ["type", input_1x1_type]
 
         if (node["in_scale_factor"][1] is not None):
+            if (node["depth"] == 1):
+                acc_bits = node["in_bits"][1] + node["wbits"][1]
+            else:
+                acc_bits = node["actbits"][0] + node["wbits"][1] + math.ceil(node["ich"])
             acc_type_1x1 = get_quant_type(True, 32, node["in_scale_factor"][1]+node["wscale"][1]-2)
         else:
+            if (node["depth"] == 1):
+                acc_bits = node["in_bits"][1] + node["wbits"][1]
+            else:
+                acc_bits = node["actbits"][0] + node["wbits"][1] + math.ceil(node["ich"])
             acc_type_1x1 = get_quant_type(True, 32, node["actscale"][0]+node["wscale"][1])
 
         block["defines"]["t_%s_acc" % output_1x1_name] = ["type", acc_type_1x1]

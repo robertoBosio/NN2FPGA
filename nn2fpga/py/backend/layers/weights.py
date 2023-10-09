@@ -653,38 +653,39 @@ def on_chip_rom(
         divider = 64
 
     partition_factor = int(node["ih"]*node["iw"]*node["ops"]*node["bits"]/divider)
-    if partition_factor>1:
+    if node["ih"]*node["iw"]!=1:
+        if partition_factor>1:
+            pragma = {}
+            pragma["name"] = "array_partition"
+            options = [
+                ["variable", "c_%s" % (output_name)],
+                ["type", "cyclic"],
+                ["factor", partition_factor],
+                ["dim", 1],
+            ]
+            pragma["options"] = options
+
+            block["pragma"].append(pragma)
+
+        #######################################################################
         pragma = {}
-        pragma["name"] = "array_partition"
+        pragma["name"] = "array_reshape"
         options = [
             ["variable", "c_%s" % (output_name)],
-            ["type", "cyclic"],
-            ["factor", partition_factor],
+            ["type", "complete"],
+            # ["factor", 1],
             ["dim", 1],
         ]
         pragma["options"] = options
 
         block["pragma"].append(pragma)
+
     #######################################################################
     pragma = {}
     pragma["name"] = "array_reshape"
     options = [
         ["variable", "c_%s" % (output_name)],
         ["type", "complete"],
-        # ["factor", 1],
-        ["dim", 1],
-    ]
-    pragma["options"] = options
-
-    block["pragma"].append(pragma)
-    #######################################################################
-
-    pragma = {}
-    pragma["name"] = "array_reshape"
-    options = [
-        ["variable", "c_%s" % (output_name)],
-        ["type", "cyclic"],
-        ["factor", node["ops"]],
         ["dim", 3],
     ]
     pragma["options"] = options

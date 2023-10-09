@@ -349,6 +349,7 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
 
         if ((s_num_och == 0) && ((s_ich_idx) == 0)) {
           t_input_struct s_input_struct = i_input[0].read();
+          #pragma HLS array_partition variable=s_input_struct.data type=complete
           s_input = s_input_struct.data;
           /* Sending last only at the bottom right data */
           s_last = s_input_struct.last;

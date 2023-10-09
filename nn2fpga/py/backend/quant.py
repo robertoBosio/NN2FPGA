@@ -56,10 +56,23 @@ def hw_quant(model, io_dict):
         layer_out_name = layers[1][0]
 
         is_quant0 = 'quant' in io_dict[layer_in_name].keys()
-        is_weight = 'quant' in layer_in_name.lower()
-        is_not_bias = 'bias' not in io_dict[layer_in_name]["input"][0].lower()
+        # Recognize bias through convolution layer field
+        is_not_bias = True
+        is_weight = False
 
         if layer_out_name != "consume_stream":
+            is_out_conv = 'conv' in io_dict[layer_out_name]['type']
+            # is_not_bias = 'bias' not in io_dict[layer_in_name]["input"][0].lower()
+            if is_out_conv:
+                is_weight = any(
+                    [
+                        net_name == weight_name.replace(".", "_") 
+                        for weight_name in io_dict[layer_out_name]["weights_name"]
+                    ]    
+                )
+                # if "bias_name" in io_dict[layer_out_name].keys():
+                #     is_not_bias = net_name in io_dict[layer_out_name]["bias_name"]
+
             is_quant1 = 'quant' in io_dict[layer_out_name].keys()
             if is_quant0 and is_quant1:
                 in_scale_factors = io_dict[layer_in_name]["scale_factor"]
@@ -97,7 +110,7 @@ def hw_quant(model, io_dict):
                     io_dict[layer_out_name]["ws"] = ws_partial
                     io_dict[layer_out_name]["reuse"] = ws_partial
 
-            elif is_weight and is_not_bias:
+            elif is_weight:
                 scale_factor = io_dict[layer_in_name]["scale_factor"]
                 io_dict[layer_out_name]["wscale"].append(scale_factor)
 
