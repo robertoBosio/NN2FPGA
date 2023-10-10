@@ -25,6 +25,7 @@ def info(io_dict, node, node_name, init_info, tensors_info, enable_ws):
     pad      = getattr(attributes[3], 'ints')[0]
     is_1x1   = (fh == 1) and (fw == 1)
     total    = 1/(oh*ow*och*ich)
+    total_log = 2*oh*ow*och*ich*fh*fw
     kernel   = fh*fw
     img_ch   = ich*och
     relu     = False
@@ -44,6 +45,7 @@ def info(io_dict, node, node_name, init_info, tensors_info, enable_ws):
     io_dict[node_name]["pad"]    = pad
     io_dict[node_name]["is_1x1"] = is_1x1
     io_dict[node_name]["total"]  = total
+    io_dict[node_name]["total_log"]  = total_log
     io_dict[node_name]["kernel"] = kernel
     io_dict[node_name]["img_ch"] = img_ch
     # Reuse is generic

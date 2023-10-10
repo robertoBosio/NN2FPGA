@@ -38,7 +38,6 @@ void produce_stream(din_t din[c_fh * c_fw][OCH * ICH / c_ops][c_ops],
   constexpr unsigned c_ch = ICH * OCH / c_ops;
   constexpr unsigned c_o_index = OH * OW / c_reuse;
 
-  // std::cout << "produce_stream " << c_ch << " " << c_o_index << std::endl;
   if (!s_init) {
     for (auto s_ch = 0; (s_ch < c_ch); s_ch++) {
       for (auto s_index = 0; s_index < FSZ; s_index++) {
@@ -72,13 +71,14 @@ void produce_stream(hls::stream<din_t> &din,
                     hls::stream<dout_tmp_t> dout[INDEX]) {
   // std::cout << "produce_stream " << BYTES << std::endl;
 #pragma HLS inline
-  const auto ITER = DIM/(INDEX*OPS*PACK);
+  const auto ITER = DIM/(INDEX*OPS);
+  const auto OPS_PACK = OPS/PACK;
   dout_tmp_t tmp = 0;
   din_t tmp_din;
   if (!init) {
     for (auto i = 0; i < ITER; i++) {
       for (auto k = 0; k < INDEX; k++) {
-        for (auto c = 0; c < OPS; c++) {
+        for (auto c = 0; c < OPS_PACK; c++) {
           for (auto j = 0; j < BYTES; j++) {
             for (auto m = 0; m < PACK; m++) {
 #pragma HLS pipeline II=1

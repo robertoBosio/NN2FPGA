@@ -50,6 +50,6 @@ ssh ${device} "cd ${path} && source /etc/profile && python3 ${path}overlay/infer
 
 # cleanup
 scp ${device}:${path}overlay/results.txt ${PRJ_ROOT}/${res_file}
-if [ $1 = "kriahlslab0" ]; then
+if [ $1 = "KRIA" ]; then
 		ssh ${device} "rm -r ${path}overlay && xmutil unloadapp k26-starter-kits && xmutil loadapp k26-starter-kits"
 fi
