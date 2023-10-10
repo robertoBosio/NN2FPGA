@@ -40,39 +40,55 @@ def opt_add(model, io_dict):
 
         for net_name, layers in io_connect.items():
 
-            # By construction if the add layer is in the first position of the 
-            # output layers of a net it means it can be merged
-            layer_in_name = layers[0][0]
+            # The merge should be done with the layer on the longest chain of the branch
+            layer_in_name = ""
+
             layer_out_name = layers[1][0]
 
-            start_conv = 'conv' in layer_in_name.lower()
-            end_add = 'add' in layer_out_name.lower()
+            end_add = False
+            if layer_out_name != "consume_stream":
+                end_add = 'add' in io_dict[layer_out_name]["type"].lower()
+
+            if (end_add):
+
+                max_length = -1
+                temp_start_conv = False
+                for layer_name in layers[0]:
+                    # look if there is at least a conv layer in the branching path
+                    if ('conv' in io_dict[layer_name]["type"].lower()):
+                        temp_start_conv = True 
+                        length = compute_branch_length(io_dict, io_connect, layer_name)
+                        if length > max_length:
+                            max_length = length
+                            max_index = layers[0].index(layer_name)
+
+                if temp_start_conv and (max_length > 0):
+                    layer_in_name = layers[0][max_index]
+
+            if layer_in_name == "":
+                continue
+
+            start_conv = 'conv' in io_dict[layer_in_name]["type"].lower()
 
             # If true the add can be absorbed into convolution
             if start_conv and end_add:
 
-                # The add operation should be not merged with a pointwise layer
-                fh = io_dict[layer_in_name]["fh"] 
-                fw = io_dict[layer_in_name]["fw"] 
-                is_not_pointwise =  (fh != 1) or (fw != 1)
+                print("Merged add in:", layer_in_name)
+                io_dict[layer_in_name]["add"] = True
 
-                if is_not_pointwise:
+                # Bypassing add layer changing conv output
+                out_name = io_dict[layer_out_name]["output"][0]
+                io_dict[layer_in_name]["output"][0] = out_name
 
-                    io_dict[layer_in_name]["add"] = True
+                # Adding other outputs in input to the conv layer
+                for input in io_dict[layer_out_name]["input"]:
+                    if input != net_name:
+                        io_dict[layer_in_name]["input"].append(input)
 
-                    # Bypassing add layer changing conv output
-                    out_name = io_dict[layer_out_name]["output"][0]
-                    io_dict[layer_in_name]["output"][0] = out_name
-
-                    # Adding other outputs in input to the conv layer
-                    for input in io_dict[layer_out_name]["input"]:
-                        if input != net_name:
-                            io_dict[layer_in_name]["input"].append(input)
-
-                    # Removing layer
-                    del io_dict[layer_out_name]
-                    no_break = False
-                    break
+                # Removing layer
+                del io_dict[layer_out_name]
+                no_break = False
+                break
 
     return io_dict
 
@@ -226,7 +242,14 @@ def opt_merge_conv(model, io_dict):
                 # If they are all convolutions and the tensors are at the same
                 # level, the operations can be merged in one layer
                 if all_conv and is_same_level and not_same_conv:
-                    layer_base_name = layer_out_names[0]
+                    merging_length = [
+                        compute_branch_length(io_dict, io_connect, layer_name, forward=True)
+                        for layer_name in layer_out_names
+                    ]
+                    # exit()
+                    max_length = max(merging_length)
+                    max_index = merging_length.index(max_length)
+                    layer_base_name = layer_out_names[max_index]
 
                     rem_layer = []
                     input_tensor = []
@@ -305,6 +328,55 @@ def opt_merge_conv(model, io_dict):
 
     return io_dict
 
+# Creating quantization layers if add/conv layers are without it
+def assign_quant(model, io_dict):
+
+    io_connect = extract_connections(model, io_dict)
+
+    removed_layers = []
+
+    for net_name, layers in io_connect.items():
+        layer_in_name = layers[0][0]
+        layer_out_name = layers[1][0]
+
+        search_layers = [
+            'conv',
+            'pool',
+            'produce',
+            'add'
+        ]
+
+        if layer_in_name in removed_layers:
+            continue
+
+        start_merge = any(
+            search_name in io_dict[layer_in_name]["type"]
+            for search_name in search_layers
+        )
+
+        if (layer_out_name == "consume_stream"):
+            continue
+
+        end_quant = 'quant' == io_dict[layer_out_name]["type"]
+        multiple_quant = len(layers[1]) > 1
+
+        if start_merge and end_quant and multiple_quant:
+            # TODO: optimize it
+            io_dict[layer_in_name]["scale_factor"] = [0]
+            io_dict[layer_in_name]["quant"] = True
+            io_dict[layer_in_name]["signed"] = [1]
+            io_dict[layer_in_name]["narrow"] = [0]
+            io_dict[layer_in_name]["bits"] = [32]
+            io_dict[layer_in_name]["actscale"] = [0]
+            io_dict[layer_in_name]["clip"] = [0]
+            io_dict[layer_in_name]["mask"] = [0]
+            io_dict[layer_in_name]["clip_factor"] = [0]
+            io_dict[layer_in_name]["mask_factor"] = [0]
+            io_dict[layer_in_name]["clip_signed"] = [0]
+            io_dict[layer_in_name]["mask_signed"] = [0]
+
+    return io_dict
+
 def opt_quant(model, io_dict, quant_info):
     
     change = True
@@ -322,6 +394,7 @@ def opt_quant(model, io_dict, quant_info):
                 'conv',
                 'pool',
                 'produce',
+                'add',
             ]
 
             if layer_in_name in removed_layers:
@@ -452,14 +525,18 @@ def opt_skip_quant(model, io_dict, quant_info, init_info):
                 if is_split and not_constant:
                     # This opt is only possible when the output conv has already
                     # a quantization
-                    assert "quant" in io_dict[layer_out_name].keys()
-                    assert io_dict[layer_out_name]["quant"]
+                    if not "quant" in io_dict[layer_out_name].keys():
+                        continue
+                    if not io_dict[layer_out_name]["quant"]:
+                        continue
 
                     # This opt is only possible when the input tensor has already
                     # a quantization
                     pre_quant_layer = io_connect[quant_input][0][0]
-                    assert "quant" in io_dict[pre_quant_layer].keys()
-                    assert io_dict[pre_quant_layer]["quant"]
+                    if not "quant" in io_dict[pre_quant_layer].keys():
+                        continue
+                    if not io_dict[pre_quant_layer]["quant"]:
+                        continue
                 else:
                     continue
 
@@ -563,12 +640,37 @@ def share_reuse(model, io_dict):
 
     return io_dict
 
+def opt_flatten(io_dict, model):
+
+    io_connect = extract_connections(model, io_dict)
+
+    # cycling on io_dict to find flatten layers
+    for layer_name, layer_info in io_dict.items():
+            
+        if layer_info["type"] == "flatten":
+
+            # getting input and output of flatten layer
+            input = layer_info["input"][0]
+            output = layer_info["output"][0]
+
+            # getting input and output layer before flatten
+            input_layer = io_connect[input][0][0]
+
+            # getting input and output of the layer after flatten
+            io_dict[input_layer]["output"][0] = output
+
+            # removing flatten layer
+            del io_dict[layer_name]
+            break
+
+    return io_dict
+
 def opt_steps(
     inferred_model,
     io_dict,
     init_info
 ):
-    for i in range(2):
+    for i in range(3):
 
         for i in range(10):
             for i in range(10):
@@ -589,6 +691,16 @@ def opt_steps(
                     init_info
                 )
 
+                # io_dict = assign_quant(
+                #     inferred_model,
+                #     io_dict
+                # )
+
+                io_dict = opt_flatten(
+                    io_dict,
+                    inferred_model
+                )
+
                 io_dict = opt_quant(
                     inferred_model,
                     io_dict,
@@ -600,38 +712,38 @@ def opt_steps(
                     io_dict,
                 )
 
-            io_dict = opt_add(
-                inferred_model,
-                io_dict,
-            )
-
             io_dict = opt_relu(
                 inferred_model,
                 io_dict,
             )
 
-        quant_info = extract_quant_info(
+            quant_info = extract_quant_info(
+                inferred_model,
+                io_dict,
+                init_info
+            )
+
+            io_dict = opt_skip_quant(
+                inferred_model,
+                io_dict,
+                quant_info,
+                init_info
+            )
+
+            io_dict = opt_add(
+                inferred_model,
+                io_dict,
+            )
+
+        io_dict = opt_merge_conv(
             inferred_model,
             io_dict,
-            init_info
         )
 
-        io_dict = opt_skip_quant(
+        io_dict = opt_skip(
             inferred_model,
             io_dict,
-            quant_info,
-            init_info
         )
-
-    io_dict = opt_merge_conv(
-        inferred_model,
-        io_dict,
-    )
-
-    io_dict = opt_skip(
-        inferred_model,
-        io_dict,
-    )
 
     return io_dict
 

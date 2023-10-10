@@ -5,6 +5,7 @@ import qonnx
 from onnx import numpy_helper
 import numpy as np
 import backend.layers.conv as conv
+import backend.layers.gemm as gemm
 import backend.layers.pool as pool
 import backend.layers.input_gen as input_gen
 import backend.layers.quant as quant
@@ -12,6 +13,67 @@ import backend.layers.detect as detect
 import backend.layers.non_max_suppression as non_max_suppression
 import backend.layers.concat as concat
 import backend.layers.upsample as upsample
+
+def compute_branch_length(io_dict, io_connect, layer_name, forward=False):
+    branch_length = 0
+    branch_found = False
+    analyze_layer = layer_name
+    if forward:
+        print("////////////////////// FORWARD PROPAGATION //////////////////////")
+    else:
+        print("////////////////////// BACKWARD PROPAGATION //////////////////////")
+    print("Checking conv layers", layer_name)
+
+    include_types = ["conv", "add"]
+
+    while not(branch_found) and (io_dict[analyze_layer]["type"] != "produce"):
+        # Search backward to find branching layers (i.e. layers with multiple outputs)
+        # The previous layer to look is always the first input layer
+
+        # If forward is True, we search forward to find merging layers (i.e. layers with multiple input)
+        if forward:
+            analyze_net = io_dict[analyze_layer]["output"][0]
+            # Then we extract the layer receiving the output from io_connect
+            analyze_layer = io_connect[analyze_net][1][0]
+            print("Analyze layer", analyze_layer)
+
+            if analyze_layer == "consume_stream":
+                branch_length = -1
+                break
+        else:
+            if (len(io_dict[layer_name]["output"]) > 1):
+                branch_length = 0
+                break
+            analyze_net = io_dict[analyze_layer]["input"][0]
+            # Then we extract the layer producing the input from io_connect
+            analyze_layer = io_connect[analyze_net][0][0]
+
+        if forward:
+            # If the analyzed layer has add, we found a merging layer
+            if "add" in io_dict[analyze_layer]["type"]:
+                branch_found = True
+            elif 'add' in io_dict[analyze_layer].keys():
+                branch_found = io_dict[analyze_layer]['add']
+        else:
+            # If the analyzed net has multiple outputs, we found a branching layer
+            merged_layer = len(io_dict[analyze_layer]["output"]) > 1
+            split_net = len(io_connect[analyze_net][1]) > 1
+            print("analyze_layer", analyze_layer)
+            if (merged_layer or split_net):
+                branch_found = True
+
+        # Only incrementing on conv,add layers
+        if io_dict[analyze_layer]["type"] not in include_types:
+            continue
+
+        if not branch_found:
+            branch_length += 1
+
+    if not branch_found:
+        branch_length = -1
+
+    print("Branch length", branch_length, layer_name)
+    return branch_length
 
 def net_distance(io_dict, io_connect):
 
@@ -169,6 +231,18 @@ def graph_info(model, init_info, object_detection=False, anchors=None, enable_ws
             last_layer_name = node_name
             continue
 
+        if 'gemm' in node.op_type.lower():
+            io_dict = gemm.info(
+                io_dict,
+                node,
+                node_name,
+                init_info,
+                tensors_info,
+                enable_ws
+            )
+            last_layer_name = node_name
+            continue
+
         if 'pool' in node.op_type.lower():
             io_dict = pool.info(
                 io_dict,
@@ -206,6 +280,11 @@ def graph_info(model, init_info, object_detection=False, anchors=None, enable_ws
             last_layer_name = node_name
             continue
         
+        if 'flatten' in node.op_type.lower():
+            io_dict[node_name]["type"] = "flatten"
+            last_layer_name = node_name
+            continue
+
         if 'concat' in node.op_type.lower() and cut_name == []:
             io_dict = concat.info(
                 io_dict,
@@ -247,6 +326,7 @@ def graph_info(model, init_info, object_detection=False, anchors=None, enable_ws
         io_dict.pop(node_name)
 
     # check if the last layer output is the graph output
+    print(cut_name)
     assert (len(cut_name) < 2 or object_detection)
     if len(cut_name) > 0:
         assert (len(cut_name) == len(anchors))

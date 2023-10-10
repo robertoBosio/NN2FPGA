@@ -24,14 +24,26 @@ def info(io_dict, node, node_name, init_info, tensors_info, enable_ws):
     stride   = getattr(attributes[4], 'ints')[0]
     pad      = getattr(attributes[3], 'ints')[0]
     is_1x1   = (fh == 1) and (fw == 1)
-    total    = 1/(oh*ow*och*ich)
-    total_log = 2*oh*ow*och*ich*fh*fw
     kernel   = fh*fw
     img_ch   = ich*och
     relu     = False
     add      = False
     in_scale_factor = [None]
     in_bits = [None]
+
+    groups = getattr(attributes[1], 'ints')
+
+    if (groups == och):
+        depth = 1
+    else:
+        depth = 0
+
+    if depth == 0:
+        total    = 1/(oh*ow*och*ich)
+        total_log = 2*oh*ow*och*ich*fh*fw
+    else:
+        total    = 1/(oh*ow*och)
+        total_log = 2*oh*ow*och*fh*fw
 
     io_dict[node_name]["ich"]    = ich
     io_dict[node_name]["ih"]     = ih
@@ -69,6 +81,7 @@ def info(io_dict, node, node_name, init_info, tensors_info, enable_ws):
     io_dict[node_name]["ops"] = 1
     io_dict[node_name]["in_ops"] = 1
     io_dict[node_name]["ich_ops"] = 1
+    io_dict[node_name]["depth"] = depth
 
     return io_dict
 
@@ -240,6 +253,7 @@ def parse_comp(name, node):
     block["template"].append("%0d" % simd)
     block["template"].append("%0d" % mask)
     ####################################################################################
+    block["template"].append("%0d" % node["depth"])
 
     acc_type = get_quant_type(True, 32, node["actscale"][0]+node["wscale"][0], acc_reg=True)
     block["defines"] = {}

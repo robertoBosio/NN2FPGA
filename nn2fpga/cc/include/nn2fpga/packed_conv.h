@@ -242,7 +242,7 @@ template <class t_input_struct, class t_input, class t_input_data, class t_weigh
           int c_str, int c_ops, int c_in_ops, int c_add_ops, int c_relu, int c_reuse, int c_ws, int c_ws_out, int c_in_bits, int c_in_ibits, 
           int c_w_bits, int c_w_ibits, int c_simd_bits, int c_simd, int c_mask,
           int c_in_bits_1x1, int c_in_ibits_1x1, int c_w_bits_1x1, int c_w_ibits_1x1,
-          int c_simd_bits_1x1, int c_simd_1x1, int c_mask_1x1>
+          int c_simd_bits_1x1, int c_simd_1x1, int c_mask_1x1, int c_depth>
 void conv_comp(hls::stream<t_input_struct> i_input[1],
                hls::stream<t_weight> i_weights[c_index],
                hls::stream<t_bias> i_bias[1],
@@ -255,17 +255,18 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
   /* #pragma HLS inline */
   // Generic Convolution Computation
 
+  const auto c_och_depth = (c_depth == 1) ? 1 : c_och;
   const auto c_o_index = c_oh * c_ow / c_reuse;
   const auto c_reuse_iter = c_reuse / c_ws;
-  const auto c_num_och = c_och / c_ops;
+  const auto c_num_och = c_och_depth / c_ops;
   const auto c_iter = c_reuse_iter * c_num_och;
   // constexpr int FW = (c_fw);
   constexpr int FW = (c_fw+(c_ws-1)*c_str);
   constexpr int MO = (c_fh*FW)/2;
 
-  t_acc s_acc_buff[c_reuse_iter][c_och*c_ws];
+  t_acc s_acc_buff[c_reuse_iter][c_och_depth*c_ws];
 #pragma HLS array_partition variable = s_acc_buff type = cyclic factor = c_ops*c_ws dim = 2
-  t_acc_1x1 s_acc_1x1_buff[c_reuse_iter][c_och*c_ws];
+  t_acc_1x1 s_acc_1x1_buff[c_reuse_iter][c_och_depth*c_ws];
 #pragma HLS array_partition variable = s_acc_1x1_buff type = cyclic factor = c_ops*c_ws dim = 2
   t_input s_input;
 // #pragma HLS array_partition variable = s_input type = complete dim = 0
@@ -311,7 +312,7 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
   for (auto s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
     for (auto s_ich = 0; s_ich < c_ich; s_ich++) {
       for (auto s_iter = 0; s_iter < c_iter; s_iter++) {
-#pragma HLS pipeline style = stp
+#pragma HLS pipeline style = stp II=1
         auto s_reuse = s_iter % c_reuse_iter;
         auto s_num_och = s_iter / c_reuse_iter;
         auto s_ich_idx = s_ich % c_in_ops;
@@ -337,11 +338,11 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
             s_weight_1x1[0] = i_weights_1x1[0].read();
 
           if constexpr(std::is_same<t_bias, std::nullptr_t>::value == false) {
-            if (s_ich == 0) s_bias = i_bias[0].read();
+            if ((s_ich == 0) | (c_depth == 1)) s_bias = i_bias[0].read();
           }
 
           if constexpr(std::is_same<t_bias_1x1, std::nullptr_t>::value == false) {
-            if (s_ich == 0) s_bias_1x1 = i_bias_1x1[0].read();
+            if ((s_ich == 0) | (c_depth == 1)) s_bias_1x1 = i_bias_1x1[0].read();
           }
         }
 
@@ -384,7 +385,7 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
             c_in_ops,
             c_relu,
             c_ich,
-            c_och,
+            c_och_depth,
             c_in_bits,
             c_simd_bits,
             c_simd,
@@ -439,7 +440,7 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
               c_in_ops,
               0,
               c_ich,
-              c_och,
+              c_och_depth,
               c_in_bits_1x1,
               c_simd_bits,
               c_simd_1x1,
@@ -464,7 +465,7 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
             );
           }
         }
-        if (s_ich == (c_ich-1)) {
+        if ((s_ich == (c_ich-1)) | (c_depth == 1)) {
           for (auto s_ws = 0; s_ws < c_ws; s_ws++) {
             o_output[s_ws % c_ws_out].write(s_output_struct[s_ws]);
             if constexpr(std::is_same<t_output_struct_1x1, std::nullptr_t>::value == false)

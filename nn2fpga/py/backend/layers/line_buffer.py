@@ -16,7 +16,7 @@ def return_index(fh, fw, ws, stride, iw, ih):
     print("ERROR: return_index")
     sys.exit(1)
 
-def parse(name, node):
+def parse(name, node, debug=False):
 
     stride = node["stride"]
     ws = node["ws"]
@@ -39,7 +39,8 @@ def parse(name, node):
             
             index = fh*dfw+fw
             out_index = return_index(node["fh"], node["fw"], ws, stride, fw, fh)
-            print("index: %0d" % index, "out_index: %0d" % out_index, "fh: %0d" % fh, "fw: %0d" % fw)
+            if debug:
+                print("index: %0d" % index, "out_index: %0d" % out_index, "fh: %0d" % fh, "fw: %0d" % fw)
 
             block = {}
             block["func"] = "shift_op"

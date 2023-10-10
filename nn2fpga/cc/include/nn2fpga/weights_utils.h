@@ -69,16 +69,14 @@ template <typename din_t, typename dout_tmp_t, typename dout_t, int DIM,
 void produce_stream(hls::stream<din_t> &din,
                     bool init,
                     hls::stream<dout_tmp_t> dout[INDEX]) {
-  // std::cout << "produce_stream " << BYTES << std::endl;
 #pragma HLS inline
-  const auto ITER = DIM/(INDEX*OPS);
-  const auto OPS_PACK = OPS/PACK;
+  const auto ITER = DIM/(INDEX*OPS*PACK);
   dout_tmp_t tmp = 0;
   din_t tmp_din;
   if (!init) {
     for (auto i = 0; i < ITER; i++) {
       for (auto k = 0; k < INDEX; k++) {
-        for (auto c = 0; c < OPS_PACK; c++) {
+        for (auto c = 0; c < OPS; c++) {
           for (auto j = 0; j < BYTES; j++) {
             for (auto m = 0; m < PACK; m++) {
 #pragma HLS pipeline II=1
