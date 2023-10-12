@@ -159,7 +159,7 @@ void read_training(const std::string& folder, std::size_t limit, Images& images,
  */
 template <typename Images, typename Labels, typename Functor>
 void read_test(std::size_t limit, Images& images, Labels& labels, Functor func) {
-    read_test("../../../../data/cifar-10-batches-bin", limit, images, labels, func);
+    read_test("../work/data/cifar-10-batches-bin", limit, images, labels, func);
 }
 
 /*!
@@ -172,7 +172,7 @@ void read_test(std::size_t limit, Images& images, Labels& labels, Functor func) 
  */
 template <typename Images, typename Labels, typename Functor>
 void read_training(std::size_t limit, Images& images, Labels& labels, Functor func) {
-    read_training("../../../../data/cifar-10-batches-bin", limit, images, labels, func);
+    read_training("../work/data/cifar-10-batches-bin", limit, images, labels, func);
 }
 
 /*!

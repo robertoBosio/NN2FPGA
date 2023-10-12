@@ -150,3 +150,9 @@ tmp
 *.o
 work/
 .vscode/c_cpp_properties.json
+
+#Vitis
+nn2fpga/_x*/
+nn2fpga/build_dir*/
+nn2fpga/xilinx_*
+nn2fpga/.run/

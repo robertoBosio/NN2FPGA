@@ -2,7 +2,7 @@ export MEM := memory_management
 export NAME := network
 export CC := gcc
 export CXX := g++
-export VITIS_HLS_ROOT := /eda/xilinx/Vitis_HLS/2022.2/
+export VITIS_HLS_ROOT := /eda/xilinx/Vitis_HLS/2022.2
 export BOARD_PATH := \
 	/home/filippo/.Xilinx/Vivado/2022.2/xhub/board_store/xilinx_board_store
 export DEPS := $(NAME).h
