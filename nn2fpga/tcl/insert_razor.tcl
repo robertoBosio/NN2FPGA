@@ -9,8 +9,6 @@
 
 set_property CLOCK_DOMAINS INDEPENDENT [get_cells design_1_i/two_layers_0/inst/s_net_conv_145_U/U_two_layers_fifo_w9_d17_B_ram/mem_reg_bram_0]
 set_property CLOCK_DOMAINS INDEPENDENT [get_cells design_1_i/two_layers_0/inst/s_net_conv_348_U/U_two_layers_fifo_w9_d11_B_ram/mem_reg_bram_0]
-set_multicycle_path 2 -setup -from [get_clocks clk_pl_0] -to [get_clocks clk_out1_design_1_clk_wiz_0_0]
-set_multicycle_path 1 -hold -from [get_clocks clk_pl_0] -to [get_clocks clk_out1_design_1_clk_wiz_0_0]
 
 set pin1 [get_pins -of_objects [get_cells -hier -filter {REF_NAME == RAMB18E2 && NAME =~ "design_1_i/two_layers_0/inst/s_net_conv_145_U*"}] -filter {REF_PIN_NAME == CLKBWRCLK}]
 set pin2 [get_pins -of_objects [get_cells -hier -filter {REF_NAME == RAMB18E2 && NAME =~ "design_1_i/two_layers_0/inst/s_net_conv_348_U*"}] -filter {REF_PIN_NAME == CLKBWRCLK}]
@@ -74,12 +72,15 @@ connect_net -hier -net design_1_i/clk_out1_0 -objects design_1_i/two_layers_0/in
 disconnect_net -net design_1_i/two_layers_0/inst/ap_rst_n -objects design_1_i/two_layers_0/inst/conv_comp_U0/ap_rst_n
 connect_net -hier -net design_1_i/clk_wiz_0/s_axi_aresetn -objects design_1_i/two_layers_0/inst/conv_comp_U0/ap_rst_n
 
+remove_net clk_out1_0
+remove_net clk_out2_0
+
 
 # Searching for endpoints with a lesser slack than a percentage
 # Intra-clock on conv0
 set period [get_property PERIOD [get_clocks clk_out1_design_1_clk_wiz_0_0]]
 #set period [get_property PERIOD [get_clocks clk_pl_0]]
-set perc 0.3
+set perc 0.6
 set perc_period [expr ${period}*${perc}]
 
 set endpoints [get_pins -of_objects [get_cells -hier -filter {NAME =~ "design_1_i/two_layers_0/inst/conv_comp_U0*" && NAME !~ "*DSP48*"  && NAME !~ "*mul_8s_8s_16_1_1_U91" && NAME !~ "*s_acc_buff_V_0_U*" && IS_SEQUENTIAL }] -filter "DIRECTION == IN && SETUP_SLACK < ${perc_period} && REF_PIN_NAME == D"]
@@ -158,9 +159,11 @@ if "$i > 1" {
 
             create_net design_1_i/two_layers_0/inst/conv_comp_U0/error 
             connect_net -hier -net design_1_i/two_layers_0/inst/conv_comp_U0/error -objects [get_pins design_1_i/two_layers_0/inst/conv_comp_U0/or/O]
-
+            set flag 1
+            set error 1
         # if XORs are more than 4 -> create or2s
         } else {
+            set error 1
             set flag 0
             # i = 9
             # create or2 with xor_9 and xor_8
@@ -195,39 +198,59 @@ if "$i > 1" {
             }
         }
 
-        incr n -1
+        if "$flag == 0" {
+            incr n -1
 
-        create_cell -reference or${n} design_1_i/two_layers_0/inst/conv_comp_U0/or_l2
-        set or_err_l2 [get_cells -quiet design_1_i/two_layers_0/inst/conv_comp_U0/or_l2]
+            create_cell -reference or${n} design_1_i/two_layers_0/inst/conv_comp_U0/or_l2
+            set or_err_l2 [get_cells -quiet design_1_i/two_layers_0/inst/conv_comp_U0/or_l2]
 
-        while "$n > 0" {
-            set pin [expr {$n-1}]
-            connect_net -hier -net design_1_i/two_layers_0/inst/conv_comp_U0/or_net${n} -objects [get_pins design_1_i/two_layers_0/inst/conv_comp_U0/or_l2/I${pin}]
-            set n [expr {$n-1}]
+            while "$n > 0" {
+                set pin [expr {$n-1}]
+                connect_net -hier -net design_1_i/two_layers_0/inst/conv_comp_U0/or_net${n} -objects [get_pins design_1_i/two_layers_0/inst/conv_comp_U0/or_l2/I${pin}]
+                set n [expr {$n-1}]
 
-            if {$n == 0} break
-        }
+                if {$n == 0} break
+            }
 
-        create_net design_1_i/two_layers_0/inst/conv_comp_U0/error_l2 
-        connect_net -hier -net design_1_i/two_layers_0/inst/conv_comp_U0/error_l2 -objects [get_pins design_1_i/two_layers_0/inst/conv_comp_U0/or_l2/O]
+            create_net design_1_i/two_layers_0/inst/conv_comp_U0/error_l2 
+            connect_net -hier -net design_1_i/two_layers_0/inst/conv_comp_U0/error_l2 -objects [get_pins design_1_i/two_layers_0/inst/conv_comp_U0/or_l2/O]
 
-        if {$odd == 1} {
-            create_cell -reference or2 design_1_i/two_layers_0/inst/conv_comp_U0/or_final 
-            connect_net -hier -net design_1_i/two_layers_0/inst/conv_comp_U0/error_l2 -objects [get_pins design_1_i/two_layers_0/inst/conv_comp_U0/or_final/I0]
-            connect_net -hier -net design_1_i/two_layers_0/inst/conv_comp_U0/razor_error_1 -objects [get_pins design_1_i/two_layers_0/inst/conv_comp_U0/or_final/I1]
-            create_net design_1_i/two_layers_0/inst/conv_comp_U0/error
-            connect_net -hier -net design_1_i/two_layers_0/inst/conv_comp_U0/error -objects [get_pins design_1_i/two_layers_0/inst/conv_comp_U0/or_final/O]
+            if {$odd == 1} {
+                create_cell -reference or2 design_1_i/two_layers_0/inst/conv_comp_U0/or_final 
+                connect_net -hier -net design_1_i/two_layers_0/inst/conv_comp_U0/error_l2 -objects [get_pins design_1_i/two_layers_0/inst/conv_comp_U0/or_final/I0]
+                connect_net -hier -net design_1_i/two_layers_0/inst/conv_comp_U0/razor_error_1 -objects [get_pins design_1_i/two_layers_0/inst/conv_comp_U0/or_final/I1]
+                create_net design_1_i/two_layers_0/inst/conv_comp_U0/error
+                connect_net -hier -net design_1_i/two_layers_0/inst/conv_comp_U0/error -objects [get_pins design_1_i/two_layers_0/inst/conv_comp_U0/or_final/O]
+            } else {
+                set error 2
+            }
         }
 
 } else {
     # Only one ShadowFF
     # design_1_i/two_layers_0/inst/conv_comp_U0/razor_error_${i} output of the xor
-    disconnect_net -net [get_nets -of_objects design_1_i/two_layers_0/inst/s_net_const_4_0_U/empty_n_reg/Q] -objects design_1_i/two_layers_0/inst/s_net_const_4_0_U/empty_n_reg/Q
-connect_net -net design_1_i/two_layers_0/inst/conv_comp_U0/razor_error_${i} -objects [get_pins design_1_i/two_layers_0/inst/s_net_const_4_0_U/empty_n_reg/Q]
+    set error 0
 } 
 
 #set empty_sig [get_pins -of_objects [get_cells -hier -filter {NAME =~ "design_1_i/two_layers_0/inst/*" && NAME =~ "*empty_n_reg"}] -filter { REF_PIN_NAME == Q}]
 # Connect error to an empty_n_reg/Q 
+disconnect_net -net [get_nets -of_objects [get_pins design_1_i/two_layers_0/inst/conv_comp_U0/dout[15]_i_1/I0]] -objects design_1_i/two_layers_0/inst/conv_comp_U0/dout[15]_i_1/I0
+disconnect_net -net [get_nets -of_objects [get_pins design_1_i/two_layers_0/inst/conv_comp_U0/dout_vld_i_1__8/I1]] -objects design_1_i/two_layers_0/inst/conv_comp_U0/dout_vld_i_1__8/I1
+disconnect_net -net [get_nets -of_objects [get_pins design_1_i/two_layers_0/inst/conv_comp_U0/mOutPtr[1]_i_3__9/I4]] -objects design_1_i/two_layers_0/inst/conv_comp_U0/mOutPtr[1]_i_3__9/I4
+#disconnect_net -net [get_nets -of_objects [get_pins design_1_i/two_layers_0/inst/empty_n]] -objects design_1_i/two_layers_0/inst/empty_n
+create_cell -reference nor2 design_1_i/two_layers_0/inst/conv_comp_U0/or_empty_error
+create_net design_1_i/two_layers_0/inst/conv_comp_U0/empty_n_out
+connect_net -hier -net design_1_i/two_layers_0/inst/conv_comp_U0/empty_n -objects [get_pins design_1_i/two_layers_0/inst/conv_comp_U0/or_empty_error/I0]
 
-disconnect_net -net [get_nets -of_objects [get_pins design_1_i/two_layers_0/inst/conv_comp_U0/empty_n]] -objects design_1_i/two_layers_0/inst/conv_comp_U0/empty_n
-connect_net -hier -net design_1_i/two_layers_0/inst/error -objects [get_pins design_1_i/two_layers_0/inst/conv_comp_U0/empty_n]
+if "$error == 1" {
+    connect_net -hier -net design_1_i/two_layers_0/inst/conv_comp_U0/error -objects [get_pins design_1_i/two_layers_0/inst/conv_comp_U0/or_empty_error/I1]
+} elseif "$error == 0" {
+    connect_net -hier -net design_1_i/two_layers_0/inst/conv_comp_U0/razor_error_1 -objects [get_pins design_1_i/two_layers_0/inst/conv_comp_U0/or_empty_error/I1]
+} else {
+    connect_net -hier -net design_1_i/two_layers_0/inst/conv_comp_U0/error_l2 -objects [get_pins design_1_i/two_layers_0/inst/conv_comp_U0/or_empty_error/I1]
+}
+
+connect_net -hier -net design_1_i/two_layers_0/inst/conv_comp_U0/empty_n_out -objects [get_pins design_1_i/two_layers_0/inst/conv_comp_U0/or_empty_error/O]
+connect_net -hier -net design_1_i/two_layers_0/inst/conv_comp_U0/empty_n_out -objects [get_pins design_1_i/two_layers_0/inst/conv_comp_U0/dout[15]_i_1/I0]
+connect_net -hier -net design_1_i/two_layers_0/inst/conv_comp_U0/empty_n_out -objects [get_pins design_1_i/two_layers_0/inst/conv_comp_U0/dout_vld_i_1__8/I1]
+connect_net -hier -net design_1_i/two_layers_0/inst/conv_comp_U0/empty_n_out -objects [get_pins design_1_i/two_layers_0/inst/conv_comp_U0/mOutPtr[1]_i_3__9/I4]
