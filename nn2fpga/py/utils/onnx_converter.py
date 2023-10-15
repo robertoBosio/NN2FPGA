@@ -30,6 +30,7 @@ def main():
     #from model wrapper to onnx model
     qonnx_model = qonnx_model.model
     onnx.save(qonnx_model,args.onnx_model)
+    print("QONNX model converted")
     exit()
     #save qonnx model
     # val_dataset = ImageNetKaggle(cfg.data, "val", val_transform) 

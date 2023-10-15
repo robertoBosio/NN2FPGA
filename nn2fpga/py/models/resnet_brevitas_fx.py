@@ -20,7 +20,10 @@ def conv3x3(in_planes, out_planes, stride=1, weight_bits=8):
                        weight_quant = Int8WeightPerTensorFixedPoint,
                        bias_quant = Int16Bias,
                        input_quant = Int8ActPerTensorFixedPoint,
-                       output_quant = Int8ActPerTensorFixedPoint
+                       output_quant = Int8ActPerTensorFixedPoint,
+                       weight_bit_width = 4,
+                       output_bit_width = 4,
+                       input_bit_width = 4
                        )
 
 
@@ -36,7 +39,7 @@ class BasicBlock(nn.Module):
             restrict_scaling_type=RestrictValueType.POWER_OF_TWO,
             scaling_impl_type=ScalingImplType.CONST,
             act_quant=CommonUintActQuant,
-            bit_width=8)
+            bit_width=4)
         self.conv2 = conv3x3(planes, planes, weight_bits=weight_bits)
         self.bn2 = nn.BatchNorm2d(planes)
         self.downsample = downsample
@@ -75,7 +78,7 @@ class ResNet(nn.Module):
                      weight_quant= Int8WeightPerTensorFixedPoint,
                      bias_quant=Int16Bias,
                      input_quant = Int8ActPerTensorFixedPoint,
-                     output_quant = Int8ActPerTensorFixedPoint,
+                     #output_quant = Int8ActPerTensorFixedPoint,
                      )
         self.bn1 = nn.BatchNorm2d(16)
         self.relu = QuantReLU(quant_type=QuantType.INT,
@@ -87,7 +90,8 @@ class ResNet(nn.Module):
         self.layer2 = self._make_layer(block, 32, layers[1], stride=2)
         self.layer3 = self._make_layer(block, 64, layers[2], stride=2)
         #self.avgpool = QuantAvgPool2d(kernel_size=8, stride=1, bit_width = weight_bits)
-        self.avgpool = QuantMaxPool2d(kernel_size=8, stride=1)
+        self.avgpool = nn.AvgPool2d(kernel_size=8, stride=1)
+        #self.avgpool = QuantMaxPool2d(kernel_size=8, stride=1)
         self.fc = QuantConv2d(64 * block.expansion, num_classes,
                 kernel_size=(1, 1), bias=False,
                 weight_quant = Int8WeightPerTensorFixedPoint,
@@ -111,12 +115,15 @@ class ResNet(nn.Module):
 
             downsample = nn.Sequential(
                 QuantConv2d(self.inplanes, planes * block.expansion,
-                    kernel_size=(1, 1),weight_bit_width = self.weight_bits, 
+                    kernel_size=(1, 1), 
                     stride=stride, bias=None,
                     weight_quant = Int8WeightPerTensorFixedPoint,
                     input_quant = Int8ActPerTensorFixedPoint,
                     output_quant=Int8ActPerTensorFixedPoint,
                     bias_quant=Int16Bias,
+                    weight_bit_width = 4,
+                    output_bit_width = 4,
+                    input_bit_width = 4
                     ),
                 nn.BatchNorm2d(planes * block.expansion)
             )
@@ -148,3 +155,13 @@ class ResNet(nn.Module):
 def resnet20(num_classes=10, weight_bits=8, **kwargs):
     return ResNet(BasicBlock, [3, 3, 3], num_classes=num_classes,
                     weight_bits=weight_bits)
+
+def resnet8(num_classes=10, weight_bits=8, **kwargs):
+    return ResNet(BasicBlock, [2, 2, 2], num_classes=num_classes,
+                    weight_bits=weight_bits)
+
+
+#summary
+from torchinfo import summary
+model = resnet8()
+summary(model, (1,3,32,32))

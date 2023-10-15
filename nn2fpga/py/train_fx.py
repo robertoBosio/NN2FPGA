@@ -12,28 +12,29 @@ cudnn.benchmark = True
 import torchvision
 
 from models.resnet_brevitas_fx import *
+#from models.resnet8 import *
 from utils.preprocess import *
 from utils.bar_show import progress_bar
 
 # Training settings
-parser = argparse.ArgumentParser(description='brevitas_resnet fx implementation')
+parser = argparse.ArgumentParser(description='brevitas_resnet8 fx implementation')
 
 parser.add_argument('--root_dir', type=str, default='./')
 parser.add_argument('--data_dir', type=str, default='./data')
-parser.add_argument('--log_name', type=str, default='resnetq_8w8f_cifar_fx')
+parser.add_argument('--log_name', type=str, default='resnet8q_4w4f_cifar_fx_train')
 parser.add_argument('--pretrain', action='store_true', default=False)
-parser.add_argument('--pretrain_dir', type=str, default='resnetq_8w8f_cifar_fx')
+parser.add_argument('--pretrain_dir', type=str, default='resnet8q_4w4f_cifar_fx')
 
 parser.add_argument('--cifar', type=int, default=10)
-parser.add_argument('--lr', type=float, default=0.01)
+parser.add_argument('--lr', type=float, default=0.0075)
 parser.add_argument('--wd', type=float, default=1e-4)
-parser.add_argument('--train_batch_size', type=int, default=200)
+parser.add_argument('--train_batch_size', type=int, default=64)
 parser.add_argument('--eval_batch_size', type=int, default=100)
-parser.add_argument('--max_epochs', type=int, default=250)
+parser.add_argument('--max_epochs', type=int, default=500)
 parser.add_argument('--log_interval', type=int, default=40)
-parser.add_argument('--num_workers', type=int, default=4)
-parser.add_argument('--Wbits', type=int, default=8)
-parser.add_argument('--Abits', type=int, default=8)
+parser.add_argument('--num_workers', type=int, default=16)
+parser.add_argument('--Wbits', type=int, default=4)
+parser.add_argument('--Abits', type=int, default=4)
 
 cfg = parser.parse_args()
 
@@ -69,17 +70,19 @@ def main():
 
     print('===> Building ResNet..')
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    model = resnet20(wbit=cfg.Wbits,abit=cfg.Abits).to(device)
-
+    #model = resnet20(wbit=cfg.Wbits,abit=cfg.Abits).to(device)
+    model = resnet8().to(device)
     if device == 'cuda':
         print("USING CUDA")
         model = torch.nn.DataParallel(model)
         cudnn.benchmark = True
     else :
         print("USING CPU")
-    optimizer = torch.optim.SGD(model.parameters(), lr=cfg.lr, momentum=0.9, weight_decay=cfg.wd)
-    #optimizer = torch.optim.Adam(model.parameters(),lr=cfg.lr,weight_decay=cfg.wd)
-    lr_schedu = optim.lr_scheduler.MultiStepLR(optimizer, [90, 150, 200], gamma=0.1)
+    #optimizer = torch.optim.SGD(model.parameters(), lr=cfg.lr, momentum=0.9, weight_decay=cfg.wd)
+    optimizer = torch.optim.Adam(model.parameters(),lr=cfg.lr,weight_decay=cfg.wd)
+    #lr_schedu = optim.lr_scheduler.MultiStepLR(optimizer, [90, 150, 200], gamma=0.1)
+    #cosine annealing
+    lr_schedu = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=cfg.max_epochs, eta_min=0)
     criterion = torch.nn.CrossEntropyLoss().cuda()
     summary_writer = SummaryWriter(cfg.log_dir)
 
@@ -115,14 +118,14 @@ def main():
             progress_bar(batch_idx, len(train_loader), 'Loss: %.3f | Acc: %.3f%% (%d/%d)'
                          % (train_loss / (batch_idx + 1), 100. * correct / total, correct, total))
 
-            if batch_idx % cfg.log_interval == 0:  #every log_interval mini_batches...
-                summary_writer.add_scalar('Loss/train', train_loss / (batch_idx + 1), epoch * len(train_loader) + batch_idx)
-                summary_writer.add_scalar('Accuracy/train', 100. * correct / total, epoch * len(train_loader) + batch_idx)
-                summary_writer.add_scalar('learning rate', optimizer.param_groups[0]['lr'], epoch * len(train_loader) + batch_idx)
-                # for tag, value in model.named_parameters():
-                #     tag = tag.replace('.', '/')
-                #     summary_writer.add_histogram(tag, value.detach(), global_step=epoch * len(train_loader) + batch_idx)
-                #     summary_writer.add_histogram(tag + '/grad', value.grad.detach(), global_step=epoch * len(train_loader) + batch_idx)
+            # if batch_idx % cfg.log_interval == 0:  #every log_interval mini_batches...
+            #     summary_writer.add_scalar('Loss/train', train_loss / (batch_idx + 1), epoch * len(train_loader) + batch_idx)
+            #     summary_writer.add_scalar('Accuracy/train', 100. * correct / total, epoch * len(train_loader) + batch_idx)
+            #     summary_writer.add_scalar('learning rate', optimizer.param_groups[0]['lr'], epoch * len(train_loader) + batch_idx)
+            #     for tag, value in model.named_parameters():
+            #         tag = tag.replace('.', '/')
+            #         summary_writer.add_histogram(tag, value.detach(), global_step=epoch * len(train_loader) + batch_idx)
+            #         summary_writer.add_histogram(tag + '/grad', value.grad.detach(), global_step=epoch * len(train_loader) + batch_idx)
 
 
 

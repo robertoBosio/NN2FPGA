@@ -10,7 +10,7 @@ from brevitas.core.scaling import ScalingImplType
 from .common import CommonIntActQuant, CommonUintActQuant
 from brevitas.quant import Int16Bias, Int8WeightPerTensorFixedPoint, Int8ActPerTensorFixedPoint, Int8ActPerTensorFloat 
 
-def conv3x3(in_planes, out_planes, stride=1, weight_bits=8):
+def conv3x3(in_planes, out_planes, stride=1, weight_bits=4):
     return QuantConv2d(in_planes,
                        out_planes,
                        kernel_size=(3,3), 
@@ -20,12 +20,14 @@ def conv3x3(in_planes, out_planes, stride=1, weight_bits=8):
                        weight_quant = Int8WeightPerTensorFixedPoint,
                        bias_quant = Int16Bias,
                        input_quant = Int8ActPerTensorFixedPoint,
-                       output_quant = Int8ActPerTensorFixedPoint
+                       output_quant = Int8ActPerTensorFixedPoint,
+                       weight_bit_width = weight_bits,
+                       input_bit_width = weight_bits,
                        )
 class BasicBlock(nn.Module):
     expansion=1
 
-    def __init__(self, inplanes, planes, stride=1, downsample=None, weight_bits=8):
+    def __init__(self, inplanes, planes, stride=1, downsample=None, weight_bits=4):
 
         super(BasicBlock, self).__init__()
         self.conv1 = conv3x3(inplanes, planes, stride=stride, weight_bits=weight_bits)
@@ -34,7 +36,7 @@ class BasicBlock(nn.Module):
             restrict_scaling_type=RestrictValueType.POWER_OF_TWO,
             scaling_impl_type=ScalingImplType.CONST,
             act_quant=CommonUintActQuant,
-            bit_width=8)
+            bit_width=4)
         self.conv2 = conv3x3(planes, planes, weight_bits=weight_bits)
         self.bn2 = nn.BatchNorm2d(planes)
         self.downsample = downsample
@@ -60,12 +62,12 @@ class BasicBlock(nn.Module):
     
 class ResNet(nn.Module):
 
-    def __init__(self, block, layers, num_classes=10, weight_bits=8):
+    def __init__(self, block, layers, num_classes=10, weight_bits=4):
         super(ResNet, self).__init__()
         self.weight_bits = weight_bits
         self.inplanes = 16
         self.conv1 = QuantConv2d(3, 16, kernel_size=(3, 3),
-                     weight_bit_width = weight_bits,
+                     weight_bit_width = 8,
                      stride=1, 
                      padding=1, 
                      bias=False, 
@@ -79,7 +81,7 @@ class ResNet(nn.Module):
             restrict_scaling_type=RestrictValueType.POWER_OF_TWO,
             scaling_impl_type=ScalingImplType.CONST, 
             act_quant=CommonUintActQuant,
-            bit_width=8)
+            bit_width=4)
         self.layer1 = self._make_layer(block, 16, layers[0])
         self.layer2 = self._make_layer(block, 32, layers[1], stride=2)
         self.layer3 = self._make_layer(block, 64, layers[2], stride=2)
@@ -114,6 +116,8 @@ class ResNet(nn.Module):
                     input_quant = Int8ActPerTensorFixedPoint,
                     output_quant=Int8ActPerTensorFixedPoint,
                     bias_quant=Int16Bias,
+                    input_bit_width = self.weight_bits,
+                    output_bit_width = self.weight_bits,
                     ),
                 nn.BatchNorm2d(planes * block.expansion)
             )
@@ -140,6 +144,12 @@ class ResNet(nn.Module):
         return x
     
 
-def resnet8(num_classes=10, weight_bits=8, **kwargs):
+def resnet8(num_classes=10, weight_bits=4, **kwargs):
     return ResNet(BasicBlock, [1, 1, 1], num_classes=num_classes,
-                    weight_bits=weight_bits)
+                    weight_bits=weight_bits
+                    )
+
+#print torchsummary
+from torchinfo import summary
+model = resnet8()
+summary(model, (1,3,32,32))

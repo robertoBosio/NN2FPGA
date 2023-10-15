@@ -9,10 +9,10 @@ from torch.utils.tensorboard import SummaryWriter
 from brevitas.nn import QuantConv2d, QuantReLU, QuantMaxPool2d, QuantIdentity
 cudnn.benchmark = True
 import torchvision
-from torch.utils.tensorboard import SummaryWriter
 from utils.convbn_merge import replace_layers
 from utils.convbn_merge import fuse_layers
 from models.resnet_brevitas_fx import *
+#from models.resnet8 import *
 from utils.preprocess import *
 from utils.bar_show import progress_bar
 import brevitas
@@ -24,15 +24,15 @@ parser = argparse.ArgumentParser(description='brevitas_resnet fx implementation'
 
 parser.add_argument('--root_dir', type=str, default='./')
 parser.add_argument('--data_dir', type=str, default='./data')
-parser.add_argument('--log_name', type=str, default='resnetq_8w8f_cifar_fx')
+parser.add_argument('--log_name', type=str, default='resnet8q_4w4f_cifar_fx_export')
 parser.add_argument('--pretrain', action='store_true', default=True)
-parser.add_argument('--pretrain_dir', type=str, default='resnetq_8w8f_cifar_fx')
+parser.add_argument('--pretrain_dir', type=str, default='resnet8q_4w4f_cifar_fx')
 parser.add_argument('--cifar', type=int, default=10)
-parser.add_argument('--lr', type=float, default=0.01)
+parser.add_argument('--lr', type=float, default=0.001)
 parser.add_argument('--wd', type=float, default=1e-4)
 parser.add_argument('--train_batch_size', type=int, default=256)
-parser.add_argument('--eval_batch_size', type=int, default=100)
-parser.add_argument('--max_epochs', type=int, default=250)
+parser.add_argument('--eval_batch_size', type=int, default=256)
+parser.add_argument('--max_epochs', type=int, default=500)
 parser.add_argument('--log_interval', type=int, default=40)
 parser.add_argument('--num_workers', type=int, default=4)
 parser.add_argument('--Wbits', type=int, default=8)
@@ -76,16 +76,18 @@ def main():
 
     print('===> Building ResNet..')
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    model = resnet20(wbit=cfg.Wbits,abit=cfg.Abits).to('cuda:0')
-
+    #model = resnet20(wbit=cfg.Wbits,abit=cfg.Abits).to('cuda:0')
+    model = resnet8().to('cuda:0')
     if device == 'cuda':
         model = torch.nn.DataParallel(model)
         cudnn.benchmark = True
         #print("no cuda")
 
-    optimizer = torch.optim.SGD(model.parameters(), lr=cfg.lr, momentum=0.9, weight_decay=cfg.wd)
-    #optimizer = torch.optim.Adam(model.parameters(),lr=cfg.lr,weight_decay=cfg.wd)
-    lr_schedu = optim.lr_scheduler.MultiStepLR(optimizer, [90, 150, 200], gamma=0.1)
+    #optimizer = torch.optim.SGD(model.parameters(), lr=cfg.lr, momentum=0.9, weight_decay=cfg.wd)
+    optimizer = torch.optim.Adam(model.parameters(),lr=cfg.lr,weight_decay=cfg.wd)
+    #lr_schedu = optim.lr_scheduler.MultiStepLR(optimizer, [90, 150, 200], gamma=0.1)
+    #cosine annealing
+    lr_schedu = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=cfg.max_epochs, eta_min=0)
     criterion = torch.nn.CrossEntropyLoss()
     summary_writer = SummaryWriter(cfg.log_dir)
     
@@ -129,9 +131,9 @@ def main():
                 summary_writer.add_scalar('Accuracy/train', 100. * correct / total, epoch * len(train_loader) + batch_idx)
                 summary_writer.add_scalar('learning rate', optimizer.param_groups[0]['lr'], epoch * len(train_loader) + batch_idx)
                 # for tag, value in model.named_parameters():
-                #     tag = tag.replace('.', '/')
-                #     summary_writer.add_histogram(tag, value.detach(), global_step=epoch * len(train_loader) + batch_idx)
-                #     summary_writer.add_histogram(tag + '/grad', value.grad.detach(), global_step=epoch * len(train_loader) + batch_idx)
+                #      tag = tag.replace('.', '/')
+                #      summary_writer.add_histogram(tag, value.detach(), global_step=epoch * len(train_loader) + batch_idx)
+                #      summary_writer.add_histogram(tag + '/grad', value.grad.detach(), global_step=epoch * len(train_loader) + batch_idx)
 
 
 
@@ -156,9 +158,9 @@ def main():
                 progress_bar(batch_idx, len(eval_loader), 'Loss: %.3f | Acc: %.3f%% (%d/%d)'
                     % (test_loss/(batch_idx+1), 100.*correct/total, correct, total))
 
-                if batch_idx % cfg.log_interval == 0:  # every log_interval mini_batches...
-                    summary_writer.add_scalar('Loss/test', test_loss / (batch_idx + 1), epoch * len(train_loader) + batch_idx)
-                    summary_writer.add_scalar('Accuracy/test', 100. * correct / total, epoch * len(train_loader) + batch_idx)
+                # if batch_idx % cfg.log_interval == 0:  # every log_interval mini_batches...
+                #     summary_writer.add_scalar('Loss/test', test_loss / (batch_idx + 1), epoch * len(train_loader) + batch_idx)
+                #     summary_writer.add_scalar('Accuracy/test', 100. * correct / total, epoch * len(train_loader) + batch_idx)
 
         acc = 100. * correct / total
         if acc > best_acc and retrain:
@@ -171,7 +173,9 @@ def main():
             }
             torch.save(state, os.path.join(cfg.ckpt_dir, f'checkpoint_quant_fx.t7'))
             model.to('cpu')
-            QONNXManager.export(model.module, input_shape=(1, 3, 32, 32), export_path='onnx/Brevonnx_resnet_final_fx.onnx')            
+            if not os.path.exists('onnx'):
+                os.makedirs('onnx')
+            QONNXManager.export(model.module, input_shape=(1, 3, 32, 32), export_path='onnx/Brevonnx_resnet8_final_fx.onnx')            
             best_acc = acc
 
 
@@ -209,6 +213,7 @@ def main():
     if(val) :
         for epoch in range(start_epoch, start_epoch+1):
             test(epoch)
+            optimizer.step()
             lr_schedu.step(epoch)
         summary_writer.close()
 
@@ -247,7 +252,7 @@ def main():
          test(start_epoch)
          print("\n-------------------RETRAINING-----------------\n") 
          retrain = 1
-         for epoch in range(start_epoch, start_epoch+150): 
+         for epoch in range(start_epoch, start_epoch+200): 
             if(not(post_quant)) :
                 train(epoch)
             test(epoch)
