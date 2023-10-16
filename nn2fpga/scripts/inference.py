@@ -94,3 +94,36 @@ if __name__ == "__main__":
         postprocess,
         sel_uram_storage
     )
+
+    #################################Dynamic Clock##################################
+
+    #clk = overlay.clk_wiz_0
+    #num_freq = 8
+    #freq = [100,200,300,400,500,600,1000,1200]
+    # 1000 -> 100 (A), 200 (5), 500 (2), 1000(1)
+    # 1200 -> 300 (4), 400 (3), 600 (2), 1200(1)
+    #mul = [0x00000A01,0x00000A01,0x00000C01,0x00000C01,0x00000A01,0x00000C01,0x00000A01,0x00000C01]
+    #div = [0x0000000A,0x00000005,0x00000004,0x00000003,0x00000002,0x00000002,0x00000001,0x00000001]
+
+    #clk 1000 -> 100, 200, 300, 400, 500
+
+    #for j in range(num_freq):
+        
+    #    clk.write(0x200,mul[j])
+    #    clk.write(0x208,div[j])
+    #    clk.write(0x214,div[j])
+    #    status = clk.read(0x04) #Locked when 1 MMCM/PLL is locked and ready for reconfiguration. The status of this bit is 0 during reconfiguration.
+    #    if status == 0x1:
+    #        clk.write(0x25C,0x00000003)
+        
+    #    print ('################# Frequency:',freq[j],'MHz ##################')
+    #    conf0 = clk.read(0x200)
+    #    conf1 = clk.read(0x208)
+    #    print('Clock Configuration Register 0:',hex(conf0),hex(conf1))
+    #   freq1 = clk.read(0x208)
+    #    freq2 = clk.read(0x214)
+    #    print('Clock divider 1:',freq1)
+    #    print('Clock divider 2:',freq2)
+    #    print('##############################################################')
+        
+        
