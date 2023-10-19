@@ -23,7 +23,7 @@ from brevitas.export.onnx.qonnx.manager import QONNXManager
 parser = argparse.ArgumentParser(description='brevitas_resnet fx implementation')
 
 parser.add_argument('--root_dir', type=str, default='./')
-parser.add_argument('--data_dir', type=str, default='./data')
+parser.add_argument('--data_dir', type=str, default='/home/teodoro/datasets/cifar10')
 parser.add_argument('--log_name', type=str, default='resnetq_8w8f_cifar_fx')
 parser.add_argument('--pretrain', action='store_true', default=True)
 parser.add_argument('--pretrain_dir', type=str, default='resnetq_8w8f_cifar_fx')
@@ -37,7 +37,6 @@ parser.add_argument('--log_interval', type=int, default=40)
 parser.add_argument('--num_workers', type=int, default=4)
 parser.add_argument('--Wbits', type=int, default=8)
 parser.add_argument('--Abits', type=int, default=8)
-
 cfg = parser.parse_args()
 
 best_acc = 0  # best test accuracy
@@ -45,9 +44,11 @@ start_epoch = 0
 
 cfg.log_dir = os.path.join(cfg.root_dir, 'logs', cfg.log_name)
 cfg.ckpt_dir = os.path.join(cfg.root_dir, 'ckpt', cfg.pretrain_dir)
+cfg.onnx_dir = os.path.join(cfg.root_dir, 'onnx', cfg.pretrain_dir)
 
 os.makedirs(cfg.log_dir, exist_ok=True)
 os.makedirs(cfg.ckpt_dir, exist_ok=True)
+os.makedirs(cfg.onnx_dir, exist_ok=True)
 
 val=1
 print_onnx = 0
