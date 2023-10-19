@@ -13,6 +13,7 @@ from torch.utils.tensorboard import SummaryWriter
 from utils.convbn_merge import replace_layers
 from utils.convbn_merge import fuse_layers
 from models.resnet_brevitas_fx import *
+from models.mobilenetv2_fx import *
 from utils.preprocess import *
 from utils.bar_show import progress_bar
 import brevitas
@@ -24,9 +25,9 @@ parser = argparse.ArgumentParser(description='brevitas_resnet fx implementation'
 
 parser.add_argument('--root_dir', type=str, default='./')
 parser.add_argument('--data_dir', type=str, default='/home/teodoro/datasets/cifar10')
-parser.add_argument('--log_name', type=str, default='resnetq_8w8f_cifar_fx')
+parser.add_argument('--log_name', type=str, default='mobilenetv2_8w8f_cifar_fx')
 parser.add_argument('--pretrain', action='store_true', default=True)
-parser.add_argument('--pretrain_dir', type=str, default='resnetq_8w8f_cifar_fx')
+parser.add_argument('--pretrain_dir', type=str, default='mobilenetv2_8w8f_cifar_fx')
 parser.add_argument('--cifar', type=int, default=10)
 parser.add_argument('--lr', type=float, default=0.01)
 parser.add_argument('--wd', type=float, default=1e-4)
@@ -78,7 +79,7 @@ def main():
     print('===> Building ResNet..')
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     model = resnet20(wbit=cfg.Wbits,abit=cfg.Abits).to('cuda:0')
-
+    model = MobileNetV2(num_classes = 10).to('cuda:0')
     if device == 'cuda':
         model = torch.nn.DataParallel(model)
         cudnn.benchmark = True
@@ -172,7 +173,7 @@ def main():
             }
             torch.save(state, os.path.join(cfg.ckpt_dir, f'checkpoint_quant_fx.t7'))
             model.to('cpu')
-            QONNXManager.export(model.module, input_shape=(1, 3, 32, 32), export_path='onnx/Brevonnx_resnet_final_fx.onnx')            
+            QONNXManager.export(model.module, input_shape=(1, 3, 32, 32), export_path='onnx/mobilenetv2_fx.onnx')            
             best_acc = acc
 
 

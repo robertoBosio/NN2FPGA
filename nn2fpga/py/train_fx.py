@@ -12,22 +12,23 @@ cudnn.benchmark = True
 import torchvision
 
 from models.resnet_brevitas_fx import *
+from models.mobilenetv2_fx import *
 from utils.preprocess import *
 from utils.bar_show import progress_bar
 
 # Training settings
-parser = argparse.ArgumentParser(description='brevitas_resnet fx implementation')
+parser = argparse.ArgumentParser(description='mobilenetv2 fx implementation')
 
 parser.add_argument('--root_dir', type=str, default='./')
-parser.add_argument('--data_dir', type=str, default='./data')
-parser.add_argument('--log_name', type=str, default='resnetq_8w8f_cifar_fx')
+parser.add_argument('--data_dir', type=str, default='/home/teodoro/datasets/cifar10')
+parser.add_argument('--log_name', type=str, default='mobilenetv2_4w4f_cifar_fx')
 parser.add_argument('--pretrain', action='store_true', default=False)
-parser.add_argument('--pretrain_dir', type=str, default='resnetq_8w8f_cifar_fx')
+parser.add_argument('--pretrain_dir', type=str, default='mobilenetv2_8w8f_cifar_fx')
 
 parser.add_argument('--cifar', type=int, default=10)
 parser.add_argument('--lr', type=float, default=0.01)
 parser.add_argument('--wd', type=float, default=1e-4)
-parser.add_argument('--train_batch_size', type=int, default=200)
+parser.add_argument('--train_batch_size', type=int, default=100)
 parser.add_argument('--eval_batch_size', type=int, default=100)
 parser.add_argument('--max_epochs', type=int, default=250)
 parser.add_argument('--log_interval', type=int, default=40)
@@ -70,7 +71,7 @@ def main():
     print('===> Building ResNet..')
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     model = resnet20(wbit=cfg.Wbits,abit=cfg.Abits).to(device)
-
+    model = MobileNetV2(num_classes = 10).to('cuda:0')
     if device == 'cuda':
         print("USING CUDA")
         model = torch.nn.DataParallel(model)
