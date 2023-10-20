@@ -62,4 +62,15 @@ def parse(name, node):
     block["pragma"] = []
     block["pragma"].append(pragma)
 
+    pragma = {}
+    pragma["name"] = "bind_storage"
+    pragma_name = "s_%s_compute" % (input_name)
+    options = [
+        ["variable", pragma_name],
+        ["impl", "bram"],
+        ["type", "fifo"],
+    ]
+    pragma["options"] = options
+    block["pragma"].append(pragma)
+
     return block

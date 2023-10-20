@@ -164,5 +164,16 @@ def parse(name, node):
     pragma["options"] = options
     block["pragma"].append(pragma)
 
+    pragma = {}
+    pragma["name"] = "bind_storage"
+    pragma_name = "s_%s" % (output_name)
+    options = [
+        ["variable", pragma_name],
+        ["impl", "bram"],
+        ["type", "fifo"],
+    ]
+    pragma["options"] = options
+    block["pragma"].append(pragma)
+
     return block
 
