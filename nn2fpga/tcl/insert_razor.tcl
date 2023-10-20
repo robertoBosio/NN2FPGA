@@ -34,11 +34,17 @@ connect_net -hier -net design_1_i/clk_out1_0 -objects ${pin1}
 remove_net clk_out1_0
 remove_net clk_out2_0
 
+set_multicycle_path -setup -from [get_clocks clk_pl_0] -to [get_clocks clk_out1_design_1_clk_wiz_0_0] 2
+set_multicycle_path -hold -from [get_clocks clk_pl_0] -to [get_clocks clk_out1_design_1_clk_wiz_0_0] 1
+set_multicycle_path -setup -from [get_clocks clk_out1_design_1_clk_wiz_0_0] -to [get_clocks clk_pl_0] 2
+set_multicycle_path -hold -from [get_clocks clk_out1_design_1_clk_wiz_0_0] -to [get_clocks clk_pl_0] 1
+set_multicycle_path 2 -setup -from [ get_clocks clk_out1_design_1_clk_wiz_0_0 ] -to [ get_clocks clk_out2_design_1_clk_wiz_0_0]
+set_multicycle_path 1 -hold -from [ get_clocks clk_out1_design_1_clk_wiz_0_0 ] -to [ get_clocks clk_out2_design_1_clk_wiz_0_0]
+
 set pin_conv145 [get_pins design_1_i/two_layers_0/inst/s_net_conv_145_U/ap_rst_n]
 disconnect_net -net [get_nets -of_objects ${pin_conv145}] -objects ${pin_conv145}
 connect_net -hier -net design_1_i/clk_wiz_0/s_axi_aresetn -objects ${pin_conv145}
 
-#########################################################
 set pin_stream1 [get_pins -of_objects [get_cells -hier -filter {NAME =~ "design_1_i/two_layers_0/inst/produce_stream_ap_fixed_vector_ap_fixed_1ul_1_16_32_32_1_1_1_1_U0"}] -filter {REF_PIN_NAME =~ "ap_clk"}] 
 set pin_stream1_rst [get_pins -of_objects [get_cells -hier -filter {NAME =~ "design_1_i/two_layers_0/inst/produce_stream_ap_fixed_vector_ap_fixed_1ul_1_16_32_32_1_1_1_1_U0"}] -filter {REF_PIN_NAME =~ "ap_rst_n"}]
 set pin_stream2 [get_pins -of_objects [get_cells -hier -filter {NAME =~ "design_1_i/two_layers_0/inst/produce_stream_ap_fixed_vector_ap_fixed_1ul_3_16_32_32_3_3_1_1_U0"}] -filter {REF_PIN_NAME =~ "ap_clk"}] 
@@ -104,8 +110,6 @@ foreach {pin} $pins_const_rst {
     connect_net -hier -net design_1_i/clk_wiz_0/s_axi_aresetn -objects $pin
 }
 
-#########################################################################################
-
 # Change clk of the conv0 block
 disconnect_net -net design_1_i/two_layers_0/inst/ap_clk -objects design_1_i/two_layers_0/inst/conv_comp_U0/ap_clk
 connect_net -hier -net design_1_i/clk_out1_0 -objects design_1_i/two_layers_0/inst/conv_comp_U0/ap_clk
@@ -116,7 +120,7 @@ connect_net -hier -net design_1_i/clk_wiz_0/s_axi_aresetn -objects design_1_i/tw
 # Intra-clock on conv0
 set period [get_property PERIOD [get_clocks clk_out1_design_1_clk_wiz_0_0]]
 #set period [get_property PERIOD [get_clocks clk_pl_0]]
-set perc 0.7
+set perc 0.52
 set perc_period [expr ${period}*${perc}]
 
 set endpoints [get_pins -of_objects [get_cells -hier -filter {NAME =~ "design_1_i/two_layers_0/inst/conv_comp_U0*" && NAME !~ "*DSP48*"  && NAME !~ "*mul_8s_8s_16_1_1_U91" && NAME !~ "*s_acc_buff_V_0_U*" && IS_SEQUENTIAL }] -filter "DIRECTION == IN && SETUP_SLACK < ${perc_period} && REF_PIN_NAME == D"]
