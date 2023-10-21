@@ -3,7 +3,7 @@ import onnx
 import sys
 import os
 import torchvision
-import models.resnet_brevitas_int as resnet20
+import models.resnet_cifar_fx as resnet
 def io_nodes(onnx_model):
     layers_info = {}
 
@@ -68,7 +68,7 @@ def main():
         num_workers=2
     )
 
-    model = resnet20.resnet20()
+    model = resnet.resnet20()
     state_dict = torch.load(
         "/home/minnellf/Xilinx/NN2FPGA/tmp/resnet20.weights",
         map_location=torch.device('cpu')
