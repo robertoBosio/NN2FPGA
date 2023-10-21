@@ -1,7 +1,3 @@
-import os
-import sys
-import math
-
 def find_divisors(layers_info, clamp=33):
     all_divisors = []
     layers_divisors = []

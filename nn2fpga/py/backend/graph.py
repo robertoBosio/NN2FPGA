@@ -1,9 +1,3 @@
-import os
-import sys
-#import onnx
-import qonnx
-from onnx import numpy_helper
-import numpy as np
 import backend.layers.conv as conv
 import backend.layers.gemm as gemm
 import backend.layers.pool as pool

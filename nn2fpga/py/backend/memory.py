@@ -1,8 +1,3 @@
-import os
-import sys
-import onnx
-from onnx import numpy_helper
-
 def write(
     additional_ports,
     additional_ports_info,

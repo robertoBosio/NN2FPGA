@@ -1,6 +1,3 @@
-import os
-import sys
-
 def write_func(fd, info):
 
     if info["func"] != "memory_management":

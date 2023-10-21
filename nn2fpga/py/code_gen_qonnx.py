@@ -1,9 +1,6 @@
-import torch
-import onnx
 import sys
 import os
 from backend.write_network import write_network
-import torchvision
 from qonnx.core.modelwrapper import ModelWrapper
 from qonnx.transformation import infer_shapes
 from qonnx.core.datatype import DataType

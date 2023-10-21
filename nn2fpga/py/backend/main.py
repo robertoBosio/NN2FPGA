@@ -1,8 +1,3 @@
-import os
-import sys
-#import onnx
-import qonnx
-from onnx import numpy_helper
 import backend.layers.conv as conv
 import backend.layers.pool as pool
 import backend.layers.line_buffer as line_buffer

@@ -1,6 +1,5 @@
 import os
 import sys
-#import onnx
 import qonnx
 from onnx import numpy_helper
 import numpy as np

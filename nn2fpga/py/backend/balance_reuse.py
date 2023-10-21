@@ -1,8 +1,6 @@
-import os
 import sys
 import pulp
-import math
-from backend.ilp_utils import find_divisors
+from backend.ilp_utils import find_divisors  #useless?
 
 def reuse_number(layers_info, clamp=16):
 

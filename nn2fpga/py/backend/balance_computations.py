@@ -1,5 +1,3 @@
-import os
-import sys
 import pulp
 import math
 from backend.ilp_utils import find_divisors
