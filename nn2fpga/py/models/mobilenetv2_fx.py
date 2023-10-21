@@ -192,4 +192,4 @@ def test():
     print(y.size())
     from torchinfo import summary
     summary(net, input_size=(2, 3, 224, 224))
-test()
+# test()
