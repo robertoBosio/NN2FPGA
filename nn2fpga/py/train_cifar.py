@@ -11,7 +11,7 @@ from torch.utils.tensorboard import SummaryWriter
 cudnn.benchmark = True
 import torchvision
 
-from models.resnet_brevitas_fx import *
+from models.resnet_cifar_fx import *
 from models.mobilenetv2_fx import *
 from utils.preprocess import *
 from utils.bar_show import progress_bar
@@ -21,10 +21,10 @@ parser = argparse.ArgumentParser(description='mobilenetv2 fx implementation')
 
 parser.add_argument('--root_dir', type=str, default='./')
 parser.add_argument('--data_dir', type=str, default='/home/teodoro/datasets/cifar10')
-parser.add_argument('--log_name', type=str, default='mobilenetv2_4w4f_cifar_fx')
+parser.add_argument('--log_name', type=str, default='resnet20_4w4f_cifar_fx')
 parser.add_argument('--pretrain', action='store_true', default=False)
-parser.add_argument('--pretrain_dir', type=str, default='mobilenetv2_8w8f_cifar_fx')
-
+parser.add_argument('--pretrain_dir', type=str, default='resnet20_8w8f_cifar_fx')
+parser.add_argument('--model', type=str, default='resnet20')
 parser.add_argument('--cifar', type=int, default=10)
 parser.add_argument('--lr', type=float, default=0.01)
 parser.add_argument('--wd', type=float, default=1e-4)
@@ -68,10 +68,15 @@ def main():
     eval_loader = torch.utils.data.DataLoader(eval_dataset, batch_size=cfg.eval_batch_size, shuffle=False,
                                             num_workers=cfg.num_workers)
 
-    print('===> Building ResNet..')
+    print('===> Building Network..')
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    model = resnet20(wbit=cfg.Wbits,abit=cfg.Abits).to(device)
-    model = MobileNetV2(num_classes = 10).to('cuda:0')
+    #model
+    if cfg.model == 'resnet20':
+        model = resnet20(weight_bits=cfg.Wbits,act_bits=cfg.Abits).to(device)
+    elif cfg.model == 'resnet8':
+        model = resnet8(weight_bits=cfg.Wbits,act_bits=cfg.Abits).to(device)
+    elif cfg.model == 'mobilenetv2':
+        model = MobileNetV2(num_classes = 10).to(device)
     if device == 'cuda':
         print("USING CUDA")
         model = torch.nn.DataParallel(model)
@@ -89,6 +94,7 @@ def main():
         model.load_state_dict(ckpt['model_state_dict'])
         optimizer.load_state_dict(ckpt['optimizer_state_dict'])
         start_epoch = ckpt['epoch']
+        model.to(device)
         print('===> Load last checkpoint data')
     else:
         start_epoch = 0
@@ -129,7 +135,6 @@ def main():
 
 
     def test(epoch):
-        # pass
         global best_acc
         model.eval()
 
