@@ -1,18 +1,15 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import math
-import sys
 import os
 from brevitas.nn import QuantConv2d, QuantReLU, QuantAdaptiveAvgPool2d
 from brevitas.core.quant import QuantType
 from brevitas.core.restrict_val import RestrictValueType
 from brevitas.core.scaling import ScalingImplType
-from common import CommonIntActQuant, CommonUintActQuant
+from common import CommonUintActQuant
 from brevitas.quant import Int16Bias, Int8WeightPerTensorFixedPoint, Int8ActPerTensorFixedPoint, Int8ActPerTensorFloat 
 import torchvision
 from preprocess import *
-# from resnet8 import *
 import torch.backends.cudnn as cudnn
 import torch.optim as optim
 from preprocess import *
