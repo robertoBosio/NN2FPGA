@@ -3,7 +3,6 @@ import onnx
 import sys
 import os
 from backend.write_network import write_network
-import network_graph
 import torchvision
 from qonnx.core.modelwrapper import ModelWrapper
 from qonnx.transformation import infer_shapes
