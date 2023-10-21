@@ -14,7 +14,8 @@ from models.mobilenetv2_fx import *
 from models.resnet_brevitas_fx import *
 from utils.preprocess import *
 from utils.bar_show import progress_bar
-from utils.utils import ImageNetKaggle
+# from utils.utils import ImageNetKaggle
+from utils.utils import ImageNetData
 # Training settings
 parser = argparse.ArgumentParser(description='mobilenetv2 fx implementation')
 
@@ -23,7 +24,8 @@ parser.add_argument('--data_dir', type=str, default='./data')
 parser.add_argument('--log_name', type=str, default='mobilenetv2_8w8f_cifar_fx')
 parser.add_argument('--pretrain', action='store_true', default=False)
 parser.add_argument('--pretrain_dir', type=str, default='mobilenetv2q_8w8f_cifar_fx')
-parser.add_argument('--data',default ="/home/teodoro/datasets/Kaggle_imagenet/", type=str, help="path to imagent dataset")
+# parser.add_argument('--data',default ="/home/teodoro/datasets/Kaggle_imagenet/", type=str, help="path to imagent dataset")
+parser.add_argument('--data',default ="/home/teodoro/datasets/Imagenet/", type=str, help="path to imagent dataset")
 parser.add_argument('--cifar', type=int, default=10)
 parser.add_argument('--lr', type=float, default=0.01)
 parser.add_argument('--wd', type=float, default=1e-4)
@@ -70,7 +72,8 @@ def main():
                 ]
             ) 
     # Data loading code
-    train_dataset = ImageNetKaggle(cfg.data, "train", train_transform)
+    # train_dataset = ImageNetKaggle(cfg.data, "train", train_transform)
+    train_dataset = ImageNetData(cfg.data, "train", train_transform)
     train_loader = dataloader = DataLoader(
                 train_dataset,
                 batch_size=cfg.train_batch_size, # may need to reduce this depending on your GPU 
@@ -78,8 +81,9 @@ def main():
                 shuffle=True,
                 drop_last=False,
                 pin_memory=True
-            ) 
-    val_dataset = ImageNetKaggle(cfg.data, "val", val_transform) 
+             ) 
+    # val_dataset = ImageNetKaggle(cfg.data, "val", val_transform) 
+    val_dataset = ImageNetData(cfg.data, "val", val_transform) 
     eval_loader = dataloader = DataLoader(
                 val_dataset,
                 batch_size=cfg.eval_batch_size, # may need to reduce this depending on your GPU 
@@ -111,6 +115,7 @@ def main():
         model.load_state_dict(ckpt['model_state_dict'])
         optimizer.load_state_dict(ckpt['optimizer_state_dict'])
         start_epoch = ckpt['epoch']
+        model.to(device)
         print('===> Load last checkpoint data')
     else:
         start_epoch = 0
