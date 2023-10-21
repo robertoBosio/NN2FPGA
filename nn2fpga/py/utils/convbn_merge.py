@@ -1,11 +1,4 @@
 import torch
-import brevitas
-from brevitas.nn import QuantConv2d, QuantIdentity
-from brevitas.nn.utils import merge_bn
-from brevitas.core.quant import QuantType
-from brevitas.core.restrict_val import RestrictValueType
-from brevitas.core.scaling import ScalingImplType
-
 
 def replace_layers(model, old, new) :
     for name, module in model.named_children() :
