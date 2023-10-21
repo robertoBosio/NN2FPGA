@@ -72,11 +72,12 @@ def main():
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     #model
     if cfg.model == 'resnet20':
-        model = resnet20(weight_bits=cfg.Wbits,act_bits=cfg.Abits).to(device)
+        model = resnet20(num_classes=cfg.cifar, weight_bits=cfg.Wbits,act_bits=cfg.Abits).to(device)
     elif cfg.model == 'resnet8':
-        model = resnet8(weight_bits=cfg.Wbits,act_bits=cfg.Abits).to(device)
+        model = resnet8(num_classes=cfg.cifar, weight_bits=cfg.Wbits,act_bits=cfg.Abits).to(device)
     elif cfg.model == 'mobilenetv2':
         model = MobileNetV2(num_classes = 10).to(device)
+   
     if device == 'cuda':
         print("USING CUDA")
         model = torch.nn.DataParallel(model)

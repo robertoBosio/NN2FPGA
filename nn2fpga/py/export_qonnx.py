@@ -1,34 +1,26 @@
 import os
-import time
 import argparse
-from datetime import datetime
 import torch
 import torch.optim as optim
 import torch.backends.cudnn as cudnn
 from torch.utils.tensorboard import SummaryWriter
-from brevitas.nn import QuantConv2d, QuantReLU, QuantMaxPool2d, QuantIdentity
 cudnn.benchmark = True
 import torchvision
-from torch.utils.tensorboard import SummaryWriter
 from utils.convbn_merge import replace_layers
 from utils.convbn_merge import fuse_layers
-from models.resnet_brevitas_fx import *
+from models.resnet_cifar_fx import *
 from models.mobilenetv2_fx import *
 from utils.preprocess import *
 from utils.bar_show import progress_bar
-import brevitas
-from brevitas.core.restrict_val import RestrictValueType
-from brevitas.core.scaling import ScalingImplType
-import onnx
 from brevitas.export.onnx.qonnx.manager import QONNXManager
-parser = argparse.ArgumentParser(description='brevitas_resnet fx implementation')
+parser = argparse.ArgumentParser(description='brevitas network fx implementation')
 
 parser.add_argument('--root_dir', type=str, default='./')
 parser.add_argument('--data_dir', type=str, default='/home/teodoro/datasets/cifar10')
-parser.add_argument('--log_name', type=str, default='mobilenetv2_8w8f_cifar_fx')
-parser.add_argument('--pretrain', action='store_true', default=True)
-parser.add_argument('--pretrain_dir', type=str, default='mobilenetv2_8w8f_cifar_fx')
+parser.add_argument('--log_name', type=str, default='resnet20_8w8f_cifar_fx')
+parser.add_argument('--pretrain_dir', type=str, default='resnet20_8w8f_cifar_fx')
 parser.add_argument('--cifar', type=int, default=10)
+parser.add_argument('--model', type=str, default='resnet20')
 parser.add_argument('--lr', type=float, default=0.01)
 parser.add_argument('--wd', type=float, default=1e-4)
 parser.add_argument('--train_batch_size', type=int, default=256)
@@ -38,20 +30,21 @@ parser.add_argument('--log_interval', type=int, default=40)
 parser.add_argument('--num_workers', type=int, default=4)
 parser.add_argument('--Wbits', type=int, default=8)
 parser.add_argument('--Abits', type=int, default=8)
+parser.add_argument('--retrain_epochs', type=int, default=10)
 cfg = parser.parse_args()
 
 best_acc = 0  # best test accuracy
 start_epoch = 0
 
-cfg.log_dir = os.path.join(cfg.root_dir, 'logs', cfg.log_name)
+cfg.log_dir = os.path.join(cfg.root_dir, 'logs/post_merge', cfg.log_name)
 cfg.ckpt_dir = os.path.join(cfg.root_dir, 'ckpt', cfg.pretrain_dir)
+cfg.ckpt_dir_p = os.path.join(cfg.root_dir, 'ckpt/post_merge', cfg.pretrain_dir)
 cfg.onnx_dir = os.path.join(cfg.root_dir, 'onnx', cfg.pretrain_dir)
 
 os.makedirs(cfg.log_dir, exist_ok=True)
-os.makedirs(cfg.ckpt_dir, exist_ok=True)
+os.makedirs(cfg.ckpt_dir_p, exist_ok=True)
 os.makedirs(cfg.onnx_dir, exist_ok=True)
 
-val=1
 print_onnx = 0
 writer = SummaryWriter()
 
@@ -76,30 +69,35 @@ def main():
     eval_loader = torch.utils.data.DataLoader(eval_dataset, batch_size=cfg.eval_batch_size, shuffle=False,
                                             num_workers=cfg.num_workers)
 
-    print('===> Building ResNet..')
+    print('===> Building Network..')
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    model = resnet20(wbit=cfg.Wbits,abit=cfg.Abits).to('cuda:0')
-    model = MobileNetV2(num_classes = 10).to('cuda:0')
+    #model
+    if cfg.model == 'resnet20':
+        model = resnet20(num_classes=cfg.cifar, weight_bits=cfg.Wbits, act_bits=cfg.Abits).to(device)
+    elif cfg.model == 'resnet8':
+        model = resnet8(num_classes=cfg.cifar, weight_bits=cfg.Wbits, act_bits=cfg.Abits).to(device)
+    elif cfg.model == 'mobilenetv2':
+        model = MobileNetV2(num_classes = cfg.cifar).to(device)
+
     if device == 'cuda':
+        print("USING CUDA")
         model = torch.nn.DataParallel(model)
         cudnn.benchmark = True
-        #print("no cuda")
-
+    else :
+        print("USING CPU")
     optimizer = torch.optim.SGD(model.parameters(), lr=cfg.lr, momentum=0.9, weight_decay=cfg.wd)
     #optimizer = torch.optim.Adam(model.parameters(),lr=cfg.lr,weight_decay=cfg.wd)
     lr_schedu = optim.lr_scheduler.MultiStepLR(optimizer, [90, 150, 200], gamma=0.1)
     criterion = torch.nn.CrossEntropyLoss()
     summary_writer = SummaryWriter(cfg.log_dir)
     
-    if cfg.pretrain:
-        ckpt = torch.load(os.path.join(cfg.ckpt_dir, f'checkpoint_fx.t7'))
-        model.load_state_dict(ckpt['model_state_dict'])
-        optimizer.load_state_dict(ckpt['optimizer_state_dict'])
-        start_epoch = ckpt['epoch']
-        print('===> Load last checkpoint data')
-    else:
-        start_epoch = 0
-        print('===> Start from scratch')
+    ckpt = torch.load(os.path.join(cfg.ckpt_dir, f'checkpoint_fx.t7'))
+    model.load_state_dict(ckpt['model_state_dict'])
+    optimizer.load_state_dict(ckpt['optimizer_state_dict'])
+    start_epoch = ckpt['epoch']
+    model.to(device)
+    print('===> Load last checkpoint data')
+
 
     retrain = 0
 
@@ -173,7 +171,7 @@ def main():
             }
             torch.save(state, os.path.join(cfg.ckpt_dir, f'checkpoint_quant_fx.t7'))
             model.to('cpu')
-            QONNXManager.export(model.module, input_shape=(1, 3, 32, 32), export_path='onnx/mobilenetv2_fx.onnx')            
+            QONNXManager.export(model.module, input_shape=(1, 3, 32, 32), export_path=cfg.onnx_dir+'/'+cfg.log_name+'.onnx')            
             best_acc = acc
 
 
@@ -205,72 +203,27 @@ def main():
                 break
 
     model.to('cuda:0')
-    #print(model)
-    #return 0
     
-    if(val) :
-        for epoch in range(start_epoch, start_epoch+1):
-            test(epoch)
-            lr_schedu.step(epoch)
-        summary_writer.close()
-
-
-    def calibrate_model(calibration_loader, quant_model):
-        with torch.no_grad():
-            # Put the model in training mode to collect statistics
-            quant_model.train()
-             #for i, (images, _) in enumerate(calibration_loader):
-             #   print(f'Calibration iteration {i}')
-             #   # Disable quantization while collecting statistics
-             #   DisableQuantInference().apply(quant_model, images)
-            #  Put the model in inference mode to use those statistics
-            quant_model.eval()
-            bc = BiasCorrection(iterations=len(calibration_loader))
-            for i, (images, _) in enumerate(calibration_loader):
-                print(f'Bias correction iteration {i}')
-                # Apply bias correction
-                quant_model = bc.apply(quant_model, images)
-        quant_model.apply(finalize_collect_stats)    
-        return quant_model
+    for epoch in range(start_epoch, start_epoch+1):
+        test(epoch)
+        lr_schedu.step(epoch)
   
-    #change not hand-written
     print("\n------------------------ MERGE BN ---------------------\n")
     
-    #model = merge_conv_bn(model)
     fuse_layers(model)
     replace_layers(model,torch.nn.BatchNorm2d ,torch.nn.Identity())
     
     model.to('cuda:0')
 
-    post_quant = 0
-    if(post_quant) :
-        model = calibrate_model(train_loader,model)
-    if(val) :
-         test(start_epoch)
-         print("\n-------------------RETRAINING-----------------\n") 
-         retrain = 1
-         for epoch in range(start_epoch, start_epoch+150): 
-            if(not(post_quant)) :
-                train(epoch)
-            test(epoch)
-            lr_schedu.step(epoch)
-         summary_writer.close()
-
-
-    #print(model.module)
-
-
-
-
-    model.to('cpu')
-    # dummy_input = torch.randn(10, 3, 32, 32, device="cpu")
-    # example_path = './onnx/'
-    # path = example_path + 'Brevonnx_resnet_final_fx.onnx'   
-    # os.makedirs(example_path, exist_ok=True)
-    # QONNXManager.export(model.module, input_shape=(1, 3, 32, 32), export_path='onnx/Brevonnx_resnet_final_fx.onnx')
-    # from qonnx.transformation import infer_shapes
-   
-    #onnx.save(onnx_model, 'onnx/Brevonnx_resnet_final.onnx')                                                                        
+    test(start_epoch)
+    print("\n-------------------RETRAINING-----------------\n") 
+    retrain = 1
+    for epoch in range(start_epoch, start_epoch+cfg.retrain_epochs): 
+        train(epoch)
+        test(epoch)
+        lr_schedu.step(epoch)
+    summary_writer.close()
+                                                                    
     if (print_onnx) :   
         from qonnx.core.modelwrapper import ModelWrapper                                
         from qonnx.transformation import infer_shapes 
@@ -282,7 +235,7 @@ def main():
             print(node.name)
             print(node)                                                        
    
-    print_partial(model)
+    # print_partial(model)
 
 if __name__ == '__main__':
     main()
