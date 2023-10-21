@@ -1,4 +1,5 @@
 import torch
+from brevitas.nn.utils import merge_bn
 
 def replace_layers(model, old, new) :
     for name, module in model.named_children() :
