@@ -103,12 +103,12 @@ def main():
 
     def train(epoch):
         print('\nEpoch: %d' % epoch)
-        model.to('cuda:0')
+        model.to(device)
         model.train()
         train_loss, correct, total = 0, 0 ,0
 
         for batch_idx, (inputs, targets) in enumerate(train_loader):
-            inputs, targets = inputs.to('cuda:0'), targets.to('cuda:0')
+            inputs, targets = inputs.to(device), targets.to(device)
             optimizer.zero_grad()
             outputs = model(inputs).view(model(inputs).size(0),-1)
             loss = criterion(outputs, targets)
@@ -144,7 +144,7 @@ def main():
         test_loss, correct, total = 0, 0, 0
         with torch.no_grad():
             for batch_idx, (inputs, targets) in enumerate(eval_loader):
-                inputs, targets = inputs.to('cuda:0'), targets.to('cuda:0')
+                inputs, targets = inputs.to(device), targets.to(device)
                 outputs = model(inputs).view(model(inputs).size(0),-1)
                 loss = criterion(outputs, targets)
 
@@ -202,7 +202,7 @@ def main():
                 outputs = outputs.view(outputs.size(0),-1)
                 break
 
-    model.to('cuda:0')
+    model.to(device)
     
     for epoch in range(start_epoch, start_epoch+1):
         test(epoch)
@@ -213,7 +213,7 @@ def main():
     fuse_layers(model)
     replace_layers(model,torch.nn.BatchNorm2d ,torch.nn.Identity())
     
-    model.to('cuda:0')
+    model.to(device)
 
     test(start_epoch)
     print("\n-------------------RETRAINING-----------------\n") 
