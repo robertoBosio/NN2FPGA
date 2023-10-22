@@ -30,14 +30,14 @@ class BasicBlock(nn.Module):
     def __init__(self, inplanes, planes, stride=1, downsample=None, weight_bits=8, act_bits=8):
 
         super(BasicBlock, self).__init__()
-        self.conv1 = conv3x3(inplanes, planes, stride=stride, weight_bits=weight_bits)
+        self.conv1 = conv3x3(inplanes, planes, stride=stride, weight_bits=weight_bits, act_bits=act_bits)
         self.bn1 = nn.BatchNorm2d(planes)
         self.relu = QuantReLU(quant_type=QuantType.INT,
             restrict_scaling_type=RestrictValueType.POWER_OF_TWO,
             scaling_impl_type=ScalingImplType.CONST,
             act_quant=CommonUintActQuant,
             bit_width=act_bits)
-        self.conv2 = conv3x3(planes, planes, weight_bits=weight_bits)
+        self.conv2 = conv3x3(planes, planes, weight_bits=weight_bits, act_bits=act_bits)
         self.bn2 = nn.BatchNorm2d(planes)
         self.downsample = downsample
         self.stride = stride
@@ -90,8 +90,8 @@ class ResNet(nn.Module):
         self.layer1 = self._make_layer(block, 16, layers[0])
         self.layer2 = self._make_layer(block, 32, layers[1], stride=2)
         self.layer3 = self._make_layer(block, 64, layers[2], stride=2)
-        #self.avgpool = QuantAvgPool2d(kernel_size=8, stride=1, bit_width = weight_bits)
-        self.avgpool = QuantMaxPool2d(kernel_size=8, stride=1)
+        self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
+        # self.avgpool = QuantMaxPool2d(kernel_size=8, stride=1)
         self.fc = QuantConv2d(64 * block.expansion, num_classes,
                 kernel_size=(1, 1), bias=False,
                 weight_bit_width = weight_bits,
