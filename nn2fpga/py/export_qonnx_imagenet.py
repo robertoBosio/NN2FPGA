@@ -9,42 +9,47 @@ from torch.utils.data import DataLoader
 cudnn.benchmark = True
 import torchvision
 from models.mobilenetv2_fx import *
-from models.resnet_brevitas_fx import *
+# from models.resnet_brevitas_fx import *
 from utils.preprocess import *
 from utils.bar_show import progress_bar
 # from utils.utils import ImageNetKaggle
 from utils.utils import ImageNetData
-# Training settings
+from brevitas.export.onnx.qonnx.manager import QONNXManager
+from utils.convbn_merge import *
+
+# Export settings
 parser = argparse.ArgumentParser(description='mobilenetv2 fx implementation')
 
 parser.add_argument('--root_dir', type=str, default='./')
 parser.add_argument('--data_dir', type=str, default='./data')
-parser.add_argument('--log_name', type=str, default='mobilenetv2_8w8f_cifar_fx')
-parser.add_argument('--pretrain', action='store_true', default=False)
+parser.add_argument('--log_name', type=str, default='mobilenetv2_4w4f_cifar_fx')
 parser.add_argument('--pretrain_dir', type=str, default='mobilenetv2q_8w8f_cifar_fx')
 # parser.add_argument('--data',default ="/home/teodoro/datasets/Kaggle_imagenet/", type=str, help="path to imagent dataset")
 parser.add_argument('--data',default ="/home/teodoro/datasets/Imagenet/", type=str, help="path to imagent dataset")
-parser.add_argument('--cifar', type=int, default=10)
-parser.add_argument('--lr', type=float, default=0.01)
+parser.add_argument('--lr', type=float, default=0.001)
 parser.add_argument('--wd', type=float, default=1e-4)
 parser.add_argument('--train_batch_size', type=int, default=32)
 parser.add_argument('--eval_batch_size', type=int, default=32)
 parser.add_argument('--max_epochs', type=int, default=250)
 parser.add_argument('--log_interval', type=int, default=40)
 parser.add_argument('--num_workers', type=int, default=4)
-parser.add_argument('--Wbits', type=int, default=8)
-parser.add_argument('--Abits', type=int, default=8)
+parser.add_argument('--retrain_epochs', type=int, default=10)
+parser.add_argument('--Wbits', type=int, default=4)
+parser.add_argument('--Abits', type=int, default=4)
 
 cfg = parser.parse_args()
 
 best_acc = 0  # best test accuracy
 start_epoch = 0
 
-cfg.log_dir = os.path.join(cfg.root_dir, 'logs', cfg.log_name)
+cfg.log_dir = os.path.join(cfg.root_dir, 'logs/post_merge', cfg.log_name)
 cfg.ckpt_dir = os.path.join(cfg.root_dir, 'ckpt', cfg.pretrain_dir)
+cfg.ckpt_dir_p = os.path.join(cfg.root_dir, 'ckpt/post_merge', cfg.pretrain_dir)
+cfg.onnx_dir = os.path.join(cfg.root_dir, 'onnx', cfg.pretrain_dir)
 
 os.makedirs(cfg.log_dir, exist_ok=True)
-os.makedirs(cfg.ckpt_dir, exist_ok=True)
+os.makedirs(cfg.ckpt_dir_p, exist_ok=True)
+os.makedirs(cfg.onnx_dir, exist_ok=True)
 
 def main():
 
@@ -108,25 +113,23 @@ def main():
     criterion = torch.nn.CrossEntropyLoss().cuda()
     summary_writer = SummaryWriter(cfg.log_dir)
 
-    if cfg.pretrain:
-        ckpt = torch.load(os.path.join(cfg.ckpt_dir, f'checkpoint_mobilenetv2_fx.t7'))
-        model.load_state_dict(ckpt['model_state_dict'])
-        optimizer.load_state_dict(ckpt['optimizer_state_dict'])
-        start_epoch = ckpt['epoch']
-        model.to(device)
-        print('===> Load last checkpoint data')
-    else:
-        start_epoch = 0
-        print('===> Start from scratch')
+    ckpt = torch.load(os.path.join(cfg.ckpt_dir, f'checkpoint_mobilenetv2_fx.t7'))
+    model.load_state_dict(ckpt['model_state_dict'])
+    optimizer.load_state_dict(ckpt['optimizer_state_dict'])
+    start_epoch = ckpt['epoch']
+    model.to(device)
+    print('===> Load last checkpoint data')
 
+    retrain = 0
 
     def train(epoch):
         print('\nEpoch: %d' % epoch)
         model.train()
+        model.to(device)
         train_loss, correct, total = 0, 0 ,0
 
         for batch_idx, (inputs, targets) in enumerate(train_loader):
-            inputs, targets = inputs.to('cuda'), targets.to('cuda')
+            inputs, targets = inputs.to(device), targets.to(device)
             optimizer.zero_grad()
             outputs = model(inputs).view(model(inputs).size(0),-1)
             #print(outputs.size())
@@ -162,7 +165,7 @@ def main():
         test_loss, correct, total = 0, 0, 0
         with torch.no_grad():
             for batch_idx, (inputs, targets) in enumerate(eval_loader):
-                inputs, targets = inputs.to('cuda'), targets.to('cuda')
+                inputs, targets = inputs.to(device), targets.to(device)
                 outputs = model(inputs).view(model(inputs).size(0),-1)
                 loss = criterion(outputs, targets)
 
@@ -179,18 +182,34 @@ def main():
                 #     summary_writer.add_scalar('Accuracy/test', 100. * correct / total, epoch * len(train_loader) + batch_idx)
 
         acc = 100. * correct / total
-        if acc > best_acc:
-            print('Saving..')
+
+        if acc > best_acc and retrain :
+            print('Exporting..')
             state = {
                 'model_state_dict': model.state_dict(),
                 'optimizer_state_dict': optimizer.state_dict(),
                 'acc': acc,
                 'epoch': epoch,
             }
-            torch.save(state, os.path.join(cfg.ckpt_dir, f'checkpoint_mobilenetv2_fx.t7'))
+            torch.save(state, os.path.join(cfg.ckpt_dir_p, f'checkpoint_quant_fx.t7'))
+            model.to('cpu')
+            QONNXManager.export(model.module, input_shape=(1, 3, 224, 224), export_path=cfg.onnx_dir+'/'+cfg.log_name+'.onnx')            
             best_acc = acc
 
-    for epoch in range(start_epoch, cfg.max_epochs):
+    for epoch in range(start_epoch, start_epoch+1):
+        test(epoch)
+        lr_schedu.step(epoch)
+  
+    print("\n------------------------ MERGE BN ---------------------\n")
+    
+    fuse_layers(model)
+    replace_layers(model,torch.nn.BatchNorm2d ,torch.nn.Identity())
+    
+    model.to(device)
+    retrain = 1
+    test(start_epoch)
+    print("\n-------------------RETRAINING-----------------\n") 
+    for epoch in range(start_epoch, start_epoch+cfg.retrain_epochs): 
         train(epoch)
         test(epoch)
         lr_schedu.step(epoch)

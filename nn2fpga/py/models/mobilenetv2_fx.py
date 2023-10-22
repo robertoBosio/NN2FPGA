@@ -10,7 +10,7 @@ from brevitas.nn import QuantConv2d, QuantIdentity, QuantReLU, QuantMaxPool2d, Q
 from brevitas.core.quant import QuantType
 from brevitas.core.restrict_val import RestrictValueType
 from brevitas.core.scaling import ScalingImplType
-from .common import CommonIntActQuant, CommonUintActQuant
+from .common import CommonUintActQuant
 from brevitas.quant import Int16Bias, Int8WeightPerTensorFixedPoint, Int8ActPerTensorFixedPoint, Int8ActPerTensorFloat 
 
 class Block(nn.Module):
@@ -26,10 +26,10 @@ class Block(nn.Module):
                 bias_quant = Int16Bias,
                 input_quant = Int8ActPerTensorFixedPoint,
                 #output_quant = Int8ActPerTensorFixedPoint,
-                weight_quant_bits=4,
-                #bias_quant_bits=16,
-                input_quant_bits=4,
-                output_quant_bits=4
+                weight_bit_width=4,
+                #bias_bit_width=16,
+                input_bit_width=4,
+                output_bit_width=4
                                 )
         
         self.bn1 = nn.BatchNorm2d(planes)
@@ -39,10 +39,10 @@ class Block(nn.Module):
                 bias_quant = Int16Bias,
                 input_quant = Int8ActPerTensorFixedPoint,
                 #output_quant = Int8ActPerTensorFixedPoint,
-                weight_quant_bits=4,
-                #bias_quant_bits=16,
-                input_quant_bits=4,
-                output_quant_bits=4
+                weight_bit_width=4,
+                #bias_bit_width=16,
+                input_bit_width=4,
+                output_bit_width=4
                                 )
         
         self.bn2 = nn.BatchNorm2d(planes)
@@ -52,10 +52,10 @@ class Block(nn.Module):
                 bias_quant = Int16Bias,
                 input_quant = Int8ActPerTensorFixedPoint,
                 output_quant = Int8ActPerTensorFixedPoint,
-                weight_quant_bits=4,
-                #bias_quant_bits=16,
-                input_quant_bits=4,
-                output_quant_bits=4
+                weight_bit_width=4,
+                #bias_bit_width=16,
+                input_bit_width=4,
+                output_bit_width=4
                                 )
 
         self.bn3 = nn.BatchNorm2d(out_planes)
@@ -74,10 +74,10 @@ class Block(nn.Module):
                 bias_quant = Int16Bias,
                 input_quant = Int8ActPerTensorFixedPoint,
                 output_quant = Int8ActPerTensorFixedPoint,
-                weight_quant_bits=4,
-                #bias_quant_bits=16,
-                input_quant_bits=4,
-                output_quant_bits=4
+                weight_bit_width=4,
+                #bias_bit_width=16,
+                input_bit_width=4,
+                output_bit_width=4
                                 ),
                 nn.BatchNorm2d(out_planes),
             )
@@ -118,10 +118,10 @@ class MobileNetV2(nn.Module):
                 bias_quant = Int16Bias,
                 input_quant = Int8ActPerTensorFixedPoint,
                 #output_quant = Int8ActPerTensorFixedPoint,
-                weight_quant_bits=4,
-                #bias_quant_bits=16,
-                input_quant_bits=4,
-                output_quant_bits=4
+                weight_bit_width=8,
+                #bias_bit_width=16,
+                input_bit_width=8,
+                output_bit_width=8
                                 )
         self.bn1 = nn.BatchNorm2d(32)
         self.layers = self._make_layers(in_planes=32)
@@ -131,10 +131,10 @@ class MobileNetV2(nn.Module):
                 bias_quant = Int16Bias,
                 input_quant = Int8ActPerTensorFixedPoint,
                 #output_quant = Int8ActPerTensorFixedPoint,
-                weight_quant_bits=4,
-                #bias_quant_bits=16,
-                input_quant_bits=4,
-                output_quant_bits=4
+                weight_bit_width=4,
+                #bias_bit_width=16,
+                input_bit_width=4,
+                output_bit_width=4
                                 )
 
         self.bn2 = nn.BatchNorm2d(1280)
@@ -153,10 +153,10 @@ class MobileNetV2(nn.Module):
                 bias_quant = Int16Bias,
                 input_quant = Int8ActPerTensorFixedPoint,
                 output_quant = Int8ActPerTensorFixedPoint,
-                weight_quant_bits=4,
-                #bias_quant_bits=16,
-                input_quant_bits=4,
-                output_quant_bits=4
+                weight_bit_width=4,
+                #bias_bit_width=16,
+                input_bit_width=4,
+                output_bit_width=4
                                 )
 
     def _make_layers(self, in_planes):
@@ -192,4 +192,4 @@ def test():
     print(y.size())
     from torchinfo import summary
     summary(net, input_size=(2, 3, 224, 224))
-test()
+# test()
