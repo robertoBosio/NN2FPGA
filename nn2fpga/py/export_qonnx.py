@@ -169,7 +169,7 @@ def main():
                 'acc': acc,
                 'epoch': epoch,
             }
-            torch.save(state, os.path.join(cfg.ckpt_dir, f'checkpoint_quant_fx.t7'))
+            torch.save(state, os.path.join(cfg.ckpt_dir_p, f'checkpoint_quant_fx.t7'))
             model.to('cpu')
             QONNXManager.export(model.module, input_shape=(1, 3, 32, 32), export_path=cfg.onnx_dir+'/'+cfg.log_name+'.onnx')            
             best_acc = acc
@@ -227,7 +227,6 @@ def main():
     if (print_onnx) :   
         from qonnx.core.modelwrapper import ModelWrapper                                
         from qonnx.transformation import infer_shapes 
-
         
         model = ModelWrapper(path)
         inferred_model = model.transform(infer_shapes.InferShapes())
