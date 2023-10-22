@@ -108,7 +108,7 @@ def main():
         train_loss, correct, total = 0, 0 ,0
 
         for batch_idx, (inputs, targets) in enumerate(train_loader):
-            inputs, targets = inputs.to('cuda'), targets.to('cuda')
+            inputs, targets = inputs.to(device), targets.to(device)
             optimizer.zero_grad()
             outputs = model(inputs).view(model(inputs).size(0),-1)
             loss = criterion(outputs, targets)
@@ -142,7 +142,7 @@ def main():
         test_loss, correct, total = 0, 0, 0
         with torch.no_grad():
             for batch_idx, (inputs, targets) in enumerate(eval_loader):
-                inputs, targets = inputs.to('cuda'), targets.to('cuda')
+                inputs, targets = inputs.to(device), targets.to(device)
                 outputs = model(inputs).view(model(inputs).size(0),-1)
                 loss = criterion(outputs, targets)
 
