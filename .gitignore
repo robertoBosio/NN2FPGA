@@ -131,6 +131,7 @@ dmypy.json
 tmp/
 data/
 ckpt/
+onnx/
 log/
 logs/
 *.jou
