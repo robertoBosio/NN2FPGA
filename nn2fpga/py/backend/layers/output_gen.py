@@ -59,11 +59,13 @@ def parse(parsed_write, node_name):
 
     output_type = "hls::axis<t_%s, 0, 0, 0>" % input_type_name
     block["defines"] = {}
+
     block["defines"]["t_o_%s" % output_type_name] = [
         "type",
         "%s" % output_type
     ]
 
+    block["defines"]["t_out_mem"] = ["alias", "t_%s" % input_type_name]
     block["defines"]["t_o_outp1"] = ["alias", "t_o_%s" % output_type_name]
     block["defines"]["t_o_data"] = ["alias", "t_o_%s" % output_type_name]
     block["defines"]["c_%s_ws" % node_name] = ["const", 1]

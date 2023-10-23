@@ -11,7 +11,7 @@ def write(
 ):
 
     def write_header(fd):
-        fd.write("#include \"network.h\"\n")
+        fd.write("#include \"params.h\"\n")
         fd.write("#include \"mem_utils.h\"\n")
         fd.write("#include \"ap_int.h\"\n")
         fd.write("#include \"memory_management.h\"\n")

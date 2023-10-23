@@ -46,7 +46,7 @@ def output_shape_quant() :
     graph_def = model.graph
 
     initializers = graph_def.initializer
-    print("Hellooooo")
+    
     # Modify initializer
     for initializer in initializers:
         # Data type:

@@ -27,9 +27,9 @@ def write_func(fd, info):
     fd.write("\n")
 
 
-def body(file_name, parsed_write, prj_root="/tmp"):
+def body(file_path, parsed_write, prj_root="/tmp"):
 
-    with open(prj_root + ("/cc/src/%s.cc" % file_name), "a") as fd:
+    with open(file_path, "a") as fd:
         
         for layer in parsed_write:
 
@@ -53,7 +53,9 @@ def write_const(fd, values, i, dims, form="int"):
         fd.write("}")
     
 def write_declare(fd, variable):
-    
+    if ("is_pointer" not in variable.keys()):
+        variable["is_pointer"] = False
+
     name = variable["name"]
     is_not_stream = 'is_const' in variable.keys()
     if "is_stream" in variable.keys():
@@ -70,6 +72,8 @@ def write_declare(fd, variable):
 
     if (variable["is_array"] and not is_not_stream):
         fd.write("%s %s[%0d]" % (type_name, name, dim))
+    elif (variable["is_pointer"] and is_not_stream):
+        fd.write("%s *%s" % (type_name, name))
     else:
         fd.write("%s %s" % (type_name, name))
 
@@ -78,6 +82,9 @@ def write_declare(fd, variable):
             for dim in variable["size"]:
                 fd.write("[%0d]" % dim)
 
+        if ("attribute" in variable.keys()):
+            fd.write(" __attribute__((%s))" % variable["attribute"])
+        
         if (variable["is_const"]):
             fd.write(" = ")
             form = "int"
@@ -92,6 +99,7 @@ def write_declare(fd, variable):
                     fd.write("%0.16f" % variable["init"])
                 else:
                     fd.write("%0d" % variable["init"])
+
 
     fd.write(";\n")
 
@@ -115,9 +123,9 @@ def write_pragma(fd, pragma):
 
     fd.write("\n")
 
-def declare(file_name, parsed_write, ap_ctrl=None, inline=False, prj_root="/tmp"):
-
-    with open(prj_root + ("/cc/src/%s.cc" % file_name), "a") as fd:
+def declare(file_path, parsed_write, ap_ctrl=None, inline=False, prj_root="/tmp"):
+    
+    with open(file_path, "a") as fd:
         
         if inline:
             # Adding inline option to put the module in dataflow
@@ -190,78 +198,3 @@ def write_defines(fd, values):
                 )
             )
 
-def defines(file_name, parsed_write, prj_root="/tmp"):
-
-    libraries = [
-        "ap_int.h",
-        "hls_stream.h",
-        "hls_vector.h",
-        "stdint.h",
-        "ap_axi_sdata.h",
-    ]
-
-    with open(prj_root + ("/cc/include/%s.h" % file_name), "w+") as fd:
-        
-        fd.write("#ifndef NN2FPGA_NETWORK_H_\n")
-        fd.write("#define NN2FPGA_NETWORK_H_\n")
-
-        for lib in libraries:
-            fd.write("#include \"%s\"\n" % lib)
-
-        for layer in parsed_write:
-
-            if 'defines' in layer.keys():
-                write_defines(fd, layer["defines"])
-
-        fd.write("\n")
-
-        fd.write("void %s(\n" % file_name)
-
-        for layer in parsed_write:
-            if "produce_stream" == layer["func"]:
-                for name in layer["input"]:
-                    fd.write("\thls::stream<t_%s> &%s,\n" % (name, name))
-
-        for layer in parsed_write:
-            if "memory_management" == layer["func"]:
-                for name in layer["input"]:
-                    fd.write("\tconst t_%s_st *i_data_%s,\n" % (name, name))
-
-                for name in layer["stream_input"]:
-                    fd.write("\thls::stream<t_%s_stream> &i_data_%s,\n" % (name, name))
-
-        for layer in parsed_write:
-            if "consume_stream" == layer["func"]:
-                for name in layer["output"]:
-                    fd.write("\thls::stream<t_o_%s> &o_%s\n" % (name, name))
-
-        fd.write(");\n")
-
-        fd.write("void memory_management(\n")
-
-        for layer in parsed_write:
-            if 'is_const' in layer.keys():
-                for name in layer["input"]:
-                    fd.write("\tconst t_%s_st *i_data_%s,\n" % (name, name))
-
-                for name in layer["stream_input"]:
-                    fd.write("\thls::stream<t_%s_stream> &i_data_%s,\n" % (name, name))
-
-        for i, layer in enumerate(parsed_write):
-            if 'is_const' in layer.keys():
-                for j, name in enumerate(layer["output"]):
-                    fd.write(
-                        "\thls::stream<t_%s> s_%s[%0d]" % (
-                            name,
-                            name,
-                            layer["size"]
-                        )
-                    )
-                    if i < (len(parsed_write)-1) or j < (len(layer["output"])-1):
-                        fd.write(",")
-                    fd.write("\n")
-
-        fd.write(");\n")
-
-        fd.write("\n")
-        fd.write("#endif")

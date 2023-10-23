@@ -342,6 +342,11 @@ def parse_main(io_dict):
         block["stream_input"].append("%s" % output_name)
         block["args"].append("i_data_%s" % output_name)
 
+        block["defines"]["t_%s_st" % output_name] = [
+            "type", 
+            "ap_uint<8>"
+        ]
+
         block["defines"]["t_%s_stream" % output_name] = [
             "type", 
             "ap_axiu<8, 0, 0, 0>"
@@ -759,9 +764,8 @@ def parse_all(io_dict):
 
 def init(file_name, network_name, parsed_write, uram_layer_include, prj_root="/tmp"):
 
-
     libraries = [
-        "%s.h" % network_name,
+        "params.h",
         "ap_int.h",
         "nn2fpga/mem_utils.h",
         "nn2fpga/weights_utils.h",
@@ -771,7 +775,11 @@ def init(file_name, network_name, parsed_write, uram_layer_include, prj_root="/t
     if uram_layer_include:
         libraries.append("load_uram_%s.h" % network_name)
 
-    with open(prj_root + ("/cc/src/%s.cc" % file_name), "w+") as fd:
+    with open(prj_root + ("/cc/include/%s.h" % file_name), "w+") as fd:
+        
+        fd.write(f"#ifndef __NETWORK_{file_name.upper()}_H__\n")
+        fd.write(f"#define __NETWORK_{file_name.upper()}_H__\n")
+        
         # Write header with network definitions
         for lib in libraries:
             fd.write("#include \"%s\"\n" % lib)
@@ -806,6 +814,11 @@ def init(file_name, network_name, parsed_write, uram_layer_include, prj_root="/t
 
         fd.write("\n")
 
+def footer(file_name, parsed_write, prj_root="/tmp"):
+    with open(prj_root + "/cc/include/%s.h" % file_name, "a") as fd:
+        fd.write("\n")
+        fd.write("#endif")
+
 def write(io_dict, network_name, prj_root="/tmp"):
 
     parsed_write = parse_all(io_dict)
@@ -817,7 +830,9 @@ def write(io_dict, network_name, prj_root="/tmp"):
             uram_layer_include = True
 
     memory_management_file_name = "memory_management_%s" % network_name
+    file_path = f"{prj_root}/cc/include/memory_management_{network_name}.h"
     init(memory_management_file_name, network_name, parsed_write, uram_layer_include, prj_root=prj_root)
-    declare(memory_management_file_name, parsed_write, ap_ctrl=None, inline=True, prj_root=prj_root)
-    body(memory_management_file_name, parsed_write, prj_root)
+    declare(file_path, parsed_write, ap_ctrl=None, inline=True, prj_root=prj_root)
+    body(file_path, parsed_write, prj_root)
+    footer(memory_management_file_name, parsed_write, prj_root)
 
