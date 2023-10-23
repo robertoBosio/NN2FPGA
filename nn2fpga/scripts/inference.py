@@ -54,7 +54,7 @@ if __name__ == "__main__":
 
     test_loader, buffer_dim = dataloader(batch_size)
 
-    print("Loading overlay", flush=True)
+    print("Loading overlay")
     overlay = Overlay('./overlay/design_1.bit')
 
     print("Loaded overlay")
@@ -75,22 +75,6 @@ if __name__ == "__main__":
     in_buffer = allocate(shape=(batch_size*buffer_dim[0], ), dtype=np.uint8)
     out_buffer = allocate(shape=(batch_size, buffer_dim[1], ), dtype=np.int8)
 
-    #################################Dynamic Clock##################################
-    #clk = overlay.clk_wiz_0
-    # 300 MHz
-    #mul = 0x00000C01
-    #div = 0x00000004
-    # VCO = 1200 MHz / 4 = 300 MHz
-    #clk.write(0x200,mul)
-    # clkout1
-    #clk.write(0x208,div)
-    # clkout2
-    #clk.write(0x214,div)
-    #status = clk.read(0x04) #Locked when 1 MMCM/PLL is locked and ready for reconfiguration. The status of this bit is 0 during reconfiguration.
-    #if status == 0x1:
-    #    clk.write(0x25C,0x00000003)
-    #    print(status)
-
     #################################Inference##################################
 
     if (sel_board == "ULTRA96v2"):
@@ -110,7 +94,3 @@ if __name__ == "__main__":
         postprocess,
         sel_uram_storage
     )
-
-   
-        
-        
