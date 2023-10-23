@@ -147,6 +147,7 @@ class MobileNetV2(nn.Module):
             scaling_impl_type=ScalingImplType.CONST,
             act_quant=CommonUintActQuant,
             bit_width=4)
+        self.pool = nn.AdaptiveAvgPool2d((1, 1))
         self.linear = QuantConv2d(1280, num_classes,
                 kernel_size=(1, 1), bias=None,
                 weight_quant = Int8WeightPerTensorFixedPoint,
@@ -179,7 +180,7 @@ class MobileNetV2(nn.Module):
         out = self.bn2(out)
         out = self.relu(out)
         # NOTE: change pooling kernel_size 7 -> 4 for CIFAR10
-        out = F.avg_pool2d(out, 7)
+        out = self.pool(out)
         #out = out.view(out.size(0), -1)
         out = self.linear(out)
         return out
