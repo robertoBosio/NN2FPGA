@@ -19,7 +19,7 @@ parser = argparse.ArgumentParser(description='mobilenetv2 fx implementation')
 
 parser.add_argument('--root_dir', type=str, default='./')
 parser.add_argument('--data_dir', type=str, default='./data')
-parser.add_argument('--log_name', type=str, default='mobilenetv2_8w8f_cifar_fx')
+parser.add_argument('--log_name', type=str, default='mobilenetv2_4w4f_imagenet_fx')
 parser.add_argument('--pretrain', action='store_true', default=False)
 parser.add_argument('--pretrain_dir', type=str, default='mobilenetv2q_8w8f_cifar_fx')
 # parser.add_argument('--data',default ="/home/teodoro/datasets/Kaggle_imagenet/", type=str, help="path to imagent dataset")
@@ -109,7 +109,7 @@ def main():
     summary_writer = SummaryWriter(cfg.log_dir)
 
     if cfg.pretrain:
-        ckpt = torch.load(os.path.join(cfg.ckpt_dir, f'checkpoint_mobilenetv2_fx.t7'))
+        ckpt = torch.load(os.path.join(cfg.ckpt_dir, f'checkpoint_fx.t7'))
         model.load_state_dict(ckpt['model_state_dict'])
         optimizer.load_state_dict(ckpt['optimizer_state_dict'])
         start_epoch = ckpt['epoch']
@@ -123,10 +123,11 @@ def main():
     def train(epoch):
         print('\nEpoch: %d' % epoch)
         model.train()
+        model.to(device)
         train_loss, correct, total = 0, 0 ,0
 
         for batch_idx, (inputs, targets) in enumerate(train_loader):
-            inputs, targets = inputs.to('cuda'), targets.to('cuda')
+            inputs, targets = inputs.to(device), targets.to(device)
             optimizer.zero_grad()
             outputs = model(inputs).view(model(inputs).size(0),-1)
             #print(outputs.size())
@@ -187,7 +188,7 @@ def main():
                 'acc': acc,
                 'epoch': epoch,
             }
-            torch.save(state, os.path.join(cfg.ckpt_dir, f'checkpoint_mobilenetv2_fx.t7'))
+            torch.save(state, os.path.join(cfg.ckpt_dir, f'checkpoint_fx.t7'))
             best_acc = acc
 
     for epoch in range(start_epoch, cfg.max_epochs):
