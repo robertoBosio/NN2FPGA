@@ -23,6 +23,9 @@ void pool_op(hls::stream<t_input_struct> i_data[c_ws],
   bool s_last;
   t_acc s_acc_buff[c_och];
 
+  #ifndef __SYNTHESIS__
+      std::cout << "pool_op " << c_ich << std::endl;
+  #endif
   hls::stream<t_acc> s_acc_stream;
 #pragma HLS stream variable = s_acc_stream depth = 2 type = fifo
   t_output_struct s_output_struct;
@@ -61,6 +64,9 @@ void pool_op(hls::stream<t_input_struct> i_data[c_ws],
       }
     }
   }
+  #ifndef __SYNTHESIS__
+      std::cout << "end pool_op " << c_ich << std::endl;
+  #endif
 }
 
 template <class t_input_struct, class t_input, class t_output_struct,
@@ -77,6 +83,9 @@ void pool_op(hls::stream<t_input_struct> i_data[c_fh*(c_fw+(c_ws-1)*c_str)],
   bool s_last;
   t_acc s_acc_buff;
 
+  #ifndef __SYNTHESIS__
+      std::cout << "pool_op " << c_ich << std::endl;
+  #endif
   for (auto s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
     for (auto s_ws = 0; s_ws < c_ws; s_ws++) {
       #pragma HLS unroll
@@ -110,6 +119,9 @@ void pool_op(hls::stream<t_input_struct> i_data[c_fh*(c_fw+(c_ws-1)*c_str)],
       }
     }
   }
+  #ifndef __SYNTHESIS__
+      std::cout << "end pool_op " << c_ich << std::endl;
+  #endif
 }
 
 }

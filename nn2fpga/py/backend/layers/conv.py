@@ -2,6 +2,7 @@ import os
 import sys
 #import onnx
 import qonnx
+import math
 from onnx import numpy_helper
 import numpy as np
 import backend.quant
@@ -10,8 +11,35 @@ from backend.layers.quant import get_quant_type, get_quant_constant
 def info(io_dict, node, node_name, init_info, tensors_info, enable_ws):
 
     attributes = getattr(node, "attribute" )
+    inputs = getattr(node, "input" )
     input_shape = tensors_info[node.input[0]].tensor_type.shape
     output_shape = tensors_info[node.output[0]].tensor_type.shape
+
+    for i, attribute in enumerate(attributes):
+        if getattr(attribute, 'name') == "kernel_shape":
+            kernel_index = i
+        if getattr(attribute, 'name') == "strides":
+            strides_index = i
+        if getattr(attribute, 'name') == "pads":
+            pads_index = i
+        if getattr(attribute, 'name') == "group":
+            group_index = i
+
+    weight_name = inputs[1] 
+            
+    if (len(inputs) > 2):
+        bias_name = inputs[2]
+    
+    # Check if kernel strides and pads exist and if not set terminate
+    if 'kernel_index' not in locals():
+        print("Kernel index not found in conv")
+        exit(0)
+    if 'strides_index' not in locals():
+        print("Strides index not found in conv")
+        exit(0)
+    if 'pads_index' not in locals():
+        print("Pads index not found in conv")
+        exit(0)
 
     ich      = getattr(input_shape, 'dim')[1].dim_value
     ih       = getattr(input_shape, 'dim')[2].dim_value
@@ -19,10 +47,10 @@ def info(io_dict, node, node_name, init_info, tensors_info, enable_ws):
     och      = getattr(output_shape, 'dim')[1].dim_value
     oh       = getattr(output_shape, 'dim')[2].dim_value
     ow       = getattr(output_shape, 'dim')[3].dim_value
-    fh       = getattr(attributes[2], 'ints')[0]
-    fw       = getattr(attributes[2], 'ints')[1]
-    stride   = getattr(attributes[4], 'ints')[0]
-    pad      = getattr(attributes[3], 'ints')[0]
+    fh       = getattr(attributes[kernel_index], 'ints')[0]
+    fw       = getattr(attributes[kernel_index], 'ints')[1]
+    stride   = getattr(attributes[strides_index], 'ints')[0]
+    pad      = getattr(attributes[pads_index], 'ints')[0]
     is_1x1   = (fh == 1) and (fw == 1)
     kernel   = fh*fw
     img_ch   = ich*och
@@ -31,9 +59,13 @@ def info(io_dict, node, node_name, init_info, tensors_info, enable_ws):
     in_scale_factor = [None]
     in_bits = [None]
 
-    groups = getattr(attributes[1], 'ints')
+    # Check if groups exist and if not set to 1
+    if 'group_index' not in locals():
+        group = 1
+    else:
+        group = getattr(attributes[group_index], 'i')
 
-    if (groups == och):
+    if (group == och):
         depth = 1
     else:
         depth = 0
@@ -82,6 +114,9 @@ def info(io_dict, node, node_name, init_info, tensors_info, enable_ws):
     io_dict[node_name]["in_ops"] = 1
     io_dict[node_name]["ich_ops"] = 1
     io_dict[node_name]["depth"] = depth
+    io_dict[node_name]["weights_name"] = [weight_name]
+    if 'bias_name' in locals():
+        io_dict[node_name]["bias_name"] = [bias_name]
 
     return io_dict
 
@@ -208,6 +243,8 @@ def parse_comp(name, node):
     # synthesizer gives an error
     simd_bits = 2
     simd = int(np.log2(node["kernel"])/simd_bits) + (0 != (np.log2(node["kernel"]) - int(np.log2(node["kernel"]))))
+    if (simd == 0):
+        simd = 1
     mask = (1 << (simd-1)) - 1;
     if (node["in_scale_factor"][0] is not None):
         abits, aibits = get_quant_constant(node["signed"], node["in_bits"][0], node["in_scale_factor"][0])
@@ -255,7 +292,11 @@ def parse_comp(name, node):
     ####################################################################################
     block["template"].append("%0d" % node["depth"])
 
-    acc_type = get_quant_type(True, 32, node["actscale"][0]+node["wscale"][0], acc_reg=True)
+    if (node["depth"] == 1):
+        acc_bits = node["actbits"][0] + node["wbits"][0] + math.ceil(math.log2(node["kernel"]))
+    else:
+        acc_bits = node["actbits"][0] + node["wbits"][0] + math.ceil(math.log2(node["kernel"]*node["ich"]))
+    acc_type = get_quant_type(True, acc_bits, node["actscale"][0]+node["wscale"][0], acc_reg=True)
     block["defines"] = {}
     block["defines"]["t_%s_acc" % output_name] = ["type", acc_type]
     block["defines"]["t_%s_acc_struct" % output_name] = [
@@ -329,8 +370,16 @@ def parse_comp(name, node):
         block["defines"]["t_%s_1x1" % input_name] = ["type", input_1x1_type]
 
         if (node["in_scale_factor"][1] is not None):
+            if (node["depth"] == 1):
+                acc_bits = node["in_bits"][1] + node["wbits"][1]
+            else:
+                acc_bits = node["actbits"][0] + node["wbits"][1] + math.ceil(node["ich"])
             acc_type_1x1 = get_quant_type(True, 32, node["in_scale_factor"][1]+node["wscale"][1]-2)
         else:
+            if (node["depth"] == 1):
+                acc_bits = node["in_bits"][1] + node["wbits"][1]
+            else:
+                acc_bits = node["actbits"][0] + node["wbits"][1] + math.ceil(node["ich"])
             acc_type_1x1 = get_quant_type(True, 32, node["actscale"][0]+node["wscale"][1])
 
         block["defines"]["t_%s_acc" % output_1x1_name] = ["type", acc_type_1x1]
@@ -462,6 +511,21 @@ def parse_comp(name, node):
     pragma["options"] = options
     block["pragma"].append(pragma)
 
+    # FIX: Adding because with big pointwise layers there are II violations
+    # because the array width is too high for a memory element
+    if node["is_1x1"] and node["ops"] > 16:
+        pragma = {}
+        pragma["name"] = "array_partition"
+        options = [
+            ["variable", "s_%s" % (output_name)],
+            # ["type", "cyclic"],
+            ["type", "complete"],
+            # ["factor", node["ops"]],
+            # ["dim", 3],
+        ]
+        pragma["options"] = options
+        block["pragma"].append(pragma)
+
     if (node["merge_1x1"]):
         pragma = {}
         pragma["name"] = "stream"
@@ -476,6 +540,22 @@ def parse_comp(name, node):
         ]
         pragma["options"] = options
         block["pragma"].append(pragma)
+
+        # FIX: Adding because with big pointwise layers there are II violations
+        # because the array width is too high for a memory element
+        if node["merge_1x1"] and node["ops"] > 16:
+            pragma = {}
+            pragma["name"] = "array_partition"
+            options = [
+                ["variable", "s_%s" % (output_1x1_name)],
+                # ["type", "cyclic"],
+                ["type", "complete"],
+                # ["factor", node["ops"]],
+                # ["dim", 3],
+            ]
+            pragma["options"] = options
+            block["pragma"].append(pragma)
+
 
     return [block]
 

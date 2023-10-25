@@ -29,6 +29,7 @@ def write_network(
     enable_ws=False
 ):
 
+
     # Cases in which a master axi interface is needed
     ap_ctrl_chain = off_chip_storage
 

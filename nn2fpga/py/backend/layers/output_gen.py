@@ -33,9 +33,10 @@ def info(io_dict, tensors_info, model, enable_ws):
 
     return io_dict
 
-def parse(parsed_write, node_name):
+def parse(node, node_name):
     
-    input_name = parsed_write[-1]["output"][-1]
+    node_name = "consume_stream"
+    input_name = node["output"][-1]
     input_name = input_name.replace("s_", "")
     input_type_name = input_name.replace("_skip", "")
     output_name = input_name
@@ -52,6 +53,7 @@ def parse(parsed_write, node_name):
     block["template"].append("c_%s_ow" % node_name)
     block["template"].append("c_%s_oh" % node_name)
     block["template"].append("c_%s_ws" % node_name)
+    block["template"].append("c_%s_ops" % node_name)
 
     block["args"] = []
     block["args"].append("s_%s" % input_name)
@@ -68,7 +70,11 @@ def parse(parsed_write, node_name):
     block["defines"]["t_out_mem"] = ["alias", "t_%s" % input_type_name]
     block["defines"]["t_o_outp1"] = ["alias", "t_o_%s" % output_type_name]
     block["defines"]["t_o_data"] = ["alias", "t_o_%s" % output_type_name]
+    block["defines"]["c_%s_och" % node_name] = ["const", node["och"]]
+    block["defines"]["c_%s_ow" % node_name] = ["const", node["ow"]]
+    block["defines"]["c_%s_oh" % node_name] = ["const", node["oh"]]
     block["defines"]["c_%s_ws" % node_name] = ["const", 1]
+    block["defines"]["c_%s_ops" % node_name] = ["const", node["ops"]]
 
     block["output"] = ["outp1"]
     block["declare"] = []

@@ -262,6 +262,7 @@ def opt_merge_conv(model, io_dict):
                     mask_signed = []
                     in_scale_factor = []
                     in_bits = []
+                    weights_name = []
                     for layer_merge_name in layer_out_names:
                         if layer_base_name != layer_merge_name:
                             layer_merge = io_dict[layer_merge_name]
@@ -295,6 +296,7 @@ def opt_merge_conv(model, io_dict):
                                 in_scale_factor.append(in_scale_value)
                                 in_bits_value = layer_merge["in_bits"][i]
                                 in_bits.append(in_bits_value)
+                                weights_name.append(layer_merge["weights_name"][i])
                             
                     io_dict[layer_base_name]["merge_1x1"] = True
 
@@ -313,6 +315,7 @@ def opt_merge_conv(model, io_dict):
                     io_dict[layer_base_name]["mask_signed"] += mask_signed
                     io_dict[layer_base_name]["in_scale_factor"] += in_scale_factor
                     io_dict[layer_base_name]["in_bits"] += in_bits
+                    io_dict[layer_base_name]["weights_name"] += weights_name
 
                     # Removing merged layer
                     for rem_name in rem_layer:

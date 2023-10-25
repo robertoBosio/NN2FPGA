@@ -150,7 +150,7 @@ tmp
 *.o
 work/
 .vscode/c_cpp_properties.json
-
+*.JPEG
 #Vitis
 nn2fpga/_x*/
 nn2fpga/build_dir*/
