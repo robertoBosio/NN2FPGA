@@ -116,7 +116,7 @@ KERNEL_INCLUDES := -I$(PRJ_ROOT)/cc/include
 ############################## Setting up Kernel Variables ##############################
 # Kernel compiler global settings
 VPP_FLAGS += --save-temps
-#VPP_FLAGS += --config $(TOP_NAME)_hls.cfg
+VPP_FLAGS += --config $(TOP_NAME)_hls.cfg
 # VPP_FLAGS += --profile_kernel data:all:all:all
 
 # VPP_LDFLAGS += --vivado.synth.jobs 4
@@ -143,23 +143,23 @@ xclbin: build
 ############################## Setting Rules for Binary Containers (Building Kernels) ##############################
 $(TEMP_DIR)/$(TOP_NAME).xo: $(PRJ_ROOT)/cc/src/$(TOP_NAME).cc
 	mkdir -p $(TEMP_DIR)
-	v++ -c -g $(VPP_FLAGS) -t $(TARGET) --platform $(PLATFORM) -k $(TOP_NAME) --temp_dir $(TEMP_DIR) -I$(PRJ_ROOT)/cc/include -I$(PRJ_ROOT)/cc/src -I$(PRJ_ROOT)/../nn2fpga/cc/include/ -o'$@' '$<'
+	v++ -g -c $(VPP_FLAGS) -t $(TARGET) --platform $(PLATFORM) -k $(TOP_NAME) --temp_dir $(TEMP_DIR) -I$(PRJ_ROOT)/cc/include -I$(PRJ_ROOT)/cc/src -I$(PRJ_ROOT)/../nn2fpga/cc/include/ -o'$@' '$<'
 
 $(TEMP_DIR)/mm2s_a.xo: $(PRJ_ROOT)/cc/src/mm2s_activations.cc
 	mkdir -p $(TEMP_DIR)
-	v++ -c -g $(VPP_FLAGS) -t $(TARGET) --platform $(PLATFORM) -k mm2s_activations --temp_dir $(TEMP_DIR) -I$(PRJ_ROOT)/cc/include -I$(PRJ_ROOT)/../nn2fpga/cc/include/ -o'$@' '$<'
+	v++ -g -c $(VPP_FLAGS) -t $(TARGET) --platform $(PLATFORM) -k mm2s_activations --temp_dir $(TEMP_DIR) -I$(PRJ_ROOT)/cc/include -I$(PRJ_ROOT)/../nn2fpga/cc/include/ -o'$@' '$<'
 
 $(TEMP_DIR)/mm2s_w.xo: $(PRJ_ROOT)/cc/src/mm2s_weights.cc
 	mkdir -p $(TEMP_DIR)
-	v++ -c -g $(VPP_FLAGS) -t $(TARGET) --platform $(PLATFORM) -k mm2s_weights --temp_dir $(TEMP_DIR) -I$(PRJ_ROOT)/cc/include -I$(PRJ_ROOT)/../nn2fpga/cc/include/ -o'$@' '$<'
+	v++ -g -c $(VPP_FLAGS) -t $(TARGET) --platform $(PLATFORM) -k mm2s_weights --temp_dir $(TEMP_DIR) -I$(PRJ_ROOT)/cc/include -I$(PRJ_ROOT)/../nn2fpga/cc/include/ -o'$@' '$<'
 
-$(TEMP_DIR)/s2mm.xo: $(PRJ_ROOT)/cc/src/s2mm.cc
+$(TEMP_DIR)/s2mm.xo: $(PRJ_ROOT)/cc/src/s2mm_outputs.cc
 	mkdir -p $(TEMP_DIR)
-	v++ -c -g $(VPP_FLAGS) -t $(TARGET) --platform $(PLATFORM) -k s2mm --temp_dir $(TEMP_DIR) -I$(PRJ_ROOT)/cc/include -I$(PRJ_ROOT)/../nn2fpga/cc/include/ -o'$@' '$<'
+	v++ -g -c $(VPP_FLAGS) -t $(TARGET) --platform $(PLATFORM) -k s2mm_outputs --temp_dir $(TEMP_DIR) -I$(PRJ_ROOT)/cc/include -I$(PRJ_ROOT)/../nn2fpga/cc/include/ -o'$@' '$<'
 
 $(BUILD_DIR)/$(TOP_NAME).xclbin: $(TEMP_DIR)/$(TOP_NAME).xo $(TEMP_DIR)/mm2s_a.xo $(TEMP_DIR)/mm2s_w.xo $(TEMP_DIR)/s2mm.xo
 	mkdir -p $(BUILD_DIR)
-	v++ -l $(VPP_FLAGS) $(VPP_LDFLAGS) -t $(TARGET) --platform $(PLATFORM) --temp_dir $(TEMP_DIR) -o $(LINK_OUTPUT) $(+)
+	v++ -g -l  $(VPP_FLAGS) $(VPP_LDFLAGS) -t $(TARGET) --platform $(PLATFORM) --temp_dir $(TEMP_DIR) -o $(LINK_OUTPUT) $(+)
 	v++ -p $(LINK_OUTPUT) $(VPP_FLAGS) -t $(TARGET) --platform $(PLATFORM) --package.out_dir $(PACKAGE_OUT) -o $(BUILD_DIR)/$(TOP_NAME).xclbin
 
 ############################## Setting Rules for Host (Building Host Executable) ##############################

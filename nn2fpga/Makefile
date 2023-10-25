@@ -253,3 +253,8 @@ cleanall: clean clean-hlscode
 	rm -f $(PRJ_ROOT)/pl* 
 	rm -f $(PRJ_ROOT)/start_simulation.sh 
 	rm -f $(PRJ_ROOT)/*.xclbin
+	rm -rf _x
+	rm -rf .ipcache
+	rm -rf .Xil
+	rm -rf package.*
+
