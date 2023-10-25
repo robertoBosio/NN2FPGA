@@ -8,6 +8,28 @@ from backend.quant import *
 from backend.graph import *
 from backend.opt import *
 
+def opt_pad(model, io_dict):
+    
+    io_connect = extract_connections(model, io_dict)
+
+    for net_name, layers in io_connect.items():
+        layer_in_name = layers[0][0]
+        layer_out_name = layers[1][0]
+
+        comp_layers = ["conv", "pool"]
+        start_pad = 'pad' in io_dict[layer_in_name]["type"]
+        if start_pad:
+            end_comp = io_dict[layer_out_name]["type"].lower() in comp_layers
+
+            # If true the relu can be absorbed into convolution
+            if start_pad and end_comp:
+                in_name = io_dict[layer_in_name]["input"][0]
+                io_dict[layer_out_name]["pad"] = io_dict[layer_in_name]["pad"]
+                io_dict[layer_out_name]["input"][0] = in_name
+                del io_dict[layer_in_name]
+
+    return io_dict
+
 def opt_relu(model, io_dict):
     
     io_connect = extract_connections(model, io_dict)
@@ -711,6 +733,11 @@ def opt_steps(
                 )
 
                 io_dict = opt_relu(
+                    inferred_model,
+                    io_dict,
+                )
+
+                io_dict = opt_pad(
                     inferred_model,
                     io_dict,
                 )

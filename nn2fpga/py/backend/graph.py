@@ -13,6 +13,7 @@ import backend.layers.detect as detect
 import backend.layers.non_max_suppression as non_max_suppression
 import backend.layers.concat as concat
 import backend.layers.upsample as upsample
+import backend.layers.pad as pad
 
 def compute_branch_length(io_dict, io_connect, layer_name, forward=False):
     branch_length = 0
@@ -226,6 +227,20 @@ def graph_info(model, init_info, object_detection=False, anchors=None, enable_ws
                 init_info,
                 tensors_info,
                 enable_ws
+            )
+            # Save last layer name if it is a recognized layer
+            last_layer_name = node_name
+            continue
+
+        # If you detect a pad layer store the output name and do not generate a layer
+        if 'pad' in node.op_type.lower():
+            io_dict[node_name]["type"] = "pad"
+            pad.info(
+                io_dict,
+                node,
+                node_name,
+                tensors_info,
+                init_info
             )
             # Save last layer name if it is a recognized layer
             last_layer_name = node_name

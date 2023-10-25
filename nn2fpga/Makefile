@@ -193,7 +193,7 @@ vivado_flow:
 		$(NN2FPGA_ROOT)/tcl/vivado_flow.tcl -tclargs $(NN2FPGA_ROOT)
 
 .PHONY: generate
-generate: clean-hlscode check_prj_root check-top check-board check-onnx
+generate: check_prj_root check-top check-board check-onnx
 	cd $(PRJ_ROOT) && python $(NN2FPGA_ROOT)/py/code_gen_qonnx.py
 
 host: check-xrt check-top $(HOST_SRCS) $(PRJ_ROOT)/cc/include/$(TOP_NAME)_sim.h
@@ -214,7 +214,7 @@ else
 	make syn COSIM=1
 endif
 
-csim: check-top check-hls check-board
+csim: check-top check-hls check-board generate
 	cp $(PRJ_ROOT)/cc/include/$(TOP_NAME)_sim.h $(PRJ_ROOT)/cc/include/network_sim.h
 	make syn CSIM=1
 
