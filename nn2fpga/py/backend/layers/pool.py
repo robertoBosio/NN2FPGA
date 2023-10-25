@@ -5,6 +5,7 @@ import qonnx
 from onnx import numpy_helper
 import numpy as np
 from backend.layers.quant import get_quant_type
+import math
 
 def info(io_dict, node, node_name, init_info, tensors_info, enable_ws):
 
@@ -70,6 +71,7 @@ def info(io_dict, node, node_name, init_info, tensors_info, enable_ws):
     io_dict[node_name]["ws_out"] = 1
     io_dict[node_name]["ops"] = 1
     io_dict[node_name]["in_ops"] = 1
+    io_dict[node_name]["ich_ops"] = 1
 
     return io_dict
 
@@ -87,8 +89,15 @@ def parse(name, node):
 
     # Template parameters
     block["template"] = []
-    block["template"].append("t_%s_struct" % input_type_name)
-    block["template"].append("t_%s_vector" % input_type_name)
+    if (node["is_adaptive"]):
+        block["template"].append("t_%s_struct" % input_type_name)
+        block["template"].append("t_%s" % input_type_name)
+    # elif (node["pad"] == 0):
+    #     block["template"].append("t_%s_lb_struct" % input_type_name)
+    #     block["template"].append("t_%s_lb" % input_type_name)
+    else:
+        block["template"].append("t_%s_window_struct" % input_type_name)
+        block["template"].append("t_%s_window" % input_type_name)
     block["template"].append("t_%s_struct" % output_type_name)
     block["template"].append("t_%s" % output_type_name)
     block["template"].append("t_%s_acc" % name)
@@ -106,8 +115,7 @@ def parse(name, node):
     block["template"].append("c_%s_ws" % name)
     block["template"].append("c_%s_ws_out" % name)
     block["template"].append("c_%s_ops" % name)
-    if (node["is_adaptive"]):
-        block["template"].append("c_%s_in_ops" % name)
+    block["template"].append("c_%s_in_ops" % name)
     # block["template"].append("c_ws")
     # block["template"].append("c_%s_in_scale_factor" % name)
 
@@ -115,10 +123,10 @@ def parse(name, node):
     if (node["is_adaptive"]):
         block["args"].append("s_%s" % input_name)
     else:
-        if node["pad"] == 0:
-            block["args"].append("s_%s_pre_pad" % input_name)
-        else:
-            block["args"].append("s_%s_compute" % input_name)
+        # if node["pad"] == 0:
+        #     block["args"].append("s_%s_pre_pad" % input_name)
+        # else:
+        block["args"].append("s_%s_compute" % input_name)
     block["args"].append("s_%s" % output_name)
 
     block["defines"] = {}
@@ -131,10 +139,26 @@ def parse(name, node):
         [["data", "std::array<t_%s_vector, 1>" % output_type_name], ["last", "bool"]]
     ]
 
+    input_reduce_type = "std::array<t_%s, %0d>" % (input_name, node["ich_ops"])
+    block["defines"]["t_%s_reduce" % input_name] = ["type", input_reduce_type]
+    input_window_type = "std::array<t_%s_reduce, %0d>" % (input_name, node["fh"]*(node["fw"]+(node["ws"]-1)*node["stride"]))
+    block["defines"]["t_%s_window" % input_name] = ["type", input_window_type]
+    block["defines"]["t_%s_window_struct" % input_name] = [
+        "struct",
+        [["data", "t_%s_window" % input_name], ["last", "bool"]]
+    ]
+    input_lb_type = "std::array<t_%s_reduce, %0d>" % (input_name, 1)
+    block["defines"]["t_%s_lb" % input_name] = ["type", input_lb_type]
+    block["defines"]["t_%s_lb_struct" % input_name] = [
+        "struct",
+        [["data", "t_%s_lb" % input_name], ["last", "bool"]]
+    ]
+
     if node["pool"] == 1:
         block["defines"]["t_%s_acc" % name]            = ["type", output_type]
     else:
-        acc_type = get_quant_type(True, 32, node["actscale"][0], acc_reg=True)
+        acc_bits = node["actbits"][0] + math.ceil(math.log2(node["fh"]*node["fw"]))
+        acc_type = get_quant_type(True, acc_bits, node["actscale"][0], acc_reg=True)
         block["defines"]["t_%s_acc" % name]            = ["type", acc_type]
     block["defines"]["c_%s_ich" % name]            = ["const", node["ich"]]
     block["defines"]["c_%s_och" % name]            = ["const", node["och"]]
@@ -158,20 +182,57 @@ def parse(name, node):
     declare["name"] = "s_%s" % output_name
     declare["type"] = "t_%s_struct" % output_name
     declare["is_array"] = True
-    declare["dim"] = 1
+    declare["dim"] = node["ws_out"]
 
     block["declare"].append(declare)
+
+    block["pragma"] = []
+    pragma = {}
+    pragma["name"] = "aggregate"
+    options = [
+        ["variable", "s_%s" % output_name],
+    ]
+    pragma["options"] = options
+
+    # TODO: removed to test without pragma
+    # block["pragma"].append(pragma)
+
+    pragma = {}
+    pragma["name"] = "array_reshape"
+    options = [
+        ["variable", "s_%s" % output_name],
+        ["type", "cyclic"],
+        ["factor", node["ops"]//(8*8//node["bits"][0])],
+    ]
+    pragma["options"] = options
+
+    # TODO: removed to test without pragma
+    # block["pragma"].append(pragma)
 
     pragma = {}
     pragma["name"] = "stream"
     options = [
         ["variable", "s_%s" % output_name],
-        ["depth", node["och"]],
+        ["depth", node["och"]//node["ops"]],
         ["type", "fifo"],
     ]
     pragma["options"] = options
 
-    block["pragma"] = []
     block["pragma"].append(pragma)
+
+    # FIX: Adding pragma to bind storage to SRL
+    # if the depth of the fifo is small enough to
+    # not justify the use of BRAM
+    if (node["och"]//node["ops"] < 64):
+        pragma = {}
+        pragma["name"] = "bind_storage"
+        options = [
+            ["variable", "s_%s" % output_name],
+            ["impl", "SRL"],
+            ["type", "fifo"]
+        ]
+        pragma["options"] = options
+
+        block["pragma"].append(pragma)
 
     return block

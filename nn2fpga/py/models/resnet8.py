@@ -75,11 +75,13 @@ class ResNet(nn.Module):
                      output_quant = Int8ActPerTensorFixedPoint,
                      )
         self.bn1 = nn.BatchNorm2d(16)
-        self.relu = QuantReLU(quant_type=QuantType.INT,
+        self.relu = QuantReLU(
+            quant_type=QuantType.INT,
             restrict_scaling_type=RestrictValueType.POWER_OF_TWO,
             scaling_impl_type=ScalingImplType.CONST, 
             act_quant=CommonUintActQuant,
-            bit_width=8)
+            bit_width=8
+        )
         self.layer1 = self._make_layer(block, 16, layers[0])
         self.layer2 = self._make_layer(block, 32, layers[1], stride=2)
         self.layer3 = self._make_layer(block, 64, layers[2], stride=2)

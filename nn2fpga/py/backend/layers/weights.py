@@ -4,6 +4,7 @@ import sys
 import qonnx
 from onnx import numpy_helper
 import numpy as np
+import math
 from backend.graph import extract_connections
 from backend.utils import *
 from backend.layers.uram_download import fill_uram_layer, add_uram_layer
@@ -214,32 +215,14 @@ def extract_info(
     new_node["kernel"]  = ih*iw
     new_node["total"]   = ich*och*ih*iw*oh*ow/stride
     new_node["n_weights"] = ich*och*ih*iw
-    new_node["uram_storage"] = uram_storage
+    new_node["uram_storage"] = uram_storage and not(is_bias)
     new_node["img_ch"]  = ich*och
     new_node["reuse"] = 1
+    new_node["pre_values"] = pre_values
 
     dim = ich*och*ih*iw
 
     new_node["off_chip_memory"] = off_chip_memory and (dim > 4096)
-
-    if new_node["off_chip_memory"]:
-        new_node["bw"]    = bw
-        new_node["values"] = parse_off_chip(
-            new_node,
-            pre_values,
-            bits,
-            signed,
-            narrow
-        )
-    else:
-        new_node["values"] = parse_on_chip(
-            new_node,
-            pre_values,
-            bits,
-            signed,
-            narrow,
-            uram_storage
-        )
 
     return new_node
 
@@ -335,6 +318,7 @@ def parse_main(io_dict):
                 block["pragma"].append(pragma)
             
             if node["uram_storage"]:
+                # FIX: removing biases from URAM storage, they are few
                 uram_storage = True
 
     if uram_storage:
@@ -388,6 +372,15 @@ def parse_main(io_dict):
             pragma["options"] = options
             block["pragma"].append(pragma)
 
+            pragma = {}
+            pragma["name"] = "array_partition"
+            options = [
+                ["variable", "s_%s" % output_name],
+                ["type", "complete"],
+            ]
+            pragma["options"] = options
+            block["pragma"].append(pragma)
+
     return block
 
 def off_chip_ddr(
@@ -404,6 +397,15 @@ def off_chip_ddr(
     block["stream_input"] = []
     block["output"] = []
     block["bits"] = node["bits"]
+    # TODO: Fix off-chip flow
+        # new_node["bw"]    = bw
+        # new_node["values"] = parse_off_chip(
+        #     new_node,
+        #     pre_values,
+        #     bits,
+        #     signed,
+        #     narrow
+        # )
 
     block["template"] = []
     block["template"].append("t_%s_st" % (output_name))
@@ -531,6 +533,7 @@ def on_chip_rom(
     block["bits"] = node["bits"]
     block["index"] = node["ih"]*node["iw"]
     block["ops"] = node["ops"]
+    block["uram_storage"] = uram_storage
 
     block["template"] = []
     block["template"].append("t_%s_st" % (output_name))
@@ -552,6 +555,15 @@ def on_chip_rom(
         block["args"].append("s_%s_init" % output_name)
         block["args"].append("s_%s_init_flag" % output_name)
     block["args"].append("s_%s" % output_name)
+
+    node["values"] = parse_on_chip(
+        node,
+        node["pre_values"],
+        node["bits"],
+        node["signed"],
+        node["narrow"],
+        node["uram_storage"]
+    )
 
     if uram_storage:
         block["uram_input"].append("s_%s_init" % output_name)
@@ -648,48 +660,134 @@ def on_chip_rom(
         block["pragma"].append(pragma)
 
     if uram_storage:
-        divider = 128
+        interface = 72
     else:
-        divider = 64
+        interface = 64
+    
+    # FIX: Reducing bias resource usage increasing the produce_stream II
+    if node["is_bias"]:
+        parallelism = 1
+    else: 
+        parallelism = node["ops"]
+    
+    divider = interface
+    divider = divider//node["bits"]
 
-    partition_factor = int(node["ih"]*node["iw"]*node["ops"]*node["bits"]/divider)
-    if node["ih"]*node["iw"]!=1:
-        if partition_factor>1:
-            pragma = {}
-            pragma["name"] = "array_partition"
-            options = [
-                ["variable", "c_%s" % (output_name)],
-                ["type", "cyclic"],
-                ["factor", partition_factor],
-                ["dim", 1],
-            ]
-            pragma["options"] = options
+    if divider == 1:
+        dim_1_reshape_factor = 1
+    else:
+        dim_1_reshape_factor = np.clip(node["ih"]*node["iw"], 1, divider)
+        divider = divider//dim_1_reshape_factor
 
-            block["pragma"].append(pragma)
+    if parallelism > divider:
+        dim_3_reshape_factor = divider
+        divider = 1
+    else: 
+        dim_3_reshape_factor = parallelism
+        divider = divider//parallelism
 
-        #######################################################################
-        pragma = {}
-        pragma["name"] = "array_reshape"
-        options = [
-            ["variable", "c_%s" % (output_name)],
-            ["type", "complete"],
-            # ["factor", 1],
-            ["dim", 1],
-        ]
-        pragma["options"] = options
+    if dim_3_reshape_factor >= parallelism:
+        dim_3_partition_factor = 1
+    else:
+        dim_3_partition_factor = math.ceil(parallelism/dim_3_reshape_factor)
 
-        block["pragma"].append(pragma)
+    if divider > 1:
+        dim_2_reshape_factor = divider
+        divider = 1
+    else:
+        dim_2_reshape_factor = 1
+
+    if dim_1_reshape_factor == 1:
+        dim_1_partition_factor = node["ih"]*node["iw"]
+    elif dim_1_reshape_factor < (node["ih"]*node["iw"]):
+        dim_1_partition_factor = math.ceil(node["ih"]*node["iw"]/dim_1_reshape_factor)
+    else:
+        dim_1_partition_factor = 1
 
     #######################################################################
+
     pragma = {}
     pragma["name"] = "array_reshape"
     options = [
         ["variable", "c_%s" % (output_name)],
-        ["type", "complete"],
         ["dim", 3],
     ]
+
+    if dim_3_reshape_factor < parallelism:
+        options.append(["factor", dim_3_reshape_factor])
+        options.append(["type", "cyclic"])
+    else:
+        dim_3_reshape_factor = parallelism
+        options.append(["type", "complete"])
+
     pragma["options"] = options
-    block["pragma"].append(pragma)
+    if dim_3_reshape_factor > 1:
+        block["pragma"].append(pragma)
+
+    #######################################################################
+    pragma = {}
+    pragma["name"] = "array_partition"
+    options = [
+        ["variable", "c_%s" % (output_name)],
+        ["dim", 3],
+    ]
+
+    if dim_3_partition_factor > 1:
+        options.append(["factor", dim_3_partition_factor])
+        options.append(["type", "cyclic"])
+
+    pragma["options"] = options
+    if dim_3_partition_factor > 1:
+        block["pragma"].append(pragma)
+
+    #######################################################################
+
+    pragma = {}
+    pragma["name"] = "array_reshape"
+    options = [
+        ["variable", "c_%s" % (output_name)],
+        ["dim", 1],
+    ]
+
+    if dim_1_reshape_factor > 1:
+        options.append(["factor", dim_1_reshape_factor])
+        options.append(["type", "cyclic"])
+
+    pragma["options"] = options
+
+    if dim_1_reshape_factor > 1:
+        block["pragma"].append(pragma)
+
+    #######################################################################
+    if (dim_2_reshape_factor > 1):
+        pragma = {}
+        pragma["name"] = "array_reshape"
+        options = [
+            ["variable", "c_%s" % (output_name)],
+            ["type", "cyclic"],
+            ["factor", dim_2_reshape_factor],
+            ["dim", 2],
+        ]
+        pragma["options"] = options
+        block["pragma"].append(pragma)
+
+    #######################################################################
+    pragma = {}
+    pragma["name"] = "array_partition"
+    options = [
+        ["variable", "c_%s" % (output_name)],
+        ["dim", 1],
+    ]
+
+    if dim_1_partition_factor >= parallelism:
+        options.append(["type", "complete"])
+    else:
+        options.append(["factor", dim_1_partition_factor])
+        options.append(["type", "cyclic"])
+
+    pragma["options"] = options
+    if dim_1_partition_factor > 1:
+        block["pragma"].append(pragma)
 
     if uram_storage:
         pragma = {}
@@ -739,18 +837,34 @@ def parse_all(io_dict):
     # Check if there is URAM storage
     uram_storage = False
 
+    # Reordering to efficiently use URAM
+    n_weights = {}
+    for name, node in io_dict.items():
+        if ('const' == node["type"]) and node["uram_storage"]:
+            n_weights[name] = node["n_weights"]*node["bits"]/8
+    
+    # Sort in descending order
+    n_weights = {k: v for k, v in sorted(n_weights.items(), key=lambda item: item[1], reverse=True)}
+
+    # Count the number of URAMs and remove the layers that do not fit
+    uram_count = 0
+    for name, node in n_weights.items():
+        uram_count = uram_count + math.ceil(node/36864)
+        if uram_count > 64:
+            io_dict[name]["uram_storage"] = False
+
     for name, node in io_dict.items():
 
-        if 'const' == node["type"]:
-            if node["uram_storage"]:
-                uram_storage = True
+        if ('const' == node["type"]) and node["uram_storage"]:
+            uram_storage = True
 
     if uram_storage:
         parsed_write.append(add_uram_layer())
 
     for name, node in io_dict.items():
 
-        if 'const' == node["type"]:
+        # FIX: adding the hybrid bram/uram scheme
+        if ('const' == node["type"]):
             parsed_write = parsed_write + parse(name, node)
 
     if uram_storage:

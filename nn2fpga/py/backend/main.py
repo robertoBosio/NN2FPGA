@@ -101,10 +101,9 @@ def parse_all_main(io_dict):
         if 'pool' == node["type"]:
             if (not node["is_adaptive"]):
                 parsed_write = parsed_write + line_buffer.parse(name, node)
-                if (node["pad"] != 0):
-                    parsed_write.append(
-                        pad.parse(name, node)
-                    )
+                parsed_write.append(
+                    pad.parse(name, node)
+                )
             parsed_write.append(
                 pool.parse(name, node)
             )

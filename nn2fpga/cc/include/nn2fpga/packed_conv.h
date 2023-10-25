@@ -202,18 +202,32 @@ void conv_pipe(
     t_acc s_acc;
     t_acc s_acc_base;
 
-    if constexpr(std::is_same<t_bias, std::nullptr_t>::value == false) {
-      if (ich == 0)
-        s_acc = i_bias[ops];
-      else
-        s_acc = 0;
-    } else {
-      s_acc = 0;
-    }
-
     if constexpr(std::is_same<t_add_struct, std::nullptr_t>::value == false) {
+
+      // FIX: Seems that when there is the skip connection the binding of the
+      // DSPs is not working, moving things before
+      t_acc s_acc_add = 0;
       if (ich == och) {
-        s_acc += i_add[0].data[0][ich_idx_add];
+        s_acc_add = i_add[0].data[0][ich_idx_add];
+      }
+
+      if constexpr(std::is_same<t_bias, std::nullptr_t>::value == false) {
+        if (ich == 0)
+          s_acc = i_bias[ops] + s_acc_add;
+        else
+          s_acc = s_acc_add;
+      } else {
+        s_acc = s_acc_add;
+      }
+
+    } else {
+      if constexpr(std::is_same<t_bias, std::nullptr_t>::value == false) {
+        if (ich == 0)
+          s_acc = i_bias[ops];
+        else
+          s_acc = 0;
+      } else {
+        s_acc = 0;
       }
     }
 

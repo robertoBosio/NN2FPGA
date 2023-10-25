@@ -296,6 +296,11 @@ def parse_comp(name, node):
         acc_bits = node["actbits"][0] + node["wbits"][0] + math.ceil(math.log2(node["kernel"]))
     else:
         acc_bits = node["actbits"][0] + node["wbits"][0] + math.ceil(math.log2(node["kernel"]*node["ich"]))
+    # if (has_bias):
+    #     acc_bits += 1
+    # if (node["add"]):
+    #     acc_bits += 1
+
     acc_type = get_quant_type(True, acc_bits, node["actscale"][0]+node["wscale"][0], acc_reg=True)
     block["defines"] = {}
     block["defines"]["t_%s_acc" % output_name] = ["type", acc_type]
@@ -499,6 +504,8 @@ def parse_comp(name, node):
         block["pragma"].append(pragma)
 
     depth = int(node["och"]/node["ops"])*node["ws"] + 1
+    # TODO: Modified to reduce bram usage but slowing down arch
+    # depth = 2
 
     pragma = {}
     pragma["name"] = "stream"
@@ -511,20 +518,32 @@ def parse_comp(name, node):
     pragma["options"] = options
     block["pragma"].append(pragma)
 
-    # FIX: Adding because with big pointwise layers there are II violations
-    # because the array width is too high for a memory element
-    if node["is_1x1"] and node["ops"] > 16:
+    # # FIX: Adding because with big pointwise layers there are II violations
+    # # because the array width is too high for a memory element
+    # for i in range(node["ws"]):
+    #     pragma = {}
+    #     pragma["name"] = "aggregate"
+    #     options = [
+    #         ["variable", "s_%s" % (output_name)],
+    #     ]
+    #     pragma["options"] = options
+    #     block["pragma"].append(pragma)
+
+    # FIX: Adding pragma to bind storage to SRL
+    # if the depth of the fifo is small enough to
+    # not justify the use of BRAM
+    if (depth < 64):
         pragma = {}
-        pragma["name"] = "array_partition"
+        pragma["name"] = "bind_storage"
         options = [
-            ["variable", "s_%s" % (output_name)],
-            # ["type", "cyclic"],
-            ["type", "complete"],
-            # ["factor", node["ops"]],
-            # ["dim", 3],
+            ["variable", "s_%s" % output_name],
+            ["impl", "SRL"],
+            ["type", "fifo"]
         ]
         pragma["options"] = options
+
         block["pragma"].append(pragma)
+
 
     if (node["merge_1x1"]):
         pragma = {}
@@ -541,20 +560,32 @@ def parse_comp(name, node):
         pragma["options"] = options
         block["pragma"].append(pragma)
 
-        # FIX: Adding because with big pointwise layers there are II violations
-        # because the array width is too high for a memory element
-        if node["merge_1x1"] and node["ops"] > 16:
+        # # FIX: Adding because with big pointwise layers there are II violations
+        # # because the array width is too high for a memory element
+        # for i in range(node["ws"]):
+        #     pragma = {}
+        #     pragma["name"] = "aggregate"
+        #     options = [
+        #         ["variable", "s_%s" % (output_1x1_name)],
+        #     ]
+        #     pragma["options"] = options
+        #     block["pragma"].append(pragma)
+
+        # FIX: Adding pragma to bind storage to SRL
+        # if the depth of the fifo is small enough to
+        # not justify the use of BRAM
+        if (depth < 64):
             pragma = {}
-            pragma["name"] = "array_partition"
+            pragma["name"] = "bind_storage"
             options = [
-                ["variable", "s_%s" % (output_1x1_name)],
-                # ["type", "cyclic"],
-                ["type", "complete"],
-                # ["factor", node["ops"]],
-                # ["dim", 3],
+                ["variable", "s_%s" % output_1x1_name],
+                ["impl", "SRL"],
+            ["type", "fifo"]
             ]
             pragma["options"] = options
+
             block["pragma"].append(pragma)
+
 
 
     return [block]
