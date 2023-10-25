@@ -21,7 +21,7 @@ def main():
 
     top_name = str(os.environ.get("TOP_NAME"))
 
-    allowed_boards = ["ULTRA96v2", "KRIA"]
+    allowed_boards = ["ULTRA96v2", "KRIA", "U280", "U250", "U55C"]
 
     if "BOARD" not in os.environ:
         print("BOARD PLATFORM NOT DEFINED")
@@ -30,7 +30,10 @@ def main():
     board = str(os.environ.get("BOARD"))
 
     if board not in allowed_boards:
-        print("ALLOWED OPTIONS: ULTRA96v2, KRIA")
+        print("ALLOWED OPTIONS: ", end="")
+        for name in allowed_boards:
+            print(f"{name} ", end="")
+        print()
         sys.exit(1)
 
     if "ONNX_PATH" not in os.environ:
@@ -80,7 +83,10 @@ def main():
     
     if "BOARD" not in os.environ:
         print("BOARD PLATFORM NOT DEFINED")
-        print("ALLOWED OPTIONS: ULTRA96v2, KRIA")
+        print("ALLOWED OPTIONS: ", end="")
+        for name in allowed_boards:
+            print(f"{name} ", end="")
+        print()
         sys.exit(0)
 
     board = os.environ["BOARD"]

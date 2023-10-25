@@ -151,3 +151,9 @@ tmp
 work/
 .vscode/c_cpp_properties.json
 *.JPEG
+#Vitis
+nn2fpga/_x*/
+nn2fpga/build_dir*/
+nn2fpga/xilinx_*
+nn2fpga/.run/
+nn2fpga/.ipcache/

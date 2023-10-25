@@ -29,3 +29,15 @@ if {${BOARD} == "KRIA"} {
  set FPGA_PART "xck26-sfvc784-2LV-c"
  set BOARD_PART "xilinx.com:kv260_som:part0:1.4"
 }
+
+if {${BOARD} == "U280"} {
+ set FPGA_PART "xcu280-fsvh2892-2L-e"
+}
+
+if {${BOARD} == "U250"} {
+ set FPGA_PART "xcu280-fsvh2892-2L-e"
+}
+
+if {${BOARD} == "U55C"} {
+ set FPGA_PART "xcu280-fsvh2892-2L-e"
+}
