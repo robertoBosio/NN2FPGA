@@ -96,7 +96,7 @@ def init(uram_layer, network_name, prj_root="/tmp"):
 
 
     libraries = [
-        "%s.h" % network_name,
+        "params.h",
         "ap_int.h",
         "hls_stream.h",
         "nn2fpga/weights_utils.h"

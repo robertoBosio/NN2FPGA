@@ -1,7 +1,10 @@
 #ifndef NN2FPGA_UTILS_H_
 #define NN2FPGA_UTILS_H_
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wattributes"
 #include <etc/autopilot_ssdm_op.h>
+#pragma GCC diagnostic pop
 
 #include "ap_int.h"
 #include "hls_math.h"

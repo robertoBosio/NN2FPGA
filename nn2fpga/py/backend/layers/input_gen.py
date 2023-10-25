@@ -38,6 +38,12 @@ def info(io_dict, tensors_info, model, ws):
     return io_dict
 
 def parse(name, node):
+
+     
+    vitis_flow = False
+    if "VITIS_FLOW" in os.environ:
+        if int(os.environ.get("VITIS_FLOW")) == 1:
+            vitis_flow = True
     
     input_name  = node["input"][0]
     input_type_name = input_name.replace("_skip", "")
@@ -70,6 +76,12 @@ def parse(name, node):
 
     block["defines"] = {}
     block["defines"]["c_%s" % input_name] = ["const", 64]
+
+    block["defines"]["t_in_mem"] = [
+        "type",
+        "ap_uint<c_%s>" % input_name
+    ]
+    
     block["defines"]["t_%s" % input_type_name] = [
         "type",
         "ap_axiu<c_%s, 0, 0, 0>" % input_name

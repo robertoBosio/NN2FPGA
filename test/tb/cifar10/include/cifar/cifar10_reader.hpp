@@ -159,7 +159,7 @@ void read_training(const std::string& folder, std::size_t limit, Images& images,
  */
 template <typename Images, typename Labels, typename Functor>
 void read_test(std::size_t limit, Images& images, Labels& labels, Functor func) {
-    read_test("../../../../data/cifar-10-batches-bin", limit, images, labels, func);
+    read_test("../../../../../work/data/cifar-10-batches-bin", limit, images, labels, func);
 }
 
 /*!
@@ -172,7 +172,7 @@ void read_test(std::size_t limit, Images& images, Labels& labels, Functor func) 
  */
 template <typename Images, typename Labels, typename Functor>
 void read_training(std::size_t limit, Images& images, Labels& labels, Functor func) {
-    read_training("../../../../data/cifar-10-batches-bin", limit, images, labels, func);
+    read_training("../../../../../work/data/cifar-10-batches-bin", limit, images, labels, func);
 }
 
 /*!
@@ -308,11 +308,11 @@ CIFAR10_dataset<Container, Image, Label> read_dataset_3d(std::size_t training_li
  * \return The dataset
  */
 template <template <typename...> class Container, typename Image, typename Label = uint8_t>
-CIFAR10_dataset<Container, Image, Label> read_dataset_direct(std::size_t training_limit = 0, std::size_t test_limit = 0) {
+CIFAR10_dataset<Container, Image, Label> read_dataset_direct(const std::string &path, std::size_t training_limit = 0, std::size_t test_limit = 0) {
     CIFAR10_dataset<Container, Image, Label> dataset;
 
-    read_training(training_limit, dataset.training_images, dataset.training_labels, [] { return Image(3 * 32 * 32); });
-    read_test(test_limit, dataset.test_images, dataset.test_labels, [] { return Image(3 * 32 * 32); });
+    read_training(path, training_limit, dataset.training_images, dataset.training_labels, [] { return Image(3 * 32 * 32); });
+    read_test(path, test_limit, dataset.test_images, dataset.test_labels, [] { return Image(3 * 32 * 32); });
 
     return dataset;
 }
@@ -327,8 +327,8 @@ CIFAR10_dataset<Container, Image, Label> read_dataset_direct(std::size_t trainin
  * \return The dataset
  */
 template <template <typename...> class Container = std::vector, template <typename...> class Sub = std::vector, typename Pixel = uint8_t, typename Label = uint8_t>
-CIFAR10_dataset<Container, Sub<Pixel>, Label> read_dataset(std::size_t training_limit = 0, std::size_t test_limit = 0) {
-    return read_dataset_direct<Container, Sub<Pixel>, Label>(training_limit, test_limit);
+CIFAR10_dataset<Container, Sub<Pixel>, Label> read_dataset(const std::string &path, std::size_t training_limit = 0, std::size_t test_limit = 0) {
+    return read_dataset_direct<Container, Sub<Pixel>, Label>(path, training_limit, test_limit);
 }
 
 } //end of namespace cifar
