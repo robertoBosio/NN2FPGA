@@ -40,7 +40,7 @@ if {${SIMD_DSP} == 1} {
     ${NN2FPGA_ROOT}/cc/include/nn2fpga/black_box/mac/mac_simd.json
 }
 
-if {${DATASET} == "dac2023"} {
+if {${DATASET} != "cifar10"} {
   puts ${PRJ_ROOT}/Vitis_Libraries/vision/L1/include/common/
 
   add_files -cflags "-DCSIM -Icc/include -I${NN2FPGA_ROOT}/cc/include -I/usr/local/include/opencv4/ -I${PRJ_ROOT}/Vitis_Libraries/vision/L1/include/ -lopencv_imgproc -lopencv_core -lopencv_imgcodecs" \

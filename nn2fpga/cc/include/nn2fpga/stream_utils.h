@@ -54,19 +54,31 @@ void consume_stream(hls::stream<din_t> dinStream[WS], dout_t dout[OCH * OW * OH]
   }
 }
 
-template <typename din_wrap_t, typename dout_wrap_t, int OCH, int OW, int OH, int WS>
+template <typename din_wrap_t, typename dout_wrap_t, int OCH, int OW, int OH, int WS, int OPS>
 void consume_stream(hls::stream<din_wrap_t> dinStream[WS],
                     hls::stream<dout_wrap_t>& doutStream) {
-  constexpr unsigned OSZ = OCH * OH * OW;
+  constexpr unsigned OSZ = OCH * OH * OW / OPS;
 
+  // If synthesis pragma in not defined then print consume_stream
+  // function name
+  #ifndef __SYNTHESIS__
+      std::cout << "consume_stream " << OCH << std::endl;
+  #endif
+  din_wrap_t wrap;
   for (auto i = 0; i < OSZ; i++) {
-    auto wrap = dinStream[0].read();
-    dout_wrap_t dout;
-    dout.data = wrap.data[0][0];
-    dout.last = wrap.last & (i == (OSZ - 1));
-    dout.keep = -1;
-    doutStream << dout;
+    for (auto s_ops = 0; s_ops < OPS; s_ops++) {
+      if (s_ops == 0)
+        wrap = dinStream[0].read();
+      dout_wrap_t dout;
+      dout.data = wrap.data[0][s_ops];
+      dout.last = wrap.last & (i == (OSZ - 1));
+      dout.keep = -1;
+      doutStream << dout;
+    }
   }
+  #ifndef __SYNTHESIS__
+      std::cout << "end consume_stream " << std::endl;
+  #endif
 }
 
 }  // namespace nn2fpga

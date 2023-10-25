@@ -10,9 +10,15 @@ from backend.layers.quant import get_quant_type, get_quant_constant
 def info(io_dict, node, node_name, init_info, tensors_info, enable_ws):
 
     attributes = getattr(node, "attribute" )
+    inputs = getattr(node, "input" )
     input_shape = tensors_info[node.input[0]].tensor_type.shape
     output_shape = tensors_info[node.output[0]].tensor_type.shape
 
+    weight_name = inputs[1] 
+            
+    if (len(inputs) > 2):
+        bias_name = inputs[2]
+    
     ich      = getattr(input_shape, 'dim')[1].dim_value
     ih       = 1
     iw       = 1
@@ -82,5 +88,8 @@ def info(io_dict, node, node_name, init_info, tensors_info, enable_ws):
     io_dict[node_name]["in_ops"] = 1
     io_dict[node_name]["ich_ops"] = 1
     io_dict[node_name]["depth"] = depth
+    io_dict[node_name]["weights_name"] = [weight_name]
+    if 'bias_name' in locals():
+        io_dict[node_name]["bias_name"] = [bias_name]
 
     return io_dict

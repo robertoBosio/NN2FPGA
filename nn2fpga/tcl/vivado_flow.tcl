@@ -25,11 +25,11 @@ if {${BOARD} == "ULTRA96v2"} {
 
 set_property top design_1_wrapper [current_fileset]; #
 
-launch_runs synth_1 -jobs 10
+launch_runs synth_1 -jobs 4
 wait_on_run synth_1
 open_run synth_1
 
-launch_runs impl_1 -jobs 11
+launch_runs impl_1 -jobs 4
 wait_on_run impl_1
 open_run impl_1
 
