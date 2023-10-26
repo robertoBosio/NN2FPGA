@@ -292,6 +292,7 @@ def opt_merge_conv(model, io_dict):
                             for input in layer_merge["input"]:
                                 if input not in output_names:
                                     input_tensor.append(input)
+
                             for i, output in enumerate(layer_merge["output"]):
                                 output_tensor.append(output)
                                 scale_value = layer_merge["scale_factor"][i]
@@ -321,6 +322,7 @@ def opt_merge_conv(model, io_dict):
                                 weights_name.append(layer_merge["weights_name"][i])
                             
                     io_dict[layer_base_name]["merge_1x1"] = True
+                    io_dict[layer_base_name]["och_1x1"] = layer_merge["och"]
 
                     for i, input in enumerate(input_tensor):
                         if (i > 0):

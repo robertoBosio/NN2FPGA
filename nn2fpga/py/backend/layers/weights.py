@@ -209,7 +209,13 @@ def extract_info(
     new_node["ow"]     = ow
     new_node["stride"] = stride
     new_node["pad"]    = pad
-    new_node["ops"]    = ops
+    # FIX: adding this check to avoid problems in merged pipelines
+    # with same inputs but different output channels
+    # Check if ops are mode than och and clip
+    if ops > och:
+        new_node["ops"] = och
+    else:
+        new_node["ops"] = ops
     new_node["is_bias"] = is_bias
     new_node["type"]    = 'const'
     new_node["kernel"]  = ih*iw
@@ -537,7 +543,14 @@ def on_chip_rom(
     block["output"] = []
     block["bits"] = node["bits"]
     block["index"] = node["ih"]*node["iw"]
-    block["ops"] = node["ops"]
+    block["och"] = node["och"]
+    # FIX: adding this check to avoid problems in merged pipelines
+    # with same inputs but different output channels
+    # Check if ops are mode than och and clip
+    if node["ops"] > node["och"]:
+        block["ops"] = node["och"]
+    else:
+        block["ops"] = node["ops"]
     block["uram_storage"] = uram_storage
 
     block["template"] = []
@@ -551,7 +564,7 @@ def on_chip_rom(
     block["template"].append("c_%s_oh" % (name))
     block["template"].append("c_%s_iw" % (output_name))
     block["template"].append("c_%s_ih" % (output_name))
-    block["template"].append("c_%s_ops" % (output_name))
+    block["template"].append("c_%s_ops" % (name))
     block["template"].append("c_%s_reuse" % (output_name))
 
     block["output"].append("%s" % output_name)
@@ -630,6 +643,7 @@ def on_chip_rom(
     block["defines"]["t_%s" % (output_name)]       = ["type",  output_type_name]
     block["defines"]["c_%s_ich" % (name)]          = ["const", node["ich"]]
     block["defines"]["c_%s_och" % (name)]          = ["const", node["och"]]
+    block["defines"]["c_%s_ops" % (name)]          = ["const", node["ops"]]
     block["defines"]["c_%s_ow" % (name)]           = ["const", node["ow"]]
     block["defines"]["c_%s_oh" % (name)]           = ["const", node["oh"]]
     block["defines"]["c_%s_iw" % (output_name)]    = ["const", node["iw"]]

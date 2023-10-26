@@ -11,7 +11,7 @@ def parallel_ops_number(layers_info, clamp=None, board="ULTRA96v2", prj_root="/t
     if (board == "ULTRA96v2"):
         NUM_DSP = 400
     elif (board == "KRIA"):
-        NUM_DSP = 1300
+        NUM_DSP = 1000
     elif (board == "U280"):
         NUM_DSP = 1400
         # NUM_DSP = 9024
@@ -86,12 +86,13 @@ def parallel_ops_number(layers_info, clamp=None, board="ULTRA96v2", prj_root="/t
         # operations that should be executed in parallel
         # data = int(max_data/layers_info[i][5])
         data = max_data/layers_info[i][5]
+
         low_range, high_range = find_range(
             all_divisors[layers_offset[i]:layers_offset[i]+layers_divisors[i]],
             math.ceil(data)
         )
         parallel_op[layers_info[i][0]] = high_range
-        # print(all_divisors[layers_offset[i]:layers_offset[i]+layers_divisors[i]], data, low_range, high_range, layers_info[i][5])
+        print(all_divisors[layers_offset[i]:layers_offset[i]+layers_divisors[i]], data, low_range, high_range, layers_info[i][5], layers_info[i][6])
 
     return parallel_op
 
@@ -126,22 +127,15 @@ def ilp(io_dict, off_chip_storage, model, board="ULTRA96v2", double_packing=True
                     node_info["img_ch"],
                     node_info["merge_1x1"],
                     value,
-                    node_info["och"]
+                    node_info["och"],
                 ]
             )
+            if (node_info["merge_1x1"]):
+                layers_info[-1].append(node_info["och_1x1"])
     
     print("Total computations:", total_computations)
 
     parallel_ops = parallel_ops_number(layers_info, clamp, board, prj_root=prj_root)
-
-    # # Manual tuning for DAC
-    # parallel_ops['/model_0/conv/Conv'] = 4
-    # parallel_ops['/model_1/conv/Conv'] = 16
-    # parallel_ops['/model_3/conv/Conv'] = 16
-    # parallel_ops['/model_5/conv/Conv'] = 14
-    # parallel_ops['/model_7/conv/Conv'] = 13
-    # parallel_ops['/model_11/conv/Conv'] = 26
-    # parallel_ops['/model_13/m_0/Conv'] = 4
 
     print(parallel_ops)
 
@@ -191,6 +185,28 @@ def ilp(io_dict, off_chip_storage, model, board="ULTRA96v2", double_packing=True
     for name, node in io_dict.items():
         if "in_ops" not in node:
             node["in_ops"] = 1
+
+        if "conv" in node["type"]:
+            # FIX: adding this check to avoid problems in merged pipelines
+            # with same inputs but different output channels
+            if node["merge_1x1"]:
+                if node["och_1x1"] < node["ops"]:
+                    node["ops_1x1"] = node["och_1x1"]
+                    # Propagate to merged weights and bias parameters
+                    start_index = 2
+                    if "has_bias" in node.keys():
+                        if node["has_bias"]:
+                            start_index = 3
+
+                    for i in range(start_index, len(node["input"])):
+                        input_name = node["input"][i]
+                        input_node_name = io_connect[input_name][0][0]
+                        io_dict[input_node_name]["ops"] = node["ops_1x1"]
+                        io_dict[input_node_name]["och"] = node["och_1x1"]
+                else:
+                    node["ops_1x1"] = node["ops"]
+            else:
+                node["ops_1x1"] = node["ops"]
 
     # if double_packing:
     #     for node_name, ops in parallel_ops.items():

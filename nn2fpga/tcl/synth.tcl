@@ -43,7 +43,7 @@ if {${SIMD_DSP} == 1} {
 if {${DATASET} != "cifar10"} {
   puts ${PRJ_ROOT}/Vitis_Libraries/vision/L1/include/common/
 
-  add_files -cflags "-DCSIM -Icc/include -I${NN2FPGA_ROOT}/cc/include -I/usr/local/include/opencv4/ -I${PRJ_ROOT}/Vitis_Libraries/vision/L1/include/ -lopencv_imgproc -lopencv_core -lopencv_imgcodecs" \
+  add_files -cflags "-DCSIM -Icc/include -I${NN2FPGA_ROOT}/cc/include -I${TB_ROOT}/common/cmdparser -I${TB_ROOT}/common/logger  -I/usr/local/include/opencv4/ -I${PRJ_ROOT}/Vitis_Libraries/vision/L1/include/ -lopencv_imgproc -lopencv_core -lopencv_imgcodecs" \
     -tb ${TB_ROOT}/${DATASET}/network_tb.cc
 } else {
   add_files -cflags "-DCSIM -Icc/include -I${NN2FPGA_ROOT}/cc/include -I${TB_ROOT}/common/cmdparser -I${TB_ROOT}/common/logger -I${TB_ROOT}/${DATASET}/include -I${PRJ_ROOT}/cc/include" \
@@ -52,6 +52,7 @@ if {${DATASET} != "cifar10"} {
 add_files -tb ${PRJ_ROOT}/npy
 
 if {${CSIM} == 1} {
+  puts "CSIM: selected dataset is ${DATASET}"
   csim_design -argv ${CMD_ARGS}
   exit
 }

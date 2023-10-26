@@ -81,6 +81,7 @@ def info(io_dict, node, node_name, init_info, tensors_info, enable_ws):
     io_dict[node_name]["ih"]     = ih
     io_dict[node_name]["iw"]     = iw
     io_dict[node_name]["och"]    = och
+    io_dict[node_name]["och_1x1"] = och
     io_dict[node_name]["oh"]     = oh
     io_dict[node_name]["ow"]     = ow
     io_dict[node_name]["fh"]     = fh
@@ -115,6 +116,7 @@ def info(io_dict, node, node_name, init_info, tensors_info, enable_ws):
     io_dict[node_name]["ich_ops"] = 1
     io_dict[node_name]["depth"] = depth
     io_dict[node_name]["weights_name"] = [weight_name]
+    io_dict[node_name]["merge_1x1"] = False
     if 'bias_name' in locals():
         io_dict[node_name]["bias_name"] = [bias_name]
 
@@ -155,7 +157,8 @@ def parse_comp(name, node):
     if (node["is_1x1"]):
         block["template"].append("t_%s_lb_struct" % input_type_name)
         block["template"].append("t_%s_lb" % input_type_name)
-        block["template"].append("t_%s_vector" % input_type_name)
+        # block["template"].append("t_%s_vector" % input_type_name)
+        block["template"].append("t_%s_reduce" % input_type_name)
     else:
         block["template"].append("t_%s_window_struct" % input_type_name)
         block["template"].append("t_%s_window" % input_type_name)
@@ -220,6 +223,7 @@ def parse_comp(name, node):
 
     block["template"].append("c_%s_ich" % name)
     block["template"].append("c_%s_och" % name)
+    block["template"].append("c_%s_och_1x1" % name)
     block["template"].append("c_%s_oh" % name)
     block["template"].append("c_%s_ow" % name)
     block["template"].append("c_%s_fh" % name)
@@ -227,6 +231,7 @@ def parse_comp(name, node):
     block["template"].append("c_%s_index" % name)
     block["template"].append("c_%s_stride" % name)
     block["template"].append("c_%s_ops" % name)
+    # block["template"].append("c_%s_ops_1x1" % name)
     block["template"].append("c_%s_ich_ops" % name)
     if (node["add"]):
         block["template"].append("c_%s_add_ops" % add_name)
@@ -397,6 +402,7 @@ def parse_comp(name, node):
 
     block["defines"]["c_%s_ich" % name]            = ["const", node["ich"]]
     block["defines"]["c_%s_och" % name]            = ["const", node["och"]]
+    block["defines"]["c_%s_och_1x1" % name]        = ["const", node["och_1x1"]]
     block["defines"]["c_%s_iw" % name]             = ["const", node["iw"]]
     block["defines"]["c_%s_ih" % name]             = ["const", node["ih"]]
     block["defines"]["c_%s_fw" % name]             = ["const", node["fw"]]
@@ -407,6 +413,7 @@ def parse_comp(name, node):
     block["defines"]["c_%s_stride" % name]         = ["const", node["stride"]]
     block["defines"]["c_%s_pad" % name]            = ["const", node["pad"]]
     block["defines"]["c_%s_ops" % name]            = ["const", node["ops"]]
+    # block["defines"]["c_%s_ops_1x1" % name]        = ["const", node["ops_1x1"]]
     block["defines"]["c_%s_in_ops" % name]         = ["const", node["in_ops"]]
     block["defines"]["c_%s_ich_ops" % name]        = ["const", node["ich_ops"]]
     block["defines"]["c_%s_index" % name]          = ["const", node["kernel"]]
