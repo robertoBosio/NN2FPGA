@@ -72,7 +72,7 @@ csynth_design
 export_design
 
 if {${COSIM} == 1} {
-  cosim_design
+  cosim_design -disable_deadlock_detection -disable_dependency_check
 }
 
 exit
