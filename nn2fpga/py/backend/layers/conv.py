@@ -402,7 +402,10 @@ def parse_comp(name, node):
 
     block["defines"]["c_%s_ich" % name]            = ["const", node["ich"]]
     block["defines"]["c_%s_och" % name]            = ["const", node["och"]]
-    block["defines"]["c_%s_och_1x1" % name]        = ["const", node["och_1x1"]]
+    if (node["merge_1x1"]):
+        block["defines"]["c_%s_och_1x1" % name]        = ["const", node["och_1x1"]]
+    else:
+        block["defines"]["c_%s_och_1x1" % name]        = ["const", node["och"]]
     block["defines"]["c_%s_iw" % name]             = ["const", node["iw"]]
     block["defines"]["c_%s_ih" % name]             = ["const", node["ih"]]
     block["defines"]["c_%s_fw" % name]             = ["const", node["fw"]]
@@ -557,7 +560,8 @@ def parse_comp(name, node):
         pragma["name"] = "stream"
         pragma_name = "s_%s" % (output_1x1_name)
 
-        depth = node["ow"]*int(node["och"]/node["ops"])*(node["fh"]-1)-node["ich"]
+        # depth = node["ow"]*int(node["och"]/node["ops"])*(node["fh"]-1)-node["ich"]
+        depth = node["depth_1x1"]
 
         options = [
             ["variable", pragma_name],

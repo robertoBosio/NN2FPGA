@@ -132,6 +132,8 @@ def ilp(io_dict, off_chip_storage, model, board="ULTRA96v2", double_packing=True
             )
             if (node_info["merge_1x1"]):
                 layers_info[-1].append(node_info["och_1x1"])
+                # FIX: removing fix to try clamping ops to 1x1 layers
+                # layers_info[-1].append(node_info["och"])
     
     print("Total computations:", total_computations)
 

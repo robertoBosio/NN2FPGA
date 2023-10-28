@@ -297,6 +297,7 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
   const auto c_och_1x1_depth = (c_depth == 1) ? 1 : c_och_1x1;
   const auto c_num_och_1x1 = c_och_1x1_depth / c_ops;
   const auto c_iter_1x1 = c_reuse_iter * c_num_och_1x1;
+  const auto c_ops_1x1 = (c_och_1x1 < c_ops) ? c_och_1x1 : c_ops;
   // constexpr int FW = (c_fw);
   constexpr int FW = (c_fw+(c_ws-1)*c_str);
   constexpr int MO = (c_fh*FW)/2;
@@ -318,6 +319,9 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
   t_bias_1x1 s_bias_1x1;
 #pragma HLS array_partition variable = s_bias_1x1 type = complete
   t_add_struct s_add[c_ws];
+//   if (constexpr(std::is_same<t_add_struct, std::nullptr_t>::value == false)) {
+// #pragma HLS array_partition variable = s_add[0].data type = complete dim=0
+//   }
   t_output_struct s_output_struct[c_ws];
 #pragma HLS array_partition variable = s_output_struct type = complete
   t_output_struct_1x1 s_output_1x1_struct[c_ws];
@@ -465,7 +469,10 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
           // TODO: split the loop in two parts controlled by different ops options
 
           if constexpr(std::is_same<t_acc_1x1_struct, std::nullptr_t>::value == false) {
-            if (s_och < c_och_1x1) {
+            if (s_iter < c_iter_1x1) {
+              if constexpr(c_ops_1x1 != c_ops){
+                if ((s_och > 0) | (s_ops > c_ops_1x1))  continue;
+              }
               std::array<t_input_data, c_ws> s_input_1x1;
             #pragma HLS array_partition variable = s_input_1x1 type = complete
               for (auto s_ws = 0; s_ws < c_ws; s_ws++) {
@@ -526,8 +533,9 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
         if ((s_ich == (c_ich-1)) | (c_depth == 1)) {
           for (auto s_ws = 0; s_ws < c_ws; s_ws++) {
             o_output[s_ws % c_ws_out].write(s_output_struct[s_ws]);
-            if constexpr(std::is_same<t_output_struct_1x1, std::nullptr_t>::value == false)
-              o_output_1x1[s_ws % c_ws_out].write(s_output_1x1_struct[s_ws]);
+            if constexpr(std::is_same<t_output_struct_1x1, std::nullptr_t>::value == false) {
+              if (s_iter < c_iter_1x1) o_output_1x1[s_ws % c_ws_out].write(s_output_1x1_struct[s_ws]);
+            }
           }
         }
         if constexpr(std::is_same<t_forward_struct, std::nullptr_t>::value == false) {

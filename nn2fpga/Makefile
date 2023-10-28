@@ -206,7 +206,7 @@ run_model:
 download_cifar10:
 	$(TB_ROOT)/cifar10/download_cifar10.sh
 
-cosim:
+cosim: generate
 	cp $(PRJ_ROOT)/cc/include/$(TOP_NAME)_sim.h $(PRJ_ROOT)/cc/include/network_sim.h
 ifeq ($(VITIS_FLOW), 1)
 	make build TARGET=hw_emu

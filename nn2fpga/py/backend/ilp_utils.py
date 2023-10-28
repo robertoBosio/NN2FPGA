@@ -25,11 +25,16 @@ def find_divisors(layers_info, clamp=33):
                     max_par = k
         else:
             max_par = layer_info[6]
+            max_value = layer_info[6]
 
         divisors = 1
         layers_offset.append(offset)
         all_divisors.append(1)
         for k in range(2, min([max_par, clamp])+1):
+            if (max_par % k) == 0:
+                all_divisors.append(k)
+                divisors = divisors + 1
+        for k in range(min([max_par, clamp])+1, max_value+1):
             if (max_par % k) == 0:
                 all_divisors.append(k)
                 divisors = divisors + 1

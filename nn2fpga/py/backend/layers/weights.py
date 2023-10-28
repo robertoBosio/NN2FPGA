@@ -191,6 +191,9 @@ def extract_info(
 
     ops = node_info["ops"]
 
+    if ops > och:
+        ops = och
+
     signed = new_node["signed"]
     scale_factor = new_node["scale_factor"]
     bits   = new_node["bits"]

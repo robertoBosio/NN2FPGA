@@ -178,7 +178,7 @@ int main(int argc, char** argv) {
     int max_index = 0;
     std::cout << image << " image" << std::endl;
     for (int g = 0; g < CLASSES; g++) {
-      auto data = mem_outputs[g + image * CLASSES];
+      ap_int<8> data = mem_outputs[g + image * CLASSES];
       std::cout << data << std::endl;
       if (data > max_value) {
         max_value = data;

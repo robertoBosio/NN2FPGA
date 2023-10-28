@@ -68,6 +68,11 @@ def write_network(
         prj_root=prj_root
     )
 
+    io_dict = compute_buffers(
+        inferred_model,
+        io_dict
+    )
+
     io_dict = hw_quant(
         model,
         io_dict

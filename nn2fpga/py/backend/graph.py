@@ -15,6 +15,48 @@ import backend.layers.concat as concat
 import backend.layers.upsample as upsample
 import backend.layers.pad as pad
 
+def compute_depth_stream(io_dict, io_connect, net_name, starting_name):
+
+    # Look backward from long branch to compute the receptive field
+    net_receptive_field = [0, 0]
+
+    other_net = net_name
+    layer_output = io_connect[other_net][1][0]
+    node = io_dict[layer_output]
+    starting_node = io_dict[starting_name]
+
+    while layer_output != starting_name:
+
+        node = io_dict[layer_output]
+
+        net_receptive_field[0] += node["fh"]
+        net_receptive_field[1] += node["fw"]
+        
+        other_net = io_dict[layer_output]["input"][0]
+        layer_output = io_connect[other_net][0][0]
+
+    depth = starting_node["ow"]*int(starting_node["och"]/starting_node["ops"])*(net_receptive_field[0]-1)-starting_node["ich"]
+    if depth < 0:
+        depth = node["och"]
+
+    return depth
+
+# Perform the depth computation for all 1x1
+def compute_buffers(model, io_dict):
+    # compute io_connect
+    io_connect = extract_connections(model, io_dict)
+
+    # compute depth for all merged layers
+    for name, node in io_dict.items():
+        if node["type"] == "conv":
+            if node["merge_1x1"]:
+                net_name = io_dict[name]["output"][-1]
+                depth = compute_depth_stream(io_dict, io_connect, net_name, name)
+                io_dict[name]["depth_1x1"] = depth
+
+    return io_dict
+
+
 def compute_branch_length(io_dict, io_connect, layer_name, forward=False):
     branch_length = 0
     branch_found = False
