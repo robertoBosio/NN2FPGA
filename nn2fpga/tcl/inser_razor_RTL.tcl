@@ -11,11 +11,6 @@
 # create nor 
 
 
-# connect to clk1 
-#produce_stream_ap_fixed_vector_ap_fixed_1ul_1_16_32_32_1_1_1_1_U0
-#produce_stream_ap_fixed_vector_ap_fixed_1ul_3_16_32_32_3_3_1_1_U0
-#shift_op_U0
-
 # Constraints 
 set_property CLOCK_DOMAINS INDEPENDENT [get_cells s_net_conv_145_U/U_two_layers_fifo_w9_d17_B_ram/mem_reg_bram_0]
 set_property CLOCK_DOMAINS INDEPENDENT [get_cells s_net_produce_043_U/U_two_layers_fifo_w9_d3_B_ram/mem_reg_bram_0]
@@ -87,11 +82,9 @@ set net2 [get_nets -of_objects ${pin2}]
 disconnect_net -net ${net1} -objects ${pin1}
 disconnect_net -net ${net2} -objects ${pin2}
 
-
 # Connect to FIFOs clkou1 and clk_wiz_0/s_axi_aresetn
 connect_net -hier -net clk1_IBUF_BUFG -objects ${pin1}
 connect_net -hier -net clk1_IBUF_BUFG -objects ${pin2}
-
 
 # Synchronize reset of block s_net_produce_0_compute44
 create_cell -reference FDRE syn_FF1
@@ -130,15 +123,15 @@ connect_net -hier -net ap_rst_n_inv_clk1 -objects ${pin_stream1_invrst}
 connect_net -hier -net ap_rst_n_inv_clk1 -objects ${pin_stream2_invrst}
 
 # Produce compute 44
-#set pin_produce_44 [get_pins -of_objects [get_cells -hier -filter {NAME =~ "s_net_produce_0_compute44_U"}] -filter {REF_PIN_NAME == ap_clk_IBUF_BUFG}] 
-#set pin_produce_44_rst [get_pins -of_objects [get_cells -hier -filter {NAME =~ "s_net_produce_0_compute44_U"}] -filter {REF_PIN_NAME == ap_rst_n_IBUF}] 
-#disconnect_net -net [get_nets -of_objects $pin_produce_44] -objects ${pin_produce_44}
-#disconnect_net -net [get_nets -of_objects $pin_produce_44_rst] -objects ${pin_produce_44_rst}
-#connect_net -hier -net clk1_IBUF_BUFG -objects ${pin_produce_44}
-#connect_net -hier -net clk1_rst_n_IBUF -objects ${pin_produce_44_rst}
+set pin_produce_44 [get_pins -of_objects [get_cells -hier -filter {NAME =~ "s_net_produce_0_compute44_U"}] -filter {REF_PIN_NAME == ap_clk_IBUF_BUFG}] 
+set pin_produce_44_rst [get_pins -of_objects [get_cells -hier -filter {NAME =~ "s_net_produce_0_compute44_U"}] -filter {REF_PIN_NAME == ap_rst_n_IBUF}] 
+disconnect_net -net [get_nets -of_objects $pin_produce_44] -objects ${pin_produce_44}
+disconnect_net -net [get_nets -of_objects $pin_produce_44_rst] -objects ${pin_produce_44_rst}
+connect_net -hier -net clk1_IBUF_BUFG -objects ${pin_produce_44}
+connect_net -hier -net clk1_rst_n_IBUF -objects ${pin_produce_44_rst}
 
-#disconnect_net -net [get_nets -of_objects [get_pins s_net_produce_0_compute44_U/U_two_layers_fifo_w73_d2_B_ram/ap_CS_fsm[2]_i_1__17/I0]] -objects [get_pins s_net_produce_0_compute44_U/U_two_layers_fifo_w73_d2_B_ram/ap_CS_fsm[2]_i_1__17/I0]
-#connect_net -hier -net ap_rst_n_IBUF -objects [get_pins s_net_produce_0_compute44_U/U_two_layers_fifo_w73_d2_B_ram/ap_CS_fsm[2]_i_1__17/I0]
+disconnect_net -net [get_nets -of_objects [get_pins s_net_produce_0_compute44_U/U_two_layers_fifo_w73_d2_B_ram/ap_CS_fsm[2]_i_1__17/I0]] -objects [get_pins s_net_produce_0_compute44_U/U_two_layers_fifo_w73_d2_B_ram/ap_CS_fsm[2]_i_1__17/I0]
+connect_net -hier -net ap_rst_n_IBUF -objects [get_pins s_net_produce_0_compute44_U/U_two_layers_fifo_w73_d2_B_ram/ap_CS_fsm[2]_i_1__17/I0]
 
 set pins_shift [get_pins -of_objects [get_cells -hier -filter {NAME =~ "shift_op_*"}] -filter {REF_PIN_NAME == ap_clk_IBUF_BUFG}]
 foreach {pin} $pins_shift {
@@ -161,15 +154,15 @@ foreach {pin} $pins_shift_invrst {
 # RAM in output
 # WR - clk1 (wizard)
 # R  - pl_clk
-set pin_conv [get_pins -of_objects [get_cells -hier -filter {NAME =~ "s_net_conv_145_U"}] -filter {REF_PIN_NAME == ap_clk_IBUF_BUFG}] 
-set pin_conv_rst [get_pins -of_objects [get_cells -hier -filter {NAME =~ "s_net_conv_145_U"}] -filter {REF_PIN_NAME == ap_rst_n_IBUF}] 
-set pin_conv_invrst [get_pins -of_objects [get_cells -hier -filter {NAME =~ "s_net_conv_145_U"}] -filter {REF_PIN_NAME == ap_rst_n_inv}] 
-disconnect_net -net [get_nets -of_objects $pin_conv] -objects ${pin_conv}
-disconnect_net -net [get_nets -of_objects $pin_conv_rst] -objects ${pin_conv_rst}
-disconnect_net -net [get_nets -of_objects $pin_conv_invrst] -objects ${pin_conv_invrst}
-connect_net -hier -net clk1_IBUF_BUFG -objects ${pin_conv}
-connect_net -hier -net clk1_rst_n_IBUF -objects ${pin_conv_rst}
-connect_net -hier -net ap_rst_n_inv_clk1 -objects ${pin_conv_invrst}
+#set pin_conv [get_pins -of_objects [get_cells -hier -filter {NAME =~ "s_net_conv_145_U"}] -filter {REF_PIN_NAME == ap_clk_IBUF_BUFG}] 
+#set pin_conv_rst [get_pins -of_objects [get_cells -hier -filter {NAME =~ "s_net_conv_145_U"}] -filter {REF_PIN_NAME == ap_rst_n_IBUF}] 
+#set pin_conv_invrst [get_pins -of_objects [get_cells -hier -filter {NAME =~ "s_net_conv_145_U"}] -filter {REF_PIN_NAME == ap_rst_n_inv}] 
+#disconnect_net -net [get_nets -of_objects $pin_conv] -objects ${pin_conv}
+#disconnect_net -net [get_nets -of_objects $pin_conv_rst] -objects ${pin_conv_rst}
+#disconnect_net -net [get_nets -of_objects $pin_conv_invrst] -objects ${pin_conv_invrst}
+#connect_net -hier -net clk1_IBUF_BUFG -objects ${pin_conv}
+#connect_net -hier -net clk1_rst_n_IBUF -objects ${pin_conv_rst}
+#connect_net -hier -net ap_rst_n_inv_clk1 -objects ${pin_conv_invrst}
 #set RAM_rst_1 [get_pins -of_objects [get_cells -hier -filter {REF_NAME == RAMB18E2 && NAME =~ "s_net_conv_145_U*"}] -filter {REF_PIN_NAME == RSTRAMARSTRAM}]
 #disconnect_net -net [get_nets -of_objects ${RAM_rst_1}] -objects ${RAM_rst_1}
 #connect_net -hier -net clk1_rst_n_IBUF -objects ${RAM_rst_1}
@@ -186,15 +179,31 @@ disconnect_net -net [get_nets -of_objects $pin_produce_043_invrst] -objects ${pi
 connect_net -hier -net clk1_IBUF_BUFG -objects ${pin_produce_043}
 connect_net -hier -net clk1_rst_n_IBUF -objects ${pin_produce_043_rst}
 connect_net -hier -net ap_rst_n_inv_clk1 -objects ${pin_produce_043_invrst}
-#set RAM_rst_2 [get_pins -of_objects [get_cells -hier -filter {REF_NAME == RAMB18E2 && NAME =~ "s_net_produce_043_U*"}] -filter {REF_PIN_NAME == RSTRAMARSTRAM}]
-#disconnect_net -net [get_nets -of_objects ${RAM_rst_2}] -objects ${RAM_rst_2}
-#connect_net -hier -net clk1_rst_n_IBUF -objects ${RAM_rst_2}
+set RAM_rst_2 [get_pins -of_objects [get_cells -hier -filter {REF_NAME == RAMB18E2 && NAME =~ "s_net_produce_043_U*"}] -filter {REF_PIN_NAME == RSTRAMARSTRAM}]
+disconnect_net -net [get_nets -of_objects ${RAM_rst_2}] -objects ${RAM_rst_2}
+connect_net -hier -net clk1_rst_n_IBUF -objects ${RAM_rst_2}
 
 # output RAM clock 
-set pin3 [get_pins -of_objects [get_cells -hier -filter {REF_NAME == RAMB18E2 && NAME =~ "s_net_conv_145_U*"}] -filter {REF_PIN_NAME == CLKARDCLK}]
-set net3 [get_nets -of_objects ${pin3}]
-disconnect_net -net ${net3} -objects ${pin3}
-connect_net -hier -net ap_clk_IBUF_BUFG -objects ${pin3}
+#set pin3 [get_pins -of_objects [get_cells -hier -filter {REF_NAME == RAMB18E2 && NAME =~ "s_net_conv_145_U*"}] -filter {REF_PIN_NAME == CLKARDCLK}]
+#set net3 [get_nets -of_objects ${pin3}]
+#disconnect_net -net ${net3} -objects ${pin3}
+#connect_net -hier -net ap_clk_IBUF_BUFG -objects ${pin3}
+#create_cell -reference FDRE s_net_conv_145_U/U_two_layers_fifo_w9_d17_B_ram/synch_clk_FF
+#connect_net -hier -net ${net3} -objects [get_pins s_net_conv_145_U/U_two_layers_fifo_w9_d17_B_ram/synch_clk_FF/D]
+#connect_net -hier -net ap_clk_IBUF_BUFG -objects [get_pins s_net_conv_145_U/U_two_layers_fifo_w9_d17_B_ram/synch_clk_FF/C]
+#connect_net -hier -net s_net_conv_145_U/<const1> -objects [get_pins s_net_conv_145_U/U_two_layers_fifo_w9_d17_B_ram/synch_clk_FF/CE]
+#connect_net -hier -net s_net_conv_145_U/<const0> -objects [get_pins s_net_conv_145_U/U_two_layers_fifo_w9_d17_B_ram/synch_clk_FF/R]
+#create_net s_net_conv_145_U/U_two_layers_fifo_w9_d17_B_ram/synch_clk
+#connect_net -hier -net s_net_conv_145_U/U_two_layers_fifo_w9_d17_B_ram/synch_clk -objects [get_pins s_net_conv_145_U/U_two_layers_fifo_w9_d17_B_ram/synch_clk_FF/Q]
+#connect_net -hier -net s_net_conv_145_U/U_two_layers_fifo_w9_d17_B_ram/synch_clk -objects ${pin3}
+#create_cell -reference FDRE s_net_conv_145_U/U_two_layers_fifo_w9_d17_B_ram/synch_clk_FF2
+#connect_net -hier -net s_net_conv_145_U/U_two_layers_fifo_w9_d17_B_ram/synch_clk -objects [get_pins s_net_conv_145_U/U_two_layers_fifo_w9_d17_B_ram/synch_clk_FF2/D]
+#connect_net -hier -net ap_clk_IBUF_BUFG -objects [get_pins s_net_conv_145_U/U_two_layers_fifo_w9_d17_B_ram/synch_clk_FF2/C]
+#connect_net -hier -net s_net_conv_145_U/<const1> -objects [get_pins s_net_conv_145_U/U_two_layers_fifo_w9_d17_B_ram/synch_clk_FF2/CE]
+#connect_net -hier -net s_net_conv_145_U/<const0> -objects [get_pins s_net_conv_145_U/U_two_layers_fifo_w9_d17_B_ram/synch_clk_FF2/R]
+#create_net s_net_conv_145_U/U_two_layers_fifo_w9_d17_B_ram/synch_clk2
+#connect_net -hier -net s_net_conv_145_U/U_two_layers_fifo_w9_d17_B_ram/synch_clk2 -objects [get_pins s_net_conv_145_U/U_two_layers_fifo_w9_d17_B_ram/synch_clk_FF2/Q]
+#connect_net -hier -net s_net_conv_145_U/U_two_layers_fifo_w9_d17_B_ram/synch_clk2 -objects ${pin3}
 
 set pin4 [get_pins -of_objects [get_cells -hier -filter {REF_NAME == RAMB18E2 && NAME =~ "s_net_produce_043_U*"}] -filter {REF_PIN_NAME == CLKBWRCLK}]
 set net4 [get_nets -of_objects ${pin4}]
@@ -210,7 +219,6 @@ disconnect_net -net [get_nets -of_objects $pin_pad_invrst] -objects ${pin_pad_in
 connect_net -hier -net clk1_IBUF_BUFG -objects ${pin_pad}
 connect_net -hier -net clk1_rst_n_IBUF -objects ${pin_pad_rst}
 connect_net -hier -net ap_rst_n_inv_clk1 -objects ${pin_pad_invrst}
-
 
 set pins_prepad [get_pins -of_objects [get_cells -hier -filter {NAME =~ "s_net_produce_0_pre_pad_*"}] -filter {REF_PIN_NAME == ap_clk_IBUF_BUFG}]
 foreach {pin} $pins_prepad {
@@ -271,7 +279,6 @@ foreach {pin} $pins_const_642_invrst {
     disconnect_net -net [get_nets -of_objects $pin] -objects $pin
     connect_net -hier -net ap_rst_n_inv -objects $pin
 }
-
 
 set pins_shift_9 [get_pins -of_objects [get_cells -hier -filter {NAME =~ "shift_op_9_U0"}] -filter {REF_PIN_NAME == ap_clk_IBUF_BUFG}]
 foreach {pin} $pins_shift_9 {
@@ -338,7 +345,7 @@ foreach endpoint ${endpoints} {
     connect_net -hier -net conv_comp_U0/mux_out_${i}  -objects [get_pins -of ${shadow_tmp} -filter {REF_PIN_NAME==D}]
     connect_net -hier -net clk2_IBUF_BUFG -objects [get_pins -of  ${shadow_tmp} -filter {REF_PIN_NAME==C}]
     connect_net -hier -net ${CE_net} -objects [get_pins -of ${shadow_tmp} -filter {REF_PIN_NAME==CE}]
-    connect_net -hier -net ${R_net} -objects [get_pins -of ${shadow_tmp} -filter {REF_PIN_NAME==R}]
+    connect_net -hier -net clk2_rst_n_IBUF -objects [get_pins -of ${shadow_tmp} -filter {REF_PIN_NAME==R}]
     create_net conv_comp_U0/shadow_value_${i}
     connect_net -hier -net conv_comp_U0/shadow_value_${i} -objects [get_pins -of ${shadow_tmp} -filter {REF_PIN_NAME==Q}]
     # SHADOWFF/O -> MUX/I1
