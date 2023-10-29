@@ -11,6 +11,11 @@
 # create nor 
 
 
+# connect to clk1 
+#produce_stream_ap_fixed_vector_ap_fixed_1ul_1_16_32_32_1_1_1_1_U0
+#produce_stream_ap_fixed_vector_ap_fixed_1ul_3_16_32_32_3_3_1_1_U0
+#shift_op_U0
+
 # Constraints 
 set_property CLOCK_DOMAINS INDEPENDENT [get_cells s_net_conv_145_U/U_two_layers_fifo_w9_d17_B_ram/mem_reg_bram_0]
 set_property CLOCK_DOMAINS INDEPENDENT [get_cells s_net_produce_043_U/U_two_layers_fifo_w9_d3_B_ram/mem_reg_bram_0]
