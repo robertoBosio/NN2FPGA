@@ -21,7 +21,7 @@ def main():
 
     top_name = str(os.environ.get("TOP_NAME"))
 
-    allowed_boards = ["ULTRA96v2", "KRIA", "U280", "U250", "U55C"]
+    allowed_boards = ["ULTRA96v2", "KRIA", "ZCU102", "U280", "U250", "U55C"]
 
     if "BOARD" not in os.environ:
         print("BOARD PLATFORM NOT DEFINED")
@@ -47,6 +47,11 @@ def main():
         sys.exit(1)
 
     PRJ_ROOT = str(os.environ.get("PRJ_ROOT"))
+
+    dynamic_init = False
+    if "DYNAMIC_INIT" in os.environ:
+        if int(os.environ.get("DYNAMIC_INIT")) == 1:
+            dynamic_init = True
 
     uram_storage = False
     if "URAM_STORAGE" in os.environ:
@@ -105,6 +110,7 @@ def main():
         file_name = top_name,
         off_chip_storage=off_chip_storage,
         board=board, 
+        dynamic_init=dynamic_init,
         uram_storage=uram_storage,
         object_detection=object_detection,
         anchors=anchors,

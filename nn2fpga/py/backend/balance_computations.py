@@ -12,6 +12,8 @@ def parallel_ops_number(layers_info, clamp=None, board="ULTRA96v2", prj_root="/t
         NUM_DSP = 400
     elif (board == "KRIA"):
         NUM_DSP = 1000
+    elif (board == "ZCU102"):
+        NUM_DSP = 2000
     elif (board == "U280"):
         NUM_DSP = 1400
         # NUM_DSP = 9024
@@ -210,6 +212,15 @@ def ilp(io_dict, off_chip_storage, model, board="ULTRA96v2", double_packing=True
             else:
                 node["ops_1x1"] = node["ops"]
 
+    # FIX: INCREASING OPS FOR DEPTH
+    for name, node in io_dict.items():
+        if "ops" in node:
+            if "depth" in node:
+                if node["depth"]:
+                    input_dimension = node["ich"]*node["iw"]*node["ih"]
+                    pipeline_iterations = node["och"]*node["ow"]*node["oh"]
+                    ich_ops = math.ceil(input_dimension/pipeline_iterations)
+                    io_dict[name]["ich_ops"] = ich_ops
     # if double_packing:
     #     for node_name, ops in parallel_ops.items():
     #         if io_dict[node_name]["fh"]*io_dict[node_name]["fw"] > 1:

@@ -17,7 +17,7 @@ def parse_on_chip(
     bits=8,
     signed=1,
     narrow=1,
-    uram_storage=False
+    dynamic_init=False
 ):
 
     dich = node_info["ich"]
@@ -57,7 +57,7 @@ def parse_on_chip(
                         if (limit_l > quant_value):
                             quant_value = limit_l
                         
-                        if not uram_storage:
+                        if not dynamic_init:
                             quant_value = quant_value*scale_factor
 
                         index = ih*diw+iw
@@ -161,6 +161,7 @@ def extract_info(
     node_info,
     init_info,
     off_chip_memory,
+    dynamic_init,
     uram_storage
 ):
     pre_values = numpy_helper.to_array(init_info[weight_name]) 
@@ -224,6 +225,9 @@ def extract_info(
     new_node["kernel"]  = ih*iw
     new_node["total"]   = ich*och*ih*iw*oh*ow/stride
     new_node["n_weights"] = ich*och*ih*iw
+    new_node["dynamic_init"] = dynamic_init
+    # assert that uram_storage allows only if dynamic_init
+    assert not(uram_storage and not(dynamic_init))
     new_node["uram_storage"] = uram_storage and not(is_bias)
     new_node["img_ch"]  = ich*och
     new_node["reuse"] = 1
@@ -240,6 +244,7 @@ def weights_info(
     io_dict,
     init_info,
     off_chip_memory=False,
+    dynamic_init=False,
     uram_storage=False
 ):
     new_nodes = {}
@@ -282,6 +287,7 @@ def weights_info(
                 conv_info,
                 init_info,
                 off_chip_memory,
+                dynamic_init,
                 uram_storage
             )
 
@@ -295,7 +301,7 @@ def weights_info(
 
     return io_dict
 
-def parse_main(io_dict):
+def parse_main(io_dict, dynamic_init):
     
     block = {}
     block["func"] = "memory_management"
@@ -330,7 +336,7 @@ def parse_main(io_dict):
                 # FIX: removing biases from URAM storage, they are few
                 uram_storage = True
 
-    if uram_storage:
+    if dynamic_init:
         output_name = "weights"
         block["stream_input"].append("%s" % output_name)
         block["args"].append("i_data_%s" % output_name)
@@ -537,6 +543,7 @@ def on_chip_rom(
     block = {}
 
     uram_storage = node["uram_storage"]
+    dynamic_init = node["dynamic_init"]
 
     block["func"] = "produce_stream"
     block["args"] = []
@@ -554,11 +561,12 @@ def on_chip_rom(
         block["ops"] = node["och"]
     else:
         block["ops"] = node["ops"]
+    block["dynamic_init"] = dynamic_init
     block["uram_storage"] = uram_storage
 
     block["template"] = []
     block["template"].append("t_%s_st" % (output_name))
-    if uram_storage:
+    if dynamic_init:
         block["template"].append("t_%s_init" % (output_name))
     block["template"].append("t_%s" % (output_name))
     block["template"].append("c_%s_ich" % (name))
@@ -572,7 +580,7 @@ def on_chip_rom(
 
     block["output"].append("%s" % output_name)
     block["args"].append("c_%s" % output_name)
-    if uram_storage:
+    if dynamic_init:
         block["args"].append("s_%s_init" % output_name)
         block["args"].append("s_%s_init_flag" % output_name)
     block["args"].append("s_%s" % output_name)
@@ -583,10 +591,10 @@ def on_chip_rom(
         node["bits"],
         node["signed"],
         node["narrow"],
-        node["uram_storage"]
+        node["dynamic_init"],
     )
 
-    if uram_storage:
+    if dynamic_init:
         block["uram_input"].append("s_%s_init" % output_name)
         block["uram_total"] = [node["n_weights"]]
 
@@ -606,13 +614,13 @@ def on_chip_rom(
     block["declare"] = []
 
     tmp = {}
-    if uram_storage:
+    if dynamic_init:
         tmp["name"] = "static c_%s" % output_name
     else:
         tmp["name"] = "c_%s" % output_name
     tmp["type"] = "t_%s_st" % output_name
     tmp["is_array"] = True
-    tmp["is_const"] = not uram_storage
+    tmp["is_const"] = not dynamic_init
     size = node["values"].shape
     tmp["size"] = size
     tmp["init"] = node["values"]
@@ -620,7 +628,7 @@ def on_chip_rom(
 
     block["declare"].append(tmp)
 
-    if uram_storage:
+    if dynamic_init:
         tmp = {}
         tmp["name"] = "s_%s_init_flag" % output_name
         tmp["type"] = "static bool"
@@ -641,7 +649,7 @@ def on_chip_rom(
     block["defines"] = {}
     block["defines"]["t_%s_st" % (output_name)]    = ["type", node["data_type"]]
     output_type_name = "hls::vector<%s, %0d>" % (node["data_type"], node["ops"])
-    if uram_storage:
+    if dynamic_init:
         block["defines"]["t_%s_init" % (output_name)]    = ["type", "t_%s_st" % output_name]
     block["defines"]["t_%s" % (output_name)]       = ["type",  output_type_name]
     block["defines"]["c_%s_ich" % (name)]          = ["const", node["ich"]]
@@ -811,7 +819,7 @@ def on_chip_rom(
     if dim_1_partition_factor > 1:
         block["pragma"].append(pragma)
 
-    if uram_storage:
+    if dynamic_init:
         pragma = {}
         pragma["name"] = "stream"
         options = [
@@ -852,17 +860,20 @@ def parse(name, node):
       
     return blocks
 
-def parse_all(io_dict):
+def parse_all(io_dict, board="KRIA"):
+    
+    if board == "KRIA":
+        MAX_COUNT = 64
 
     parsed_write = []
 
     # Check if there is URAM storage
-    uram_storage = False
+    dynamic_init = False
 
     # Reordering to efficiently use URAM
     n_weights = {}
     for name, node in io_dict.items():
-        if ('const' == node["type"]) and node["uram_storage"]:
+        if ('const' == node["type"]) and node["dynamic_init"]:
             n_weights[name] = node["n_weights"]*node["bits"]/8
     
     # Sort in descending order
@@ -872,15 +883,15 @@ def parse_all(io_dict):
     uram_count = 0
     for name, node in n_weights.items():
         uram_count = uram_count + math.ceil(node/36864)
-        if uram_count > 64:
+        if uram_count > MAX_COUNT:
             io_dict[name]["uram_storage"] = False
 
     for name, node in io_dict.items():
 
-        if ('const' == node["type"]) and node["uram_storage"]:
-            uram_storage = True
+        if ('const' == node["type"]) and node["dynamic_init"]:
+            dynamic_init = True
 
-    if uram_storage:
+    if dynamic_init:
         parsed_write.append(add_uram_layer())
 
     for name, node in io_dict.items():
@@ -889,7 +900,7 @@ def parse_all(io_dict):
         if ('const' == node["type"]):
             parsed_write = parsed_write + parse(name, node)
 
-    if uram_storage:
+    if dynamic_init:
         parsed_write[0] = fill_uram_layer(parsed_write)
 
     return parsed_write
