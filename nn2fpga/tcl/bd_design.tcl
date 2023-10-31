@@ -193,10 +193,6 @@ proc create_root_design { parentCell } {
   # Create interface ports
 
   # Create ports
-  set clk_out1_0 [ create_bd_port -dir O -type clk clk_out1_0 ]
-  set clk_out2_0 [ create_bd_port -dir O -type clk clk_out2_0 ]
-  set peripheral_aresetn_0 [ create_bd_port -dir O -from 0 -to 0 -type rst peripheral_aresetn_0 ]
-  set peripheral_aresetn_1 [ create_bd_port -dir O -from 0 -to 0 -type rst peripheral_aresetn_1 ]
 
   # Create instance: axi_dma_0, and set properties
   set axi_dma_0 [ create_bd_cell -type ip -vlnv xilinx.com:ip:axi_dma:7.1 axi_dma_0 ]
@@ -214,13 +210,13 @@ proc create_root_design { parentCell } {
   set clk_wiz_0 [ create_bd_cell -type ip -vlnv xilinx.com:ip:clk_wiz:6.0 clk_wiz_0 ]
   set_property -dict [list \
     CONFIG.CLKOUT1_DRIVES {Buffer} \
-    CONFIG.CLKOUT1_JITTER {147.134} \
-    CONFIG.CLKOUT1_PHASE_ERROR {280.856} \
-    CONFIG.CLKOUT1_REQUESTED_OUT_FREQ {200} \
+    CONFIG.CLKOUT1_JITTER {80.735} \
+    CONFIG.CLKOUT1_PHASE_ERROR {74.042} \
+    CONFIG.CLKOUT1_REQUESTED_OUT_FREQ {220} \
     CONFIG.CLKOUT2_DRIVES {Buffer} \
-    CONFIG.CLKOUT2_JITTER {147.134} \
-    CONFIG.CLKOUT2_PHASE_ERROR {280.856} \
-    CONFIG.CLKOUT2_REQUESTED_OUT_FREQ {200} \
+    CONFIG.CLKOUT2_JITTER {80.735} \
+    CONFIG.CLKOUT2_PHASE_ERROR {74.042} \
+    CONFIG.CLKOUT2_REQUESTED_OUT_FREQ {220} \
     CONFIG.CLKOUT2_REQUESTED_PHASE {180.000} \
     CONFIG.CLKOUT2_USED {true} \
     CONFIG.CLKOUT3_DRIVES {Buffer} \
@@ -228,12 +224,12 @@ proc create_root_design { parentCell } {
     CONFIG.CLKOUT5_DRIVES {Buffer} \
     CONFIG.CLKOUT6_DRIVES {Buffer} \
     CONFIG.CLKOUT7_DRIVES {Buffer} \
-    CONFIG.MMCM_CLKFBOUT_MULT_F {124.125} \
+    CONFIG.MMCM_CLKFBOUT_MULT_F {14.375} \
     CONFIG.MMCM_CLKIN1_PERIOD {4.667} \
     CONFIG.MMCM_CLKOUT0_DIVIDE_F {7.000} \
     CONFIG.MMCM_CLKOUT1_DIVIDE {7} \
     CONFIG.MMCM_CLKOUT1_PHASE {180.000} \
-    CONFIG.MMCM_DIVCLK_DIVIDE {19} \
+    CONFIG.MMCM_DIVCLK_DIVIDE {2} \
     CONFIG.NUM_OUT_CLKS {2} \
     CONFIG.OVERRIDE_MMCM {false} \
     CONFIG.SECONDARY_SOURCE {Single_ended_clock_capable_pin} \
@@ -743,11 +739,9 @@ Port;FD4A0000;FD4AFFFF;1|FPD;DPDMA;FD4C0000;FD4CFFFF;1|FPD;DDR_XMPU5_CFG;FD05000
   connect_bd_intf_net -intf_net zynq_ultra_ps_e_0_M_AXI_HPM0_FPD [get_bd_intf_pins ps8_0_axi_periph/S00_AXI] [get_bd_intf_pins zynq_ultra_ps_e_0/M_AXI_HPM0_FPD]
 
   # Create port connections
-  connect_bd_net -net clk_wiz_0_clk_out1 [get_bd_ports clk_out1_0] [get_bd_pins clk_wiz_0/clk_out1] [get_bd_pins proc_sys_reset_0/slowest_sync_clk]
-  connect_bd_net -net clk_wiz_0_clk_out2 [get_bd_ports clk_out2_0] [get_bd_pins clk_wiz_0/clk_out2] [get_bd_pins proc_sys_reset_1/slowest_sync_clk]
+  connect_bd_net -net clk_wiz_0_clk_out1 [get_bd_pins clk_wiz_0/clk_out1] [get_bd_pins proc_sys_reset_0/slowest_sync_clk]
+  connect_bd_net -net clk_wiz_0_clk_out2 [get_bd_pins clk_wiz_0/clk_out2] [get_bd_pins proc_sys_reset_1/slowest_sync_clk]
   connect_bd_net -net clk_wiz_0_locked [get_bd_pins clk_wiz_0/locked] [get_bd_pins proc_sys_reset_0/dcm_locked] [get_bd_pins proc_sys_reset_1/dcm_locked]
-  connect_bd_net -net proc_sys_reset_0_peripheral_aresetn [get_bd_ports peripheral_aresetn_1] [get_bd_pins proc_sys_reset_0/peripheral_aresetn]
-  connect_bd_net -net proc_sys_reset_1_peripheral_aresetn [get_bd_ports peripheral_aresetn_0] [get_bd_pins proc_sys_reset_1/peripheral_aresetn]
   connect_bd_net -net rst_ps8_0_214M_peripheral_aresetn [get_bd_pins axi_dma_0/axi_resetn] [get_bd_pins clk_wiz_0/s_axi_aresetn] [get_bd_pins ps8_0_axi_periph/ARESETN] [get_bd_pins ps8_0_axi_periph/M00_ARESETN] [get_bd_pins ps8_0_axi_periph/M01_ARESETN] [get_bd_pins ps8_0_axi_periph/S00_ARESETN] [get_bd_pins rst_ps8_0_214M/peripheral_aresetn] [get_bd_pins two_layers_0/ap_rst_n]
   connect_bd_net -net zynq_ultra_ps_e_0_pl_clk0 [get_bd_pins axi_dma_0/m_axi_mm2s_aclk] [get_bd_pins axi_dma_0/m_axi_s2mm_aclk] [get_bd_pins axi_dma_0/s_axi_lite_aclk] [get_bd_pins clk_wiz_0/clk_in1] [get_bd_pins clk_wiz_0/s_axi_aclk] [get_bd_pins ps8_0_axi_periph/ACLK] [get_bd_pins ps8_0_axi_periph/M00_ACLK] [get_bd_pins ps8_0_axi_periph/M01_ACLK] [get_bd_pins ps8_0_axi_periph/S00_ACLK] [get_bd_pins rst_ps8_0_214M/slowest_sync_clk] [get_bd_pins two_layers_0/ap_clk] [get_bd_pins zynq_ultra_ps_e_0/maxihpm0_fpd_aclk] [get_bd_pins zynq_ultra_ps_e_0/pl_clk0] [get_bd_pins zynq_ultra_ps_e_0/saxihp0_fpd_aclk] [get_bd_pins zynq_ultra_ps_e_0/saxihp1_fpd_aclk]
   connect_bd_net -net zynq_ultra_ps_e_0_pl_resetn0 [get_bd_pins proc_sys_reset_0/ext_reset_in] [get_bd_pins proc_sys_reset_1/ext_reset_in] [get_bd_pins rst_ps8_0_214M/ext_reset_in] [get_bd_pins zynq_ultra_ps_e_0/pl_resetn0]

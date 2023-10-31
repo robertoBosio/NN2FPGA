@@ -78,6 +78,9 @@ set_multicycle_path 2 -setup -from [ get_clocks clk1 ] -to [ get_clocks clk2]
 set_multicycle_path 1 -hold -from [ get_clocks clk1 ] -to [ get_clocks clk2]
 set_multicycle_path -setup -from [get_clocks ap_clk] -to [get_clocks clk2] 2
 set_multicycle_path -hold -from [get_clocks ap_clk] -to [get_clocks clk2] 1
+set_false_path -from [get_clocks clk1] -to [get_clocks ap_clk]
+set_false_path -from [get_clocks ap_clk] -to [get_clocks clk1]
+set_false_path -from [get_clocks ap_clk] -to [get_clocks clk2]
 
 # RAM clocks
 set pin1 [get_pins -of_objects [get_cells -hier -filter {REF_NAME == RAMB18E2 && NAME =~ "s_net_conv_145_U*"}] -filter {REF_PIN_NAME == CLKBWRCLK}]
@@ -175,18 +178,18 @@ foreach {pin} $pins_shift_invrst {
 # RAM in input
 # WR - pl_clk
 # R  - clk1 (wizard)
-set pin_produce_043 [get_pins -of_objects [get_cells -hier -filter {NAME =~ "s_net_produce_043_U"}] -filter {REF_PIN_NAME == ap_clk_IBUF_BUFG}] 
-set pin_produce_043_rst [get_pins -of_objects [get_cells -hier -filter {NAME =~ "s_net_produce_043_U"}] -filter {REF_PIN_NAME == ap_rst_n_IBUF}] 
-set pin_produce_043_invrst [get_pins -of_objects [get_cells -hier -filter {NAME =~ "s_net_produce_043_U"}] -filter {REF_PIN_NAME == ap_rst_n_inv}] 
-disconnect_net -net [get_nets -of_objects $pin_produce_043] -objects ${pin_produce_043}
-disconnect_net -net [get_nets -of_objects $pin_produce_043_rst] -objects ${pin_produce_043_rst}
-disconnect_net -net [get_nets -of_objects $pin_produce_043_invrst] -objects ${pin_produce_043_invrst}
-connect_net -hier -net clk1_IBUF_BUFG -objects ${pin_produce_043}
-connect_net -hier -net clk1_rst_n_IBUF -objects ${pin_produce_043_rst}
-connect_net -hier -net ap_rst_n_inv_clk1 -objects ${pin_produce_043_invrst}
-set RAM_rst_2 [get_pins -of_objects [get_cells -hier -filter {REF_NAME == RAMB18E2 && NAME =~ "s_net_produce_043_U*"}] -filter {REF_PIN_NAME == RSTRAMARSTRAM}]
-disconnect_net -net [get_nets -of_objects ${RAM_rst_2}] -objects ${RAM_rst_2}
-connect_net -hier -net clk1_rst_n_IBUF -objects ${RAM_rst_2}
+#set pin_produce_043 [get_pins -of_objects [get_cells -hier -filter {NAME =~ "s_net_produce_043_U"}] -filter {REF_PIN_NAME == ap_clk_IBUF_BUFG}] 
+#set pin_produce_043_rst [get_pins -of_objects [get_cells -hier -filter {NAME =~ "s_net_produce_043_U"}] -filter {REF_PIN_NAME == ap_rst_n_IBUF}] 
+#set pin_produce_043_invrst [get_pins -of_objects [get_cells -hier -filter {NAME =~ "s_net_produce_043_U"}] -filter {REF_PIN_NAME == ap_rst_n_inv}] 
+#disconnect_net -net [get_nets -of_objects $pin_produce_043] -objects ${pin_produce_043}
+#disconnect_net -net [get_nets -of_objects $pin_produce_043_rst] -objects ${pin_produce_043_rst}
+#disconnect_net -net [get_nets -of_objects $pin_produce_043_invrst] -objects ${pin_produce_043_invrst}
+#connect_net -hier -net clk1_IBUF_BUFG -objects ${pin_produce_043}
+#connect_net -hier -net clk1_rst_n_IBUF -objects ${pin_produce_043_rst}
+#connect_net -hier -net ap_rst_n_inv_clk1 -objects ${pin_produce_043_invrst}
+#set RAM_rst_2 [get_pins -of_objects [get_cells -hier -filter {REF_NAME == RAMB18E2 && NAME =~ "s_net_produce_043_U*"}] -filter {REF_PIN_NAME == RSTRAMARSTRAM}]
+#disconnect_net -net [get_nets -of_objects ${RAM_rst_2}] -objects ${RAM_rst_2}
+#connect_net -hier -net clk1_rst_n_IBUF -objects ${RAM_rst_2}
 
 # output RAM clock 
 #set pin3 [get_pins -of_objects [get_cells -hier -filter {REF_NAME == RAMB18E2 && NAME =~ "s_net_conv_145_U*"}] -filter {REF_PIN_NAME == CLKARDCLK}]
@@ -210,10 +213,10 @@ connect_net -hier -net clk1_rst_n_IBUF -objects ${RAM_rst_2}
 #connect_net -hier -net s_net_conv_145_U/U_two_layers_fifo_w9_d17_B_ram/synch_clk2 -objects [get_pins s_net_conv_145_U/U_two_layers_fifo_w9_d17_B_ram/synch_clk_FF2/Q]
 #connect_net -hier -net s_net_conv_145_U/U_two_layers_fifo_w9_d17_B_ram/synch_clk2 -objects ${pin3}
 
-set pin4 [get_pins -of_objects [get_cells -hier -filter {REF_NAME == RAMB18E2 && NAME =~ "s_net_produce_043_U*"}] -filter {REF_PIN_NAME == CLKBWRCLK}]
-set net4 [get_nets -of_objects ${pin4}]
-disconnect_net -net ${net4} -objects ${pin4}
-connect_net -hier -net ap_clk_IBUF_BUFG -objects ${pin4}
+#set pin4 [get_pins -of_objects [get_cells -hier -filter {REF_NAME == RAMB18E2 && NAME =~ "s_net_produce_043_U*"}] -filter {REF_PIN_NAME == CLKBWRCLK}]
+#set net4 [get_nets -of_objects ${pin4}]
+#disconnect_net -net ${net4} -objects ${pin4}
+#connect_net -hier -net ap_clk_IBUF_BUFG -objects ${pin4}
 
 set pin_pad [get_pins -of_objects [get_cells -hier -filter {NAME =~ "pad_input_U0"}] -filter {REF_PIN_NAME == ap_clk_IBUF_BUFG}] 
 set pin_pad_rst [get_pins -of_objects [get_cells -hier -filter {NAME =~ "pad_input_U0"}] -filter {REF_PIN_NAME == ap_rst_n_IBUF}] 
