@@ -81,6 +81,7 @@ def info(io_dict, node, node_name, init_info, tensors_info, enable_ws):
     io_dict[node_name]["ih"]     = ih
     io_dict[node_name]["iw"]     = iw
     io_dict[node_name]["och"]    = och
+    io_dict[node_name]["och_1x1"] = och
     io_dict[node_name]["oh"]     = oh
     io_dict[node_name]["ow"]     = ow
     io_dict[node_name]["fh"]     = fh
@@ -115,6 +116,7 @@ def info(io_dict, node, node_name, init_info, tensors_info, enable_ws):
     io_dict[node_name]["ich_ops"] = 1
     io_dict[node_name]["depth"] = depth
     io_dict[node_name]["weights_name"] = [weight_name]
+    io_dict[node_name]["merge_1x1"] = False
     if 'bias_name' in locals():
         io_dict[node_name]["bias_name"] = [bias_name]
 
@@ -155,7 +157,8 @@ def parse_comp(name, node):
     if (node["is_1x1"]):
         block["template"].append("t_%s_lb_struct" % input_type_name)
         block["template"].append("t_%s_lb" % input_type_name)
-        block["template"].append("t_%s_vector" % input_type_name)
+        # block["template"].append("t_%s_vector" % input_type_name)
+        block["template"].append("t_%s_reduce" % input_type_name)
     else:
         block["template"].append("t_%s_window_struct" % input_type_name)
         block["template"].append("t_%s_window" % input_type_name)
@@ -220,6 +223,7 @@ def parse_comp(name, node):
 
     block["template"].append("c_%s_ich" % name)
     block["template"].append("c_%s_och" % name)
+    block["template"].append("c_%s_och_1x1" % name)
     block["template"].append("c_%s_oh" % name)
     block["template"].append("c_%s_ow" % name)
     block["template"].append("c_%s_fh" % name)
@@ -227,6 +231,7 @@ def parse_comp(name, node):
     block["template"].append("c_%s_index" % name)
     block["template"].append("c_%s_stride" % name)
     block["template"].append("c_%s_ops" % name)
+    # block["template"].append("c_%s_ops_1x1" % name)
     block["template"].append("c_%s_ich_ops" % name)
     if (node["add"]):
         block["template"].append("c_%s_add_ops" % add_name)
@@ -296,6 +301,11 @@ def parse_comp(name, node):
         acc_bits = node["actbits"][0] + node["wbits"][0] + math.ceil(math.log2(node["kernel"]))
     else:
         acc_bits = node["actbits"][0] + node["wbits"][0] + math.ceil(math.log2(node["kernel"]*node["ich"]))
+    # if (has_bias):
+    #     acc_bits += 1
+    # if (node["add"]):
+    #     acc_bits += 1
+
     acc_type = get_quant_type(True, acc_bits, node["actscale"][0]+node["wscale"][0], acc_reg=True)
     block["defines"] = {}
     block["defines"]["t_%s_acc" % output_name] = ["type", acc_type]
@@ -392,6 +402,10 @@ def parse_comp(name, node):
 
     block["defines"]["c_%s_ich" % name]            = ["const", node["ich"]]
     block["defines"]["c_%s_och" % name]            = ["const", node["och"]]
+    if (node["merge_1x1"]):
+        block["defines"]["c_%s_och_1x1" % name]        = ["const", node["och_1x1"]]
+    else:
+        block["defines"]["c_%s_och_1x1" % name]        = ["const", node["och"]]
     block["defines"]["c_%s_iw" % name]             = ["const", node["iw"]]
     block["defines"]["c_%s_ih" % name]             = ["const", node["ih"]]
     block["defines"]["c_%s_fw" % name]             = ["const", node["fw"]]
@@ -402,6 +416,7 @@ def parse_comp(name, node):
     block["defines"]["c_%s_stride" % name]         = ["const", node["stride"]]
     block["defines"]["c_%s_pad" % name]            = ["const", node["pad"]]
     block["defines"]["c_%s_ops" % name]            = ["const", node["ops"]]
+    # block["defines"]["c_%s_ops_1x1" % name]        = ["const", node["ops_1x1"]]
     block["defines"]["c_%s_in_ops" % name]         = ["const", node["in_ops"]]
     block["defines"]["c_%s_ich_ops" % name]        = ["const", node["ich_ops"]]
     block["defines"]["c_%s_index" % name]          = ["const", node["kernel"]]
@@ -499,6 +514,8 @@ def parse_comp(name, node):
         block["pragma"].append(pragma)
 
     depth = int(node["och"]/node["ops"])*node["ws"] + 1
+    # TODO: Modified to reduce bram usage but slowing down arch
+    # depth = 2
 
     pragma = {}
     pragma["name"] = "stream"
@@ -511,27 +528,40 @@ def parse_comp(name, node):
     pragma["options"] = options
     block["pragma"].append(pragma)
 
-    # FIX: Adding because with big pointwise layers there are II violations
-    # because the array width is too high for a memory element
-    if node["is_1x1"] and node["ops"] > 16:
+    # # FIX: Adding because with big pointwise layers there are II violations
+    # # because the array width is too high for a memory element
+    # for i in range(node["ws"]):
+    #     pragma = {}
+    #     pragma["name"] = "aggregate"
+    #     options = [
+    #         ["variable", "s_%s" % (output_name)],
+    #     ]
+    #     pragma["options"] = options
+    #     block["pragma"].append(pragma)
+
+    # FIX: Adding pragma to bind storage to SRL
+    # if the depth of the fifo is small enough to
+    # not justify the use of BRAM
+    if (depth < 64):
         pragma = {}
-        pragma["name"] = "array_partition"
+        pragma["name"] = "bind_storage"
         options = [
-            ["variable", "s_%s" % (output_name)],
-            # ["type", "cyclic"],
-            ["type", "complete"],
-            # ["factor", node["ops"]],
-            # ["dim", 3],
+            ["variable", "s_%s" % output_name],
+            ["impl", "SRL"],
+            ["type", "fifo"]
         ]
         pragma["options"] = options
+
         block["pragma"].append(pragma)
+
 
     if (node["merge_1x1"]):
         pragma = {}
         pragma["name"] = "stream"
         pragma_name = "s_%s" % (output_1x1_name)
 
-        depth = node["ow"]*int(node["och"]/node["ops"])*(node["fh"]-1)-node["ich"]
+        # depth = node["ow"]*int(node["och"]/node["ops"])*(node["fh"]-1)-node["ich"]
+        depth = node["depth_1x1"]
 
         options = [
             ["variable", pragma_name],
@@ -541,20 +571,32 @@ def parse_comp(name, node):
         pragma["options"] = options
         block["pragma"].append(pragma)
 
-        # FIX: Adding because with big pointwise layers there are II violations
-        # because the array width is too high for a memory element
-        if node["merge_1x1"] and node["ops"] > 16:
+        # # FIX: Adding because with big pointwise layers there are II violations
+        # # because the array width is too high for a memory element
+        # for i in range(node["ws"]):
+        #     pragma = {}
+        #     pragma["name"] = "aggregate"
+        #     options = [
+        #         ["variable", "s_%s" % (output_1x1_name)],
+        #     ]
+        #     pragma["options"] = options
+        #     block["pragma"].append(pragma)
+
+        # FIX: Adding pragma to bind storage to SRL
+        # if the depth of the fifo is small enough to
+        # not justify the use of BRAM
+        if (depth < 64):
             pragma = {}
-            pragma["name"] = "array_partition"
+            pragma["name"] = "bind_storage"
             options = [
-                ["variable", "s_%s" % (output_1x1_name)],
-                # ["type", "cyclic"],
-                ["type", "complete"],
-                # ["factor", node["ops"]],
-                # ["dim", 3],
+                ["variable", "s_%s" % output_1x1_name],
+                ["impl", "SRL"],
+            ["type", "fifo"]
             ]
             pragma["options"] = options
+
             block["pragma"].append(pragma)
+
 
 
     return [block]

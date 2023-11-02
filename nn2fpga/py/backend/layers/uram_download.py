@@ -82,7 +82,7 @@ def fill_uram_layer(parsed_write):
 
     for layer in parsed_write:
         if layer["func"] != "load_uram":
-            if "uram_input" in layer.keys():
+            if layer["dynamic_init"]:
                 # block["template"] = block["template"] + [layer["template"][0]]
                 block["args"] = block["args"] + layer["uram_input"]
                 block["mux_data"][layer["uram_input"][0]] = layer["uram_total"]

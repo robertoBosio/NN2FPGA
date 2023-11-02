@@ -42,10 +42,10 @@ def tb_declare(fd, layer_tb_declare):
 def init(file_name, parsed_write, prj_root="/tmp"):
     with open(prj_root + "/cc/include/%s_sim.h" % file_name, "w+") as fd:
 
-        uram_storage = False
-        if "URAM_STORAGE" in os.environ:
-            if int(os.environ.get("URAM_STORAGE")) == 1:
-                uram_storage = True
+        dynamic_init = False
+        if "DYNAMIC_INIT" in os.environ:
+            if int(os.environ.get("DYNAMIC_INIT")) == 1:
+                dynamic_init = True
         
         vitis_flow = False
         if "VITIS_FLOW" in os.environ:
@@ -520,9 +520,9 @@ def write_templated_converted(filename, dict, prj_root):
              
 
 
-def write(io_dict, file_name, prj_root="/tmp"):
+def write(io_dict, file_name, dynamic_init, prj_root="/tmp"):
 
-    parsed_write, parsed_const = parse_all_main(io_dict)
+    parsed_write, parsed_const = parse_all_main(io_dict, dynamic_init=dynamic_init)
     parsed_write = parsed_write + parsed_const
 
     init(file_name, parsed_write, prj_root=prj_root)

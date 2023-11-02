@@ -25,6 +25,11 @@ if {${BOARD} == "ULTRA96v2"} {
  set BOARD_PART "avnet.com:ultra96v2:part0:1.2"
 }
 
+if {${BOARD} == "ZCU102"} {
+ set FPGA_PART "xczu9eg-ffvb1156-2-e"
+ set BOARD_PART " xilinx.com:zcu102:part0:3.4"
+}
+
 if {${BOARD} == "KRIA"} {
  set FPGA_PART "xck26-sfvc784-2LV-c"
  set BOARD_PART "xilinx.com:kv260_som:part0:1.4"

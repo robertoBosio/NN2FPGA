@@ -9,11 +9,33 @@ def find_divisors(layers_info, clamp=33):
     layers_name = []
     offset = 0
     for i, layer_info in enumerate(layers_info):
+        # FIX: adapting to not matching och for merged layers
+        # compute maximum common submultiple between layer_info[6] and layer_info[7]
+        # if layer_info[7] is present
+        if len(layer_info) > 7:
+            if layer_info[6] > layer_info[7]:
+                max_value = layer_info[6]
+                min_value = layer_info[7]
+            else:
+                max_value = layer_info[7]
+                min_value = layer_info[6]
+            
+            for k in range(2, min_value+1):
+                if (max_value % k) == 0 and (min_value % k) == 0:
+                    max_par = k
+        else:
+            max_par = layer_info[6]
+            max_value = layer_info[6]
+
         divisors = 1
         layers_offset.append(offset)
         all_divisors.append(1)
-        for k in range(2, min([layer_info[6], clamp])+1):
-            if (layer_info[6] % k) == 0:
+        for k in range(2, min([max_par, clamp])+1):
+            if (max_par % k) == 0:
+                all_divisors.append(k)
+                divisors = divisors + 1
+        for k in range(min([max_par, clamp])+1, max_value+1):
+            if (max_par % k) == 0:
                 all_divisors.append(k)
                 divisors = divisors + 1
         layers_divisors.append(divisors)

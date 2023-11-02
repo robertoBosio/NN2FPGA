@@ -6,8 +6,8 @@ fi
 if [ $1 = "KRIA" ]; then
     user="root"
     path="/home/ubuntu/"
-    ip="kriahlslab0"
-    device="${user}@kriahlslab0"
+    ip="kriahlslab1"
+    device="${user}@kriahlslab1"
 elif [ $1 = "ULTRA96v2" ]; then
     user="root"
     path="~/"

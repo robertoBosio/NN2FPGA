@@ -140,7 +140,10 @@ void shift_op(hls::stream<din_t> &din, hls::stream<dcomp_t> &o_compute,
   constexpr int c_strw = (c_paddingw_shift > 0) ? (c_paddingw_shift % (c_str*c_str_adj)) : (FW - 1 + c_paddingw_shift) % (c_str*c_str_adj);
 
   din_t s_input;
+  #pragma HLS disaggregate variable=s_input
+  #pragma HLS array_partition variable=s_input.data type=complete
   dcomp_t s_output;
+  #pragma HLS array_partition variable=s_output.data type=complete
   #ifndef __SYNTHESIS__
       std::cout << "shift_op " << ICH << " " << c_ops << " " << c_ops_out << std::endl;
   #endif

@@ -22,6 +22,7 @@ def write_network(
     file_name="network",
     off_chip_storage=False,
     board="ULTRA96v2",
+    dynamic_init=False,
     uram_storage=False,
     object_detection=False,
     anchors=[],
@@ -68,6 +69,11 @@ def write_network(
         prj_root=prj_root
     )
 
+    io_dict = compute_buffers(
+        inferred_model,
+        io_dict
+    )
+
     io_dict = hw_quant(
         model,
         io_dict
@@ -78,6 +84,7 @@ def write_network(
         io_dict,
         init_info,
         off_chip_storage,
+        dynamic_init,
         uram_storage
     )
 
@@ -111,6 +118,7 @@ def write_network(
         file_name,
         ap_ctrl_chain,
         object_detection=object_detection,
+        dynamic_init=dynamic_init,
         prj_root=prj_root,
     )
 
@@ -123,6 +131,7 @@ def write_network(
     sim.write(
         io_dict,
         file_name,
+        dynamic_init=dynamic_init,
         prj_root=prj_root
     )
 

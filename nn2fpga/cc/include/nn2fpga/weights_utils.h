@@ -42,6 +42,7 @@ void produce_stream(din_t din[c_fh * c_fw][OCH * ICH / c_ops][c_ops],
     for (auto s_ch = 0; (s_ch < c_ch); s_ch++) {
       for (auto s_index = 0; s_index < FSZ; s_index++) {
         for (auto s_ops = 0; s_ops < c_ops; s_ops++) {
+          // #pragma HLS pipeline off
           din[s_index][s_ch][s_ops] = i_data[s_index].read();
         }
       }
@@ -51,7 +52,7 @@ void produce_stream(din_t din[c_fh * c_fw][OCH * ICH / c_ops][c_ops],
 
   for (auto s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
     for (auto s_ch = 0; s_ch < c_ch; s_ch++) {
-#pragma HLS pipeline
+#pragma HLS pipeline II=1
       for (auto s_index = 0; s_index < FSZ; s_index++) {
         dout_t s_output;
         for (auto s_ops = 0; s_ops < c_ops; s_ops++) {

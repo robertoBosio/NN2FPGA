@@ -9,6 +9,7 @@ export DEPS := $(NAME).h
 export COSIM := 0
 export CSIM := 0
 export OFF_CHIP_STORAGE := 0
+export DYNAMIC_INIT := 0
 export URAM_STORAGE := 0
 export DATASET := cifar10
 export OBJECT_DETECTION := 0

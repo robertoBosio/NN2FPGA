@@ -102,11 +102,11 @@ def init(file_name, parsed_write, object_detection=False, prj_root="/tmp"):
         fd.write(") {\n")
         fd.write("\n")
 
-def parse_all_main(io_dict):
+def parse_all_main(io_dict, dynamic_init=False):
 
     parsed_write = []
     parsed_write.append(
-        weights.parse_main(io_dict)
+        weights.parse_main(io_dict, dynamic_init=dynamic_init)
     )
 
     parsed_const = []
@@ -136,10 +136,9 @@ def parse_all_main(io_dict):
         if 'pool' == node["type"]:
             if (not node["is_adaptive"]):
                 parsed_write = parsed_write + line_buffer.parse(name, node)
-                if (node["pad"] != 0):
-                    parsed_write.append(
-                        pad.parse(name, node)
-                    )
+                parsed_write.append(
+                    pad.parse(name, node)
+                )
             parsed_write.append(
                 pool.parse(name, node)
             )
@@ -207,14 +206,14 @@ def footer(file_path):
     with open(file_path, "a") as fd:
         fd.write("\n}")
 
-def write(io_dict, file_name, ap_ctrl_chain, object_detection, prj_root="/tmp"):
+def write(io_dict, file_name, ap_ctrl_chain, object_detection, dynamic_init, prj_root="/tmp"):
 
     if ap_ctrl_chain:
         ap_ctrl = "ap_ctrl_chain"
     else:
         ap_ctrl = "ap_ctrl_none"
 
-    parsed_write, parsed_const = parse_all_main(io_dict)
+    parsed_write, parsed_const = parse_all_main(io_dict, dynamic_init=dynamic_init)
 
     file_path = f"{prj_root}/cc/src/{file_name}.cc"
     init(file_name, parsed_write, object_detection, prj_root=prj_root)
