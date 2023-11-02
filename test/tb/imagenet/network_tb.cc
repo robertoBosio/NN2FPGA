@@ -87,80 +87,80 @@ int main(int argc, char** argv) {
 	}
 #endif /* CSIM */
 
-  int s_batch = 0;
-  int mem_activations_p = 0;
-  DIR *dir;
-  struct dirent *ent;
-  std::cout << "OPENING DIRECTORY" << std::endl;
-  if ((dir = opendir (path.c_str())) != NULL) {
-    /* print all the files and directories within directory */
-    std::cout << "OPENED DIRECTORY" << std::endl;
-    while ((ent = readdir (dir)) != NULL) {
-        printf ("%s\n", ent->d_name);
-        if (strcmp(ent->d_name, ".") == 0 || strcmp(ent->d_name, "..") == 0)
-            continue;
-        std::string file_path = path + ent->d_name;
-        std::cout << file_path << std::endl;
+//   int s_batch = 0;
+//   int mem_activations_p = 0;
+//   DIR *dir;
+//   struct dirent *ent;
+//   std::cout << "OPENING DIRECTORY" << std::endl;
+//   if ((dir = opendir (path.c_str())) != NULL) {
+//     /* print all the files and directories within directory */
+//     std::cout << "OPENED DIRECTORY" << std::endl;
+//     while ((ent = readdir (dir)) != NULL) {
+//         printf ("%s\n", ent->d_name);
+//         if (strcmp(ent->d_name, ".") == 0 || strcmp(ent->d_name, "..") == 0)
+//             continue;
+//         std::string file_path = path + ent->d_name;
+//         std::cout << file_path << std::endl;
 
-#ifdef CSIM
-        int mem_activations_p = 0;
-#endif /* CSIM */
-        cv::Mat img;
-        cv::Mat result_ocv;
+// #ifdef CSIM
+//         int mem_activations_p = 0;
+// #endif /* CSIM */
+//         cv::Mat img;
+//         cv::Mat result_ocv;
     
-        img = cv::imread(file_path);
+//         img = cv::imread(file_path);
 
-        std::cout << img.rows << " " << img.cols << std::endl;
+//         std::cout << img.rows << " " << img.cols << std::endl;
 
-        result_ocv.create(cv::Size(c_produce_stream_iw, c_produce_stream_ih),CV_8UC3);
-        cv::resize(img,result_ocv,cv::Size(c_produce_stream_iw,c_produce_stream_ih),0,0,cv::INTER_AREA);
+//         result_ocv.create(cv::Size(c_produce_stream_iw, c_produce_stream_ih),CV_8UC3);
+//         cv::resize(img,result_ocv,cv::Size(c_produce_stream_iw,c_produce_stream_ih),0,0,cv::INTER_AREA);
 
-        // Iterate over elements of result_ocv per channel
-        unsigned int s_bytes = 0;
-        ap_uint<64> s_data = 0;
-        std::cout << "STORING IMAGE" << std::endl;
-        for (int i = 0; i < result_ocv.rows; i++) {
-            for (int j = 0; j < result_ocv.cols; j++) {
-                cv::Vec3b pixel = result_ocv.at<cv::Vec3b>(i, j);
-                // Iterate over channels (typically BGR)
-                // Iterate over channells on RGB
-                for (int c = 2; c > -1; c--) {
-                    //std::cout << (int)pixel[c] << std::endl;
-                    int s_par = (s_bytes % ACTIVATION_PARALLELISM);
-                    s_data.range(8 * (s_par + 1) - 1, 8 * s_par) = (ap_uint<8>)(pixel[c]);
+//         // Iterate over elements of result_ocv per channel
+//         unsigned int s_bytes = 0;
+//         ap_uint<64> s_data = 0;
+//         std::cout << "STORING IMAGE" << std::endl;
+//         for (int i = 0; i < result_ocv.rows; i++) {
+//             for (int j = 0; j < result_ocv.cols; j++) {
+//                 cv::Vec3b pixel = result_ocv.at<cv::Vec3b>(i, j);
+//                 // Iterate over channels (typically BGR)
+//                 // Iterate over channells on RGB
+//                 for (int c = 2; c > -1; c--) {
+//                     //std::cout << (int)pixel[c] << std::endl;
+//                     int s_par = (s_bytes % ACTIVATION_PARALLELISM);
+//                     s_data.range(8 * (s_par + 1) - 1, 8 * s_par) = (ap_uint<8>)(pixel[c]);
 
-                    // #ifdef DEBUG
-                    // std::cout << (ap_uint<8>)(pixel[c]) << " ";
-                    // #endif
+//                     // #ifdef DEBUG
+//                     // std::cout << (ap_uint<8>)(pixel[c]) << " ";
+//                     // #endif
 
-                    if (s_par == (c_par - 1)) {
-                        mem_activations[mem_activations_p++] = s_data;
-                    }
+//                     if (s_par == (c_par - 1)) {
+//                         mem_activations[mem_activations_p++] = s_data;
+//                     }
 
-                    s_bytes++;
-                }
-            }
-        }
+//                     s_bytes++;
+//                 }
+//             }
+//         }
 
-    // TODO: Change arguments to -w 0 after first run in CSIM, to remove the
-    // warning of not empty stream at the end of the simulation
-#ifdef CSIM
-  std::cout << "STARTING CSIM" << std::endl;
-  inference_time = networkSim(argc,
-                              argv,
-                              imagenetPath,
-                              c_index,
-                              CLASSES,
-                              &mem_activations[c_index * s_batch],
-                              &mem_outputs[s_batch * CLASSES]);
-#endif /* CSIM */
+//     // TODO: Change arguments to -w 0 after first run in CSIM, to remove the
+//     // warning of not empty stream at the end of the simulation
+// // #ifdef CSIM
+// //   std::cout << "STARTING CSIM" << std::endl;
+// //   inference_time = networkSim(argc,
+// //                               argv,
+// //                               imagenetPath,
+// //                               c_index,
+// //                               CLASSES,
+// //                               &mem_activations[c_index * s_batch],
+// //                               &mem_outputs[s_batch * CLASSES]);
+// // #endif /* CSIM */
 
-        s_batch++;
-        if (s_batch == c_batch)
-            break;
-    }
-    closedir (dir);
-  }
+//         s_batch++;
+//         if (s_batch == c_batch)
+//             break;
+//     }
+//     closedir (dir);
+//   }
 
 #ifndef CSIM
   inference_time = networkSim(argc,

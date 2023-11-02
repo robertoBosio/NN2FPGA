@@ -309,6 +309,8 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
   t_input s_input;
 // #pragma HLS array_partition variable = s_input type = complete dim = 0
 #pragma HLS array_partition variable = s_input type = complete
+// #pragma HLS array_partition variable = s_input type = complete dim=1
+// #pragma HLS array_partition variable = s_input type = complete dim=2
   bool s_last = false;
   t_weight s_weight[c_index];
 #pragma HLS array_partition variable = s_weight type = complete
