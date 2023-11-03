@@ -6,12 +6,11 @@ from onnx import numpy_helper
 import numpy as np
 from backend.layers.quant import get_quant_type
 
-def info(io_dict, tensors_info, model, ws):
+def info(io_dict, tensors_info, model, ws, graph_input_name):
 
 
     node_name = "produce_stream"
 
-    graph_input_name = model.graph.input[0].name
     input_shape = tensors_info[graph_input_name].tensor_type.shape
 
     graph_input_name = graph_input_name.replace(".", "_")
