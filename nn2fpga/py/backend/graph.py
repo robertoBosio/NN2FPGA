@@ -222,12 +222,14 @@ def graph_info(model, init_info, object_detection=False, anchors=None, enable_ws
     
     # Declaring input stream management as a specific node
     # of the network
-    io_dict = input_gen.info(
-        io_dict,
-        tensors_info,
-        model,
-        enable_ws
-    )
+    for graph_input_name in model.graph.input:
+        io_dict = input_gen.info(
+            io_dict,
+            tensors_info,
+            model,
+            enable_ws,
+            graph_input_name.name
+        )
 
     graph_output_name = model.graph.output[0].name
     graph_output_name = graph_output_name.replace(".", "_")
@@ -419,9 +421,24 @@ def rename_edges(model, io_dict):
 
     io_connect = extract_connections(model, io_dict)
 
-    n_net = 0
+    n_net = 1
     rename_dict = {}
+    for graph_input_name in model.graph.input:
+        graph_input_name = graph_input_name.name.replace(".", "_")
+        rename_dict[graph_input_name] = "inp_%0d" % n_net
+        n_net += 1
+
+    for name, node in io_dict.items():
+        for i, input_name in enumerate(node["input"]):
+            if input_name in rename_dict.keys():
+                io_dict[name]["input"][i] = rename_dict[input_name]
+
+        for i, output_name in enumerate(node["output"]):
+            if output_name in rename_dict.keys():
+                io_dict[name]["output"][i] = rename_dict[output_name]
+
     for net_name, layers in io_connect.items():
+        print(net_name)
         layer_in_name = layers[0][0]
         layer_out_name = layers[1][0]
 
