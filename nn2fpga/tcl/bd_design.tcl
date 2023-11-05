@@ -742,7 +742,6 @@ Port;FD4A0000;FD4AFFFF;1|FPD;DPDMA;FD4C0000;FD4CFFFF;1|FPD;DDR_XMPU5_CFG;FD05000
   # Create interface connections
   connect_bd_intf_net -intf_net ${topName}_0_o_outp1 [get_bd_intf_pins ${topName}_0/o_outp1] [get_bd_intf_pins axi_dma_0/S_AXIS_S2MM]
   connect_bd_intf_net -intf_net axi_dma_0_M_AXIS_MM2S [get_bd_intf_pins ${topName}_0/i_inp_1] [get_bd_intf_pins axi_dma_0/M_AXIS_MM2S]
-#   connect_bd_intf_net -intf_net axi_dma_0_M_AXIS_MM2S [get_bd_intf_pins ${topName}_0/i_global_in] [get_bd_intf_pins axi_dma_0/M_AXIS_MM2S]
   if {${uramStorage} == 1} {
     connect_bd_intf_net -intf_net axi_dma_1_M_AXIS_MM2S [get_bd_intf_pins ${topName}_0/i_data_weights] [get_bd_intf_pins axi_dma_1/M_AXIS_MM2S]
   }

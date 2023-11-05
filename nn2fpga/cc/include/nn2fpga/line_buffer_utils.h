@@ -27,6 +27,13 @@ void pad_input(hls::stream<din_t> din[(c_fw+(c_ws-1)*c_str) * c_fh],
   bool s_last;
   
   din_t s_read[FSZ];
+  #ifndef __SYNTHESIS__
+      std::cout << "pad_input " << ICH << " " << c_pad << " " << c_ops << " " << c_ops_out << std::endl;
+      // Printing the size
+      for (auto s_i = 0; s_i < FSZ; s_i++) {
+        std::cout << "s_read[" << s_i << "] = " << din[s_i].size() << std::endl;
+      }
+  #endif
 
   for (auto s_index_h = 0; s_index_h < IH_REM; s_index_h += c_str) {
     for (auto s_index_w = 0; s_index_w < IW_REM; s_index_w += c_str*c_ws) {
@@ -136,8 +143,9 @@ void shift_op(hls::stream<din_t> &din, hls::stream<dcomp_t> &o_compute,
   const int c_str_adj = (c_str == 1) ? 1 : (c_ws);
 
   // Stride selects which pixels are sent for computations
+  constexpr int c_strw_adj = (c_str == 1) ? 1 : (FW%c_str);
   constexpr int c_strh = (c_paddingh_shift > 0) ? (c_paddingh_shift % c_str) : -1 * (c_paddingh_shift % c_str);
-  constexpr int c_strw = (c_paddingw_shift > 0) ? (c_paddingw_shift % (c_str*c_str_adj)) : (FW - 1 + c_paddingw_shift) % (c_str*c_str_adj);
+  constexpr int c_strw = (c_paddingw_shift > 0) ? (c_paddingw_shift % (c_str*c_str_adj)) : (FW - c_strw_adj + c_paddingw_shift) % (c_str*c_str_adj);
 
   din_t s_input;
   #pragma HLS disaggregate variable=s_input
@@ -145,7 +153,8 @@ void shift_op(hls::stream<din_t> &din, hls::stream<dcomp_t> &o_compute,
   dcomp_t s_output;
   #pragma HLS array_partition variable=s_output.data type=complete
   #ifndef __SYNTHESIS__
-      std::cout << "shift_op " << ICH << " " << c_ops << " " << c_ops_out << std::endl;
+      std::cout << "shift_op " << ICH << " " << IW << " " << IH << " " << c_ops << " " << c_ops_out << std::endl;
+      std::cout << c_strh << " " << c_strw << " " << c_paddingh_shift << " " << c_paddingw_shift << " " << c_end_paddingh_shift << " " << c_end_paddingw_shift << std::endl;
   #endif
   for (auto s_index_h = c_starth; s_index_h < IH; s_index_h++) {
     for (auto s_index_w = c_startw; s_index_w < IW; s_index_w+=c_ws) {
