@@ -503,10 +503,7 @@ def parse_comp(name, node):
 
     if (node["has_forward"]):
         # First two lines
-        depth = int((node["fh"]-1)*node["iw"]*node["ich"]/node["ich_ops"])
-        # first two pixels of the third line
-        depth += int((node["fw"]-1)*node["ich"]/node["ich_ops"])
-        depth += node["och"]+1
+        depth = node["depth_forward"]
         pragma = {}
         pragma["name"] = "stream"
         pragma_name = "s_%s" % forward_name
