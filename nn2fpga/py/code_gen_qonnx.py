@@ -21,7 +21,7 @@ def main():
 
     top_name = str(os.environ.get("TOP_NAME"))
 
-    allowed_boards = ["PYNQ", "ULTRA96v2", "KRIA", "ZCU102", "U280", "U250", "U55C"]
+    allowed_boards = ["PYNQ", "ZC706", "ULTRA96v2", "KRIA", "ZCU102", "U280", "U250", "U55C"]
 
     if "BOARD" not in os.environ:
         print("BOARD PLATFORM NOT DEFINED")
