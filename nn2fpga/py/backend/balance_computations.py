@@ -21,8 +21,8 @@ def parallel_ops_number(layers_info, clamp=None, board="ULTRA96v2", prj_root="/t
     elif (board == "ZCU102"):
         NUM_DSP = 2000
     elif (board == "U280"):
-        NUM_DSP = 1400
-        # NUM_DSP = 9024
+        #NUM_DSP = 1400
+        NUM_DSP = 9024
     elif (board == "U250"):
         NUM_DSP = 12288
     elif (board == "U55C"):

@@ -96,6 +96,8 @@ CXXFLAGS += -I$(XILINX_VIVADO)/include
 CXXFLAGS += -I$(XILINX_HLS)/include
 CXXFLAGS += -Wno-attributes
 CXXFLAGS += -Wno-unknown-pragmas
+CXXFLAGS += -I/usr/local/include/opencv4/
+CXXFLAGS += -I${PRJ_ROOT}/Vitis_Libraries/vision/L1/include/
 CXXFLAGS += -O0
 CXXFLAGS += -g
 CXXFLAGS += -std=c++17
@@ -112,7 +114,7 @@ HOST_SRCS += $(TB_ROOT)/$(DATASET)/network_tb.cc
 
 # Host compiler global settings
 LDFLAGS += -lrt -lstdc++ 
-LDFLAGS += -luuid -lxrt_coreutil -pthread
+LDFLAGS += -luuid -lxrt_coreutil -pthread -lopencv_imgproc -lopencv_core -lopencv_imgcodecs
 LDFLAGS += -L$(XILINX_XRT)/lib -pthread -lOpenCL
 
 EXECUTABLE = host.o
@@ -253,3 +255,10 @@ cleanall: clean clean-hlscode
 	rm -f $(PRJ_ROOT)/pl* 
 	rm -f $(PRJ_ROOT)/start_simulation.sh 
 	rm -f $(PRJ_ROOT)/*.xclbin
+	rm -f $(PRJ_ROOT)/*.cfg
+	rm -rf _x
+	rm -rf .ipcache
+	rm -rf .Xil
+	rm -rf package.*
+	rm -rf .run
+
