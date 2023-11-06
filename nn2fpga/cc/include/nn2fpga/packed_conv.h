@@ -364,7 +364,9 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
 
   for (auto s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
     for (auto s_ich = 0; s_ich < c_ich; s_ich++) {
-      if constexpr(c_depth == 1) {
+      // if constexpr(c_depth == 1) {
+      // TODO: Fix dataflow to parallelize depthwise
+      if constexpr(0) {
 #pragma HLS unroll factor=c_in_ops 
       }
       for (auto s_iter = 0; s_iter < c_iter; s_iter++) {
