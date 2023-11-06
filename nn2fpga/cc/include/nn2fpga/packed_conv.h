@@ -72,7 +72,7 @@ void conv_pipe(
 
     if constexpr(std::is_same<t_bias, std::nullptr_t>::value == false) {
       if (ich == 0) {
-        auto s_bias = i_bias[ops];
+        auto s_bias = i_bias[ich_idx][ops];
         for (auto s_ws = 0; s_ws < c_ws; s_ws++) {
           s_acc[s_ws] = s_bias;
         }
@@ -141,7 +141,7 @@ void conv_pipe(
         }
         auto s_index = s_fh*c_fw+s_fw;
 
-        s_weight.range(c_w_bits - 1, 0) = i_weight[s_index][ops].range(c_w_bits - 1, 0);
+        s_weight.range(c_w_bits - 1, 0) = i_weight[s_index][ich_idx][ops].range(c_w_bits - 1, 0);
         for (auto pos = c_w_bits; pos < 18; pos++) {
           s_weight.range(pos,pos) = s_weight.range(c_w_bits - 1, c_w_bits - 1);
         }
@@ -213,7 +213,7 @@ void conv_pipe(
 
       if constexpr(std::is_same<t_bias, std::nullptr_t>::value == false) {
         if (ich == 0)
-          s_acc = i_bias[ops] + s_acc_add;
+          s_acc = i_bias[ich_idx][ops] + s_acc_add;
         else
           s_acc = s_acc_add;
       } else {
@@ -223,7 +223,7 @@ void conv_pipe(
     } else {
       if constexpr(std::is_same<t_bias, std::nullptr_t>::value == false) {
         if (ich == 0)
-          s_acc = i_bias[ops];
+          s_acc = i_bias[ich_idx][ops];
         else
           s_acc = 0;
       } else {
@@ -243,7 +243,7 @@ void conv_pipe(
       auto s_data = i_input[s_index][ich_idx];
       if constexpr(std::is_same<t_input_mod, std::nullptr_t>::value == false)
         s_data = t_input_mod(s_data);
-      s_acc += s_data * i_weight[s_index][ops];
+      s_acc += s_data * i_weight[s_index][ich_idx][ops];
     }
 
     if (ich != 0) s_acc += s_acc_base;
@@ -364,11 +364,7 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
 
   for (auto s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
     for (auto s_ich = 0; s_ich < c_ich; s_ich++) {
-      // if constexpr(c_depth == 1) {
-      // TODO: Fix dataflow to parallelize depthwise
-      if constexpr(0) {
 #pragma HLS unroll factor=c_in_ops 
-      }
       for (auto s_iter = 0; s_iter < c_iter; s_iter++) {
 #pragma HLS pipeline style = stp II=1
         auto s_reuse = s_iter % c_reuse_iter;

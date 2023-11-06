@@ -77,6 +77,7 @@ def info(io_dict, node, node_name, init_info, tensors_info, enable_ws):
         total    = 1/(oh*ow*och)
         total_log = 2*oh*ow*och*fh*fw
 
+    io_dict[node_name]["depth"] = depth
     io_dict[node_name]["ich"]    = ich
     io_dict[node_name]["ih"]     = ih
     io_dict[node_name]["iw"]     = iw
@@ -114,7 +115,6 @@ def info(io_dict, node, node_name, init_info, tensors_info, enable_ws):
     io_dict[node_name]["ops"] = 1
     io_dict[node_name]["in_ops"] = 1
     io_dict[node_name]["ich_ops"] = 1
-    io_dict[node_name]["depth"] = depth
     io_dict[node_name]["weights_name"] = [weight_name]
     io_dict[node_name]["merge_1x1"] = False
     io_dict[node_name]["has_bias"] = False 
