@@ -178,7 +178,7 @@ def ilp(io_dict, off_chip_storage, model, board="ULTRA96v2", double_packing=True
                     input_dimension = node["ich"]*node["iw"]*node["ih"]
                     pipeline_iterations = node["och"]*node["ow"]*node["oh"]
                     ich_ops = math.ceil(input_dimension/pipeline_iterations)
-                    if node["ich_ops"] > ich_ops:
+                    if node["ich_ops"] < ich_ops:
                         io_dict[name]["ich_ops"] = ich_ops
 
     #TODO: Avoiding cycling twice because of pool layers
