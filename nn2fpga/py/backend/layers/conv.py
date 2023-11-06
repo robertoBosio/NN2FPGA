@@ -117,8 +117,10 @@ def info(io_dict, node, node_name, init_info, tensors_info, enable_ws):
     io_dict[node_name]["depth"] = depth
     io_dict[node_name]["weights_name"] = [weight_name]
     io_dict[node_name]["merge_1x1"] = False
+    io_dict[node_name]["has_bias"] = False 
     if 'bias_name' in locals():
         io_dict[node_name]["bias_name"] = [bias_name]
+        io_dict[node_name]["has_bias"] = True
 
     return io_dict
 
@@ -128,7 +130,7 @@ def parse_comp(name, node):
     weight_name = node["input"][1]
 
     # If no batchnorm merge then there is no bias
-    has_bias = len(node["input"]) > 2
+    has_bias = node["has_bias"]
     if (has_bias):
         bias_name   = node["input"][2]
 
@@ -137,7 +139,10 @@ def parse_comp(name, node):
         bias_1x1_name = node["input"][4]
 
     if (node["add"]):
-        add_name = node["input"][3]
+        if (has_bias):
+            add_name = node["input"][3]
+        else:
+            add_name = node["input"][2]
         add_type_name = add_name
         # add_type_name = add_name.replace("_skip", "")
 
@@ -498,10 +503,7 @@ def parse_comp(name, node):
 
     if (node["has_forward"]):
         # First two lines
-        depth = int((node["fh"]-1)*node["iw"]*node["ich"]/node["ich_ops"])
-        # first two pixels of the third line
-        depth += int((node["fw"]-1)*node["ich"]/node["ich_ops"])
-        depth += node["och"]+1
+        depth = node["depth_forward"]
         pragma = {}
         pragma["name"] = "stream"
         pragma_name = "s_%s" % forward_name

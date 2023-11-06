@@ -35,7 +35,8 @@ void pool_op(hls::stream<t_input_struct> i_data[c_ws],
   #pragma HLS array_partition variable = s_acc_buff type=cyclic factor=c_ops 
 
   #ifndef __SYNTHESIS__
-      std::cout << "pool_op " << c_ich << std::endl;
+    std::cout << "pool_op " << c_ich << " " << c_ops << " " << c_o_index << std::endl;
+    std::cout << "i_data.size() = " << i_data[0].size() << std::endl;
   #endif
   hls::stream<t_acc> s_acc_stream;
 #pragma HLS stream variable = s_acc_stream depth = 2 type = fifo
@@ -46,7 +47,7 @@ void pool_op(hls::stream<t_input_struct> i_data[c_ws],
     for (auto s_och = 0; s_och < c_och; s_och+=c_ops) {
   #pragma HLS pipeline style = stp
       for (auto s_ws = 0; s_ws < c_ws; s_ws++) {
-        for (auto s_ops = 0; s_ops < c_in_ops; s_ops++) {
+        for (auto s_ops = 0; s_ops < c_ops; s_ops++) {
           for (auto s_fh = 0; s_fh < c_fh_iter; s_fh++) {
             for (auto s_fw = 0; s_fw < c_fw_iter; s_fw++) {
               int s_index ;
@@ -65,11 +66,13 @@ void pool_op(hls::stream<t_input_struct> i_data[c_ws],
 
               if (s_init) s_acc_buff[s_acc_index] = c_quant;
 
-              if (s_ops == 0) {
+              if ((s_ops == 0)) {
                 if constexpr(c_adaptive)
                   s_input_struct = i_data[s_ws].read();
-                else
-                  s_input_struct = i_data[0].read();
+                else{
+                  if (s_index == 0)
+                    s_input_struct = i_data[0].read();
+                }
                 s_last = s_input_struct.last;
               }
               // std::cout << "s_input_struct.data[" << s_o_index*c_ws+s_ws << "][s_ops] = " << s_input_struct.data[0][s_ops] << std::endl;
@@ -101,6 +104,7 @@ void pool_op(hls::stream<t_input_struct> i_data[c_ws],
     }
   }
   #ifndef __SYNTHESIS__
+      std::cout << "i_data[0].size() = " << i_data[0].size() << std::endl;
       std::cout << "end pool_op " << c_ich << std::endl;
   #endif
 }

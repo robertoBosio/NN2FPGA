@@ -58,9 +58,9 @@ class DepthwiseSeparableConv(nn.Module):
             weight_quant = Int8WeightPerTensorFixedPoint,
             bias_quant = Int16Bias,
             input_quant = Int8ActPerTensorFixedPoint,
-            weight_quant_bits=4,
-            input_quant_bits=4,
-            output_quant_bits=4,
+            weight_quant_bits=8,
+            input_quant_bits=8,
+            output_quant_bits=8,
             bias=False
         )
 
@@ -74,9 +74,10 @@ class DepthwiseSeparableConv(nn.Module):
             weight_quant = Int8WeightPerTensorFixedPoint,
             bias_quant = Int16Bias,
             input_quant = Int8ActPerTensorFixedPoint,
-            weight_quant_bits=4,
-            input_quant_bits=4,
-            output_quant_bits=4,
+            output_quant = Int8ActPerTensorFixedPoint,
+            weight_quant_bits=8,
+            input_quant_bits=8,
+            output_quant_bits=8,
             bias=False
         )
 
@@ -95,6 +96,114 @@ class DepthwiseSeparableConv(nn.Module):
 
         x = self.depthwise(x)
         x = self.pointwise(x)
+        return x
+
+class mobilenetresidual(nn.Module):
+    """
+    Depthwise Separable Convolution block.
+
+    This block consists of a depthwise convolution followed by a pointwise convolution.
+    It is used to reduce the number of parameters and computations in a neural network.
+
+    Attributes:
+    - in_channels: int
+        Number of input channels.
+    - out_channels: int
+        Number of output channels.
+    - kernel_size: int
+        Size of the convolutional kernel.
+    - stride: int
+        Stride value for the convolution.
+    - padding: int
+        Padding value for the convolution.
+    """
+
+    def __init__(self, in_channels: int, out_channels: int, kernel_size: int, stride: int = 1, padding: int = 0):
+        """
+        Constructor to instantiate the DepthwiseSeparableConv class.
+
+        Parameters:
+        - in_channels: int
+            Number of input channels.
+        - out_channels: int
+            Number of output channels.
+        - kernel_size: int
+            Size of the convolutional kernel.
+        - stride: int (default: 1)
+            Stride value for the convolution.
+        - padding: int (default: 0)
+            Padding value for the convolution.
+        """
+
+        super(mobilenetresidual, self).__init__()
+
+        # Depthwise convolution
+        self.depthwise = QuantConv2d(
+            in_channels=in_channels,
+            out_channels=in_channels,
+            kernel_size=kernel_size,
+            stride=stride,
+            padding=padding,
+            groups=in_channels,
+            weight_quant = Int8WeightPerTensorFixedPoint,
+            bias_quant = Int16Bias,
+            input_quant = Int8ActPerTensorFixedPoint,
+            weight_quant_bits=8,
+            input_quant_bits=8,
+            output_quant_bits=8,
+            bias=False
+        )
+
+        # Pointwise convolution
+        self.pointwise1 = QuantConv2d(
+            in_channels=in_channels,
+            out_channels=out_channels,
+            kernel_size=1,
+            stride=1,
+            padding=0,
+            weight_quant = Int8WeightPerTensorFixedPoint,
+            bias_quant = Int16Bias,
+            input_quant = Int8ActPerTensorFixedPoint,
+            weight_quant_bits=8,
+            input_quant_bits=8,
+            output_quant_bits=8,
+            bias=False
+        )
+
+        self.pointwise = QuantConv2d(
+            in_channels=in_channels,
+            out_channels=out_channels,
+            kernel_size=1,
+            stride=1,
+            padding=0,
+            weight_quant = Int8WeightPerTensorFixedPoint,
+            bias_quant = Int16Bias,
+            input_quant = Int8ActPerTensorFixedPoint,
+            output_quant = Int8ActPerTensorFixedPoint,
+            weight_quant_bits=8,
+            input_quant_bits=8,
+            output_quant_bits=8,
+            bias=False
+        )
+
+    def forward(self, x):
+        """
+        Forward pass of the DepthwiseSeparableConv block.
+
+        Parameters:
+        - x: torch.Tensor
+            Input tensor.
+
+        Returns:
+        - torch.Tensor
+            Output tensor after passing through the DepthwiseSeparableConv block.
+        """
+
+        x1 = self.pointwise1(x)
+        x1 = self.depthwise(x1)
+        x1 = self.pointwise(x1)
+        x = x + x1
+
         return x
 
 
@@ -127,16 +236,17 @@ class QuantizedCifar10Net(nn.Module):
                 weight_quant = Int8WeightPerTensorFixedPoint,
                 input_quant = Int8ActPerTensorFixedPoint,
                 bias_quant=Int16Bias,
-                output_quant_bits=4,
+                output_quant_bits=8,
             ),
             DepthwiseSeparableConv(3, 32, 3, padding=1),
+            mobilenetresidual(32, 32, 3, padding=1),
             QuantReLU(
                 inplace=True,
                 quant_type=QuantType.INT,
                 restrict_scaling_type=RestrictValueType.POWER_OF_TWO,
                 scaling_impl_type=ScalingImplType.CONST, 
                 act_quant=CommonUintActQuant,
-                bit_width=4
+                bit_width=8
             ),
             QuantMaxPool2d(kernel_size=2, stride=2),
             DepthwiseSeparableConv(32, 64, 3, padding=1),
@@ -146,7 +256,7 @@ class QuantizedCifar10Net(nn.Module):
                 restrict_scaling_type=RestrictValueType.POWER_OF_TWO,
                 scaling_impl_type=ScalingImplType.CONST, 
                 act_quant=CommonUintActQuant,
-                bit_width=4
+                bit_width=8
             ),
             QuantMaxPool2d(kernel_size=2, stride=2),
             DepthwiseSeparableConv(64, 128, 3, padding=1),
@@ -156,7 +266,7 @@ class QuantizedCifar10Net(nn.Module):
                 restrict_scaling_type=RestrictValueType.POWER_OF_TWO,
                 scaling_impl_type=ScalingImplType.CONST, 
                 act_quant=CommonUintActQuant,
-                bit_width=4
+                bit_width=8
             ),
             QuantMaxPool2d(kernel_size=8, stride=1)
         )
@@ -168,9 +278,9 @@ class QuantizedCifar10Net(nn.Module):
                 weight_quant = Int8WeightPerTensorFixedPoint,
                 bias_quant = Int16Bias,
                 input_quant = Int8ActPerTensorFixedPoint,
-                weight_quant_bits=4,
-                input_quant_bits=4,
-                output_quant_bits=4,
+                weight_quant_bits=8,
+                input_quant_bits=8,
+                output_quant_bits=8,
             ),
             QuantReLU(
                 inplace=True,
@@ -178,7 +288,7 @@ class QuantizedCifar10Net(nn.Module):
                 restrict_scaling_type=RestrictValueType.POWER_OF_TWO,
                 scaling_impl_type=ScalingImplType.CONST, 
                 act_quant=CommonUintActQuant,
-                bit_width=4
+                bit_width=8
             ),
             QuantConv2d(256, 10,
                 kernel_size=(1, 1),weight_bit_width = 8, 
@@ -187,9 +297,9 @@ class QuantizedCifar10Net(nn.Module):
                 bias_quant = Int16Bias,
                 input_quant = Int8ActPerTensorFixedPoint,
                 output_quant = Int8ActPerTensorFixedPoint,
-                weight_quant_bits=4,
-                input_quant_bits=4,
-                output_quant_bits=4,
+                weight_quant_bits=8,
+                input_quant_bits=8,
+                output_quant_bits=8,
             ),
         )
 

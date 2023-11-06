@@ -10,8 +10,10 @@ def parallel_ops_number(layers_info, clamp=None, board="ULTRA96v2", prj_root="/t
 
     if (board == "ULTRA96v2"):
         NUM_DSP = 400
+    elif (board == "PYNQ"):
+        NUM_DSP = 220
     elif (board == "KRIA"):
-        NUM_DSP = 1000
+        NUM_DSP = 1300
     elif (board == "ZCU102"):
         NUM_DSP = 2000
     elif (board == "U280"):
@@ -146,11 +148,8 @@ def ilp(io_dict, off_chip_storage, model, board="ULTRA96v2", double_packing=True
     io_connect = extract_connections(model, io_dict)
 
     for node_name, ops in parallel_ops.items():
-        if io_dict[node_name]["depth"] == 0:
-            io_dict[node_name]["ops"] = ops
-        else: 
-            io_dict[node_name]["ops"] = 1
-            # io_dict[node_name]["ich_ops"] = ops
+        io_dict[node_name]["ops"] = ops
+        # io_dict[node_name]["ich_ops"] = ops
         io_dict[node_name]["dp"] = False
 
         # Evaluating neccessary output channels to avoid losing performance
@@ -171,6 +170,7 @@ def ilp(io_dict, off_chip_storage, model, board="ULTRA96v2", double_packing=True
                     io_dict[output_node_name]["ich_ops"] = 1
             if "pool" in io_dict[output_node_name]["type"]:
                 io_dict[output_node_name]["ops"] = ops
+                io_dict[output_node_name]["ich_ops"] = ops
 
     for name, node in io_dict.items():
         if "ops" in node:
@@ -185,6 +185,7 @@ def ilp(io_dict, off_chip_storage, model, board="ULTRA96v2", double_packing=True
                         io_dict[output_node_name]["ich_ops"] = 1
                 if "pool" in io_dict[output_node_name]["type"]:
                     io_dict[output_node_name]["ops"] = ops
+                    io_dict[output_node_name]["ich_ops"] = ops
 
     for name, node in io_dict.items():
         if "in_ops" not in node:

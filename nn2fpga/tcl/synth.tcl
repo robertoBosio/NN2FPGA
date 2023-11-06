@@ -57,7 +57,11 @@ if {${CSIM} == 1} {
   exit
 }
 
-create_clock -period 5
+if {${BOARD} == "PYNQ"} {
+  create_clock -period 8
+} else {
+  create_clock -period 5
+}
 
 # config_interface -m_axi_max_widen_bitwidth 0
 # config_interface -m_axi_alignment_byte_size 1

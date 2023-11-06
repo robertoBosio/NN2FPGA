@@ -354,14 +354,19 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
 
   #ifndef __SYNTHESIS__
     if (c_depth == 1)
-      std::cout << "depth_conv_op " << c_ich << " " << c_depth << " " << c_ops << std::endl;
+      std::cout << "depth_conv_op " << c_ich << " " << c_ops << std::endl;
     else
-      std::cout << "conv_op " << c_ich << " " << c_depth << " " << c_ops << std::endl;
+      std::cout << "conv_op " << c_ich << " " << c_ops << std::endl;
+    if constexpr(std::is_same<t_add_struct, std::nullptr_t>::value == false)
+      std::cout << "#### The convolution has bias" << std::endl;
+    std::cout << "s_input.size() = " << i_input[0].size() << std::endl;
   #endif
+
   for (auto s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
     for (auto s_ich = 0; s_ich < c_ich; s_ich++) {
-//       if constexpr(c_depth == 1)
-// #pragma HLS unroll factor=c_in_ops
+      if constexpr(c_depth == 1) {
+#pragma HLS unroll factor=c_in_ops 
+      }
       for (auto s_iter = 0; s_iter < c_iter; s_iter++) {
 #pragma HLS pipeline style = stp II=1
         auto s_reuse = s_iter % c_reuse_iter;

@@ -15,7 +15,7 @@ import backend.layers.concat as concat
 import backend.layers.upsample as upsample
 import backend.layers.pad as pad
 
-def compute_depth_stream(io_dict, io_connect, net_name, starting_name):
+def compute_depth_stream(io_dict, io_connect, net_name, starting_name, ops="ops"):
 
     # Look backward from long branch to compute the receptive field
     net_receptive_field = [0, 0]
@@ -35,7 +35,7 @@ def compute_depth_stream(io_dict, io_connect, net_name, starting_name):
         other_net = io_dict[layer_output]["input"][0]
         layer_output = io_connect[other_net][0][0]
 
-    depth = starting_node["ow"]*int(starting_node["och"]/starting_node["ops"])*(net_receptive_field[0]-1)-starting_node["ich"]
+    depth = starting_node["ow"]*int(starting_node["och"]/starting_node[ops])*(net_receptive_field[0]-1)-starting_node["ich"]
     if depth < 0:
         depth = node["och"]
 
@@ -53,6 +53,10 @@ def compute_buffers(model, io_dict):
                 net_name = io_dict[name]["output"][-1]
                 depth = compute_depth_stream(io_dict, io_connect, net_name, name)
                 io_dict[name]["depth_1x1"] = depth
+            if node["has_forward"]:
+                net_name = io_dict[name]["output"][-1]
+                depth = compute_depth_stream(io_dict, io_connect, net_name, name, "ich_ops")
+                io_dict[name]["depth_forward"] = depth
 
     return io_dict
 

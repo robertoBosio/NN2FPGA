@@ -17,7 +17,8 @@ set OBJECT_DETECTION $::env(OBJECT_DETECTION)
 set SIMD_DSP $::env(SIMD_DSP)
 
 if {$BOARD == "PYNQ"} {
-	set FPGA_PART "xc7z020clg400-1"
+ set FPGA_PART "xc7z020clg400-1"
+ set BOARD_PART "tul.com.tw:pynq-z2:part0:1.0"
 }
 
 if {${BOARD} == "ULTRA96v2"} {
