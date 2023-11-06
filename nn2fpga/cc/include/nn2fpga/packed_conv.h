@@ -383,7 +383,7 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
 
         /* Buffering to speed up computations */
         /* TODO: Adjust for generic bit quantizations */
-        if (s_reuse == 0) {
+        if ((s_reuse == 0) && (s_ich_idx == 0)) {
           for (auto s_index = 0; s_index < c_index; s_index++) {
             s_weight[s_index] = i_weights[s_index].read();
           }
