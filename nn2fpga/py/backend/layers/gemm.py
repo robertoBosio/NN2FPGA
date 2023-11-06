@@ -89,7 +89,9 @@ def info(io_dict, node, node_name, init_info, tensors_info, enable_ws):
     io_dict[node_name]["ich_ops"] = 1
     io_dict[node_name]["depth"] = depth
     io_dict[node_name]["weights_name"] = [weight_name]
+    io_dict[node_name]["has_bias"] = False 
     if 'bias_name' in locals():
         io_dict[node_name]["bias_name"] = [bias_name]
+        io_dict[node_name]["has_bias"] = True
 
     return io_dict

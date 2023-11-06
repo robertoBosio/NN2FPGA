@@ -21,6 +21,11 @@ if {$BOARD == "PYNQ"} {
  set BOARD_PART "tul.com.tw:pynq-z2:part0:1.0"
 }
 
+if {$BOARD == "ZC706"} {
+ set FPGA_PART "xc7z045ffg900-2"
+ set BOARD_PART "xilinx.com:zc706:part0:1.4"
+}
+
 if {${BOARD} == "ULTRA96v2"} {
  set FPGA_PART "xczu3eg-sbva484-1-i"
  set BOARD_PART "avnet.com:ultra96v2:part0:1.2"

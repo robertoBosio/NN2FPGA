@@ -57,8 +57,8 @@ if {${CSIM} == 1} {
   exit
 }
 
-if {${BOARD} == "PYNQ"} {
-  create_clock -period 8
+if {${BOARD} == "PYNQ" || ${BOARD} == "ZC706"} { 
+  create_clock -period 7
 } else {
   create_clock -period 5
 }
