@@ -88,7 +88,7 @@ def fill_uram_layer(parsed_write):
                 block["mux_data"][layer["uram_input"][0]] = layer["uram_total"]
                 block["bits_data"][layer["uram_input"][0]] = layer["bits"]
                 block["index_data"][layer["uram_input"][0]] = layer["index"]
-                block["ops_data"][layer["uram_input"][0]] = layer["ops"]
+                block["ops_data"][layer["uram_input"][0]] = layer["ops"]*layer["ich_ops"]
     
     return block
 

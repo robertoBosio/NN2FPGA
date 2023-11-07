@@ -72,7 +72,7 @@ void conv_pipe(
 
     if constexpr(std::is_same<t_bias, std::nullptr_t>::value == false) {
       if (ich == 0) {
-        auto s_bias = i_bias[ich_idx][ops];
+        auto s_bias = i_bias[0][ops];
         for (auto s_ws = 0; s_ws < c_ws; s_ws++) {
           s_acc[s_ws] = s_bias;
         }
@@ -213,7 +213,7 @@ void conv_pipe(
 
       if constexpr(std::is_same<t_bias, std::nullptr_t>::value == false) {
         if (ich == 0)
-          s_acc = i_bias[ich_idx][ops] + s_acc_add;
+          s_acc = i_bias[0][ops] + s_acc_add;
         else
           s_acc = s_acc_add;
       } else {
@@ -223,7 +223,7 @@ void conv_pipe(
     } else {
       if constexpr(std::is_same<t_bias, std::nullptr_t>::value == false) {
         if (ich == 0)
-          s_acc = i_bias[ich_idx][ops];
+          s_acc = i_bias[0][ops];
         else
           s_acc = 0;
       } else {
@@ -254,7 +254,7 @@ void conv_pipe(
       i_acc_buff[reuse][och] = s_acc;
 
     if ((ich == c_ich-1) | (c_depth == 1)) {
-      auto s_index_ops = (c_depth == 1) ? ich_idx : (ich_idx*c_ops+ops);
+      auto s_index_ops = (c_depth == 1) ? ich_idx : (ops);
       s_output_struct[0].data[0][s_index_ops] = quant_stream<
         t_output, t_output_clip, t_output_mask, t_acc, c_relu
       >(s_acc);
@@ -322,6 +322,8 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
   t_bias_1x1 s_bias_1x1;
 #pragma HLS array_partition variable = s_bias_1x1 type = complete
   t_add_struct s_add[c_ws];
+#pragma HLS array_partition variable = s_add type = complete
+#pragma HLS aggregate variable = s_add
 //   if (constexpr(std::is_same<t_add_struct, std::nullptr_t>::value == false)) {
 // #pragma HLS array_partition variable = s_add[0].data type = complete dim=0
 //   }
@@ -364,193 +366,194 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
   #endif
 
   for (auto s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
-    for (auto s_ich = 0; s_ich < c_ich; s_ich++) {
-#pragma HLS unroll factor=c_in_ops 
+    for (auto s_num_ich = 0; s_num_ich < c_ich; s_num_ich+=c_in_ops) {
       for (auto s_iter = 0; s_iter < c_iter; s_iter++) {
 #pragma HLS pipeline style = stp II=1
-        auto s_reuse = s_iter % c_reuse_iter;
-        auto s_num_och = s_iter / c_reuse_iter;
-        auto s_ich_idx = s_ich % c_in_ops;
-        if constexpr(std::is_same<t_add_struct, std::nullptr_t>::value == false)
-          s_ich_idx_add = s_ich % c_add_ops;
+        for (auto s_ich_idx = 0; s_ich_idx < c_in_ops; s_ich_idx++) {
+          auto s_reuse = s_iter % c_reuse_iter;
+          auto s_num_och = s_iter / c_reuse_iter;
+          auto s_ich = s_num_ich + s_ich_idx;
+          if constexpr(std::is_same<t_add_struct, std::nullptr_t>::value == false)
+            s_ich_idx_add = s_ich % c_add_ops;
 
-        if ((s_num_och == 0) && ((s_ich_idx) == 0)) {
-          t_input_struct s_input_struct = i_input[0].read();
-          #pragma HLS array_partition variable=s_input_struct.data type=complete
-          s_input = s_input_struct.data;
-          /* Sending last only at the bottom right data */
-          s_last = s_input_struct.last;
-        }
-
-        /* Buffering to speed up computations */
-        /* TODO: Adjust for generic bit quantizations */
-        if ((s_reuse == 0) && (s_ich_idx == 0)) {
-          for (auto s_index = 0; s_index < c_index; s_index++) {
-            s_weight[s_index] = i_weights[s_index].read();
+          if ((s_num_och == 0) && ((s_ich_idx) == 0)) {
+            t_input_struct s_input_struct = i_input[0].read();
+            #pragma HLS array_partition variable=s_input_struct.data type=complete
+            s_input = s_input_struct.data;
+            /* Sending last only at the bottom right data */
+            s_last = s_input_struct.last;
           }
 
-          // If it is the first reuse iteration, read the 1x1 weights
-          if constexpr(std::is_same<t_weight_1x1, std::nullptr_t>::value == false) {
-            if (s_iter < c_iter_1x1) s_weight_1x1[0] = i_weights_1x1[0].read();
-          }
+          /* Buffering to speed up computations */
+          /* TODO: Adjust for generic bit quantizations */
+          if ((s_reuse == 0) && (s_ich_idx == 0)) {
+            for (auto s_index = 0; s_index < c_index; s_index++) {
+              s_weight[s_index] = i_weights[s_index].read();
+            }
 
-          if constexpr(std::is_same<t_bias, std::nullptr_t>::value == false) {
-            if ((s_ich == 0) | (c_depth == 1)) s_bias = i_bias[0].read();
-          }
+            // If it is the first reuse iteration, read the 1x1 weights
+            if constexpr(std::is_same<t_weight_1x1, std::nullptr_t>::value == false) {
+              if (s_iter < c_iter_1x1) s_weight_1x1[0] = i_weights_1x1[0].read();
+            }
 
-          if constexpr(std::is_same<t_bias_1x1, std::nullptr_t>::value == false) {
-            if (((s_ich == 0) | (c_depth == 1)) && (s_iter < c_iter_1x1)) s_bias_1x1 = i_bias_1x1[0].read();
-          }
-        }
+            if constexpr(std::is_same<t_bias, std::nullptr_t>::value == false) {
+              if ((s_ich == 0) | (c_depth == 1)) s_bias = i_bias[0].read();
+            }
 
-        // Done to avoid partitioning of the stream and resource wasting
-        // Theoretically with the add the input and output dimensions should
-        // be equal, so we could perform the addition in different iterations
-        if constexpr(std::is_same<t_add_struct, std::nullptr_t>::value == false){
-          for (auto s_ws = 0; s_ws < c_ws; s_ws++) {
-            // FIX FOR MOBILENETv2: Taking into account different output and
-            // input channels
-            if ((s_iter == 0) && (s_ich_idx_add == 0)){
-              if constexpr(c_ich > c_och)
-                if (s_ich >= c_och)
-                  continue;
-              s_add[s_ws] = i_add[s_ws].read();   
+            if constexpr(std::is_same<t_bias_1x1, std::nullptr_t>::value == false) {
+              if (((s_ich == 0) | (c_depth == 1)) && (s_iter < c_iter_1x1)) s_bias_1x1 = i_bias_1x1[0].read();
             }
           }
-        }
 
-        COMPUTE:
-        for (auto s_ops = 0; s_ops < c_ops; s_ops++) {
-          auto s_och = s_num_och * c_ops + s_ops;
-
-          conv_pipe<
-            t_input,
-            t_weight,
-            t_weight_st,
-            t_bias,
-            t_add_struct,
-            t_input_mod,
-            t_acc_struct,
-            t_acc,
-            t_acc_simd,
-            t_output_struct,
-            t_output,
-            t_output_clip,
-            t_output_mask,
-            c_reuse_iter,
-            c_ws,
-            c_fh,
-            c_fw,
-            c_index,
-            c_str,
-            c_ops,
-            c_in_ops,
-            c_relu,
-            c_ich,
-            c_och_depth,
-            c_in_bits,
-            c_simd_bits,
-            c_simd,
-            c_pad_bits,
-            c_int_pad_bits,
-            c_mask,
-            c_w_bits,
-            c_depth
-          > (
-            s_input,
-            s_weight,
-            s_bias,
-            s_ops,
-            s_och,
-            s_ich,
-            s_ich_idx,
-            s_ich_idx_add,
-            s_reuse,
-            s_last,
-            s_add,
-            s_acc_buff,
-            s_output_struct
-          );
-
-          // TODO: split the loop in two parts controlled by different ops options
-
-          if constexpr(std::is_same<t_acc_1x1_struct, std::nullptr_t>::value == false) {
-            if (s_iter < c_iter_1x1) {
-              if constexpr(c_ops_1x1 != c_ops){
-                if ((s_och > 0) | (s_ops > c_ops_1x1))  continue;
+          // Done to avoid partitioning of the stream and resource wasting
+          // Theoretically with the add the input and output dimensions should
+          // be equal, so we could perform the addition in different iterations
+          if constexpr(std::is_same<t_add_struct, std::nullptr_t>::value == false){
+            for (auto s_ws = 0; s_ws < c_ws; s_ws++) {
+              // FIX FOR MOBILENETv2: Taking into account different output and
+              // input channels
+              if ((s_iter == 0) && (s_ich_idx_add == 0)){
+                if constexpr(c_ich > c_och)
+                  if (s_ich >= c_och)
+                    continue;
+                s_add[s_ws] = i_add[s_ws].read();   
               }
-              std::array<t_input_data, c_ws> s_input_1x1;
-            #pragma HLS array_partition variable = s_input_1x1 type = complete
-              for (auto s_ws = 0; s_ws < c_ws; s_ws++) {
-                // s_input_1x1[s_ws] = s_input[MO + MO%c_str - s_ws*c_str];
-                s_input_1x1[c_ws - s_ws - 1] = s_input[MO + MO%c_str - s_ws*c_str];
+            }
+          }
+
+          COMPUTE:
+          for (auto s_ops = 0; s_ops < c_ops; s_ops++) {
+            auto s_och = s_num_och * c_ops + s_ops;
+
+            conv_pipe<
+              t_input,
+              t_weight,
+              t_weight_st,
+              t_bias,
+              t_add_struct,
+              t_input_mod,
+              t_acc_struct,
+              t_acc,
+              t_acc_simd,
+              t_output_struct,
+              t_output,
+              t_output_clip,
+              t_output_mask,
+              c_reuse_iter,
+              c_ws,
+              c_fh,
+              c_fw,
+              c_index,
+              c_str,
+              c_ops,
+              c_in_ops,
+              c_relu,
+              c_ich,
+              c_och_depth,
+              c_in_bits,
+              c_simd_bits,
+              c_simd,
+              c_pad_bits,
+              c_int_pad_bits,
+              c_mask,
+              c_w_bits,
+              c_depth
+            > (
+              s_input,
+              s_weight,
+              s_bias,
+              s_ops,
+              s_och,
+              s_ich,
+              s_ich_idx,
+              s_ich_idx_add,
+              s_reuse,
+              s_last,
+              s_add,
+              s_acc_buff,
+              s_output_struct
+            );
+
+            // TODO: split the loop in two parts controlled by different ops options
+
+            if constexpr(std::is_same<t_acc_1x1_struct, std::nullptr_t>::value == false) {
+              if (s_iter < c_iter_1x1) {
+                if constexpr(c_ops_1x1 != c_ops){
+                  if ((s_och > 0) | (s_ops > c_ops_1x1))  continue;
+                }
+                std::array<t_input_data, c_ws> s_input_1x1;
+              #pragma HLS array_partition variable = s_input_1x1 type = complete
+                for (auto s_ws = 0; s_ws < c_ws; s_ws++) {
+                  // s_input_1x1[s_ws] = s_input[MO + MO%c_str - s_ws*c_str];
+                  s_input_1x1[c_ws - s_ws - 1] = s_input[MO + MO%c_str - s_ws*c_str];
+                }
+                conv_pipe<
+                  std::array<t_input_data, c_ws>,
+                  t_weight_1x1,
+                  t_weight_1x1_st,
+                  t_bias_1x1,
+                  std::nullptr_t,
+                  t_input_1x1,
+                  t_acc_1x1_struct,
+                  t_acc_1x1,
+                  t_acc_simd_1x1,
+                  t_output_struct_1x1,
+                  t_output_1x1,
+                  std::nullptr_t,
+                  std::nullptr_t,
+                  c_reuse_iter,
+                  c_ws,
+                  1,
+                  1,
+                  1,
+                  1,
+                  c_ops,
+                  c_in_ops,
+                  0,
+                  c_ich,
+                  c_och_depth,
+                  c_in_bits_1x1,
+                  c_simd_bits,
+                  c_simd_1x1,
+                  c_pad_bits,
+                  c_int_pad_bits,
+                  c_mask_1x1,
+                  c_w_bits_1x1,
+                  c_depth
+                > (
+                  s_input_1x1,
+                  s_weight_1x1,
+                  s_bias_1x1,
+                  s_ops,
+                  s_och,
+                  s_ich,
+                  s_ich_idx,
+                  s_ich_idx_add,
+                  s_reuse,
+                  s_last,
+                  nullptr,
+                  s_acc_1x1_buff,
+                  s_output_1x1_struct
+                );
               }
-              conv_pipe<
-                std::array<t_input_data, c_ws>,
-                t_weight_1x1,
-                t_weight_1x1_st,
-                t_bias_1x1,
-                std::nullptr_t,
-                t_input_1x1,
-                t_acc_1x1_struct,
-                t_acc_1x1,
-                t_acc_simd_1x1,
-                t_output_struct_1x1,
-                t_output_1x1,
-                std::nullptr_t,
-                std::nullptr_t,
-                c_reuse_iter,
-                c_ws,
-                1,
-                1,
-                1,
-                1,
-                c_ops,
-                c_in_ops,
-                0,
-                c_ich,
-                c_och_depth,
-                c_in_bits_1x1,
-                c_simd_bits,
-                c_simd_1x1,
-                c_pad_bits,
-                c_int_pad_bits,
-                c_mask_1x1,
-                c_w_bits_1x1,
-                c_depth
-              > (
-                s_input_1x1,
-                s_weight_1x1,
-                s_bias_1x1,
-                s_ops,
-                s_och,
-                s_ich,
-                s_ich_idx,
-                s_ich_idx_add,
-                s_reuse,
-                s_last,
-                nullptr,
-                s_acc_1x1_buff,
-                s_output_1x1_struct
-              );
             }
           }
-        }
-        if ((s_ich == (c_ich-1)) | ((c_depth == 1) && (s_ich_idx == c_in_ops-1))) {
-          for (auto s_ws = 0; s_ws < c_ws; s_ws++) {
-            o_output[s_ws % c_ws_out].write(s_output_struct[s_ws]);
-            if constexpr(std::is_same<t_output_struct_1x1, std::nullptr_t>::value == false) {
-              if (s_iter < c_iter_1x1) o_output_1x1[s_ws % c_ws_out].write(s_output_1x1_struct[s_ws]);
+          if ((s_ich == (c_ich-1)) | ((c_depth == 1) && (s_ich_idx == c_in_ops-1))) {
+            for (auto s_ws = 0; s_ws < c_ws; s_ws++) {
+              o_output[s_ws % c_ws_out].write(s_output_struct[s_ws]);
+              if constexpr(std::is_same<t_output_struct_1x1, std::nullptr_t>::value == false) {
+                if (s_iter < c_iter_1x1) o_output_1x1[s_ws % c_ws_out].write(s_output_1x1_struct[s_ws]);
+              }
             }
           }
-        }
-        if constexpr(std::is_same<t_forward_struct, std::nullptr_t>::value == false) {
-          for (auto s_ws = 0; s_ws < c_ws; s_ws++) {
-            if ((s_num_och == (c_num_och - 1)) && (s_ich_idx == 0)) {
-              t_forward_struct s_forward;
-              s_forward.data[0] = s_input[MO + MO%c_str - s_ws*c_str];
-              s_forward.last = false;
-              o_forward[s_ws % c_ws_out].write(s_forward);
+          if constexpr(std::is_same<t_forward_struct, std::nullptr_t>::value == false) {
+            for (auto s_ws = 0; s_ws < c_ws; s_ws++) {
+              if ((s_num_och == (c_num_och - 1)) && (s_ich_idx == 0)) {
+                t_forward_struct s_forward;
+                s_forward.data[0] = s_input[MO + MO%c_str - s_ws*c_str];
+                s_forward.last = false;
+                o_forward[s_ws % c_ws_out].write(s_forward);
+              }
             }
           }
         }

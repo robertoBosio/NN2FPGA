@@ -100,7 +100,7 @@ def parallel_ops_number(layers_info, clamp=None, board="ULTRA96v2", prj_root="/t
             math.ceil(data)
         )
         parallel_op[layers_info[i][0]] = high_range
-        print(all_divisors[layers_offset[i]:layers_offset[i]+layers_divisors[i]], data, low_range, high_range, layers_info[i][5], layers_info[i][6])
+        # print(all_divisors[layers_offset[i]:layers_offset[i]+layers_divisors[i]], data, low_range, high_range, layers_info[i][5], layers_info[i][6])
 
     return parallel_op
 
@@ -125,7 +125,7 @@ def ilp(io_dict, off_chip_storage, model, board="ULTRA96v2", double_packing=True
 
             value = node_info["total"]/max_total
             # value = 2**value
-            print(node_name, node_info["total"], value)
+            # print(node_name, node_info["total"], value)
             total_computations += node_info["total_log"]
             if node_info["depth"]:
                 max_par = node_info["ich"]
@@ -147,7 +147,7 @@ def ilp(io_dict, off_chip_storage, model, board="ULTRA96v2", double_packing=True
                 # FIX: removing fix to try clamping ops to 1x1 layers
                 # layers_info[-1].append(node_info["och"])
     
-    print("Total computations:", total_computations)
+    # print("Total computations:", total_computations)
 
     parallel_ops = parallel_ops_number(layers_info, clamp, board, prj_root=prj_root)
 
@@ -187,10 +187,10 @@ def ilp(io_dict, off_chip_storage, model, board="ULTRA96v2", double_packing=True
         output_node_name = io_connect[output_name][1][0]
         if output_node_name != "consume_stream":
             io_dict[output_node_name]["in_ops"] = ops
-            if ('is_1x1' in io_dict[output_node_name]):
-                if (io_dict[output_node_name]['is_1x1'] == True):
-                    # io_dict[output_node_name]["ich_ops"] = ops
-                    io_dict[output_node_name]["ich_ops"] = 1
+            # if ('is_1x1' in io_dict[output_node_name]):
+            #     if (io_dict[output_node_name]['is_1x1'] == True):
+            #         # io_dict[output_node_name]["ich_ops"] = ops
+            #         io_dict[output_node_name]["ich_ops"] = 1
             if "pool" in io_dict[output_node_name]["type"]:
                 io_dict[output_node_name]["ops"] = ops
                 io_dict[output_node_name]["ich_ops"] = ops
@@ -205,10 +205,10 @@ def ilp(io_dict, off_chip_storage, model, board="ULTRA96v2", double_packing=True
                     ops = node["ich_ops"]
             if output_node_name != "consume_stream":
                 io_dict[output_node_name]["in_ops"] = ops
-                if ('is_1x1' in io_dict[output_node_name]):
-                    if (io_dict[output_node_name]['is_1x1'] == True):
-                        # io_dict[output_node_name]["ich_ops"] = ops
-                        io_dict[output_node_name]["ich_ops"] = 1
+                # if ('is_1x1' in io_dict[output_node_name]):
+                #     if (io_dict[output_node_name]['is_1x1'] == True):
+                #         # io_dict[output_node_name]["ich_ops"] = ops
+                #         io_dict[output_node_name]["ich_ops"] = 1
                 if "pool" in io_dict[output_node_name]["type"]:
                     io_dict[output_node_name]["ops"] = ops
                     io_dict[output_node_name]["ich_ops"] = ops
@@ -238,43 +238,17 @@ def ilp(io_dict, off_chip_storage, model, board="ULTRA96v2", double_packing=True
                     node["ops_1x1"] = node["ops"]
             else:
                 node["ops_1x1"] = node["ops"]
-
-    # if double_packing:
-    #     for node_name, ops in parallel_ops.items():
-    #         if io_dict[node_name]["fh"]*io_dict[node_name]["fw"] > 1:
-    #             io_dict[node_name]["reuse"] = 2
-    #             io_dict[node_name]["dp"] = True
-
-    # if (board == "ULTRA96v2"):
-    #     NUM_BRAM = 216
-    # elif (board == "KRIA"):
-    #     NUM_BRAM = 144
-
-    # tot_bram = 0
-    # for node_name, ops in parallel_ops.items():
-    #     node = io_dict[node_name]
-    #     och = node["och"]
-    #     if (och < ops):
-    #         # Add reuse allows performance boost without pipelining ich loop
-    #         # And without increasing needed weights bandwitdth
-    #         node["ops"] = och
-    #         node["reuse"] = int(ops / och)
-    #     else:
-    #         node["ops"] = ops
-    #         node["reuse"] = 1
-
-    #     par_read = node["ops"]*node["fh"]*node["fw"]
-    #     node_bram = int(par_read/8)
-    #     if (par_read % 8):
-    #         node_bram = node_bram + 1
-
-    # if tot_bram > NUM_BRAM:
-    #     mult_reuse = int(tot_bram/NUM_BRAM) + 1 
-    # else:
-    #     mult_reuse = 1
-
-    # for node_name, ops in parallel_ops.items():
-    #     io_dict[node_name]["ops"] = int(io_dict[node_name]["ops"] / mult_reuse)
-    #     io_dict[node_name]["reuse"] = io_dict[node_name]["reuse"] * mult_reuse
-
+    
+    print_layers = ["conv", "pool"]
+    for name, node in io_dict.items():
+        # print ops and ich_ops for conv and pool layers
+        if node["type"] in print_layers:
+            print(name, node["ops"], node["ich_ops"])
+            # check if the input tensor is produced by a produce_stream node
+            input_name = node["input"][0]
+            input_node_name = io_connect[input_name][0][0]
+            if io_dict[input_node_name]["type"] == "produce":
+                io_dict[input_node_name]["ops"] = node["ich_ops"]
+                node["in_ops"] = node["ich_ops"]
+        
     return io_dict
