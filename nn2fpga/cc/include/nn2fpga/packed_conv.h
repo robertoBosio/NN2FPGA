@@ -322,6 +322,8 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
   t_bias_1x1 s_bias_1x1;
 #pragma HLS array_partition variable = s_bias_1x1 type = complete
   t_add_struct s_add[c_ws];
+#pragma HLS array_partition variable = s_add type = complete
+#pragma HLS aggregate variable = s_add
 //   if (constexpr(std::is_same<t_add_struct, std::nullptr_t>::value == false)) {
 // #pragma HLS array_partition variable = s_add[0].data type = complete dim=0
 //   }
@@ -365,7 +367,6 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
 
   for (auto s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
     for (auto s_num_ich = 0; s_num_ich < c_ich; s_num_ich+=c_in_ops) {
-#pragma HLS unroll factor=c_in_ops 
       for (auto s_iter = 0; s_iter < c_iter; s_iter++) {
 #pragma HLS pipeline style = stp II=1
         for (auto s_ich_idx = 0; s_ich_idx < c_in_ops; s_ich_idx++) {
