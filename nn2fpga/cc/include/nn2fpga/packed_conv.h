@@ -253,8 +253,9 @@ void conv_pipe(
     if constexpr(c_depth == 0)
       i_acc_buff[reuse][och] = s_acc;
 
-    if (ich == c_ich-1) {
-      s_output_struct[0].data[0][ops] = quant_stream<
+    if ((ich == c_ich-1) | (c_depth == 1)) {
+      auto s_index_ops = (c_depth == 1) ? ich_idx : (ich_idx*c_ops+ops);
+      s_output_struct[0].data[0][s_index_ops] = quant_stream<
         t_output, t_output_clip, t_output_mask, t_acc, c_relu
       >(s_acc);
       s_output_struct[0].last = last;
@@ -535,7 +536,7 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
             }
           }
         }
-        if ((s_ich == (c_ich-1)) | (c_depth == 1)) {
+        if ((s_ich == (c_ich-1)) | ((c_depth == 1) && (s_ich_idx == c_in_ops-1))) {
           for (auto s_ws = 0; s_ws < c_ws; s_ws++) {
             o_output[s_ws % c_ws_out].write(s_output_struct[s_ws]);
             if constexpr(std::is_same<t_output_struct_1x1, std::nullptr_t>::value == false) {

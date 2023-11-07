@@ -200,6 +200,9 @@ def ilp(io_dict, off_chip_storage, model, board="ULTRA96v2", double_packing=True
             output_name = io_dict[name]["output"][0]
             output_node_name = io_connect[output_name][1][0]
             ops = node["ops"]
+            if "depth" in node:
+                if node["depth"]:
+                    ops = node["ich_ops"]
             if output_node_name != "consume_stream":
                 io_dict[output_node_name]["in_ops"] = ops
                 if ('is_1x1' in io_dict[output_node_name]):

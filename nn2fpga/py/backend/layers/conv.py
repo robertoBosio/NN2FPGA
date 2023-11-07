@@ -347,8 +347,12 @@ def parse_comp(name, node):
         ]
 
     # Output type declaration
+    if node["depth"]:
+        output_ops = node["ich_ops"]
+    else:
+        output_ops = node["ops"]
     block["defines"]["t_%s" % output_name] = ["type", output_type]
-    output_vector_type = "std::array<%s, %0d>" % (output_type, node["ops"])
+    output_vector_type = "std::array<%s, %0d>" % (output_type, output_ops)
     block["defines"]["t_%s_vector" % output_name] = ["type", output_vector_type]
     block["defines"]["t_%s_struct" % output_name] = [
         "struct",
