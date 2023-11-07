@@ -61,7 +61,8 @@
         "cinttypes": "cpp",
         "typeindex": "cpp",
         "typeinfo": "cpp",
-        "variant": "cpp"
+        "variant": "cpp",
+        "cfenv": "cpp"
     },
     "[python]": {
         "editor.defaultFormatter": "ms-python.python"

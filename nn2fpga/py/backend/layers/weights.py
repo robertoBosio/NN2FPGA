@@ -865,68 +865,75 @@ def parse_all(io_dict, prj_root="/tmp", board="KRIA"):
     
     parsed_write = []
     
-    # # Opening JSON file
-    # file_path = f"{prj_root}/../nn2fpga/boards/{board}.json"
-    # with open(file_path) as f:
-    #     board_dict = json.load(f)
+    # Opening JSON file
+    file_path = f"{prj_root}/../nn2fpga/boards/{board}.json"
+    with open(file_path) as f:
+        board_dict = json.load(f)
 
-    # # Right now consider the board as a monolithic block 
-    # board_res = {"uram" : 0, "bram" : 0, "dsp" : 0, "lut" : 0, "ff" : 0}
-    # for block in board_dict['resource']:
-    #     for res in block.keys():
-    #         if res in board_res:
-    #             board_res[res] += block[res]
+    # Right now consider the board as a monolithic block 
+    board_res = {"uram" : 0, "bram" : 0, "dsp" : 0, "lut" : 0, "ff" : 0}
+    for block in board_dict['resource']:
+        for res in block.keys():
+            if res in board_res:
+                board_res[res] += block[res]
     
-    # # Check if there is URAM storage
-    # dynamic_init = False
+    # Check if there is URAM storage
+    dynamic_init = False
     
-    # # Useful space in BRAM. Each BRAM is 36kb with a maximum word width of 72 bits,
-    # # in which 8 are reserved to ECC code
-    # SIZE_BRAM = ((36 * 1024) / 72) * 64
+    # Useful space in BRAM. Each BRAM is 36kb with a maximum word width of 72 bits,
+    # in which 8 are reserved to ECC code
+    SIZE_BRAM = ((36 * 1024) / 72) * 64
     
-    # # Useful space in URAM. Each URAM is 288kb with a maximum word width of 72 bits,
-    # # in which 8 are reserved to ECC code
-    # SIZE_URAM = ((288 * 1024) / 72) * 64
+    # Useful space in URAM. Each URAM is 288kb with a maximum word width of 72 bits,
+    SIZE_URAM = (288 * 1024) / 72
 
-    # n_weights = {}
-    # used_uram = used_bram = 0
-    # for name, node in io_dict.items():
-    #     if ('const' == node["type"]) and node["dynamic_init"]:
-    #         n_weights[name] = node["n_weights"]*node["bits"]/8
-    #         n_mem = math.ceil((node["ops"] * node["bits"]) / 64)
-    #         n_uram = math.ceil((node['n_weights'] * node["bits"]) / SIZE_URAM)
-    #         n_bram = math.ceil((node['n_weights'] * node["bits"]) / SIZE_BRAM)
-    #         if (n_uram < n_mem):
-    #             n_uram = n_mem
-    #         if (n_bram < n_mem):
-    #             n_bram = n_mem
-    #         # wasted_uram = n_uram * SIZE_URAM - (node['n_weights'] * node["bits"])
-    #         # wasted_bram = n_bram * SIZE_BRAM - (node['n_weights'] * node["bits"])
-    #         fit_uram = (used_uram + n_uram) < board_res["uram"]
-    #         fit_bram = (used_bram + n_bram) < board_res["bram"]
-    #         if (not fit_bram and not fit_uram):
-    #             print("There is not enough space.")
-    #             exit(-1)
-    #         elif ((fit_bram and fit_uram and n_uram != n_bram) or not fit_bram):
-    #             used_uram += n_uram
-    #             print(f"P:{node['ops']} of {node['bits']} bits. {node['n_weights']} weights. Used {n_uram} urams over {n_bram} brams.")
-    #         else:
-    #             used_bram += n_bram
-    #             print(f"P:{node['ops']} of {node['bits']} bits. {node['n_weights']} weights. Used {n_bram} brams over {n_uram} urams.")
+    n_weights = {}
+    used_uram = used_bram = 0
+    print(board_res)
+    tot_ops = 0
+    for name, node in io_dict.items():
+        if ('const' == node["type"]) and node["dynamic_init"]:
+            n_weights[name] = node["n_weights"]*node["bits"]/8
+            n_mem = math.ceil((node["ops"] * node["bits"]) / 64)
+            n_uram = math.ceil((node['n_weights'] * node["bits"]) / SIZE_URAM)
+            n_bram = math.ceil((node['n_weights'] * node["bits"]) / SIZE_BRAM)
+            if (n_uram < n_mem):
+                n_uram = n_mem
+            if (n_bram < n_mem):
+                n_bram = n_mem
+            # wasted_uram = n_uram * SIZE_URAM - (node['n_weights'] * node["bits"])
+            # wasted_bram = n_bram * SIZE_BRAM - (node['n_weights'] * node["bits"])
+            fit_uram = (used_uram + n_uram) < board_res["uram"]
+            fit_bram = (used_bram + n_bram) < board_res["bram"]
+            if (not fit_bram and not fit_uram):
+                print("There is not enough space.")
+                exit(-1)
+            elif ((fit_bram and fit_uram and n_uram != n_bram) or not fit_bram):
+                used_uram += n_uram
+                print(f"{name} P:{node['ops']} of {node['bits']} bits. {node['n_weights']} weights. Used {n_uram} urams over {n_bram} brams.")
+                tot_ops += node["ops"]
+                # io_dict[name]["uram_storage"] = True
+            else:
+                used_bram += n_bram
+                print(f"{name} P:{node['ops']} of {node['bits']} bits. {node['n_weights']} weights. Used {n_bram} brams over {n_uram} urams.")
+                tot_ops += 1
+                # io_dict[name]["uram_storage"] = False
 
-    # print(f"Totally used {used_bram} BRAMs and {used_uram} URAMs.")
-    # # Sort in descending order
-    # n_weights = {k: v for k, v in sorted(n_weights.items(), key=lambda item: item[1], reverse=True)}
-    # #print(n_weights) 
+    print(f"Totally used {used_bram} BRAMs and {used_uram} URAMs, reality {tot_ops}")
+    # Sort in descending order
+    n_weights = {k: v for k, v in sorted(n_weights.items(), key=lambda item: item[1], reverse=True)}
+    #print(n_weights) 
 
-    # # Count the number of URAMs and remove the layers that do not fit
-    # uram_count = 0
-    # MAX_COUNT = board_res['uram']
-    # for name, node in n_weights.items():
-    #     uram_count = uram_count + math.ceil(node/36864)
-    #     if uram_count > MAX_COUNT:
-    #         io_dict[name]["uram_storage"] = False
+    # Count the number of URAMs and remove the layers that do not fit
+    uram_count = 0
+    MAX_COUNT = board_res['uram']
+    for name, node in n_weights.items():
+        uram_count = uram_count + math.ceil(node/36864)
+        print(f"{name} before: {io_dict[name]['uram_storage']}, now {uram_count < MAX_COUNT}")
+        if uram_count > MAX_COUNT:
+            io_dict[name]["uram_storage"] = False
 
+    print(uram_count)
     for name, node in io_dict.items():
 
         if ('const' == node["type"]) and node["dynamic_init"]:
@@ -1003,9 +1010,9 @@ def footer(file_name, parsed_write, prj_root="/tmp"):
         fd.write("\n")
         fd.write("#endif")
 
-def write(io_dict, network_name, prj_root="/tmp"):
+def write(io_dict, network_name, board="KRIA", prj_root="/tmp"):
 
-    parsed_write = parse_all(io_dict, prj_root)
+    parsed_write = parse_all(io_dict, prj_root, board)
 
     uram_layer_include = False
     for layer in parsed_write:
