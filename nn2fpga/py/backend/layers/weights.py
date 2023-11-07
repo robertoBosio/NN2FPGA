@@ -43,6 +43,14 @@ def parse_on_chip(
     dich_iter_ops = int(dich/dich_ops)
 
     # check that ich_iter_ops and och_ops are greater than 0
+    # if (dich_ops > 1):
+    #     print("dich_iter_ops: %d" % dich_iter_ops)
+    #     print("dich_ops: %d" % dich_ops)
+    #     print("depth: %d" % node_info["depth"])
+    #     print("dich: %d" % dich)
+    #     print("doch: %d" % doch)
+    #     print("dops: %d" % dops)
+
     assert dich_iter_ops > 0
     assert doch_ops > 0
 
@@ -53,10 +61,10 @@ def parse_on_chip(
     for ih in range(dih-1, -1, -1):
         for iw in range(diw-1, -1, -1):
             for ich in range(dich_iter_ops):
-                for ich_ops in range(dich_ops):
-                    off_ich = ich*dich_ops + ich_ops
-                    for och in range(doch_ops):
-                        off = och*dops
+                for och in range(doch_ops):
+                    off = och*dops
+                    for ich_ops in range(dich_ops):
+                        off_ich = ich*dich_ops + ich_ops
                         for ops in range(dops):
                             quant_value = pre_values[off+ops][off_ich][ih][iw]
                             quant_value = np.round(quant_value/scale_factor)
@@ -205,7 +213,10 @@ def extract_info(
     pad    = node_info["pad"]
 
     ops = node_info["ops"]
-    ich_ops = node_info["ich_ops"]
+    if is_bias:
+        ich_ops = 1
+    else:
+        ich_ops = node_info["ich_ops"]
 
     if ops > och:
         ops = och
@@ -579,6 +590,7 @@ def on_chip_rom(
         block["ops"] = node["och"]
     else:
         block["ops"] = node["ops"]
+    block["ich_ops"] = node["ich_ops"]
     block["dynamic_init"] = dynamic_init
     block["uram_storage"] = uram_storage
 

@@ -39,7 +39,8 @@ PRODSTR:
       doutWrap.last = dinWrap.last;
     }
 
-    doutStream[ws_out] << doutWrap;
+    if (ops == (OPS - 1))
+      doutStream[ws_out] << doutWrap;
     din_par >>= 8;
   }
 }

@@ -64,7 +64,7 @@ def parse(name, node):
     block["template"].append("c_%s_ih" % name)
     block["template"].append("c_%s_ws_out" % name)
     block["template"].append("c_%s" % input_name)
-    block["template"].append("%0d" % node["ops"])
+    block["template"].append("c_%s_ops" % name)
     # block["template"].append("c_ws")
 
     block["args"] = []
@@ -141,6 +141,11 @@ def parse(name, node):
     block["defines"]["c_%s_ws_out" % name] = [
         "const",
         node["ws_out"]
+    ]
+
+    block["defines"]["c_%s_ops" % name] = [
+        "const",
+        node["ops"]
     ]
 
     block["declare"] = []
