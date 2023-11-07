@@ -72,7 +72,7 @@ void conv_pipe(
 
     if constexpr(std::is_same<t_bias, std::nullptr_t>::value == false) {
       if (ich == 0) {
-        auto s_bias = i_bias[ops];
+        auto s_bias = i_bias[ich_idx][ops];
         for (auto s_ws = 0; s_ws < c_ws; s_ws++) {
           s_acc[s_ws] = s_bias;
         }
@@ -141,7 +141,7 @@ void conv_pipe(
         }
         auto s_index = s_fh*c_fw+s_fw;
 
-        s_weight.range(c_w_bits - 1, 0) = i_weight[s_index][ops].range(c_w_bits - 1, 0);
+        s_weight.range(c_w_bits - 1, 0) = i_weight[s_index][ich_idx][ops].range(c_w_bits - 1, 0);
         for (auto pos = c_w_bits; pos < 18; pos++) {
           s_weight.range(pos,pos) = s_weight.range(c_w_bits - 1, c_w_bits - 1);
         }
@@ -213,7 +213,7 @@ void conv_pipe(
 
       if constexpr(std::is_same<t_bias, std::nullptr_t>::value == false) {
         if (ich == 0)
-          s_acc = i_bias[ops] + s_acc_add;
+          s_acc = i_bias[ich_idx][ops] + s_acc_add;
         else
           s_acc = s_acc_add;
       } else {
@@ -223,7 +223,7 @@ void conv_pipe(
     } else {
       if constexpr(std::is_same<t_bias, std::nullptr_t>::value == false) {
         if (ich == 0)
-          s_acc = i_bias[ops];
+          s_acc = i_bias[ich_idx][ops];
         else
           s_acc = 0;
       } else {
@@ -243,7 +243,7 @@ void conv_pipe(
       auto s_data = i_input[s_index][ich_idx];
       if constexpr(std::is_same<t_input_mod, std::nullptr_t>::value == false)
         s_data = t_input_mod(s_data);
-      s_acc += s_data * i_weight[s_index][ops];
+      s_acc += s_data * i_weight[s_index][ich_idx][ops];
     }
 
     if (ich != 0) s_acc += s_acc_base;
@@ -253,8 +253,9 @@ void conv_pipe(
     if constexpr(c_depth == 0)
       i_acc_buff[reuse][och] = s_acc;
 
-    if (ich == c_ich-1) {
-      s_output_struct[0].data[0][ops] = quant_stream<
+    if ((ich == c_ich-1) | (c_depth == 1)) {
+      auto s_index_ops = (c_depth == 1) ? ich_idx : (ich_idx*c_ops+ops);
+      s_output_struct[0].data[0][s_index_ops] = quant_stream<
         t_output, t_output_clip, t_output_mask, t_acc, c_relu
       >(s_acc);
       s_output_struct[0].last = last;
@@ -364,11 +365,7 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
 
   for (auto s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
     for (auto s_ich = 0; s_ich < c_ich; s_ich++) {
-      // if constexpr(c_depth == 1) {
-      // TODO: Fix dataflow to parallelize depthwise
-      if constexpr(0) {
 #pragma HLS unroll factor=c_in_ops 
-      }
       for (auto s_iter = 0; s_iter < c_iter; s_iter++) {
 #pragma HLS pipeline style = stp II=1
         auto s_reuse = s_iter % c_reuse_iter;
@@ -387,7 +384,7 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
 
         /* Buffering to speed up computations */
         /* TODO: Adjust for generic bit quantizations */
-        if (s_reuse == 0) {
+        if ((s_reuse == 0) && (s_ich_idx == 0)) {
           for (auto s_index = 0; s_index < c_index; s_index++) {
             s_weight[s_index] = i_weights[s_index].read();
           }
@@ -539,7 +536,7 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
             }
           }
         }
-        if ((s_ich == (c_ich-1)) | (c_depth == 1)) {
+        if ((s_ich == (c_ich-1)) | ((c_depth == 1) && (s_ich_idx == c_in_ops-1))) {
           for (auto s_ws = 0; s_ws < c_ws; s_ws++) {
             o_output[s_ws % c_ws_out].write(s_output_struct[s_ws]);
             if constexpr(std::is_same<t_output_struct_1x1, std::nullptr_t>::value == false) {

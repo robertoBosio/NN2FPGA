@@ -61,3 +61,7 @@ def find_range(divisors, ilp_value):
 
     return max(low_range), min(high_range)
             
+def find_higher_mult(ref, high_mult):
+    for i in range(high_mult, -1, -1):
+        if (ref % i) == 0:
+            return i

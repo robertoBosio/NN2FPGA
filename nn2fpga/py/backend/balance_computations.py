@@ -4,6 +4,7 @@ import pulp
 import math
 from backend.ilp_utils import find_divisors
 from backend.ilp_utils import find_range
+from backend.ilp_utils import find_higher_mult
 from backend.graph import extract_connections
 
 def parallel_ops_number(layers_info, clamp=None, board="ULTRA96v2", prj_root="/tmp"):
@@ -16,6 +17,7 @@ def parallel_ops_number(layers_info, clamp=None, board="ULTRA96v2", prj_root="/t
         NUM_DSP = 220
     elif (board == "KRIA"):
         NUM_DSP = 1300
+        # NUM_DSP = 3000
     elif (board == "ZCU102"):
         NUM_DSP = 2000
     elif (board == "U280"):
@@ -125,6 +127,10 @@ def ilp(io_dict, off_chip_storage, model, board="ULTRA96v2", double_packing=True
             # value = 2**value
             print(node_name, node_info["total"], value)
             total_computations += node_info["total_log"]
+            if node_info["depth"]:
+                max_par = node_info["ich"]
+            else:
+                max_par = node_info["och"]*node_info["ich"]
             layers_info.append(
                 [
                     node_name,
@@ -133,11 +139,11 @@ def ilp(io_dict, off_chip_storage, model, board="ULTRA96v2", double_packing=True
                     node_info["img_ch"],
                     node_info["merge_1x1"],
                     value,
-                    node_info["och"],
+                    max_par
                 ]
             )
             if (node_info["merge_1x1"]):
-                layers_info[-1].append(node_info["och_1x1"])
+                layers_info[-1].append(node_info["och_1x1"]*node_info["ich"])
                 # FIX: removing fix to try clamping ops to 1x1 layers
                 # layers_info[-1].append(node_info["och"])
     
@@ -150,7 +156,12 @@ def ilp(io_dict, off_chip_storage, model, board="ULTRA96v2", double_packing=True
     io_connect = extract_connections(model, io_dict)
 
     for node_name, ops in parallel_ops.items():
-        io_dict[node_name]["ops"] = ops
+        if (not io_dict[node_name]["depth"]):
+            och_ops = find_higher_mult(io_dict[node_name]["och"], ops)
+        else:
+            och_ops = 1
+        io_dict[node_name]["ops"] = och_ops
+        io_dict[node_name]["ich_ops"] = ops//och_ops
         # io_dict[node_name]["ich_ops"] = ops
         io_dict[node_name]["dp"] = False
 
@@ -159,6 +170,16 @@ def ilp(io_dict, off_chip_storage, model, board="ULTRA96v2", double_packing=True
         if io_dict[node_name]["out_par"] == 0:
             io_dict[node_name]["out_par"] = 1
 
+    # FIX: INCREASING OPS FOR DEPTH
+    for name, node in io_dict.items():
+        if "ops" in node:
+            if "depth" in node:
+                if node["depth"]:
+                    input_dimension = node["ich"]*node["iw"]*node["ih"]
+                    pipeline_iterations = node["och"]*node["ow"]*node["oh"]
+                    ich_ops = math.ceil(input_dimension/pipeline_iterations)
+                    if node["ich_ops"] < ich_ops:
+                        io_dict[name]["ich_ops"] = ich_ops
 
     #TODO: Avoiding cycling twice because of pool layers
     for node_name, ops in parallel_ops.items():
@@ -179,6 +200,9 @@ def ilp(io_dict, off_chip_storage, model, board="ULTRA96v2", double_packing=True
             output_name = io_dict[name]["output"][0]
             output_node_name = io_connect[output_name][1][0]
             ops = node["ops"]
+            if "depth" in node:
+                if node["depth"]:
+                    ops = node["ich_ops"]
             if output_node_name != "consume_stream":
                 io_dict[output_node_name]["in_ops"] = ops
                 if ('is_1x1' in io_dict[output_node_name]):
@@ -215,15 +239,6 @@ def ilp(io_dict, off_chip_storage, model, board="ULTRA96v2", double_packing=True
             else:
                 node["ops_1x1"] = node["ops"]
 
-    # FIX: INCREASING OPS FOR DEPTH
-    for name, node in io_dict.items():
-        if "ops" in node:
-            if "depth" in node:
-                if node["depth"]:
-                    input_dimension = node["ich"]*node["iw"]*node["ih"]
-                    pipeline_iterations = node["och"]*node["ow"]*node["oh"]
-                    ich_ops = math.ceil(input_dimension/pipeline_iterations)
-                    io_dict[name]["ich_ops"] = ich_ops
     # if double_packing:
     #     for node_name, ops in parallel_ops.items():
     #         if io_dict[node_name]["fh"]*io_dict[node_name]["fw"] > 1:

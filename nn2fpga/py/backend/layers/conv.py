@@ -77,6 +77,7 @@ def info(io_dict, node, node_name, init_info, tensors_info, enable_ws):
         total    = 1/(oh*ow*och)
         total_log = 2*oh*ow*och*fh*fw
 
+    io_dict[node_name]["depth"] = depth
     io_dict[node_name]["ich"]    = ich
     io_dict[node_name]["ih"]     = ih
     io_dict[node_name]["iw"]     = iw
@@ -114,7 +115,6 @@ def info(io_dict, node, node_name, init_info, tensors_info, enable_ws):
     io_dict[node_name]["ops"] = 1
     io_dict[node_name]["in_ops"] = 1
     io_dict[node_name]["ich_ops"] = 1
-    io_dict[node_name]["depth"] = depth
     io_dict[node_name]["weights_name"] = [weight_name]
     io_dict[node_name]["merge_1x1"] = False
     io_dict[node_name]["has_bias"] = False 
@@ -347,8 +347,12 @@ def parse_comp(name, node):
         ]
 
     # Output type declaration
+    if node["depth"]:
+        output_ops = node["ich_ops"]
+    else:
+        output_ops = node["ops"]
     block["defines"]["t_%s" % output_name] = ["type", output_type]
-    output_vector_type = "std::array<%s, %0d>" % (output_type, node["ops"])
+    output_vector_type = "std::array<%s, %0d>" % (output_type, output_ops)
     block["defines"]["t_%s_vector" % output_name] = ["type", output_vector_type]
     block["defines"]["t_%s_struct" % output_name] = [
         "struct",

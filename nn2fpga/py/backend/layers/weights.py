@@ -26,6 +26,7 @@ def parse_on_chip(
     diw  = node_info["iw"]
     doch = node_info["och"]
     dops = node_info["ops"]
+    dich_ops = node_info["ich_ops"]
     scale_factor = 2**node_info["scale_factor"]
 
     narrow_h = 0
@@ -39,31 +40,39 @@ def parse_on_chip(
     limit_l = -1*signed*2**(bits-signed)+narrow_l
 
     doch_ops = int(doch/dops)
+    dich_iter_ops = int(dich/dich_ops)
+
+    # check that ich_iter_ops and och_ops are greater than 0
+    assert dich_iter_ops > 0
+    assert doch_ops > 0
 
     values = np.zeros(
-        [dih*diw, dich*doch_ops, dops]
+        [dih*diw, dich_iter_ops*doch_ops, dich_ops*dops]
     )
 
     for ih in range(dih-1, -1, -1):
         for iw in range(diw-1, -1, -1):
-            for ich in range(dich):
-                for och in range(doch_ops):
-                    off = och*dops
-                    for ops in range(dops):
-                        quant_value = pre_values[off+ops][ich][ih][iw]
-                        quant_value = np.round(quant_value/scale_factor)
-                        if (limit_h < quant_value):
-                            quant_value = limit_h
+            for ich in range(dich_iter_ops):
+                for ich_ops in range(dich_ops):
+                    off_ich = ich*dich_ops + ich_ops
+                    for och in range(doch_ops):
+                        off = och*dops
+                        for ops in range(dops):
+                            quant_value = pre_values[off+ops][off_ich][ih][iw]
+                            quant_value = np.round(quant_value/scale_factor)
+                            if (limit_h < quant_value):
+                                quant_value = limit_h
 
-                        if (limit_l > quant_value):
-                            quant_value = limit_l
-                        
-                        if not dynamic_init:
-                            quant_value = quant_value*scale_factor
+                            if (limit_l > quant_value):
+                                quant_value = limit_l
+                            
+                            if not dynamic_init:
+                                quant_value = quant_value*scale_factor
 
-                        index = ih*diw+iw
-                        ch = ich*doch_ops+och
-                        values[dih*diw-1-index][ch][ops] = quant_value
+                            index = ih*diw+iw
+                            ch = ich*doch_ops+och
+                            ops_index = ich_ops*dops+ops
+                            values[dih*diw-1-index][ch][ops_index] = quant_value
     
     return values
 
@@ -168,12 +177,16 @@ def extract_info(
     pre_values = numpy_helper.to_array(init_info[weight_name]) 
     shape = pre_values.shape
 
-    och = shape[0]
+    och = node_info["och"]
+    ich = node_info["ich"]
+    if node_info["depth"]:
+        och = 1
+
     if len(shape) > 1:
-        ich = shape[1]
         is_bias = False
     else:
-        ich = 1
+        if (not node_info["depth"]):
+            ich = 1
         pre_values = np.expand_dims(pre_values, axis=-1)
         is_bias = True
 
@@ -192,6 +205,7 @@ def extract_info(
     pad    = node_info["pad"]
 
     ops = node_info["ops"]
+    ich_ops = node_info["ich_ops"]
 
     if ops > och:
         ops = och
@@ -221,6 +235,7 @@ def extract_info(
         new_node["ops"] = och
     else:
         new_node["ops"] = ops
+    new_node["ich_ops"] = ich_ops
     new_node["is_bias"] = is_bias
     new_node["type"]    = 'const'
     new_node["kernel"]  = ih*iw
@@ -233,6 +248,8 @@ def extract_info(
     new_node["img_ch"]  = ich*och
     new_node["reuse"] = 1
     new_node["pre_values"] = pre_values
+    # added to cope with och and ich exchanged in onnx representation
+    new_node["depth"] = node_info["depth"]
 
     dim = ich*och*ih*iw
 
@@ -577,6 +594,7 @@ def on_chip_rom(
     block["template"].append("c_%s_iw" % (output_name))
     block["template"].append("c_%s_ih" % (output_name))
     block["template"].append("c_%s_ops" % (name))
+    block["template"].append("c_%s_ich_ops" % (name))
     block["template"].append("c_%s_reuse" % (output_name))
 
     block["output"].append("%s" % output_name)
@@ -586,9 +604,13 @@ def on_chip_rom(
         block["args"].append("s_%s_init_flag" % output_name)
     block["args"].append("s_%s" % output_name)
 
+    pre_values = node["pre_values"]
+    if node["depth"]:
+        pre_values = np.swapaxes(pre_values, 0, 1)
+
     node["values"] = parse_on_chip(
         node,
-        node["pre_values"],
+        pre_values,
         node["bits"],
         node["signed"],
         node["narrow"],
@@ -649,13 +671,14 @@ def on_chip_rom(
 
     block["defines"] = {}
     block["defines"]["t_%s_st" % (output_name)]    = ["type", node["data_type"]]
-    output_type_name = "hls::vector<%s, %0d>" % (node["data_type"], node["ops"])
+    output_type_name = "std::array<std::array<%s, %0d>, %0d>" % (node["data_type"], node["ops"], node["ich_ops"])
     if dynamic_init:
         block["defines"]["t_%s_init" % (output_name)]    = ["type", "t_%s_st" % output_name]
     block["defines"]["t_%s" % (output_name)]       = ["type",  output_type_name]
     block["defines"]["c_%s_ich" % (name)]          = ["const", node["ich"]]
     block["defines"]["c_%s_och" % (name)]          = ["const", node["och"]]
     block["defines"]["c_%s_ops" % (name)]          = ["const", node["ops"]]
+    block["defines"]["c_%s_ich_ops" % (name)]      = ["const", node["ich_ops"]]
     block["defines"]["c_%s_ow" % (name)]           = ["const", node["ow"]]
     block["defines"]["c_%s_oh" % (name)]           = ["const", node["oh"]]
     block["defines"]["c_%s_iw" % (output_name)]    = ["const", node["iw"]]
@@ -699,7 +722,7 @@ def on_chip_rom(
     if node["is_bias"]:
         parallelism = 1
     else: 
-        parallelism = node["ops"]
+        parallelism = node["ops"]*node["ich_ops"]
     
     divider = interface
     divider = divider//node["bits"]
