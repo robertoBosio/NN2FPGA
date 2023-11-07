@@ -20,6 +20,9 @@ def parse_on_chip(
     narrow=1,
     dynamic_init=False
 ):
+    # Transforming a filter of dimension [iw][ih][ich][och] into one of
+    # dimension [iw * ih][(ich * och)/ops][ops] where ops is the number 2D convolutions
+    # computed in parallel
 
     dich = node_info["ich"]
     dih  = node_info["ih"]
@@ -908,7 +911,7 @@ def parse_all(io_dict, prj_root="/tmp", board="KRIA"):
     SIZE_BRAM = ((36 * 1024) / 72) * 64
     
     # Useful space in URAM. Each URAM is 288kb with a maximum word width of 72 bits,
-    SIZE_URAM = (288 * 1024) / 72
+    SIZE_URAM = (288 * 1024)
 
     n_weights = {}
     used_uram = used_bram = 0
@@ -916,30 +919,42 @@ def parse_all(io_dict, prj_root="/tmp", board="KRIA"):
     tot_ops = 0
     for name, node in io_dict.items():
         if ('const' == node["type"]) and node["dynamic_init"]:
-            n_weights[name] = node["n_weights"]*node["bits"]/8
-            n_mem = math.ceil((node["ops"] * node["bits"]) / 64)
+            n_weights[name] = node["n_weights"] * node["bits"] / 8
+            
+            # Number of weights needed in parallel for each clock cycle, which is
+            # computed as the number of filter needed to achieved the parallelism
+            # on input and output channel multiplied by the dimension of the
+            # filter
+            if node["is_bias"]:
+                w_par = node["ops"]
+            else:
+                w_par = node["ops"] * node ["ich_ops"] * node["ih"] * node["iw"]
+            w_par_bits = w_par * node["bits"]
+
+            n_mem_bram = math.ceil(w_par_bits / 64)
+            n_mem_uram = math.ceil(w_par_bits / 72)
             n_uram = math.ceil((node['n_weights'] * node["bits"]) / SIZE_URAM)
             n_bram = math.ceil((node['n_weights'] * node["bits"]) / SIZE_BRAM)
-            if (n_uram < n_mem):
-                n_uram = n_mem
-            if (n_bram < n_mem):
-                n_bram = n_mem
+            if (n_uram < n_mem_uram):
+                n_uram = n_mem_uram
+            if (n_bram < n_mem_bram):
+                n_bram = n_mem_bram
             # wasted_uram = n_uram * SIZE_URAM - (node['n_weights'] * node["bits"])
             # wasted_bram = n_bram * SIZE_BRAM - (node['n_weights'] * node["bits"])
-            fit_uram = (used_uram + n_uram) < board_res["uram"]
-            fit_bram = (used_bram + n_bram) < board_res["bram"]
+            # fit_uram = (used_uram + n_uram) < board_res["uram"]
+            # fit_bram = (used_bram + n_bram) < board_res["bram"]
+            fit_uram = True
+            fit_bram = True
             if (not fit_bram and not fit_uram):
                 print("There is not enough space.")
                 exit(-1)
-            elif ((fit_bram and fit_uram and n_uram != n_bram) or not fit_bram):
+            elif ((fit_bram and fit_uram and n_uram < n_bram) or not fit_bram):
                 used_uram += n_uram
                 print(f"{name} P:{node['ops']} of {node['bits']} bits. {node['n_weights']} weights. Used {n_uram} urams over {n_bram} brams.")
-                tot_ops += node["ops"]
                 # io_dict[name]["uram_storage"] = True
             else:
                 used_bram += n_bram
-                print(f"{name} P:{node['ops']} of {node['bits']} bits. {node['n_weights']} weights. Used {n_bram} brams over {n_uram} urams.")
-                tot_ops += 1
+                print(f"{name} P:{w_par} of {node['bits']} bits. {node['n_weights']} weights. Used {n_bram} brams over {n_uram} urams.")
                 # io_dict[name]["uram_storage"] = False
 
     print(f"Totally used {used_bram} BRAMs and {used_uram} URAMs, reality {tot_ops}")
@@ -952,7 +967,7 @@ def parse_all(io_dict, prj_root="/tmp", board="KRIA"):
     MAX_COUNT = board_res['uram']
     for name, node in n_weights.items():
         uram_count = uram_count + math.ceil(node/36864)
-        print(f"{name} before: {io_dict[name]['uram_storage']}, now {uram_count < MAX_COUNT}")
+        # print(f"{name} before: {io_dict[name]['uram_storage']}, now {uram_count < MAX_COUNT}")
         if uram_count > MAX_COUNT:
             io_dict[name]["uram_storage"] = False
 
