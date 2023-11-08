@@ -16,7 +16,7 @@ def parallel_ops_number(layers_info, clamp=None, board="ULTRA96v2", prj_root="/t
     elif (board == "PYNQ"):
         NUM_DSP = 220
     elif (board == "KRIA"):
-        NUM_DSP = 1300
+        NUM_DSP = 1500
         # NUM_DSP = 3000
     elif (board == "ZCU102"):
         NUM_DSP = 2000
@@ -239,6 +239,7 @@ def ilp(io_dict, off_chip_storage, model, board="ULTRA96v2", double_packing=True
             else:
                 node["ops_1x1"] = node["ops"]
     
+    # Input produce stream ops
     print_layers = ["conv", "pool"]
     for name, node in io_dict.items():
         # print ops and ich_ops for conv and pool layers
@@ -250,5 +251,33 @@ def ilp(io_dict, off_chip_storage, model, board="ULTRA96v2", double_packing=True
             if io_dict[input_node_name]["type"] == "produce":
                 io_dict[input_node_name]["ops"] = node["ich_ops"]
                 node["in_ops"] = node["ich_ops"]
+        
+    # Avoiding line buffer to be the bottleneck in case of strides
+    for name, node in io_dict.items():
+        # print ops and ich_ops for conv and pool layers
+        if node["type"] == "conv":
+            # Trading off ops for ich_ops to avoid problems in line buffer
+            cycles_line_buffer = node["ih"]*node["iw"]*node["ich"] // node["ich_ops"]
+            if not node["depth"]:
+                cycles_computation = (node["oh"]*node["ow"]*node["och"]*node["ich"]) // (node["ops"]*node["ich_ops"])
+            else:
+                continue
+
+            # If mult_factor is lower or equal than 1, then the line buffer is not the bottleneck
+            mult_factor = math.ceil(cycles_line_buffer/cycles_computation)
+            if mult_factor <= 1:
+                continue
+            
+            # If not paralllizing on the input channels
+            mult_factor = find_higher_mult(io_dict[node_name]["ich"]//node["ich_ops"], mult_factor)
+            node["ich_ops"] = mult_factor*node["ich_ops"]
+            node["ops"] = find_higher_mult(node["ops"], node["ops"]//mult_factor)
+            if node["ops"] == 0:
+                node["ops"] = 1
+
+            output_name = node["output"][0]
+            output_node_name = io_connect[output_name][1][0]
+            if output_node_name != "consume_stream":
+                io_dict[output_node_name]["in_ops"] = node["ops"]
         
     return io_dict
