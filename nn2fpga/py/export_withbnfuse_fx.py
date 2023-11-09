@@ -142,19 +142,19 @@ def main():
                     % (test_loss/(batch_idx+1), 100.*correct/total, correct, total))
 
         acc = 100. * correct / total
-        if acc > best_acc and retrain:
-            print('Exporting..')
-            state = {
-                'model_state_dict': model.state_dict(),
-                'optimizer_state_dict': optimizer.state_dict(),
-                'acc': acc,
-                'epoch': epoch,
-            }
-            torch.save(state, os.path.join(cfg.ckpt_dir, f'checkpoint_quant_fx.t7'))
-            model.to('cpu')
-            # QONNXManager.export(model.module, input_shape=(1, 3, 32, 32), export_path='onnx/Brevonnx_resnet_final_fx.onnx')            
-            QONNXManager.export(model, input_shape=(1, 3, 32, 32), export_path='../test/onnx/test_depthwise.onnx')            
-            best_acc = acc
+        # if acc > best_acc and retrain:
+        print('Exporting..')
+        state = {
+            'model_state_dict': model.state_dict(),
+            'optimizer_state_dict': optimizer.state_dict(),
+            'acc': acc,
+            'epoch': epoch,
+        }
+        torch.save(state, os.path.join(cfg.ckpt_dir, f'checkpoint_quant_fx.t7'))
+        model.to('cpu')
+        # QONNXManager.export(model.module, input_shape=(1, 3, 32, 32), export_path='onnx/Brevonnx_resnet_final_fx.onnx')            
+        QONNXManager.export(model, input_shape=(1, 3, 32, 32), export_path='../test/onnx/test_depthwise.onnx')            
+        best_acc = acc
 
 
     def print_partial(model):
@@ -229,8 +229,8 @@ def main():
          print("\n-------------------RETRAINING-----------------\n") 
          retrain = 1
          for epoch in range(start_epoch, start_epoch+1): 
-            if(not(post_quant)) :
-                train(epoch)
+            # if(not(post_quant)) :
+            #     train(epoch)
             test(epoch)
             lr_schedu.step(epoch)
 

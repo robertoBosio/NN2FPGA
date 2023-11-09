@@ -63,6 +63,15 @@ class DepthwiseSeparableConv(nn.Module):
             output_quant_bits=8,
             bias=False
         )
+        self.bn1 = nn.BatchNorm2d(in_channels)
+        self.relu1 = QuantReLU(
+            inplace=True,
+            quant_type=QuantType.INT,
+            restrict_scaling_type=RestrictValueType.POWER_OF_TWO,
+            scaling_impl_type=ScalingImplType.CONST, 
+            act_quant=CommonUintActQuant,
+            bit_width=8
+        )
 
         # Pointwise convolution
         self.pointwise = QuantConv2d(
@@ -81,6 +90,17 @@ class DepthwiseSeparableConv(nn.Module):
             bias=False
         )
 
+        self.bn2 = nn.BatchNorm2d(out_channels)
+        self.relu2 = QuantReLU(
+            inplace=True,
+            quant_type=QuantType.INT,
+            restrict_scaling_type=RestrictValueType.POWER_OF_TWO,
+            scaling_impl_type=ScalingImplType.CONST, 
+            act_quant=CommonUintActQuant,
+            bit_width=8
+        )
+
+
     def forward(self, x):
         """
         Forward pass of the DepthwiseSeparableConv block.
@@ -95,7 +115,11 @@ class DepthwiseSeparableConv(nn.Module):
         """
 
         x = self.depthwise(x)
+        x = self.bn1(x)
+        x = self.relu1(x)
         x = self.pointwise(x)
+        x = self.bn2(x)
+        x = self.relu2(x)
         return x
 
 class mobilenetresidual(nn.Module):
@@ -137,23 +161,6 @@ class mobilenetresidual(nn.Module):
 
         super(mobilenetresidual, self).__init__()
 
-        # Depthwise convolution
-        self.depthwise = QuantConv2d(
-            in_channels=in_channels,
-            out_channels=in_channels,
-            kernel_size=kernel_size,
-            stride=stride,
-            padding=padding,
-            groups=in_channels,
-            weight_quant = Int8WeightPerTensorFixedPoint,
-            bias_quant = Int16Bias,
-            input_quant = Int8ActPerTensorFixedPoint,
-            weight_quant_bits=8,
-            input_quant_bits=8,
-            output_quant_bits=8,
-            bias=False
-        )
-
         # Pointwise convolution
         self.pointwise1 = QuantConv2d(
             in_channels=in_channels,
@@ -170,8 +177,45 @@ class mobilenetresidual(nn.Module):
             bias=False
         )
 
+        self.bn1 = nn.BatchNorm2d(in_channels)
+        self.relu1 = QuantReLU(
+            inplace=True,
+            quant_type=QuantType.INT,
+            restrict_scaling_type=RestrictValueType.POWER_OF_TWO,
+            scaling_impl_type=ScalingImplType.CONST, 
+            act_quant=CommonUintActQuant,
+            bit_width=8
+        )
+
+        # Depthwise convolution
+        self.depthwise = QuantConv2d(
+            in_channels=out_channels,
+            out_channels=out_channels,
+            kernel_size=kernel_size,
+            stride=stride,
+            padding=padding,
+            groups=in_channels,
+            weight_quant = Int8WeightPerTensorFixedPoint,
+            bias_quant = Int16Bias,
+            input_quant = Int8ActPerTensorFixedPoint,
+            weight_quant_bits=8,
+            input_quant_bits=8,
+            output_quant_bits=8,
+            bias=False
+        )
+
+        self.bn2 = nn.BatchNorm2d(out_channels)
+        self.relu2 = QuantReLU(
+            inplace=True,
+            quant_type=QuantType.INT,
+            restrict_scaling_type=RestrictValueType.POWER_OF_TWO,
+            scaling_impl_type=ScalingImplType.CONST, 
+            act_quant=CommonUintActQuant,
+            bit_width=8
+        )
+
         self.pointwise = QuantConv2d(
-            in_channels=in_channels,
+            in_channels=out_channels,
             out_channels=out_channels,
             kernel_size=1,
             stride=1,
@@ -184,6 +228,16 @@ class mobilenetresidual(nn.Module):
             input_quant_bits=8,
             output_quant_bits=8,
             bias=False
+        )
+
+        self.bn3 = nn.BatchNorm2d(out_channels)
+        self.relu3 = QuantReLU(
+            inplace=True,
+            quant_type=QuantType.INT,
+            restrict_scaling_type=RestrictValueType.POWER_OF_TWO,
+            scaling_impl_type=ScalingImplType.CONST, 
+            act_quant=CommonUintActQuant,
+            bit_width=8
         )
 
     def forward(self, x):
@@ -200,8 +254,14 @@ class mobilenetresidual(nn.Module):
         """
 
         x1 = self.pointwise1(x)
+        x1 = self.bn1(x1)
+        x1 = self.relu1(x1)
         x1 = self.depthwise(x1)
+        x1 = self.bn2(x1)
+        x1 = self.relu2(x1)
         x1 = self.pointwise(x1)
+        x1 = self.bn3(x1)
+        x1 = self.relu3(x1)
         x = x + x1
 
         return x
