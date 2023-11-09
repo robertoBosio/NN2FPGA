@@ -202,6 +202,7 @@ void conv_pipe(
     t_acc s_acc;
     t_acc s_acc_base;
 
+    auto s_index_ops = (c_depth == 1) ? ich_idx : (ops);
     if constexpr(std::is_same<t_add_struct, std::nullptr_t>::value == false) {
 
       // FIX: Seems that when there is the skip connection the binding of the
@@ -213,7 +214,7 @@ void conv_pipe(
 
       if constexpr(std::is_same<t_bias, std::nullptr_t>::value == false) {
         if (ich == 0)
-          s_acc = i_bias[0][ops] + s_acc_add;
+          s_acc = i_bias[0][s_index_ops] + s_acc_add;
         else
           s_acc = s_acc_add;
       } else {
@@ -223,7 +224,7 @@ void conv_pipe(
     } else {
       if constexpr(std::is_same<t_bias, std::nullptr_t>::value == false) {
         if (ich == 0)
-          s_acc = i_bias[0][ops];
+          s_acc = i_bias[0][s_index_ops];
         else
           s_acc = 0;
       } else {
@@ -254,7 +255,6 @@ void conv_pipe(
       i_acc_buff[reuse][och] = s_acc;
 
     if ((ich == c_ich-1) | (c_depth == 1)) {
-      auto s_index_ops = (c_depth == 1) ? ich_idx : (ops);
       s_output_struct[0].data[0][s_index_ops] = quant_stream<
         t_output, t_output_clip, t_output_mask, t_acc, c_relu
       >(s_acc);
@@ -357,9 +357,9 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
 
   #ifndef __SYNTHESIS__
     if (c_depth == 1)
-      std::cout << "depth_conv_op " << c_ich << " " << c_ops << std::endl;
+      std::cout << "depth_conv_op " << c_ich << " " << c_ops <<  " " << c_in_ops << std::endl;
     else
-      std::cout << "conv_op " << c_ich << " " << c_ops << std::endl;
+      std::cout << "conv_op " << c_ich << " " << c_ops << " " << c_in_ops << std::endl;
     if constexpr(std::is_same<t_add_struct, std::nullptr_t>::value == false)
       std::cout << "#### The convolution has bias" << std::endl;
     std::cout << "s_input.size() = " << i_input[0].size() << std::endl;
@@ -369,41 +369,42 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
     for (auto s_num_ich = 0; s_num_ich < c_ich; s_num_ich+=c_in_ops) {
       for (auto s_iter = 0; s_iter < c_iter; s_iter++) {
 #pragma HLS pipeline style = stp II=1
-        for (auto s_ich_idx = 0; s_ich_idx < c_in_ops; s_ich_idx++) {
-          auto s_reuse = s_iter % c_reuse_iter;
-          auto s_num_och = s_iter / c_reuse_iter;
-          auto s_ich = s_num_ich + s_ich_idx;
-          if constexpr(std::is_same<t_add_struct, std::nullptr_t>::value == false)
-            s_ich_idx_add = s_ich % c_add_ops;
+        auto s_reuse = s_iter % c_reuse_iter;
+        auto s_num_och = s_iter / c_reuse_iter;
 
-          if ((s_num_och == 0) && ((s_ich_idx) == 0)) {
-            t_input_struct s_input_struct = i_input[0].read();
-            #pragma HLS array_partition variable=s_input_struct.data type=complete
-            s_input = s_input_struct.data;
-            /* Sending last only at the bottom right data */
-            s_last = s_input_struct.last;
-          }
+        if ((s_num_och == 0)) {
+          t_input_struct s_input_struct = i_input[0].read();
+          #pragma HLS array_partition variable=s_input_struct.data type=complete
+          s_input = s_input_struct.data;
+          /* Sending last only at the bottom right data */
+          s_last = s_input_struct.last;
+        }
 
           /* Buffering to speed up computations */
           /* TODO: Adjust for generic bit quantizations */
-          if ((s_reuse == 0) && (s_ich_idx == 0)) {
-            for (auto s_index = 0; s_index < c_index; s_index++) {
-              s_weight[s_index] = i_weights[s_index].read();
-            }
-
-            // If it is the first reuse iteration, read the 1x1 weights
-            if constexpr(std::is_same<t_weight_1x1, std::nullptr_t>::value == false) {
-              if (s_iter < c_iter_1x1) s_weight_1x1[0] = i_weights_1x1[0].read();
-            }
-
-            if constexpr(std::is_same<t_bias, std::nullptr_t>::value == false) {
-              if ((s_ich == 0) | (c_depth == 1)) s_bias = i_bias[0].read();
-            }
-
-            if constexpr(std::is_same<t_bias_1x1, std::nullptr_t>::value == false) {
-              if (((s_ich == 0) | (c_depth == 1)) && (s_iter < c_iter_1x1)) s_bias_1x1 = i_bias_1x1[0].read();
-            }
+        if ((s_reuse == 0)) {
+          for (auto s_index = 0; s_index < c_index; s_index++) {
+            s_weight[s_index] = i_weights[s_index].read();
           }
+
+          // If it is the first reuse iteration, read the 1x1 weights
+          if constexpr(std::is_same<t_weight_1x1, std::nullptr_t>::value == false) {
+            if (s_iter < c_iter_1x1) s_weight_1x1[0] = i_weights_1x1[0].read();
+          }
+
+          if constexpr(std::is_same<t_bias, std::nullptr_t>::value == false) {
+            if ((s_num_ich == 0) | (c_depth == 1)) s_bias = i_bias[0].read();
+          }
+
+          if constexpr(std::is_same<t_bias_1x1, std::nullptr_t>::value == false) {
+            if (((s_num_ich == 0) | (c_depth == 1)) && (s_iter < c_iter_1x1)) s_bias_1x1 = i_bias_1x1[0].read();
+          }
+        }
+
+        for (auto s_ich_idx = 0; s_ich_idx < c_in_ops; s_ich_idx++) {
+          auto s_ich = s_num_ich + s_ich_idx;
+          if constexpr(std::is_same<t_add_struct, std::nullptr_t>::value == false)
+            s_ich_idx_add = s_ich % c_add_ops;
 
           // Done to avoid partitioning of the stream and resource wasting
           // Theoretically with the add the input and output dimensions should
@@ -538,22 +539,22 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
               }
             }
           }
-          if ((s_ich == (c_ich-1)) | ((c_depth == 1) && (s_ich_idx == c_in_ops-1))) {
-            for (auto s_ws = 0; s_ws < c_ws; s_ws++) {
-              o_output[s_ws % c_ws_out].write(s_output_struct[s_ws]);
-              if constexpr(std::is_same<t_output_struct_1x1, std::nullptr_t>::value == false) {
-                if (s_iter < c_iter_1x1) o_output_1x1[s_ws % c_ws_out].write(s_output_1x1_struct[s_ws]);
-              }
+        }
+        if constexpr(std::is_same<t_forward_struct, std::nullptr_t>::value == false) {
+          for (auto s_ws = 0; s_ws < c_ws; s_ws++) {
+            if (s_num_och == (c_num_och - 1)) {
+              t_forward_struct s_forward;
+              s_forward.data[0] = s_input[MO + MO%c_str - s_ws*c_str];
+              s_forward.last = false;
+              o_forward[s_ws % c_ws_out].write(s_forward);
             }
           }
-          if constexpr(std::is_same<t_forward_struct, std::nullptr_t>::value == false) {
-            for (auto s_ws = 0; s_ws < c_ws; s_ws++) {
-              if ((s_num_och == (c_num_och - 1)) && (s_ich_idx == 0)) {
-                t_forward_struct s_forward;
-                s_forward.data[0] = s_input[MO + MO%c_str - s_ws*c_str];
-                s_forward.last = false;
-                o_forward[s_ws % c_ws_out].write(s_forward);
-              }
+        }
+        if ((s_num_ich == (c_ich-c_in_ops)) | (c_depth == 1)) {
+          for (auto s_ws = 0; s_ws < c_ws; s_ws++) {
+            o_output[s_ws % c_ws_out].write(s_output_struct[s_ws]);
+            if constexpr(std::is_same<t_output_struct_1x1, std::nullptr_t>::value == false) {
+              if (s_iter < c_iter_1x1) o_output_1x1[s_ws % c_ws_out].write(s_output_1x1_struct[s_ws]);
             }
           }
         }

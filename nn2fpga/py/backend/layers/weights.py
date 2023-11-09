@@ -44,12 +44,12 @@ def parse_on_chip(
 
     # check that ich_iter_ops and och_ops are greater than 0
     # if (dich_ops > 1):
-    #     print("dich_iter_ops: %d" % dich_iter_ops)
-    #     print("dich_ops: %d" % dich_ops)
-    #     print("depth: %d" % node_info["depth"])
-    #     print("dich: %d" % dich)
-    #     print("doch: %d" % doch)
-    #     print("dops: %d" % dops)
+    # print("dich_iter_ops: %d" % dich_iter_ops)
+    # print("dich_ops: %d" % dich_ops)
+    # print("depth: %d" % node_info["depth"])
+    # print("dich: %d" % dich)
+    # print("doch: %d" % doch)
+    # print("dops: %d" % dops)
 
     assert dich_iter_ops > 0
     assert doch_ops > 0
@@ -187,16 +187,6 @@ def extract_info(
 
     och = node_info["och"]
     ich = node_info["ich"]
-    if node_info["depth"]:
-        och = 1
-
-    if len(shape) > 1:
-        is_bias = False
-    else:
-        if (not node_info["depth"]):
-            ich = 1
-        pre_values = np.expand_dims(pre_values, axis=-1)
-        is_bias = True
 
     if (len(shape) > 2):
         ih = shape[2]
@@ -212,10 +202,23 @@ def extract_info(
     stride = node_info["stride"]
     pad    = node_info["pad"]
 
+
     ops = node_info["ops"]
+
+    if len(shape) > 1:
+        is_bias = False
+    else:
+        pre_values = np.expand_dims(pre_values, axis=-1)
+        is_bias = True
+
     if is_bias:
         ich_ops = 1
+        if node_info["depth"]:
+            ops = node_info["ich_ops"]
+        ich = 1
     else:
+        if node_info["depth"]:
+            och = 1
         ich_ops = node_info["ich_ops"]
 
     if ops > och:
@@ -223,6 +226,8 @@ def extract_info(
 
     signed = new_node["signed"]
     scale_factor = new_node["scale_factor"]
+    if is_bias and new_node["bits"] > 16:
+        new_node["bits"] = 16
     bits   = new_node["bits"]
     narrow = new_node["narrow"]
     bw = int(128/bits)
@@ -617,7 +622,7 @@ def on_chip_rom(
     block["args"].append("s_%s" % output_name)
 
     pre_values = node["pre_values"]
-    if node["depth"]:
+    if node["depth"] and not(node["is_bias"]):
         pre_values = np.swapaxes(pre_values, 0, 1)
 
     node["values"] = parse_on_chip(
@@ -912,8 +917,8 @@ def parse_all(io_dict, prj_root="/tmp", board="KRIA"):
     #         if res in board_res:
     #             board_res[res] += block[res]
     
-    # # Check if there is URAM storage
-    # dynamic_init = False
+    # Check if there is URAM storage
+    dynamic_init = False
     
     # # Useful space in BRAM. Each BRAM is 36kb with a maximum word width of 72 bits,
     # # in which 8 are reserved to ECC code
@@ -962,6 +967,7 @@ def parse_all(io_dict, prj_root="/tmp", board="KRIA"):
     #     if uram_count > MAX_COUNT:
     #         io_dict[name]["uram_storage"] = False
 
+    
     for name, node in io_dict.items():
 
         if ('const' == node["type"]) and node["dynamic_init"]:

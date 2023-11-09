@@ -66,3 +66,14 @@ def find_higher_mult(ref, high_mult):
         if ((ref % i) == 0) and ((high_mult % i) == 0):
         # if ((ref % i) == 0):
             return i
+    
+    assert (0 == 1)
+    
+def find_lower_mult(low_mult, ref):
+    for i in range(low_mult, ref+1):
+        if ((ref % i) == 0):
+        # if ((ref % i) == 0):
+            return i
+    
+    assert (0 == 1)
+    
