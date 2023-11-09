@@ -104,6 +104,16 @@ def main():
         
     else:
         anchors = []
+    
+    if 'DATASET' in os.environ:
+        dataset = os.environ['DATASET']
+    else:
+        dataset = 'cifar10'
+    
+    if dataset == 'imagenet':
+        transform = True
+    else:
+        transform = False
 
     write_network(
         inferred_model,
@@ -115,7 +125,8 @@ def main():
         object_detection=object_detection,
         anchors=anchors,
         prj_root=PRJ_ROOT,
-        enable_ws=packing
+        enable_ws=packing,
+        transform=transform
     )
 
 if __name__ == '__main__':

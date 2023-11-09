@@ -211,7 +211,7 @@ def extract_tensors_info(model):
 
     return tensors_info
 
-def graph_info(model, init_info, object_detection=False, anchors=None, enable_ws=True):
+def graph_info(model, init_info, object_detection=False, anchors=None, enable_ws=True, transform=False):
 
     tensors_info = extract_tensors_info(
         model
@@ -234,7 +234,8 @@ def graph_info(model, init_info, object_detection=False, anchors=None, enable_ws
             tensors_info,
             model,
             enable_ws,
-            graph_input_name.name
+            graph_input_name.name,
+            transform=transform
         )
 
     graph_output_name = model.graph.output[0].name

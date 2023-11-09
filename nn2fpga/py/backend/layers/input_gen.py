@@ -6,7 +6,7 @@ from onnx import numpy_helper
 import numpy as np
 from backend.layers.quant import get_quant_type
 
-def info(io_dict, tensors_info, model, ws, graph_input_name):
+def info(io_dict, tensors_info, model, ws, graph_input_name, transform=False):
 
 
     node_name = "produce_stream"
@@ -31,8 +31,9 @@ def info(io_dict, tensors_info, model, ws, graph_input_name):
     io_dict[node_name]["ih"]     = ih
     io_dict[node_name]["iw"]     = iw
     io_dict[node_name]["enable_ws"] = ws
-    io_dict[node_name]["ws_out"]     = 1
-    io_dict[node_name]["ops"]     = 1
+    io_dict[node_name]["ws_out"]    = 1
+    io_dict[node_name]["ops"]       = 1
+    io_dict[node_name]["transform"] = transform
 
     return io_dict
 
@@ -59,6 +60,10 @@ def parse(name, node):
     block["template"].append("t_%s_part" % input_type_name)
     block["template"].append("t_%s_struct" % output_type_name)
     block["template"].append("t_%s" % output_type_name)
+    if node["transform"]:
+        block["template"].append("t_%s" % output_type_name)
+    else:
+        block["template"].append("ap_fixed<8,0>")
     block["template"].append("c_%s_ich" % name)
     block["template"].append("c_%s_iw" % name)
     block["template"].append("c_%s_ih" % name)
