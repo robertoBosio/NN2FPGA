@@ -32,6 +32,9 @@ PRODSTR:
     dout_wrap_t doutWrap;
     din.range(7,0) = din_par & 0xff;
     doutWrap.data[0][ops] = dout_t(din);
+    #ifndef __SYNTHESIS__
+      std::cout << doutWrap.data[0][ops] << " ";
+    #endif
 
     if (par < (PAR - 1)) {
       doutWrap.last = false;
@@ -39,8 +42,12 @@ PRODSTR:
       doutWrap.last = dinWrap.last;
     }
 
-    if (ops == (OPS - 1))
+    if (ops == (OPS - 1)) {
       doutStream[ws_out] << doutWrap;
+      #ifndef __SYNTHESIS__
+          std::cout << std::endl;
+      #endif
+    }
     din_par >>= 8;
   }
 }

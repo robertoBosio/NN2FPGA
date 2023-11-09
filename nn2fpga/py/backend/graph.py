@@ -35,7 +35,9 @@ def compute_depth_stream(io_dict, io_connect, net_name, starting_name, ops="ops"
         other_net = io_dict[layer_output]["input"][0]
         layer_output = io_connect[other_net][0][0]
 
-    depth = starting_node["ow"]*int(starting_node["och"]/starting_node[ops])*(net_receptive_field[0]-1)-starting_node["ich"]
+    depth = 0
+    depth += int(starting_node["och"]/starting_node[ops])*(net_receptive_field[1]-1)
+    depth += starting_node["ow"]*int(starting_node["och"]/starting_node[ops])*(net_receptive_field[0]-1)-starting_node["ich"]
     if depth < 0:
         depth = node["och"]
 
