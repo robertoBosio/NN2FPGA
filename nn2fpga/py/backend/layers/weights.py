@@ -232,7 +232,10 @@ def extract_info(
     narrow = new_node["narrow"]
     bw = int(128/bits)
 
-    data_type = get_quant_type(signed, bits, scale_factor)
+    if is_bias:
+        data_type = get_quant_type(signed, bits, scale_factor, narrow=False)
+    else:
+        data_type = get_quant_type(signed, bits, scale_factor, narrow=True)
 
     new_node["data_type"] = data_type
 

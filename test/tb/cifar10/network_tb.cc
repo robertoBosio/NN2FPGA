@@ -28,7 +28,8 @@ int main(int argc, char** argv) {
 	parser.parse(argc, argv);
  
   /* Images per batch */
-  const unsigned int c_batch = stoi(parser.value("n_images"));
+  // const unsigned int c_batch = stoi(parser.value("n_images"));
+  const unsigned int c_batch = 2;
   /* Bytes per activation data stream */
   const unsigned int c_par = c_inp_1 / ACTIVATION_PARALLELISM;
   /* Bytes per image */
@@ -97,6 +98,9 @@ int main(int argc, char** argv) {
       int s_par = (s_bytes % c_par);
       unsigned int data = (ap_uint<8>)(*itt);
       send_data.range(8 * (s_par + 1) - 1, 8 * s_par) = (ap_uint<8>)(data);
+      std::cout << (ap_uint<8>)data << " ";
+      if (s_par == c_par - 1)
+        std::cout << std::endl;
 
       if ((s_par % ACTIVATION_PARALLELISM) == ACTIVATION_PARALLELISM - 1)
         mem_activations[mem_activations_p++] = send_data;

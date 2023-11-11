@@ -208,12 +208,18 @@ void conv_pipe(
       // FIX: Seems that when there is the skip connection the binding of the
       // DSPs is not working, moving things before
       t_acc s_acc_add = 0;
-      if (ich == och) {
+      if ((ich == och) | (c_depth == 1)) {
         s_acc_add = i_add[0].data[0][ich_idx_add];
+        #ifndef __SYNTHESIS__
+          // if (c_depth == 1)
+          #ifdef DEBUG
+            std::cout << "ADD " << s_acc_add << " ";
+          #endif
+        #endif
       }
 
       if constexpr(std::is_same<t_bias, std::nullptr_t>::value == false) {
-        if (ich == 0)
+        if ((ich == 0) | (c_depth == 1))
           s_acc = i_bias[0][s_index_ops] + s_acc_add;
         else
           s_acc = s_acc_add;
@@ -223,7 +229,7 @@ void conv_pipe(
 
     } else {
       if constexpr(std::is_same<t_bias, std::nullptr_t>::value == false) {
-        if (ich == 0)
+        if ((ich == 0) | (c_depth == 1))
           s_acc = i_bias[0][s_index_ops];
         else
           s_acc = 0;
@@ -245,6 +251,14 @@ void conv_pipe(
       if constexpr(std::is_same<t_input_mod, std::nullptr_t>::value == false)
         s_data = t_input_mod(s_data);
       s_acc += s_data * i_weight[s_index][ich_idx][ops];
+      #ifndef __SYNTHESIS__
+        #ifdef DEBUG
+          if (c_depth == 1) {
+            std::cout << "W" << s_index << " " << i_weight[s_index][ich_idx][ops] << " ";
+            std::cout << "A" << s_index << " " << i_input[s_index][ich_idx] << " " << s_data << " ";
+          }
+        #endif
+      #endif
     }
 
     if (ich != 0) s_acc += s_acc_base;
@@ -259,6 +273,12 @@ void conv_pipe(
         t_output, t_output_clip, t_output_mask, t_acc, c_relu
       >(s_acc);
       s_output_struct[0].last = last;
+      #ifndef __SYNTHESIS__
+        // if (c_depth == 1)
+        #ifdef DEBUG
+          std::cout <<  "RES " << s_acc << " " << s_output_struct[0].data[0][s_index_ops] << " " ;
+        #endif
+      #endif
     }
     // return s_acc_struct;
 
@@ -553,6 +573,12 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
         if ((s_num_ich == (c_ich-c_in_ops)) | (c_depth == 1)) {
           for (auto s_ws = 0; s_ws < c_ws; s_ws++) {
             o_output[s_ws % c_ws_out].write(s_output_struct[s_ws]);
+            #ifndef __SYNTHESIS__
+              #ifdef DEBUG
+              // if (c_depth == 1)
+                std::cout << std::endl;
+              #endif
+            #endif
             if constexpr(std::is_same<t_output_struct_1x1, std::nullptr_t>::value == false) {
               if (s_iter < c_iter_1x1) o_output_1x1[s_ws % c_ws_out].write(s_output_1x1_struct[s_ws]);
             }

@@ -63,7 +63,7 @@ def parse(name, node):
     if node["transform"]:
         block["template"].append("t_%s" % output_type_name)
     else:
-        block["template"].append("ap_fixed<8,0>")
+        block["template"].append("ap_ufixed<8,0,AP_RND_CONV,AP_SAT>")
     block["template"].append("c_%s_ich" % name)
     block["template"].append("c_%s_iw" % name)
     block["template"].append("c_%s_ih" % name)
