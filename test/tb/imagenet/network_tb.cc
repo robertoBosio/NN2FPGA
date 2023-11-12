@@ -9,6 +9,7 @@
 #include "cmdlineparser.h"
 #include "nn2fpga/debug.h"
 #include <opencv2/opencv.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
 
 #define READ_WIDTH 8
 #define READ_BYTES 1
@@ -18,6 +19,51 @@
 bool directoryExists(const std::string &path) {
     struct stat info;
     return stat(path.c_str(), &info) == 0 && S_ISDIR(info.st_mode);
+}
+
+cv::Mat opencv_transform(cv::Mat image) {
+    // Resize the shorter side to 256 pixels while maintaining the aspect ratio
+
+    // Convert to tensor
+    cv::cvtColor(image, image, cv::COLOR_BGR2RGB);  // Convert BGR to RGB
+
+    // Convert to NumPy array and normalize
+    image.convertTo(image, CV_32F);
+    image /= 255.0;  // Assuming the original image values are in the range [0, 255]
+
+    int h = image.rows;
+    int w = image.cols;
+    std::cout << "#### Resizing image" << std::endl;
+    std::cout << "#### Original size: " << h << "x" << w << std::endl;
+    int new_h, new_w;
+
+    if (h < w) {
+        new_h = 256;
+        new_w = static_cast<int>(w * (256.0 / h));
+    } else {
+        new_w = 256;
+        new_h = static_cast<int>(h * (256.0 / w));
+    }
+    std::cout << "#### New Size: " << new_h << "x" << new_w << std::endl;
+
+    cv::resize(image, image, cv::Size(new_w, new_h), 0, 0, cv::INTER_AREA);
+
+    // Center crop to (224, 224)
+    h = image.rows;
+    w = image.cols;
+    int i = (h - 224) / 2;
+    int j = (w - 224) / 2;
+    std::cout << "#### Extracting region of interest" << std::endl;
+    cv::Rect roi(j, i, 224, 224);
+    image = image(roi);
+
+    cv::Scalar mean(0.485, 0.456, 0.406);
+    cv::Scalar std(0.229, 0.224, 0.225);
+    image = (image - mean) / std;
+
+    // cv::split(transposed, image_channels);
+
+    return image;
 }
 
 int main(int argc, char** argv) {
@@ -78,7 +124,9 @@ int main(int argc, char** argv) {
   
   std::cout << "Allocated " << c_index * c_batch << " ap_uint<64> for activations." << std::endl;
   std::cout << "Allocated " << CLASSES * c_batch << " ap_uint<8> for output results." << std::endl;
-  std::string path = "/tools/datasets/Imagenet/train/n15075141/";
+  // std::string path = "/tools/datasets/Imagenet/train/n01440764/";
+  // std::string path = "/tools/datasets/Imagenet/train/n01530575/";
+  std::string path = "/home/filippo/workspace/NN2FPGA/test/tb/imagenet/images/n15075141/";
   std::cout << "Taking images from " << path << std::endl;
 
 #ifndef CSIM
@@ -92,6 +140,9 @@ int main(int argc, char** argv) {
   DIR *dir;
   struct dirent *ent;
   std::cout << "OPENING DIRECTORY" << std::endl;
+  typedef ap_fixed<32,16> t_transform;
+  t_transform mean[3] = {0.485, 0.456, 0.406};
+  t_transform std[3] = {0.229, 0.224, 0.225};
   if ((dir = opendir (path.c_str())) != NULL) {
     /* print all the files and directories within directory */
     std::cout << "OPENED DIRECTORY" << std::endl;
@@ -105,14 +156,12 @@ int main(int argc, char** argv) {
         std::cout << "path: " << file_path << std::endl;
 
         cv::Mat img;
-        cv::Mat result_ocv;
     
         img = cv::imread(file_path);
 
-        std::cout << img.rows << " " << img.cols << std::endl;
-
-        result_ocv.create(cv::Size(c_produce_stream_iw, c_produce_stream_ih),CV_8UC3);
-        cv::resize(img,result_ocv,cv::Size(c_produce_stream_iw,c_produce_stream_ih),0,0,cv::INTER_AREA);
+        auto result_ocv = opencv_transform(img);
+        
+        // cv::resize(img,result_ocv,cv::Size(c_produce_stream_iw,c_produce_stream_ih),0,0,cv::INTER_AREA);
 
         // Iterate over elements of result_ocv per channel
         unsigned int s_bytes = 0;
@@ -120,13 +169,20 @@ int main(int argc, char** argv) {
         std::cout << "STORING IMAGE" << std::endl;
         for (int i = 0; i < result_ocv.rows; i++) {
             for (int j = 0; j < result_ocv.cols; j++) {
-                cv::Vec3b pixel = result_ocv.at<cv::Vec3b>(i, j);
+                cv::Vec3f pixel = result_ocv.at<cv::Vec3f>(i, j);
                 // Iterate over channels (typically BGR)
                 // Iterate over channells on RGB
-                for (int c = 2; c > -1; c--) {
+                for (int c = 0; c < 3; c++) {
+                // for (int c = 2; c > -1; c--) {
                     //std::cout << (int)pixel[c] << std::endl;
                     int s_par = (s_bytes % ACTIVATION_PARALLELISM);
-                    s_data.range(8 * (s_par + 1) - 1, 8 * s_par) = (ap_uint<8>)(pixel[c]);
+                    if (s_par == 0) {
+                      std::cout << "Packet: ";
+                    }
+                    t_transform tmp = (float)pixel[c];
+                    std::cout << tmp << " ";
+                    t_net_produce_2 tmp2 = tmp;
+                    s_data.range(8 * (s_par + 1) - 1, 8 * s_par) = tmp2.range(7,0);
 
                     // #ifdef DEBUG
                     // std::cout << (ap_uint<8>)(pixel[c]) << " ";
@@ -134,6 +190,7 @@ int main(int argc, char** argv) {
 
                     if (s_par == (c_par - 1)) {
                         mem_activations[mem_activations_p++] = s_data;
+                        std::cout << std::endl;
                     }
 
                     s_bytes++;
@@ -159,6 +216,10 @@ int main(int argc, char** argv) {
             break;
     }
     closedir (dir);
+  } else {
+    /* could not open directory */
+    perror ("");
+    return EXIT_FAILURE;
   }
 
 #ifndef CSIM

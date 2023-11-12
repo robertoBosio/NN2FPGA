@@ -153,16 +153,19 @@ void shift_op(hls::stream<din_t> &din, hls::stream<dcomp_t> &o_compute,
   dcomp_t s_output;
   #pragma HLS array_partition variable=s_output.data type=complete
   #ifndef __SYNTHESIS__
-      std::cout << "shift_op " << ICH << " " << IW << " " << IH << " " << c_ops << " " << c_ops_out << std::endl;
-      std::cout << c_strh << " " << c_strw << " " << c_paddingh_shift << " " << c_paddingw_shift << " " << c_end_paddingh_shift << " " << c_end_paddingw_shift << std::endl;
+    std::cout << "shift_op " << ICH << " " << IW << " " << IH << " " << c_ops << " " << c_ops_out << std::endl;
+    std::cout << c_strh << " " << c_strw << " " << c_paddingh_shift << " " << c_paddingw_shift << " " << c_end_paddingh_shift << " " << c_end_paddingw_shift << std::endl;
   #endif
   for (auto s_index_h = c_starth; s_index_h < IH; s_index_h++) {
     for (auto s_index_w = c_startw; s_index_w < IW; s_index_w+=c_ws) {
-      for (auto s_index_ich = 0; s_index_ich < (ICH); s_index_ich+=c_ops_out) {
-      // for (auto s_index_ich = 0; s_index_ich < ICH; s_index_ich+=c_ops) {
+      for (auto s_index_ich = 0; s_index_ich < ICH; s_index_ich++) {
 #pragma HLS pipeline style = stp II=1
+#pragma HLS unroll factor = c_ops_out
         auto s_index_read = s_index_ich % c_ops;
         auto s_data_read = s_index_read == 0;
+        auto s_index_ops = s_index_ich % c_ops_out;
+
+        bool s_data_write = (s_index_ops == (c_ops_out - 1));
 
         bool s_compute_write = true;
         auto s_index_h_str = s_index_h % c_str;
@@ -174,18 +177,21 @@ void shift_op(hls::stream<din_t> &din, hls::stream<dcomp_t> &o_compute,
         s_compute_write &= (s_index_w < (IW - c_end_paddingw_shift));
         s_compute_write &= (s_index_h_str == (c_strh));
         s_compute_write &= (s_index_w_str == (c_strw));
+        s_compute_write &= s_data_write;
 
         if (s_data_read) s_input = din.read();
-        for (auto s_index_ops = 0; s_index_ops < c_ops_out; s_index_ops++) {
-          s_output.data[0][s_index_ops] = s_input.data[0][s_index_read + s_index_ops];
-        }
+        s_output.data[0][s_index_ops] = s_input.data[0][s_index_read];
         s_output.last = s_input.last;
         if (s_compute_write) o_compute.write(s_output);
-        if constexpr(std::is_same<dout_t, std::nullptr_t>::value == false) o_data.write(s_output);
+        if constexpr(std::is_same<dout_t, std::nullptr_t>::value == false) if (s_data_write) o_data.write(s_output);
       }
     }
   }
   #ifndef __SYNTHESIS__
+      if (din.size() > 0) {
+        std::cout << "#### Not empty input stream" << std::endl;
+        std::cout << "din.size() " << din.size() << std::endl;
+      }
       std::cout << "end shift_op " << ICH << " " << c_ops << " " << c_ops_out << std::endl;
   #endif
 }

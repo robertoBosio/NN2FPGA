@@ -24,7 +24,7 @@ parser = argparse.ArgumentParser(description='brevitas_resnet fx implementation'
 parser.add_argument('--root_dir', type=str, default='./')
 parser.add_argument('--data_dir', type=str, default='./data')
 parser.add_argument('--log_name', type=str, default='resnetq_8w8f_cifar_fx')
-parser.add_argument('--pretrain', action='store_true', default=False)
+parser.add_argument('--pretrain', action='store_true', default=True)
 parser.add_argument('--pretrain_dir', type=str, default='resnetq_8w8f_cifar_fx')
 parser.add_argument('--cifar', type=int, default=10)
 parser.add_argument('--lr', type=float, default=0.01)
@@ -88,7 +88,7 @@ def main():
     criterion = torch.nn.CrossEntropyLoss()
     
     if cfg.pretrain:
-        ckpt = torch.load(os.path.join(cfg.ckpt_dir, f'checkpoint_fx.t7'))
+        ckpt = torch.load(os.path.join(cfg.ckpt_dir, f'checkpoint_fx.t7'), map_location=device)
         model.load_state_dict(ckpt['model_state_dict'])
         optimizer.load_state_dict(ckpt['optimizer_state_dict'])
         start_epoch = ckpt['epoch']
@@ -121,7 +121,7 @@ def main():
             progress_bar(batch_idx, len(train_loader), 'Loss: %.3f | Acc: %.3f%% (%d/%d)'
                          % (train_loss / (batch_idx + 1), 100. * correct / total, correct, total))
 
-    def test(epoch):
+    def test(epoch, log=False):
         # pass
         global best_acc
         model.eval()
@@ -131,6 +131,8 @@ def main():
             for batch_idx, (inputs, targets) in enumerate(eval_loader):
                 inputs, targets = inputs.to(device), targets.to(device)
                 outputs = model(inputs).view(model(inputs).size(0),-1)
+                if (log):
+                    print(outputs, targets)
                 loss = criterion(outputs, targets)
 
                 test_loss += loss.item()
@@ -140,21 +142,22 @@ def main():
 
                 progress_bar(batch_idx, len(eval_loader), 'Loss: %.3f | Acc: %.3f%% (%d/%d)'
                     % (test_loss/(batch_idx+1), 100.*correct/total, correct, total))
+                break
 
         acc = 100. * correct / total
-        if acc > best_acc and retrain:
-            print('Exporting..')
-            state = {
-                'model_state_dict': model.state_dict(),
-                'optimizer_state_dict': optimizer.state_dict(),
-                'acc': acc,
-                'epoch': epoch,
-            }
-            torch.save(state, os.path.join(cfg.ckpt_dir, f'checkpoint_quant_fx.t7'))
-            model.to('cpu')
-            # QONNXManager.export(model.module, input_shape=(1, 3, 32, 32), export_path='onnx/Brevonnx_resnet_final_fx.onnx')            
-            QONNXManager.export(model, input_shape=(1, 3, 32, 32), export_path='../test/onnx/test_depthwise.onnx')            
-            best_acc = acc
+        # if acc > best_acc and retrain:
+        print('Exporting..')
+        state = {
+            'model_state_dict': model.state_dict(),
+            'optimizer_state_dict': optimizer.state_dict(),
+            'acc': acc,
+            'epoch': epoch,
+        }
+        torch.save(state, os.path.join(cfg.ckpt_dir, f'checkpoint_quant_fx.t7'))
+        model.to('cpu')
+        # QONNXManager.export(model.module, input_shape=(1, 3, 32, 32), export_path='onnx/Brevonnx_resnet_final_fx.onnx')            
+        QONNXManager.export(model, input_shape=(1, 3, 32, 32), export_path='../test/onnx/test_depthwise.onnx')            
+        best_acc = acc
 
 
     def print_partial(model):
@@ -169,6 +172,10 @@ def main():
             def hook(model, input, output):
                 activation[name] = output.detach()
             return hook
+        def get_conv_activation(name):
+            def hook(model, input, output):
+                activation[name] = input[0].detach()
+            return hook
 
         for name, module in model.named_modules():
             t = type(module)
@@ -176,6 +183,9 @@ def main():
             if 'relu' in t.lower():
                 print(t, name)
                 module.register_forward_hook(get_activation(name))
+            if 'conv' in t.lower():
+                print(t, name)
+                module.register_forward_hook(get_conv_activation(name))
 
         with torch.no_grad():
             for batch_idx, (inputs, targets) in enumerate(eval_loader):
@@ -183,6 +193,7 @@ def main():
                 outputs = model(inputs)
                 outputs = outputs.view(outputs.size(0),-1)
                 break
+        return activation
 
     model.to(device)
     #print(model)
@@ -229,11 +240,15 @@ def main():
          print("\n-------------------RETRAINING-----------------\n") 
          retrain = 1
          for epoch in range(start_epoch, start_epoch+1): 
-            if(not(post_quant)) :
-                train(epoch)
-            test(epoch)
+            # if(not(post_quant)) :
+            #     train(epoch)
+            test(epoch, log=True)
             lr_schedu.step(epoch)
 
+
+    for name, output in print_partial(model).items():
+        # print the tensors permuting the dimensions
+        print(name, output.permute(0, 2, 3, 1))
 
     #print(model.module)
 
@@ -260,7 +275,5 @@ def main():
             print(node.name)
             print(node)                                                        
    
-    print_partial(model)
-
 if __name__ == '__main__':
     main()

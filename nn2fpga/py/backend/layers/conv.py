@@ -302,16 +302,23 @@ def parse_comp(name, node):
     ####################################################################################
     block["template"].append("%0d" % node["depth"])
 
-    if (node["depth"] == 1):
-        acc_bits = node["actbits"][0] + node["wbits"][0] + math.ceil(math.log2(node["kernel"]))
+    if (node["in_scale_factor"][0] is not None):
+        actscale = node["in_scale_factor"][0]
+        actbits = node["in_bits"][0]
     else:
-        acc_bits = node["actbits"][0] + node["wbits"][0] + math.ceil(math.log2(node["kernel"]*node["ich"]))
-    # if (has_bias):
-    #     acc_bits += 1
-    # if (node["add"]):
-    #     acc_bits += 1
+        actscale = node["actscale"][0]
+        actbits = node["actbits"][0]
 
-    acc_type = get_quant_type(True, acc_bits, node["actscale"][0]+node["wscale"][0], acc_reg=True)
+    if (node["depth"] == 1):
+        acc_bits = actbits + node["wbits"][0] + math.ceil(math.log2(node["kernel"]))
+    else:
+        acc_bits = actbits + node["wbits"][0] + math.ceil(math.log2(node["kernel"]*node["ich"]))
+    if (has_bias):
+        acc_bits += 1
+    if (node["add"]):
+        acc_bits += 1
+
+    acc_type = get_quant_type(True, acc_bits, actscale+node["wscale"][0], acc_reg=True)
     block["defines"] = {}
     block["defines"]["t_%s_acc" % output_name] = ["type", acc_type]
     block["defines"]["t_%s_acc_struct" % output_name] = [

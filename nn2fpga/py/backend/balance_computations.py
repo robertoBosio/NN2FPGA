@@ -5,6 +5,7 @@ import math
 from backend.ilp_utils import find_divisors
 from backend.ilp_utils import find_range
 from backend.ilp_utils import find_higher_mult
+from backend.ilp_utils import find_lower_mult
 from backend.graph import extract_connections
 
 def parallel_ops_number(layers_info, board="ULTRA96v2", prj_root="/tmp"):
@@ -16,7 +17,7 @@ def parallel_ops_number(layers_info, board="ULTRA96v2", prj_root="/tmp"):
     elif (board == "PYNQ"):
         NUM_DSP = 220
     elif (board == "KRIA"):
-        NUM_DSP = 1300
+        NUM_DSP = 1500
         # NUM_DSP = 3000
     elif (board == "ZCU102"):
         NUM_DSP = 2000
@@ -187,10 +188,6 @@ def ilp(io_dict, off_chip_storage, model, board="ULTRA96v2", double_packing=True
         output_node_name = io_connect[output_name][1][0]
         if output_node_name != "consume_stream":
             io_dict[output_node_name]["in_ops"] = ops
-            # if ('is_1x1' in io_dict[output_node_name]):
-            #     if (io_dict[output_node_name]['is_1x1'] == True):
-            #         # io_dict[output_node_name]["ich_ops"] = ops
-            #         io_dict[output_node_name]["ich_ops"] = 1
             if "pool" in io_dict[output_node_name]["type"]:
                 io_dict[output_node_name]["ops"] = ops
                 io_dict[output_node_name]["ich_ops"] = ops
@@ -205,10 +202,6 @@ def ilp(io_dict, off_chip_storage, model, board="ULTRA96v2", double_packing=True
                     ops = node["ich_ops"]
             if output_node_name != "consume_stream":
                 io_dict[output_node_name]["in_ops"] = ops
-                # if ('is_1x1' in io_dict[output_node_name]):
-                #     if (io_dict[output_node_name]['is_1x1'] == True):
-                #         # io_dict[output_node_name]["ich_ops"] = ops
-                #         io_dict[output_node_name]["ich_ops"] = 1
                 if "pool" in io_dict[output_node_name]["type"]:
                     io_dict[output_node_name]["ops"] = ops
                     io_dict[output_node_name]["ich_ops"] = ops
@@ -239,6 +232,7 @@ def ilp(io_dict, off_chip_storage, model, board="ULTRA96v2", double_packing=True
             else:
                 node["ops_1x1"] = node["ops"]
     
+    # Input produce stream ops
     print_layers = ["conv", "pool"]
     for name, node in io_dict.items():
         # print ops and ich_ops for conv and pool layers
@@ -251,4 +245,94 @@ def ilp(io_dict, off_chip_storage, model, board="ULTRA96v2", double_packing=True
                 io_dict[input_node_name]["ops"] = node["ich_ops"]
                 node["in_ops"] = node["ich_ops"]
         
+    # Avoiding line buffer to be the bottleneck in case of strides
+    for name, node in io_dict.items():
+        # print ops and ich_ops for conv and pool layers
+        if node["type"] == "conv":
+            # Trading off ops for ich_ops to avoid problems in line buffer
+            cycles_line_buffer = node["ih"]*node["iw"]*node["ich"] // node["ich_ops"]
+            if not node["depth"]:
+                cycles_computation = (node["oh"]*node["ow"]*node["och"]*node["ich"]) // (node["ops"]*node["ich_ops"])
+            else:
+                continue
+
+            # If mult_factor is lower or equal than 1, then the line buffer is not the bottleneck
+            mult_factor = math.ceil(cycles_line_buffer/cycles_computation)
+            if mult_factor <= 1:
+                continue
+            
+            # If not paralllizing on the input channels
+            mult_factor = find_higher_mult(io_dict[node_name]["ich"]//node["ich_ops"], mult_factor)
+            node["ich_ops"] = mult_factor*node["ich_ops"]
+            print("#### Changing ich_ops for", name, "to", node["ich_ops"], "to avoid line buffer bottleneck")
+            node["ops"] = find_higher_mult(node["ops"], node["ops"]//mult_factor)
+            if node["ops"] == 0:
+                node["ops"] = 1
+
+            output_name = node["output"][0]
+            output_node_name = io_connect[output_name][1][0]
+            if output_node_name != "consume_stream":
+                if node["depth"]:
+                    io_dict[output_node_name]["in_ops"] = node["ich_ops"]
+                else:
+                    io_dict[output_node_name]["in_ops"] = node["ops"]
+        
+    # # Fastening previous layer to provide enough bandwidth to the next one
+    # print_layers = ["conv", "pool"]
+    # for name, node in io_dict.items():
+    #     if node["type"] in print_layers:
+    #         # check if the input tensor is produced by a produce_stream node
+    #         input_name = node["input"][0]
+    #         input_node_name = io_connect[input_name][0][0]
+    #         input_node = io_dict[input_node_name]
+    #         ich_par = True
+    #         ich_par = ich_par and input_node["type"] == "conv"
+    #         if ich_par:
+    #             ich_par = ich_par and input_node["depth"]
+    #         if ich_par:
+    #             dim_str = "ich"
+    #             ops_str = "ich_ops"
+    #         else:
+    #             dim_str = "och"
+    #             ops_str = "ops"
+    #         if input_node[ops_str] < node["ich_ops"]:
+    #             mult_factor = find_higher_mult(input_node[dim_str]//input_node[ops_str], node["ich_ops"])
+    #             mult_factor = input_node[ops_str] * mult_factor
+    #             input_node[ops_str] = mult_factor
+    #             node["in_ops"] = mult_factor
+    #             print("#### Changing ops for", input_node_name, "to", node["in_ops"], "to avoid bottleneck")
+        
+    # Fastening previous layer to provide enough bandwidth to the next one
+    print_layers = ["conv", "pool"]
+    for name, node in io_dict.items():
+        if node["type"] in print_layers:
+            # check if the input tensor is produced by a produce_stream node
+            input_name = node["input"][0]
+            input_node_name = io_connect[input_name][0][0]
+            input_node = io_dict[input_node_name]
+            ich_par = True
+            ich_par = ich_par and input_node["type"] == "conv"
+            if ich_par:
+                ich_par = ich_par and input_node["depth"]
+            if ich_par:
+                dim_str = "ich"
+                ops_str = "ich_ops"
+            else:
+                dim_str = "och"
+                ops_str = "ops"
+            if input_node[ops_str] < node["ich_ops"]:
+                if (node["och"]//node["ops"]) > node["ich_ops"]:
+                    node["ops"] = find_lower_mult(node["ops"]*node["ich_ops"], node["och"])
+                    node["ich_ops"] = 1
+                    print("#### Changing ops for", node_name, "to", node["ops"], "to avoid bottleneck")
+                    output_name = node["output"][0]
+                    output_node_name = io_connect[output_name][1][0]
+                    io_dict[output_node_name]["in_ops"] = node["ops"]
+
+    print_layers = ["conv", "pool"]
+    for name, node in io_dict.items():
+        # print ops and ich_ops for conv and pool layers
+        if node["type"] in print_layers:
+            print(name, node["ops"], node["ich_ops"])
+
     return io_dict
