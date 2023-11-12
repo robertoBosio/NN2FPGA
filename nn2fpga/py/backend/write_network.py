@@ -127,6 +127,7 @@ def write_network(
     weights.write(
         io_dict,
         file_name,
+        board,
         prj_root=prj_root
     )
 
