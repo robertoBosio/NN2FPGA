@@ -7,7 +7,7 @@ from backend.ilp_utils import find_range
 from backend.ilp_utils import find_higher_mult
 from backend.graph import extract_connections
 
-def parallel_ops_number(layers_info, clamp=None, board="ULTRA96v2", prj_root="/tmp"):
+def parallel_ops_number(layers_info, board="ULTRA96v2", prj_root="/tmp"):
 
     if (board == "ULTRA96v2"):
         NUM_DSP = 400
@@ -21,7 +21,7 @@ def parallel_ops_number(layers_info, clamp=None, board="ULTRA96v2", prj_root="/t
     elif (board == "ZCU102"):
         NUM_DSP = 2000
     elif (board == "U280"):
-        #NUM_DSP = 1400
+        #NUM_DSP = 3000
         NUM_DSP = 9024
     elif (board == "U250"):
         NUM_DSP = 12288
@@ -44,9 +44,10 @@ def parallel_ops_number(layers_info, clamp=None, board="ULTRA96v2", prj_root="/t
         return best_one, best_index
 
     def happiness(choices, elem, layers_info):
-        return choice[0] * layers_info[elem][1]
+        return choices[0] * layers_info[elem][1]
 
     num_layers = len(layers_info)
+    print(layers_info)
 
     # Counting merged 1x1 layers
     for i in range(num_layers):
@@ -57,19 +58,19 @@ def parallel_ops_number(layers_info, clamp=None, board="ULTRA96v2", prj_root="/t
 
     prob = pulp.LpProblem("Parallel ops", pulp.LpMaximize)
 
+    # Variable to be optimized: Throughtput expressed as the number of filters
+    # computed in parallel by the heaviest layer
     choice = pulp.LpVariable.dicts("Layers parallel comp.", range(1), cat="Integer")
     # choices = pulp.LpVariable.dicts("Layers parallel comp.", range(num_layers), cat="Continuous")
 
-    prob += pulp.lpSum(happiness(choice, best_index, layers_info))
+    # Function to be maximized
+    prob += happiness(choice, best_index, layers_info)
 
     # for i in range(num_layers - 1):
     #     prob += happiness(choices, i, layers_info) == happiness(choices, i+1, layers_info)
 
-    prob += pulp.lpSum([choice[0]*layers_info[i][2]/layers_info[i][5] for i in range(num_layers)]) <= NUM_DSP
-
-    # TODO: Do architectural changes to avoid limiting the parallel ops
-    if clamp is not None:
-        prob += pulp.lpSum([choice]) <= clamp
+    # Constraints: Sum of speed up to each layer to keep throughtput constant should be less than the threshold.
+    prob += pulp.lpSum([choice[0] * layers_info[i][2] / layers_info[i][5] for i in range(num_layers)]) <= NUM_DSP
 
     prob.writeLP(prj_root + "/parallel_ops.lp")
 
@@ -77,7 +78,7 @@ def parallel_ops_number(layers_info, clamp=None, board="ULTRA96v2", prj_root="/t
 
     print("Status:", pulp.LpStatus[prob.status])
 
-    all_divisors, layers_divisors, layers_offset, layers_name = find_divisors(layers_info, clamp=clamp)
+    all_divisors, layers_divisors, layers_offset, layers_name = find_divisors(layers_info, clamp=layers_info[best_index][6])
 
     # Searching for an integer divisor of the number of DSPs that is the closest to the
     # number of operations that should be executed in parallel
@@ -87,8 +88,12 @@ def parallel_ops_number(layers_info, clamp=None, board="ULTRA96v2", prj_root="/t
         max_data
     )
 
+    print("#### SLOWEST LAYER INFO")
+    data = max_data/layers_info[best_index][5]
+    print(all_divisors[layers_offset[i]:layers_offset[i]+layers_divisors[i]], data, low_range, high_range, layers_info[best_index][5], layers_info[best_index][6])
     parallel_op = {}
     max_data = low_range
+    print("#### ALL LAYERS INFO")
     for i in range(num_layers):
         # Returning the layers name together with the computed number of 
         # operations that should be executed in parallel
@@ -100,16 +105,11 @@ def parallel_ops_number(layers_info, clamp=None, board="ULTRA96v2", prj_root="/t
             math.ceil(data)
         )
         parallel_op[layers_info[i][0]] = high_range
-        # print(all_divisors[layers_offset[i]:layers_offset[i]+layers_divisors[i]], data, low_range, high_range, layers_info[i][5], layers_info[i][6])
+        print(all_divisors[layers_offset[i]:layers_offset[i]+layers_divisors[i]], data, low_range, high_range, layers_info[i][5], layers_info[i][6])
 
     return parallel_op
 
 def ilp(io_dict, off_chip_storage, model, board="ULTRA96v2", double_packing=True, prj_root="/tmp"):
-
-    if off_chip_storage:
-        clamp = 8
-    else:
-        clamp = 64
 
     layers_info = []
 
@@ -122,7 +122,7 @@ def ilp(io_dict, off_chip_storage, model, board="ULTRA96v2", double_packing=True
     total_computations = 0
     for node_name, node_info in io_dict.items():
         if 'conv' in node_info["type"]:
-
+            print(node_info)
             value = node_info["total"]/max_total
             # value = 2**value
             # print(node_name, node_info["total"], value)
@@ -149,7 +149,7 @@ def ilp(io_dict, off_chip_storage, model, board="ULTRA96v2", double_packing=True
     
     # print("Total computations:", total_computations)
 
-    parallel_ops = parallel_ops_number(layers_info, clamp, board, prj_root=prj_root)
+    parallel_ops = parallel_ops_number(layers_info, board, prj_root=prj_root)
 
     print(parallel_ops)
 
@@ -243,7 +243,7 @@ def ilp(io_dict, off_chip_storage, model, board="ULTRA96v2", double_packing=True
     for name, node in io_dict.items():
         # print ops and ich_ops for conv and pool layers
         if node["type"] in print_layers:
-            print(name, node["ops"], node["ich_ops"])
+            print(f"{name}, {node['ops']}, {node['ich_ops']}, [{node['och']}][{node['ich']}]")
             # check if the input tensor is produced by a produce_stream node
             input_name = node["input"][0]
             input_node_name = io_connect[input_name][0][0]
