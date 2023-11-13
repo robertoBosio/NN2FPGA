@@ -1,6 +1,8 @@
 import os
 import sys
 import pulp
+import json
+from pulp import const
 import math
 from backend.ilp_utils import find_divisors
 from backend.ilp_utils import find_range
@@ -8,7 +10,7 @@ from backend.ilp_utils import find_higher_mult
 from backend.ilp_utils import find_lower_mult
 from backend.graph import extract_connections
 
-def parallel_ops_number(layers_info, board="ULTRA96v2", prj_root="/tmp"):
+def parallel_ops_number(layers_info, worst_index, board="ULTRA96v2", prj_root="/tmp"):
 
     if (board == "ULTRA96v2"):
         NUM_DSP = 400
@@ -29,84 +31,99 @@ def parallel_ops_number(layers_info, board="ULTRA96v2", prj_root="/tmp"):
     elif (board == "U55C"):
         NUM_DSP = 9024
 
-    MIN_OP = 1
-    DELTA = 1
+    # # Opening JSON file
+    # file_path = f"{prj_root}/../nn2fpga/boards/{board}.json"
+    # with open(file_path) as f:
+    #     board_dict = json.load(f)
 
-    def find_high_comp(layers_info):
-        best_one = layers_info[0]
-        best_index = 0
+    # # Right now consider the board as a monolithic block 
+    # board_res = {"uram" : 0, "bram" : 0, "dsp" : 0, "lut" : 0, "ff" : 0}
+    # for block in board_dict['resource']:
+    #     for res in block.keys():
+    #         if res in board_res:
+    #             board_res[res] += block[res]
 
-        for i, layer_info in enumerate(layers_info):
-            # The value stored is 1/#COMPUTATIONS
-            if (layer_info[1] < best_one[1]):
-                best_one = layer_info
-                best_index = i
-
-        return best_one, best_index
-
-    def happiness(choices, elem, layers_info):
-        return choices[0] * layers_info[elem][1]
+    # # Useful space in BRAM18. Each BRAM18 is 18kb with a maximum word width of
+    # # 36 bits, in which 4 bits are reserved to ECC code
+    # SIZE_BRAM18 = ((18 * 1024) / 36) * 32
+    
+    # # Useful space in BRAM36, composed by two BRAM18.
+    # SIZE_BRAM36 = SIZE_BRAM18 * 2
+    
+    # # Useful space in URAM. Each URAM is 288kb with a maximum word width of 72
+    # # bits.
+    # SIZE_URAM = (288 * 1024)
 
     num_layers = len(layers_info)
-    print(layers_info)
 
     # Counting merged 1x1 layers
     for i in range(num_layers):
-        if layers_info[i][4]:
+        if layers_info[i]["merge_1x1"]:
             NUM_DSP -= 1
 
-    _, best_index = find_high_comp(layers_info)
+    ####### Problem formulated as LP #######
+    # prob = pulp.LpProblem("Parallel ops", pulp.LpMaximize)
+    # # Variable to be optimized: Throughtput expressed as the number of filters
+    # # computed in parallel by the heaviest layer
+    # worst_par = pulp.LpVariable("Worst layer parallelization", 1, None, pulp.LpInteger)
+    # prob += worst_par, "Bottleneck layer parallelization"
+    # # Constraints: Sum of DSPs needed for each layer to keep throughtput
+    # # constant should be less than the threshold. The parallelism of each layer
+    # # is computed using the equality:
+    # #
+    # #    iter worst        iter layer  
+    # #  -------------- =  --------------
+    # #     par worst        par layer   
+    # prob += pulp.lpSum([worst_par * layers_info[i]["kernel"] / layers_info[i]["value"] for i in range(num_layers)]) <= NUM_DSP
+    # # Function to be maximized
+    # prob.writeLP(prj_root + "/parallel_ops.lp")
+    # prob.solve()
+    # print("Status:", pulp.LpStatus[prob.status])
+    # ilp_value = int(worst_par.value())
+    ########################################
+    
+    # ilp_value = math.floor(board_res['dsp'] * (1 / layers_info[worst_index]['total'])/sum(
+    #     layers_info[i]['kernel'] / layers_info[i]['total'] for i in range(num_layers)))
+    ilp_value = math.floor(NUM_DSP * (1 / layers_info[worst_index]['total'])/sum(
+        layers_info[i]['kernel'] / layers_info[i]['total'] for i in range(num_layers)))
+    
+    # if mem_bind[i] = 0 then BRAM
+    # prob += pulp.lpSum([(mem_bind[i] * worst_par * layers_info[i]["kernel"] / layers_info[i]["value"]
+    #                    for i in range(num_layers)) for i in range(num_layers)]) <= board_res["uram"]
+    # prob += pulp.lpSum([(abs(mem_bind[i] - 1) * worst_par * layers_info[i]["kernel"] / layers_info[i]
+    #                    ["value"] for i in range(num_layers)) for i in range(num_layers)]) <= board_res["bram"]
 
-    prob = pulp.LpProblem("Parallel ops", pulp.LpMaximize)
+    #mem_bind = pulp.LpVariable.dicts("Memory binding", range(num_layers), pulp.LpBinary)
 
-    # Variable to be optimized: Throughtput expressed as the number of filters
-    # computed in parallel by the heaviest layer
-    choice = pulp.LpVariable.dicts("Layers parallel comp.", range(1), cat="Integer")
-    # choices = pulp.LpVariable.dicts("Layers parallel comp.", range(num_layers), cat="Continuous")
-
-    # Function to be maximized
-    prob += happiness(choice, best_index, layers_info)
-
-    # for i in range(num_layers - 1):
-    #     prob += happiness(choices, i, layers_info) == happiness(choices, i+1, layers_info)
-
-    # Constraints: Sum of speed up to each layer to keep throughtput constant should be less than the threshold.
-    prob += pulp.lpSum([choice[0] * layers_info[i][2] / layers_info[i][5] for i in range(num_layers)]) <= NUM_DSP
-
-    prob.writeLP(prj_root + "/parallel_ops.lp")
-
-    prob.solve()
-
-    print("Status:", pulp.LpStatus[prob.status])
-
-    all_divisors, layers_divisors, layers_offset, layers_name = find_divisors(layers_info, clamp=layers_info[best_index][6])
+    # For each layers compute the possible parallelization factors
+    all_divisors, layers_divisors, layers_offset = find_divisors(layers_info)
 
     # Searching for an integer divisor of the number of DSPs that is the closest to the
     # number of operations that should be executed in parallel
-    max_data = int(choice[0].value())
-    low_range, high_range = find_range(
-        all_divisors[layers_offset[best_index]:layers_offset[best_index]+layers_divisors[best_index]],
-        max_data
+    low_range, low_index, high_range, _ = find_range(
+        all_divisors[layers_offset[worst_index]:layers_offset[worst_index]+layers_divisors[worst_index]],
+        ilp_value
     )
 
-    print("#### SLOWEST LAYER INFO")
-    data = max_data/layers_info[best_index][5]
-    print(all_divisors[layers_offset[i]:layers_offset[i]+layers_divisors[i]], data, low_range, high_range, layers_info[best_index][5], layers_info[best_index][6])
+    low_index += layers_offset[worst_index]
+    # print(all_divisors[layers_offset[i]:layers_offset[i]+layers_divisors[i]], data, low_range, high_range, layers_info[best_index][5], layers_info[best_index][6])
     parallel_op = {}
-    max_data = low_range
-    print("#### ALL LAYERS INFO")
-    for i in range(num_layers):
-        # Returning the layers name together with the computed number of 
-        # operations that should be executed in parallel
-        # data = int(max_data/layers_info[i][5])
-        data = max_data/layers_info[i][5]
+    
+    # The parallelization factor for the bottleneck layer is the lower nearest
+    # value between the possible ones.
+    worst_par = low_range
 
-        low_range, high_range = find_range(
+    # Based on the chosen parallalization, the layers are updated with their
+    # respective parallelization factors
+    for i in range(num_layers):
+        layer_par = worst_par / layers_info[i]["value"]
+
+        low_range, _ , high_range, _ = find_range(
             all_divisors[layers_offset[i]:layers_offset[i]+layers_divisors[i]],
-            math.ceil(data)
+            math.ceil(layer_par)
         )
-        parallel_op[layers_info[i][0]] = high_range
-        print(all_divisors[layers_offset[i]:layers_offset[i]+layers_divisors[i]], data, low_range, high_range, layers_info[i][5], layers_info[i][6])
+        parallel_op[layers_info[i]["name"]] = high_range
+        # print(all_divisors[layers_offset[i]:layers_offset[i]+layers_divisors[i]], data, low_range, high_range, layers_info[i][5], layers_info[i][6])
 
     return parallel_op
 
@@ -114,43 +131,55 @@ def ilp(io_dict, off_chip_storage, model, board="ULTRA96v2", double_packing=True
 
     layers_info = []
 
+    # Find the highest number of operation done by a single convolution.
     max_total = 1
+    worst_index = 0
+    iterator = 0
     for node_name, node_info in io_dict.items():
         if 'conv' in node_info["type"]:
+            print(node_info["total"])
             if max_total > node_info["total"]:
                 max_total = node_info["total"]
+                worst_index = iterator
+            iterator += 1
 
     total_computations = 0
     for node_name, node_info in io_dict.items():
         if 'conv' in node_info["type"]:
-            print(node_info)
+            # print(node_info)
             value = node_info["total"]/max_total
             # value = 2**value
             # print(node_name, node_info["total"], value)
             total_computations += node_info["total_log"]
+            
             if node_info["depth"]:
                 max_par = node_info["ich"]
             else:
                 max_par = node_info["och"]*node_info["ich"]
+
             layers_info.append(
-                [
-                    node_name,
-                    node_info["total"],
-                    node_info["kernel"],
-                    node_info["img_ch"],
-                    node_info["merge_1x1"],
-                    value,
-                    max_par
-                ]
+                {
+                    "name": node_name,
+                    "total": node_info["total"],
+                    "kernel": node_info["kernel"],
+                    "img_ch": node_info["img_ch"],
+                    "merge_1x1": node_info["merge_1x1"],
+                    "value": value,
+                    "max_par": max_par,
+                    "max_par_1x1": max_par,
+                    "bits": node_info["bits"],
+                    "n_weights": node_info["ih"] * node_info["iw"] * node_info["ich"] * node_info["och"]
+                }
             )
+
             if (node_info["merge_1x1"]):
-                layers_info[-1].append(node_info["och_1x1"]*node_info["ich"])
+                layers_info[-1]["max_par_1x1"] = node_info["och_1x1"] * node_info["ich"]
                 # FIX: removing fix to try clamping ops to 1x1 layers
                 # layers_info[-1].append(node_info["och"])
     
     # print("Total computations:", total_computations)
 
-    parallel_ops = parallel_ops_number(layers_info, board, prj_root=prj_root)
+    parallel_ops = parallel_ops_number(layers_info, worst_index, board, prj_root=prj_root)
 
     print(parallel_ops)
 
