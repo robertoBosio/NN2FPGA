@@ -186,6 +186,7 @@ def ilp(io_dict, off_chip_storage, model, board="ULTRA96v2", double_packing=True
     io_connect = extract_connections(model, io_dict)
 
     for node_name, ops in parallel_ops.items():
+        print(node_name, io_dict[node_name]["ich"], io_dict[node_name]["och"], ops)
         if (not io_dict[node_name]["depth"]):
             och_ops = find_higher_mult(io_dict[node_name]["och"], ops)
         else:
@@ -210,6 +211,7 @@ def ilp(io_dict, off_chip_storage, model, board="ULTRA96v2", double_packing=True
                     ich_ops = math.ceil(input_dimension/pipeline_iterations)
                     if node["ich_ops"] < ich_ops:
                         io_dict[name]["ich_ops"] = ich_ops
+                        print("#### Changing ich_ops for", name, "to", io_dict[name]["ich_ops"], "to avoid bottleneck")
 
     #TODO: Avoiding cycling twice because of pool layers
     for node_name, ops in parallel_ops.items():
@@ -291,9 +293,8 @@ def ilp(io_dict, off_chip_storage, model, board="ULTRA96v2", double_packing=True
                 continue
             
             # If not paralllizing on the input channels
-            mult_factor = find_higher_mult(io_dict[node_name]["ich"]//node["ich_ops"], mult_factor)
+            mult_factor = find_higher_mult(io_dict[name]["ich"]//node["ich_ops"], mult_factor)
             node["ich_ops"] = mult_factor*node["ich_ops"]
-            print("#### Changing ich_ops for", name, "to", node["ich_ops"], "to avoid line buffer bottleneck")
             node["ops"] = find_higher_mult(node["ops"], node["ops"]//mult_factor)
             if node["ops"] == 0:
                 node["ops"] = 1
