@@ -445,7 +445,7 @@ def rename_edges(model, io_dict):
                 io_dict[name]["output"][i] = rename_dict[output_name]
 
     for net_name, layers in io_connect.items():
-        print(net_name)
+        # print(net_name)
         layer_in_name = layers[0][0]
         layer_out_name = layers[1][0]
 
