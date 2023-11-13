@@ -8,7 +8,7 @@ from backend.ilp_utils import find_higher_mult
 from backend.ilp_utils import find_lower_mult
 from backend.graph import extract_connections
 
-def parallel_ops_number(layers_info, clamp=None, board="ULTRA96v2", prj_root="/tmp"):
+def parallel_ops_number(layers_info, board="ULTRA96v2", prj_root="/tmp"):
 
     if (board == "ULTRA96v2"):
         NUM_DSP = 400
@@ -68,17 +68,13 @@ def parallel_ops_number(layers_info, clamp=None, board="ULTRA96v2", prj_root="/t
 
     prob += pulp.lpSum([choice[0]*layers_info[i][2]/layers_info[i][5] for i in range(num_layers)]) <= NUM_DSP
 
-    # TODO: Do architectural changes to avoid limiting the parallel ops
-    if clamp is not None:
-        prob += pulp.lpSum([choice]) <= clamp
-
     prob.writeLP(prj_root + "/parallel_ops.lp")
 
     prob.solve()
 
     print("Status:", pulp.LpStatus[prob.status])
 
-    all_divisors, layers_divisors, layers_offset, layers_name = find_divisors(layers_info, clamp=clamp)
+    all_divisors, layers_divisors, layers_offset, layers_name = find_divisors(layers_info)
 
     # Searching for an integer divisor of the number of DSPs that is the closest to the
     # number of operations that should be executed in parallel
@@ -106,11 +102,6 @@ def parallel_ops_number(layers_info, clamp=None, board="ULTRA96v2", prj_root="/t
     return parallel_op
 
 def ilp(io_dict, off_chip_storage, model, board="ULTRA96v2", double_packing=True, prj_root="/tmp"):
-
-    if off_chip_storage:
-        clamp = 8
-    else:
-        clamp = 64
 
     layers_info = []
 
@@ -150,13 +141,14 @@ def ilp(io_dict, off_chip_storage, model, board="ULTRA96v2", double_packing=True
     
     # print("Total computations:", total_computations)
 
-    parallel_ops = parallel_ops_number(layers_info, clamp, board, prj_root=prj_root)
+    parallel_ops = parallel_ops_number(layers_info, board, prj_root=prj_root)
 
     print(parallel_ops)
 
     io_connect = extract_connections(model, io_dict)
 
     for node_name, ops in parallel_ops.items():
+        print(node_name, io_dict[node_name]["ich"], io_dict[node_name]["och"], ops)
         if (not io_dict[node_name]["depth"]):
             och_ops = find_higher_mult(io_dict[node_name]["och"], ops)
         else:
@@ -181,6 +173,7 @@ def ilp(io_dict, off_chip_storage, model, board="ULTRA96v2", double_packing=True
                     ich_ops = math.ceil(input_dimension/pipeline_iterations)
                     if node["ich_ops"] < ich_ops:
                         io_dict[name]["ich_ops"] = ich_ops
+                        print("#### Changing ich_ops for", name, "to", io_dict[name]["ich_ops"], "to avoid bottleneck")
 
     #TODO: Avoiding cycling twice because of pool layers
     for node_name, ops in parallel_ops.items():
@@ -261,9 +254,8 @@ def ilp(io_dict, off_chip_storage, model, board="ULTRA96v2", double_packing=True
                 continue
             
             # If not paralllizing on the input channels
-            mult_factor = find_higher_mult(io_dict[node_name]["ich"]//node["ich_ops"], mult_factor)
+            mult_factor = find_higher_mult(io_dict[name]["ich"]//node["ich_ops"], mult_factor)
             node["ich_ops"] = mult_factor*node["ich_ops"]
-            print("#### Changing ich_ops for", name, "to", node["ich_ops"], "to avoid line buffer bottleneck")
             node["ops"] = find_higher_mult(node["ops"], node["ops"]//mult_factor)
             if node["ops"] == 0:
                 node["ops"] = 1

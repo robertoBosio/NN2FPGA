@@ -2,7 +2,7 @@ import os
 import sys
 import math
 
-def find_divisors(layers_info, clamp=33):
+def find_divisors(layers_info):
     all_divisors = []
     layers_divisors = []
     layers_offset = []
@@ -30,11 +30,11 @@ def find_divisors(layers_info, clamp=33):
         divisors = 1
         layers_offset.append(offset)
         all_divisors.append(1)
-        for k in range(2, min([max_par, clamp])+1):
+        for k in range(2, max_par+1):
             if (max_par % k) == 0:
                 all_divisors.append(k)
                 divisors = divisors + 1
-        for k in range(min([max_par, clamp])+1, max_value+1):
+        for k in range(max_par+1, max_value+1):
             if (max_par % k) == 0:
                 all_divisors.append(k)
                 divisors = divisors + 1
@@ -62,6 +62,8 @@ def find_range(divisors, ilp_value):
     return max(low_range), min(high_range)
             
 def find_higher_mult(ref, high_mult):
+    print("ref: ", ref)
+    print("high_mult: ", high_mult)
     for i in range(high_mult, -1, -1):
         if ((ref % i) == 0) and ((high_mult % i) == 0):
         # if ((ref % i) == 0):
