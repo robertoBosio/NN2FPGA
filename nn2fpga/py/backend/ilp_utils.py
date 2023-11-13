@@ -2,11 +2,10 @@ import os
 import sys
 import math
 
-def find_divisors(layers_info, clamp=33):
+def find_divisors(layers_info):
     all_divisors = []
     layers_divisors = []
     layers_offset = []
-    layers_name = []
     offset = 0
     for i, layer_info in enumerate(layers_info):
         # FIX: adapting to not matching och for merged layers
@@ -30,36 +29,26 @@ def find_divisors(layers_info, clamp=33):
         divisors = 1
         layers_offset.append(offset)
         all_divisors.append(1)
-        for k in range(2, min([max_par, clamp])+1):
-            if (max_par % k) == 0:
-                all_divisors.append(k)
-                divisors = divisors + 1
-        for k in range(min([max_par, clamp])+1, max_value+1):
+    
+        for k in range(2, max_value + 1):
             if (max_par % k) == 0:
                 all_divisors.append(k)
                 divisors = divisors + 1
         layers_divisors.append(divisors)
+
         offset = offset + divisors
-        layers_name.append(layer_info[0])
-    return all_divisors, layers_divisors, layers_offset, layers_name
+    return all_divisors, layers_divisors, layers_offset
 
 def find_range(divisors, ilp_value):
-    low_range = []
-    high_range = []
-    for i, divisor in enumerate(divisors):
-        
-        if ilp_value >= divisor:
-            low_range.append(divisor)
+    low_range = divisors[0]
+    high_range = divisors[-1]
+    for divisor in divisors:
+        if (divisor >= ilp_value and abs(divisor - ilp_value) < abs(high_range - ilp_value)):
+            high_range = divisor
+        if (divisor <= ilp_value and abs(divisor - ilp_value) < abs(low_range - ilp_value)):
+            low_range = divisor
 
-        if ilp_value <= divisor:
-            high_range.append(divisor)
-    
-    if len(low_range) == 0:
-        low_range.append(divisors[0])
-    if len(high_range) == 0:
-        high_range.append(divisors[-1])
-
-    return max(low_range), min(high_range)
+    return low_range, high_range
             
 def find_higher_mult(ref, high_mult):
     for i in range(high_mult, -1, -1):
