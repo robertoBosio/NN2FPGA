@@ -79,3 +79,8 @@ def find_lower_mult(low_mult, ref):
     
     assert (0 == 1)
     
+def find_common_mult(a, b):
+    max_value = max(a, b)
+    for i in range(max_value, a*b+1):
+        if ((i % a) == 0) and ((i % b) == 0):
+            return i

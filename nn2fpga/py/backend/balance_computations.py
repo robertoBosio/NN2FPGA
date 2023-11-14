@@ -6,6 +6,7 @@ from backend.ilp_utils import find_divisors
 from backend.ilp_utils import find_range
 from backend.ilp_utils import find_higher_mult
 from backend.ilp_utils import find_lower_mult
+from backend.ilp_utils import find_common_mult
 from backend.graph import extract_connections
 
 def parallel_ops_number(layers_info, board="ULTRA96v2", prj_root="/tmp"):
@@ -330,6 +331,17 @@ def ilp(io_dict, off_chip_storage, model, board="ULTRA96v2", double_packing=True
                     output_node_name = io_connect[output_name][1][0]
                     io_dict[output_node_name]["in_ops"] = node["ops"]
 
+    # Check for necessary bandwidth adjustements for the line buffer
+    for name, node in io_dict.items():
+        if node["type"] == "conv":
+            if (node["in_ops"] % node["ich_ops"]) != 0:
+                node["adjust_line_buffer"] = True
+                node["adjust_ops"] = find_common_mult(node["in_ops"],node["ich_ops"])
+                print("#### Found line buffer read/write rate for", name, "read", node["in_ops"], "write", node["ich_ops"], "to avoid bottleneck")
+                print("#### Balancing line buffer for", name, "from", node["in_ops"], "to", node["adjust_ops"], "to avoid bottleneck")
+            else:
+                node["adjust_line_buffer"] = False
+    
     print_layers = ["conv", "pool"]
     for name, node in io_dict.items():
         # print ops and ich_ops for conv and pool layers
