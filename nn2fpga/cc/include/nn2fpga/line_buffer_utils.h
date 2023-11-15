@@ -100,6 +100,36 @@ void change_ws(hls::stream<din_t> din[c_ws],
 template <typename din_t, typename dout_t, int ICH, int IH, int IW,
           int c_ws, int c_ops, int c_ops_out> 
 void bandwidth_adjust(
+  hls::stream<din_t> &din,
+  hls::stream<dout_t> &o_data
+) {
+
+  dout_t s_write;
+  #ifndef __SYNTHESIS__
+      std::cout << "bandwidth_adjust " << ICH << " " << c_ops << " " << c_ops_out << std::endl;
+      // Printing the size
+      for (auto s_i = 0; s_i < c_ws; s_i++) {
+        std::cout << "din[" << s_i << "] = " << din[s_i].size() << std::endl;
+      }
+  #endif
+  for (auto s_index = 0; s_index < IH * IW * ICH; s_index+=c_ops_out*c_ws) {
+    for (auto s_i = 0; s_i < c_ops_out; s_i+=c_ops) {
+      #pragma HLS pipeline style = stp
+      for (auto s_ws = 0; s_ws < c_ws; s_ws++) {
+        din_t s_read = din[s_ws].read();
+        for (auto s_j = 0; s_j < c_ops; s_j++) {
+          s_write.data[0][s_i+s_j] = s_read.data[0][s_j];
+        }
+        if (s_i == (c_ops_out - c_ops))
+          o_data[s_ws].write(s_write);
+      }
+    }
+  }
+}
+
+template <typename din_t, typename dout_t, int ICH, int IH, int IW,
+          int c_ws, int c_ops, int c_ops_out> 
+void bandwidth_adjust(
   hls::stream<din_t> din[c_ws],
   hls::stream<dout_t> o_data[c_ws]
 ) {
@@ -118,7 +148,8 @@ void bandwidth_adjust(
       for (auto s_ws = 0; s_ws < c_ws; s_ws++) {
         din_t s_read = din[s_ws].read();
         for (auto s_j = 0; s_j < c_ops; s_j++) {
-          s_write.data[0][s_i+s_j] = s_read.data[0][s_j];
+          auto read_data = s_read.data[0][s_j];
+          s_write.data[0][s_i+s_j] = read_data;
         }
         if (s_i == (c_ops_out - c_ops))
           o_data[s_ws].write(s_write);
