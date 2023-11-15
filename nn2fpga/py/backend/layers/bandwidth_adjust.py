@@ -9,7 +9,8 @@ def parse(name, node, adjust_name, in_ops, adjust_ops, dim="i"):
     
     node_name = "bandwidth_adjust_%s" % name
     input_name = adjust_name
-    input_type_name = input_name.replace("_skip", "")
+    # input_type_name = input_name.replace("_skip", "")
+    input_type_name = input_name
 
     output_name = input_name + "_adj"
     output_type_name = output_name
@@ -39,7 +40,7 @@ def parse(name, node, adjust_name, in_ops, adjust_ops, dim="i"):
     block["defines"] = {}
     output_type = "t_%s" % output_type_name
     output_ops = node[adjust_ops]
-    output_vector_type = "std::array<t_%s, %0d>" % (input_type_name, output_ops)
+    output_vector_type = "std::array<t_%s, %0d>" % (input_name.replace("_skip", ""), output_ops)
     block["defines"]["t_%s_vector" % output_name] = ["type", output_vector_type]
     block["defines"]["t_%s_struct" % output_name] = [
         "struct",

@@ -326,7 +326,7 @@ def ilp(io_dict, off_chip_storage, model, board="ULTRA96v2", double_packing=True
                 if (node["och"]//node["ops"]) > node["ich_ops"]:
                     node["ops"] = find_lower_mult(node["ops"]*node["ich_ops"], node["och"])
                     node["ich_ops"] = 1
-                    print("#### Changing ops for", node_name, "to", node["ops"], "to avoid bottleneck")
+                    print("#### Changing ops for", name, "to", node["ops"], "to avoid bottleneck")
                     output_name = node["output"][0]
                     output_node_name = io_connect[output_name][1][0]
                     io_dict[output_node_name]["in_ops"] = node["ops"]
@@ -356,13 +356,13 @@ def ilp(io_dict, off_chip_storage, model, board="ULTRA96v2", double_packing=True
                         add_name = node["input"][2]
 
                 add_node_name = io_connect[add_name][0][0]
-                add_ops = io_dict[add_node_name]["ops"]
+                add_ops = io_dict[add_node_name]["ich_ops"]
                 node["add_ops"] = add_ops
 
                 print("#### Add tensor read/write rate for", name, "read", node["ich_ops"], "write", node["add_ops"])
                 if (node["ich_ops"] > node["add_ops"]):
                     node["adjust_add"] = True
-                    node["adjust_add_ops"] = find_higher_mult(node["ich_ops"],node["add_ops"])
+                    node["adjust_add_ops"] = find_common_mult(node["ich_ops"],node["add_ops"])
                     print("#### Found add tensor read/write rate for", name, "read", node["ich_ops"], "write", node["add_ops"], "to avoid bottleneck")
                     print("#### Balancing add tensor for", name, "from", node["add_ops"], "to", node["adjust_add_ops"], "to avoid bottleneck")
                 else:
