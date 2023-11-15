@@ -127,7 +127,11 @@ def parse_all_main(io_dict, dynamic_init=False):
 
         if 'conv' == node["type"]:
             if (node["adjust_line_buffer"]):
-                parsed_write = parsed_write + bandwidth_adjust.parse(name, node)
+                adjust_name = conv.get_input_name(node)
+                parsed_write = parsed_write + bandwidth_adjust.parse(name, node, adjust_name, "in_ops", "adjust_ops", dim="i")
+            if (node["adjust_add"]):
+                adjust_name = conv.get_add_name(node)
+                parsed_write = parsed_write + bandwidth_adjust.parse(name, node, adjust_name, "add_ops", "adjust_add_ops", dim="o")
             parsed_write = parsed_write + line_buffer.parse(name, node)
             if (node["pad"] != 0):
                 parsed_write.append(

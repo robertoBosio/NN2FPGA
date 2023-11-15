@@ -5,17 +5,17 @@ import qonnx
 from onnx import numpy_helper
 import numpy as np
 
-def parse(name, node):
+def parse(name, node, adjust_name, in_ops, adjust_ops, dim="i"):
     
     node_name = "bandwidth_adjust_%s" % name
-    input_name = node["input"][0]
+    input_name = adjust_name
     input_type_name = input_name.replace("_skip", "")
 
     output_name = input_name + "_adj"
     output_type_name = output_name
 
-    old_in_ops = node["in_ops"]
-    node["in_ops"] = node["adjust_ops"]
+    old_in_ops = node[in_ops]
+    node[in_ops] = node[adjust_ops]
 
     block = {}
     block["func"] = "bandwidth_adjust"
@@ -24,12 +24,12 @@ def parse(name, node):
     block["template"] = []
     block["template"].append("t_%s_struct" % input_type_name)
     block["template"].append("t_%s_struct" % output_type_name)
-    block["template"].append("c_%s_ich" % name)
-    block["template"].append("c_%s_iw" % name)
-    block["template"].append("c_%s_ih" % name)
-    block["template"].append("c_%s_ws" % name)
+    block["template"].append("c_%s_%sch" % (node_name, dim))
+    block["template"].append("c_%s_%sw" % (node_name, dim))
+    block["template"].append("c_%s_%sh" % (node_name, dim))
+    block["template"].append("c_%s_ws" % node_name)
     block["template"].append("c_%s_old_in_ops" % node_name)
-    block["template"].append("c_%s_in_ops" % name)
+    block["template"].append("c_%s_in_ops" % node_name)
 
     block["args"] = []
     block["args"].append("s_%s" % input_name)
@@ -38,7 +38,7 @@ def parse(name, node):
     # TODO: write the type declaration
     block["defines"] = {}
     output_type = "t_%s" % output_type_name
-    output_ops = node["adjust_ops"]
+    output_ops = node[adjust_ops]
     output_vector_type = "std::array<t_%s, %0d>" % (input_type_name, output_ops)
     block["defines"]["t_%s_vector" % output_name] = ["type", output_vector_type]
     block["defines"]["t_%s_struct" % output_name] = [
@@ -46,7 +46,12 @@ def parse(name, node):
         [["data", "std::array<t_%s_vector, 1>" % output_name], ["last", "bool"]]
     ]
 
+    block["defines"]["c_%s_%sch" % (node_name, dim)] = ["const", node["%sch" % dim]]
+    block["defines"]["c_%s_%sh" % (node_name, dim)] = ["const", node["%sh" % dim]]
+    block["defines"]["c_%s_%sw" % (node_name, dim)] = ["const", node["%sw" % dim]]
+    block["defines"]["c_%s_ws" % (node_name)] = ["const", node["ws"]]
     block["defines"]["c_%s_old_in_ops" % node_name] = ["const", old_in_ops]
+    block["defines"]["c_%s_in_ops" % node_name] = ["const", output_ops]
 
     block["output"] = []
     block["declare"] = []
