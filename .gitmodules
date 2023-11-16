@@ -1,3 +1,3 @@
 [submodule "test/py/tiny-torch"]
 	path = test/py/tiny-torch
-	url = https://github.com/minnellf/tiny-torch.git
+	url = git@github.com:minnellf/tiny-torch.git
