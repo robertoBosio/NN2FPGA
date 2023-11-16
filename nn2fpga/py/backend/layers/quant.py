@@ -9,7 +9,7 @@ import numpy as np
 def get_quant_constant(signed, bit_width, scale_factor, acc_reg=False):
     return int(bit_width), int(bit_width+scale_factor)
 
-def get_quant_type(signed, bit_width, scale_factor, acc_reg=False):
+def get_quant_type(signed, bit_width, scale_factor, acc_reg=False, narrow=False):
     type_name = ""
     type_name += "ap_fixed" if signed else "ap_ufixed"
     type_name += "<"
@@ -17,9 +17,12 @@ def get_quant_type(signed, bit_width, scale_factor, acc_reg=False):
     type_name += ","
     type_name += str(int(bit_width+scale_factor))
     if acc_reg:
-        type_name += ",AP_RND,AP_WRAP>"
+        type_name += ",AP_RND_ZERO,AP_WRAP>"
     else:
-        type_name += ",AP_RND,AP_SAT>"
+        if narrow:
+            type_name += ",AP_RND_ZERO,AP_SAT_SYM>"
+        else:
+            type_name += ",AP_RND_ZERO,AP_SAT>"
     # type_name += ",AP_TRN,AP_SAT>"
     return type_name
 

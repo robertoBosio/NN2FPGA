@@ -124,7 +124,9 @@ int main(int argc, char** argv) {
   
   std::cout << "Allocated " << c_index * c_batch << " ap_uint<64> for activations." << std::endl;
   std::cout << "Allocated " << CLASSES * c_batch << " ap_uint<8> for output results." << std::endl;
-  std::string path = "/tools/datasets/Imagenet/train/n01440764/";
+  // std::string path = "/tools/datasets/Imagenet/train/n01440764/";
+  // std::string path = "/tools/datasets/Imagenet/train/n01530575/";
+  std::string path = "/home/filippo/workspace/NN2FPGA/test/tb/imagenet/images/n15075141/";
   std::cout << "Taking images from " << path << std::endl;
 
 #ifndef CSIM
@@ -214,6 +216,10 @@ int main(int argc, char** argv) {
             break;
     }
     closedir (dir);
+  } else {
+    /* could not open directory */
+    perror ("");
+    return EXIT_FAILURE;
   }
 
 #ifndef CSIM

@@ -48,7 +48,10 @@ def parse(name, node, debug=False):
             # Template parameters
             block["template"] = []
             if index < ws:
-                block["template"].append("t_%s_struct" % input_type_name)
+                if node["adjust_line_buffer"]:
+                    block["template"].append("t_%s_adj_struct" % input_type_name)
+                else:
+                    block["template"].append("t_%s_struct" % input_type_name)
             else:
                 block["template"].append("t_%s_lb_struct" % input_type_name)
             block["template"].append("t_%s_lb_struct" % input_type_name)
@@ -78,7 +81,10 @@ def parse(name, node, debug=False):
             block["args"] = []
 
             if index < ws:
-                block["args"].append("s_%s[%0d]" % (input_name, (dfw - 1 - fw - pad_value)%ws))
+                if node["adjust_line_buffer"]:
+                    block["args"].append("s_%s_adj[%0d]" % (input_name, (dfw - 1 - fw - pad_value)%ws))
+                else:
+                    block["args"].append("s_%s[%0d]" % (input_name, (dfw - 1 - fw - pad_value)%ws))
                 # block["args"].append("s_%s[%0d]" % (input_name, index))
             else:
                 block["args"].append(

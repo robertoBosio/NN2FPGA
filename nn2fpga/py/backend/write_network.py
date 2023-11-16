@@ -60,8 +60,8 @@ def write_network(
         init_info
     )
 
-    for node_name, node in io_dict.items():
-        print(node_name, node)
+    # for node_name, node in io_dict.items():
+    #     print(node_name, node)
 
     io_dict = balance_computations.ilp(
         io_dict,
@@ -127,6 +127,7 @@ def write_network(
     weights.write(
         io_dict,
         file_name,
+        board,
         prj_root=prj_root
     )
 

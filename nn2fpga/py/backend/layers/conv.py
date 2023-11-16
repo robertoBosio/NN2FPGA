@@ -124,6 +124,17 @@ def info(io_dict, node, node_name, init_info, tensors_info, enable_ws):
 
     return io_dict
 
+def get_input_name(node):
+    return node["input"][0]
+
+def get_add_name(node):
+    has_bias = node["has_bias"]
+    if (has_bias):
+        add_name = node["input"][3]
+    else:
+        add_name = node["input"][2]
+    return add_name
+
 def parse_comp(name, node):
     input_name  = node["input"][0]
     input_type_name = input_name.replace("_skip", "")
@@ -139,10 +150,9 @@ def parse_comp(name, node):
         bias_1x1_name = node["input"][4]
 
     if (node["add"]):
-        if (has_bias):
-            add_name = node["input"][3]
-        else:
-            add_name = node["input"][2]
+        add_name = get_add_name(node)
+        if (node["adjust_add"]):
+            add_name = add_name + "_adj"
         add_type_name = add_name
         # add_type_name = add_name.replace("_skip", "")
 
@@ -239,7 +249,10 @@ def parse_comp(name, node):
     # block["template"].append("c_%s_ops_1x1" % name)
     block["template"].append("c_%s_ich_ops" % name)
     if (node["add"]):
-        block["template"].append("c_%s_add_ops" % add_name)
+        if node["adjust_add"]:
+            block["template"].append(node["adjust_add_ops"])
+        else:
+            block["template"].append("c_%s_add_ops" % add_name)
     else:
         block["template"].append("1")
     block["template"].append("c_%s_relu" % name)
@@ -302,16 +315,23 @@ def parse_comp(name, node):
     ####################################################################################
     block["template"].append("%0d" % node["depth"])
 
-    if (node["depth"] == 1):
-        acc_bits = node["actbits"][0] + node["wbits"][0] + math.ceil(math.log2(node["kernel"]))
+    if (node["in_scale_factor"][0] is not None):
+        actscale = node["in_scale_factor"][0]
+        actbits = node["in_bits"][0]
     else:
-        acc_bits = node["actbits"][0] + node["wbits"][0] + math.ceil(math.log2(node["kernel"]*node["ich"]))
-    # if (has_bias):
-    #     acc_bits += 1
-    # if (node["add"]):
-    #     acc_bits += 1
+        actscale = node["actscale"][0]
+        actbits = node["actbits"][0]
 
-    acc_type = get_quant_type(True, acc_bits, node["actscale"][0]+node["wscale"][0], acc_reg=True)
+    if (node["depth"] == 1):
+        acc_bits = actbits + node["wbits"][0] + math.ceil(math.log2(node["kernel"]))
+    else:
+        acc_bits = actbits + node["wbits"][0] + math.ceil(math.log2(node["kernel"]*node["ich"]))
+    if (has_bias):
+        acc_bits += 1
+    if (node["add"]):
+        acc_bits += 1
+
+    acc_type = get_quant_type(True, acc_bits, actscale+node["wscale"][0], acc_reg=True)
     block["defines"] = {}
     block["defines"]["t_%s_acc" % output_name] = ["type", acc_type]
     block["defines"]["t_%s_acc_struct" % output_name] = [

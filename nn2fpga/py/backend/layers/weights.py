@@ -20,6 +20,9 @@ def parse_on_chip(
     narrow=1,
     dynamic_init=False
 ):
+    # Transforming a filter of dimension [iw][ih][ich][och] into one of
+    # dimension [iw * ih][(ich * och)/ops][ops] where ops is the number 2D convolutions
+    # computed in parallel
 
     dich = node_info["ich"]
     dih  = node_info["ih"]
@@ -232,7 +235,10 @@ def extract_info(
     narrow = new_node["narrow"]
     bw = int(128/bits)
 
-    data_type = get_quant_type(signed, bits, scale_factor)
+    if is_bias:
+        data_type = get_quant_type(signed, bits, scale_factor, narrow=False)
+    else:
+        data_type = get_quant_type(signed, bits, scale_factor, narrow=True)
 
     new_node["data_type"] = data_type
 
@@ -731,49 +737,59 @@ def on_chip_rom(
         block["pragma"].append(pragma)
 
     if uram_storage:
-        interface = 72
+        interface_width = 72
     else:
-        interface = 64
+        interface_width = 64
     
     # FIX: Reducing bias resource usage increasing the produce_stream II
     if node["is_bias"]:
         parallelism = 1
-    else: 
-        parallelism = node["ops"]*node["ich_ops"]
-    
-    divider = interface
-    divider = divider//node["bits"]
-
-    if divider == 1:
         dim_1_reshape_factor = 1
-    else:
-        dim_1_reshape_factor = np.clip(node["ih"]*node["iw"], 1, divider)
-        divider = divider//dim_1_reshape_factor
-
-    if parallelism > divider:
-        dim_3_reshape_factor = divider
-        divider = 1
-    else: 
-        dim_3_reshape_factor = parallelism
-        divider = divider//parallelism
-
-    if dim_3_reshape_factor >= parallelism:
-        dim_3_partition_factor = 1
-    else:
-        dim_3_partition_factor = math.ceil(parallelism/dim_3_reshape_factor)
-
-    if divider > 1:
-        dim_2_reshape_factor = divider
-        divider = 1
-    else:
         dim_2_reshape_factor = 1
-
-    if dim_1_reshape_factor == 1:
-        dim_1_partition_factor = node["ih"]*node["iw"]
-    elif dim_1_reshape_factor < (node["ih"]*node["iw"]):
-        dim_1_partition_factor = math.ceil(node["ih"]*node["iw"]/dim_1_reshape_factor)
-    else:
+        dim_3_reshape_factor = 1
         dim_1_partition_factor = 1
+        dim_3_partition_factor = 1
+    else: 
+        parallelism = node["ops"] * node["ich_ops"]
+
+        # Compute the number of weights fitting a word.
+        divider = interface_width // node["bits"]
+
+        if divider == 1:
+            dim_1_reshape_factor = 1
+        else:
+            # If the weights in a filter do not perfectly fit in a word of the
+            # memory, do not reshape on the first dimension
+            if ((node["ih"] * node["iw"]) % divider) != 0:
+                dim_1_reshape_factor = 1
+            else:
+                dim_1_reshape_factor = np.clip( node["ih"] * node["iw"], 1, divider)
+            divider = divider//dim_1_reshape_factor
+
+        if parallelism > divider:
+            dim_3_reshape_factor = divider
+            divider = 1
+        else: 
+            dim_3_reshape_factor = parallelism
+            divider = divider//parallelism
+
+        if dim_3_reshape_factor >= parallelism:
+            dim_3_partition_factor = 1
+        else:
+            dim_3_partition_factor = math.ceil(parallelism/dim_3_reshape_factor)
+
+        if divider > 1:
+            dim_2_reshape_factor = divider
+            divider = 1
+        else:
+            dim_2_reshape_factor = 1
+
+        if dim_1_reshape_factor == 1:
+            dim_1_partition_factor = node["ih"]*node["iw"]
+        elif dim_1_reshape_factor < (node["ih"]*node["iw"]):
+            dim_1_partition_factor = math.ceil(node["ih"]*node["iw"]/dim_1_reshape_factor)
+        else:
+            dim_1_partition_factor = 1
 
     #######################################################################
 
@@ -905,69 +921,184 @@ def parse_all(io_dict, prj_root="/tmp", board="KRIA"):
     
     parsed_write = []
     
-    # # Opening JSON file
-    # file_path = f"{prj_root}/../nn2fpga/boards/{board}.json"
-    # with open(file_path) as f:
-    #     board_dict = json.load(f)
+    # Opening JSON file
+    file_path = f"{prj_root}/../nn2fpga/boards/{board}.json"
+    with open(file_path) as f:
+        board_dict = json.load(f)
 
-    # # Right now consider the board as a monolithic block 
-    # board_res = {"uram" : 0, "bram" : 0, "dsp" : 0, "lut" : 0, "ff" : 0}
-    # for block in board_dict['resource']:
-    #     for res in block.keys():
-    #         if res in board_res:
-    #             board_res[res] += block[res]
+    # Right now consider the board as a monolithic block 
+    board_res = {"uram" : 0, "bram" : 0, "dsp" : 0, "lut" : 0, "ff" : 0}
+    for block in board_dict['resource']:
+        for res in block.keys():
+            if res in board_res:
+                board_res[res] += block[res]
     
     # Check if there is URAM storage
     dynamic_init = False
-    
-    # # Useful space in BRAM. Each BRAM is 36kb with a maximum word width of 72 bits,
-    # # in which 8 are reserved to ECC code
-    # SIZE_BRAM = ((36 * 1024) / 72) * 64
-    
-    # # Useful space in URAM. Each URAM is 288kb with a maximum word width of 72 bits,
-    # # in which 8 are reserved to ECC code
-    # SIZE_URAM = ((288 * 1024) / 72) * 64
 
-    # n_weights = {}
-    # used_uram = used_bram = 0
-    # for name, node in io_dict.items():
-    #     if ('const' == node["type"]) and node["dynamic_init"]:
-    #         n_weights[name] = node["n_weights"]*node["bits"]/8
-    #         n_mem = math.ceil((node["ops"] * node["bits"]) / 64)
-    #         n_uram = math.ceil((node['n_weights'] * node["bits"]) / SIZE_URAM)
-    #         n_bram = math.ceil((node['n_weights'] * node["bits"]) / SIZE_BRAM)
-    #         if (n_uram < n_mem):
-    #             n_uram = n_mem
-    #         if (n_bram < n_mem):
-    #             n_bram = n_mem
-    #         # wasted_uram = n_uram * SIZE_URAM - (node['n_weights'] * node["bits"])
-    #         # wasted_bram = n_bram * SIZE_BRAM - (node['n_weights'] * node["bits"])
-    #         fit_uram = (used_uram + n_uram) < board_res["uram"]
-    #         fit_bram = (used_bram + n_bram) < board_res["bram"]
-    #         if (not fit_bram and not fit_uram):
-    #             print("There is not enough space.")
-    #             exit(-1)
-    #         elif ((fit_bram and fit_uram and n_uram != n_bram) or not fit_bram):
-    #             used_uram += n_uram
-    #             print(f"P:{node['ops']} of {node['bits']} bits. {node['n_weights']} weights. Used {n_uram} urams over {n_bram} brams.")
-    #         else:
-    #             used_bram += n_bram
-    #             print(f"P:{node['ops']} of {node['bits']} bits. {node['n_weights']} weights. Used {n_bram} brams over {n_uram} urams.")
+    # Useful space in BRAM18. Each BRAM18 is 18kb with a maximum word width of
+    # 36 bits, in which 4 bits are reserved to ECC code
+    SIZE_BRAM18 = ((18 * 1024) / 36) * 32
+    
+    # Useful space in BRAM36, composed by two BRAM18.
+    SIZE_BRAM36 = SIZE_BRAM18 * 2
+    
+    # Useful space in URAM. Each URAM is 288kb with a maximum word width of 72
+    # bits.
+    SIZE_URAM = (288 * 1024)
 
-    # print(f"Totally used {used_bram} BRAMs and {used_uram} URAMs.")
-    # # Sort in descending order
+    n_weights = {}
+    DSPs = 0
+    used_uram = used_bram = 0
+    print(board_res)
+    for name, node in io_dict.items():
+        if ('const' == node["type"]) and node["dynamic_init"]:
+            n_weights[name] = node["n_weights"] * node["bits"] / 8
+            
+            # Number of weights needed in parallel for each clock cycle, which is
+            # computed as the number of filter needed to achieved the parallelism
+            # on input and output channel multiplied by the dimension of the
+            # filter
+            if not node["is_bias"]:
+                w_par = node["ops"] * node ["ich_ops"] * node["ih"] * node["iw"]
+                w_par_bits = w_par * node["bits"]
+                DSPs += w_par
+                target_pragmas = 0
+
+                n_mem_bram = math.ceil(w_par_bits / 64)
+                n_mem_uram = math.ceil(w_par_bits / 72)
+                n_uram = math.ceil((node['n_weights'] * node["bits"]) / SIZE_URAM)
+                n_bram = math.ceil((node['n_weights'] * node["bits"]) / SIZE_BRAM36)
+                if (n_uram < n_mem_uram):
+                    n_uram = n_mem_uram
+                if (n_bram < n_mem_bram):
+                    n_bram = n_mem_bram
+                # wasted_uram = n_uram * SIZE_URAM - (node['n_weights'] * node["bits"])
+                # wasted_bram = n_bram * SIZE_BRAM - (node['n_weights'] * node["bits"])
+                fit_uram = (used_uram + n_uram) <= board_res["uram"]
+                fit_bram = (used_bram + n_bram) <= board_res["bram"]
+                # fit_uram = True
+                # fit_bram = True
+                if (not fit_bram and not fit_uram):
+                    print("There is not enough space.")
+                    exit(-1)
+                elif ((fit_bram and fit_uram and n_uram < n_bram) or not fit_bram):
+                    used_uram += n_uram
+                    target_pragmas = n_uram
+                    print(f"{name} P:{w_par} of {node['bits']}b. {node['n_weights']}. {n_uram}U {n_bram}B.")
+                    io_dict[name]["uram_storage"] = True
+                    bandwidth = 72
+                else:
+                    used_bram += n_bram
+                    target_pragmas = n_bram
+                    print(f"{name} P:{w_par} of {node['bits']}b. {node['n_weights']}. {n_bram}B {n_uram}U.")
+                    io_dict[name]["uram_storage"] = False
+                    bandwidth = 64
+                
+                # Pragma section
+                reshape_factor = bandwidth // node["bits"]
+                partition_factor = math.ceil(w_par_bits / bandwidth)
+                actual_bandwidth = node["bits"]
+                actual_ports = 1
+                reshape_pragma = [ 1, 1, 1 ]
+                partition_pragma = [ 1, 1, 1 ]
+                dim = [ 1, 1, 1 ]
+                dim[0] = node["ih"] * node ["iw"]
+                dim[2] = node["ops"] * node ["ich_ops"]
+                dim[1] = (node["n_weights"] // dim[0]) // dim[2]
+                print(f"Starting from {actual_ports}x mem[{dim[0]}][{dim[1]}][{dim[2]}] x {actual_bandwidth}. ") 
+
+                # Try perfectly fitting reshaping only on dimension 1 and 3
+                order = [2, 0, 1]
+                index = 0
+                while (reshape_factor != 1):
+                   
+                   # Dimension under consideration for reshaping
+                    curr_dim = order[index]
+                    d = dim[curr_dim]
+
+                    reshape_fit = (reshape_factor % d) == 0
+                    reshape_fit |= (d % reshape_factor) == 0
+                    reshape_fit &= d != 1
+                    if (reshape_fit):
+                        reshape_pragma[curr_dim] *= np.clip(reshape_factor, 1, d)
+                        reshape_factor = reshape_factor // reshape_pragma[curr_dim]
+                        dim[curr_dim] //= reshape_pragma[curr_dim]
+                        print(f" - Reshape dim={curr_dim} factor={reshape_pragma[curr_dim]}, ", end="")
+                        actual_bandwidth = actual_bandwidth * reshape_pragma[curr_dim]
+                        print(f"{actual_ports}x mem[{dim[0]}][{dim[1]}][{dim[2]}] x {actual_bandwidth}. ") 
+                    
+                    if (dim[curr_dim]) == 1 or not reshape_fit:
+                        index += 1
+                        if (index == 2):
+                            break;
+
+                # Push for not perfectly fitting reshaping, wasting space 
+                index = 0
+                while (reshape_factor != 1):
+                   
+                   # Dimension under consideration for reshaping
+                    curr_dim = order[index]
+                    d = dim[curr_dim]
+
+                    reshape_fit = (d != 1 and d > reshape_factor)
+                    if (reshape_fit):
+                        curr_reshape = np.clip(reshape_factor, 1, d)
+                        reshape_pragma[curr_dim] *= curr_reshape
+                        reshape_factor = 1
+                        dim[curr_dim] = math.ceil(dim[curr_dim] / curr_reshape)
+                        print(f" - Reshape dim={curr_dim} factor={reshape_pragma[curr_dim]}, ", end="")
+                        actual_bandwidth = actual_bandwidth * reshape_pragma[curr_dim]
+                        print(f"{actual_ports}x mem[{dim[0]}][{dim[1]}][{dim[2]}] x {actual_bandwidth}. ") 
+                    
+                    if (dim[curr_dim]) == 1 or not reshape_fit:
+                        index += 1
+                        if (index == 3):
+                            break;
+
+                # Partitoning 
+                index = 0
+                while (partition_factor > 1):
+                   
+                   # Dimension under consideration for reshaping
+                    curr_dim = order[index]
+                    d = dim[curr_dim]
+
+                    partition_fit = (partition_factor % d) == 0
+                    partition_fit |= (d % partition_factor) == 0
+                    partition_fit &= d != 1
+                    if (partition_fit):
+                        curr_partition = np.clip(partition_factor, 1, d)
+                        partition_pragma[curr_dim] *= curr_partition
+                        partition_factor = partition_factor // curr_partition
+                        dim[curr_dim] = dim[curr_dim] // curr_partition
+                        print(f" - Partition dim={curr_dim} factor={partition_pragma[curr_dim]}, ", end="")
+                        actual_ports = actual_ports * partition_pragma[curr_dim]
+                        print(f"{actual_ports}x mem[{dim[0]}][{dim[1]}][{dim[2]}] x {actual_bandwidth}. ") 
+                    
+                    if (dim[curr_dim]) == 1 or not partition_fit:
+                        index += 1
+                        if (index == 2):
+                            break;
+
+                if (partition_factor > 1 or reshape_factor > 1):
+                    "PARALLELISM NOT ACHIEVED"
+                elif (target_pragmas != actual_ports):
+                    "ERROR"
+
+    print(f"Totally used {used_bram} BRAMs and {used_uram} URAMs, {DSPs} DSPs.")
+    # Sort in descending order
     # n_weights = {k: v for k, v in sorted(n_weights.items(), key=lambda item: item[1], reverse=True)}
-    # #print(n_weights) 
+    #print(n_weights) 
 
-    # # Count the number of URAMs and remove the layers that do not fit
+    # Count the number of URAMs and remove the layers that do not fit
     # uram_count = 0
     # MAX_COUNT = board_res['uram']
     # for name, node in n_weights.items():
     #     uram_count = uram_count + math.ceil(node/36864)
+    #     # print(f"{name} before: {io_dict[name]['uram_storage']}, now {uram_count < MAX_COUNT}")
     #     if uram_count > MAX_COUNT:
     #         io_dict[name]["uram_storage"] = False
-
-    
     for name, node in io_dict.items():
 
         if ('const' == node["type"]) and node["dynamic_init"]:
@@ -1044,9 +1175,9 @@ def footer(file_name, parsed_write, prj_root="/tmp"):
         fd.write("\n")
         fd.write("#endif")
 
-def write(io_dict, network_name, prj_root="/tmp"):
+def write(io_dict, network_name, board="KRIA", prj_root="/tmp"):
 
-    parsed_write = parse_all(io_dict, prj_root)
+    parsed_write = parse_all(io_dict, prj_root, board)
 
     uram_layer_include = False
     for layer in parsed_write:
