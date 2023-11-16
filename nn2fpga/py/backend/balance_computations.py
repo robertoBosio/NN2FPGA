@@ -285,6 +285,8 @@ def ilp(io_dict, off_chip_storage, model, board="ULTRA96v2", double_packing=True
             cycles_line_buffer = node["ih"]*node["iw"]*node["ich"] // node["ich_ops"]
             if not node["depth"]:
                 cycles_computation = (node["oh"]*node["ow"]*node["och"]*node["ich"]) // (node["ops"]*node["ich_ops"])
+            elif node["depth"]:
+                cycles_computation = (node["oh"]*node["ow"]*node["och"]) // (node["ich_ops"])
             else:
                 continue
 
@@ -294,11 +296,15 @@ def ilp(io_dict, off_chip_storage, model, board="ULTRA96v2", double_packing=True
                 continue
             
             # If not paralllizing on the input channels
-            mult_factor = find_higher_mult(io_dict[name]["ich"]//node["ich_ops"], mult_factor)
-            node["ich_ops"] = mult_factor*node["ich_ops"]
-            node["ops"] = find_higher_mult(node["ops"], node["ops"]//mult_factor)
-            if node["ops"] == 0:
-                node["ops"] = 1
+            if node["depth"]:
+                mult_factor = find_higher_mult(io_dict[name]["ich"]//node["ich_ops"], mult_factor)
+                node["ich_ops"] = mult_factor*node["ich_ops"]
+            else:
+                mult_factor = find_higher_mult(io_dict[name]["ich"]//node["ich_ops"], mult_factor)
+                node["ich_ops"] = mult_factor*node["ich_ops"]
+                node["ops"] = find_higher_mult(node["ops"], node["ops"]//mult_factor)
+                if node["ops"] == 0:
+                    node["ops"] = 1
 
             output_name = node["output"][0]
             output_node_name = io_connect[output_name][1][0]
