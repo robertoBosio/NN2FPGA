@@ -8,6 +8,7 @@ from backend.ilp_utils import find_divisors
 from backend.ilp_utils import find_range
 from backend.ilp_utils import find_higher_mult
 from backend.ilp_utils import find_lower_mult
+from backend.ilp_utils import find_common_mult
 from backend.graph import extract_connections
 
 def parallel_ops_number(layers_info, worst_index, board="ULTRA96v2", prj_root="/tmp"):
@@ -284,6 +285,8 @@ def ilp(io_dict, off_chip_storage, model, board="ULTRA96v2", double_packing=True
             cycles_line_buffer = node["ih"]*node["iw"]*node["ich"] // node["ich_ops"]
             if not node["depth"]:
                 cycles_computation = (node["oh"]*node["ow"]*node["och"]*node["ich"]) // (node["ops"]*node["ich_ops"])
+            elif node["depth"]:
+                cycles_computation = (node["oh"]*node["ow"]*node["och"]) // (node["ich_ops"])
             else:
                 continue
 
@@ -293,11 +296,15 @@ def ilp(io_dict, off_chip_storage, model, board="ULTRA96v2", double_packing=True
                 continue
             
             # If not paralllizing on the input channels
-            mult_factor = find_higher_mult(io_dict[name]["ich"]//node["ich_ops"], mult_factor)
-            node["ich_ops"] = mult_factor*node["ich_ops"]
-            node["ops"] = find_higher_mult(node["ops"], node["ops"]//mult_factor)
-            if node["ops"] == 0:
-                node["ops"] = 1
+            if node["depth"]:
+                mult_factor = find_higher_mult(io_dict[name]["ich"]//node["ich_ops"], mult_factor)
+                node["ich_ops"] = mult_factor*node["ich_ops"]
+            else:
+                mult_factor = find_higher_mult(io_dict[name]["ich"]//node["ich_ops"], mult_factor)
+                node["ich_ops"] = mult_factor*node["ich_ops"]
+                node["ops"] = find_higher_mult(node["ops"], node["ops"]//mult_factor)
+                if node["ops"] == 0:
+                    node["ops"] = 1
 
             output_name = node["output"][0]
             output_node_name = io_connect[output_name][1][0]
@@ -354,11 +361,50 @@ def ilp(io_dict, off_chip_storage, model, board="ULTRA96v2", double_packing=True
                 if (node["och"]//node["ops"]) > node["ich_ops"]:
                     node["ops"] = find_lower_mult(node["ops"]*node["ich_ops"], node["och"])
                     node["ich_ops"] = 1
-                    print("#### Changing ops for", node_name, "to", node["ops"], "to avoid bottleneck")
+                    print("#### Changing ops for", name, "to", node["ops"], "to avoid bottleneck")
                     output_name = node["output"][0]
                     output_node_name = io_connect[output_name][1][0]
                     io_dict[output_node_name]["in_ops"] = node["ops"]
 
+    # Check for necessary bandwidth adjustements for the line buffer
+    line_buffer_layers = ["conv", "pool"]
+    for name, node in io_dict.items():
+        if node["type"] in line_buffer_layers:
+            if (node["in_ops"] % node["ich_ops"]) != 0:
+                node["adjust_line_buffer"] = True
+                node["adjust_ops"] = find_common_mult(node["in_ops"],node["ich_ops"])
+                print("#### Found line buffer read/write rate for", name, "read", node["in_ops"], "write", node["ich_ops"], "to avoid bottleneck")
+                print("#### Balancing line buffer for", name, "from", node["in_ops"], "to", node["adjust_ops"], "to avoid bottleneck")
+            else:
+                node["adjust_line_buffer"] = False
+    
+    # Check for necessary bandwidth adjustements for the add stream
+    for name, node in io_dict.items():
+        if node["type"] == "conv":
+            if node["add"]:
+
+                # obtain ops parallelism for the add stream
+                if (node["add"]):
+                    if (node["has_bias"]):
+                        add_name = node["input"][3]
+                    else:
+                        add_name = node["input"][2]
+
+                add_node_name = io_connect[add_name][0][0]
+                add_ops = io_dict[add_node_name]["ich_ops"]
+                node["add_ops"] = add_ops
+
+                print("#### Add tensor read/write rate for", name, "read", node["ich_ops"], "write", node["add_ops"])
+                if (node["ich_ops"] > node["add_ops"]):
+                    node["adjust_add"] = True
+                    node["adjust_add_ops"] = find_common_mult(node["ich_ops"],node["add_ops"])
+                    print("#### Found add tensor read/write rate for", name, "read", node["ich_ops"], "write", node["add_ops"], "to avoid bottleneck")
+                    print("#### Balancing add tensor for", name, "from", node["add_ops"], "to", node["adjust_add_ops"], "to avoid bottleneck")
+                else:
+                    node["adjust_add"] = False
+            else:
+                node["adjust_add"] = False
+    
     print_layers = ["conv", "pool"]
     for name, node in io_dict.items():
         # print ops and ich_ops for conv and pool layers

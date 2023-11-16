@@ -124,6 +124,17 @@ def info(io_dict, node, node_name, init_info, tensors_info, enable_ws):
 
     return io_dict
 
+def get_input_name(node):
+    return node["input"][0]
+
+def get_add_name(node):
+    has_bias = node["has_bias"]
+    if (has_bias):
+        add_name = node["input"][3]
+    else:
+        add_name = node["input"][2]
+    return add_name
+
 def parse_comp(name, node):
     input_name  = node["input"][0]
     input_type_name = input_name.replace("_skip", "")
@@ -139,10 +150,9 @@ def parse_comp(name, node):
         bias_1x1_name = node["input"][4]
 
     if (node["add"]):
-        if (has_bias):
-            add_name = node["input"][3]
-        else:
-            add_name = node["input"][2]
+        add_name = get_add_name(node)
+        if (node["adjust_add"]):
+            add_name = add_name + "_adj"
         add_type_name = add_name
         # add_type_name = add_name.replace("_skip", "")
 
@@ -239,7 +249,10 @@ def parse_comp(name, node):
     # block["template"].append("c_%s_ops_1x1" % name)
     block["template"].append("c_%s_ich_ops" % name)
     if (node["add"]):
-        block["template"].append("c_%s_add_ops" % add_name)
+        if node["adjust_add"]:
+            block["template"].append(node["adjust_add_ops"])
+        else:
+            block["template"].append("c_%s_add_ops" % add_name)
     else:
         block["template"].append("1")
     block["template"].append("c_%s_relu" % name)

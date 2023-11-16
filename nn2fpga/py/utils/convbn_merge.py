@@ -18,11 +18,15 @@ def fuse_layers(model) :
     idx_layer_to_fuse = 0
     for name, module in model.named_children() :
         if(len(list(module.children()))) > 0 :
+            print("Exploring block: ", name)
             fuse_layers(module) 
-        if(isinstance(module, torch.nn.Conv2d)) :
+        # if(isinstance(module, torch.nn.Conv2d)) :
+        if(isinstance(module, brevitas.nn.QuantConv2d)) :
+            print("Detected conv layer: ", name)
             conv_tmp = module
             name_tmp = name
         if(isinstance(module, torch.nn.BatchNorm2d)) :
+            print("Fusing layer: ", name_tmp, " and ", name)
             bn_tmp = module
             merge_bn(conv_tmp, bn_tmp)
             setattr(model, name_tmp, conv_tmp)

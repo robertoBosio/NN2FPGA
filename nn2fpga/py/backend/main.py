@@ -12,6 +12,7 @@ import backend.layers.input_gen as input_gen
 import backend.layers.output_gen as output_gen
 import backend.layers.detect as detect
 import backend.layers.non_max_suppression as non_max_suppression
+import backend.layers.bandwidth_adjust as bandwidth_adjust
 from backend.utils import *
 
 def init(file_name, parsed_write, object_detection=False, prj_root="/tmp"):
@@ -125,6 +126,12 @@ def parse_all_main(io_dict, dynamic_init=False):
             continue
 
         if 'conv' == node["type"]:
+            if (node["adjust_line_buffer"]):
+                adjust_name = conv.get_input_name(node)
+                parsed_write = parsed_write + bandwidth_adjust.parse(name, node, adjust_name, "in_ops", "adjust_ops", dim="i")
+            if (node["adjust_add"]):
+                adjust_name = conv.get_add_name(node)
+                parsed_write = parsed_write + bandwidth_adjust.parse(name, node, adjust_name, "add_ops", "adjust_add_ops", dim="o")
             parsed_write = parsed_write + line_buffer.parse(name, node)
             if (node["pad"] != 0):
                 parsed_write.append(

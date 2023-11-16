@@ -12,6 +12,7 @@ cudnn.benchmark = True
 import torchvision
 
 from models.resnet_brevitas_fx import *
+from models.test_depthwise import QuantizedCifar10Net
 from utils.preprocess import *
 from utils.bar_show import progress_bar
 
@@ -20,9 +21,9 @@ parser = argparse.ArgumentParser(description='brevitas_resnet fx implementation'
 
 parser.add_argument('--root_dir', type=str, default='./')
 parser.add_argument('--data_dir', type=str, default='./data')
-parser.add_argument('--log_name', type=str, default='resnetq_8w8f_cifar_fx')
+parser.add_argument('--log_name', type=str, default='network_fx')
 parser.add_argument('--pretrain', action='store_true', default=False)
-parser.add_argument('--pretrain_dir', type=str, default='resnetq_8w8f_cifar_fx')
+parser.add_argument('--pretrain_dir', type=str, default='network_fx')
 
 parser.add_argument('--cifar', type=int, default=10)
 parser.add_argument('--lr', type=float, default=0.01)
@@ -69,12 +70,13 @@ def main():
 
     print('===> Building ResNet..')
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    model = resnet20(wbit=cfg.Wbits,abit=cfg.Abits).to(device)
+    # model = resnet20(wbit=cfg.Wbits,abit=cfg.Abits).to(device)
+    model = QuantizedCifar10Net().to(device)
 
     if device == 'cuda':
         print("USING CUDA")
-        model = torch.nn.DataParallel(model)
-        cudnn.benchmark = True
+        # model = torch.nn.DataParallel(model)
+        # cudnn.benchmark = True
     else :
         print("USING CPU")
     optimizer = torch.optim.SGD(model.parameters(), lr=cfg.lr, momentum=0.9, weight_decay=cfg.wd)
