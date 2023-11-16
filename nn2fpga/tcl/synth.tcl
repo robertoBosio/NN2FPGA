@@ -60,7 +60,7 @@ if {${CSIM} == 1} {
 if {${BOARD} == "PYNQ" || ${BOARD} == "ZC706"} { 
   create_clock -period 7
 } else {
-  create_clock -period 5
+  create_clock -period 3.333
 }
 
 # config_interface -m_axi_max_widen_bitwidth 0
