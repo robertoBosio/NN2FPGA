@@ -116,9 +116,13 @@ class MobileNetV1(nn.Module):
             nn.AdaptiveAvgPool2d(1)
         )
 
-        self.classifier = nn.Sequential(
-            conv(16 * num_filters, num_classes)
-        )
+        self.classifier = qnn.QuantConv2d(16 * num_filters, num_classes,
+                kernel_size=(1, 1), bias=False,
+                weight_quant = Int8WeightPerTensorFixedPoint,
+                input_quant = Int8ActPerTensorFixedPoint,
+                output_quant = Int8ActPerTensorFixedPoint,
+                bias_quant=Int16Bias,
+                )
 
     def forward(self, x):
         x = self.features(x)

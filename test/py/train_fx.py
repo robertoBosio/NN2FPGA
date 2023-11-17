@@ -80,7 +80,8 @@ def main():
     model.to(device)
 
     criterion = torch.nn.CrossEntropyLoss()
-    optimizer = optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=wd)
+    # optimizer = optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=wd)
+    optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=wd)
 
     
     if pretrain:
@@ -112,7 +113,8 @@ def main():
             for inputs, targets in tepoch:
                 inputs, targets = inputs.to(device), targets.to(device)
                 optimizer.zero_grad()
-                outputs = model(inputs).view(model(inputs).size(0),-1)
+                outputs = model(inputs)
+                outputs = outputs.view(outputs.size(0),-1)
                 loss = criterion(outputs, targets)
                 loss.backward()
                 optimizer.step()
