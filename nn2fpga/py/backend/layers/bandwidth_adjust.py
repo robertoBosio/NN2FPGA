@@ -7,7 +7,7 @@ import numpy as np
 
 def parse(name, node, adjust_name, in_ops, adjust_ops, dim="i"):
     
-    node_name = "bandwidth_adjust_%s" % name
+    node_name = "bandwidth_adjust_%s" % adjust_name
     input_name = adjust_name
     # input_type_name = input_name.replace("_skip", "")
     input_type_name = input_name

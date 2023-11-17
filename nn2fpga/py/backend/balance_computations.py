@@ -126,6 +126,7 @@ def parallel_ops_number(layers_info, worst_index, board="ULTRA96v2", prj_root="/
         parallel_op[layers_info[i]["name"]] = high_range
         # print(all_divisors[layers_offset[i]:layers_offset[i]+layers_divisors[i]], data, low_range, high_range, layers_info[i][5], layers_info[i][6])
 
+    print(f"DSP before: {sum(parallel_op.values())}")
     return parallel_op
 
 def ilp(io_dict, off_chip_storage, model, board="ULTRA96v2", double_packing=True, prj_root="/tmp"):

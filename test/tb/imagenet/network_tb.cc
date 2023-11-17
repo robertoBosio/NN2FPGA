@@ -124,9 +124,9 @@ int main(int argc, char** argv) {
   
   std::cout << "Allocated " << c_index * c_batch << " ap_uint<64> for activations." << std::endl;
   std::cout << "Allocated " << CLASSES * c_batch << " ap_uint<8> for output results." << std::endl;
-  // std::string path = "/tools/datasets/Imagenet/train/n01440764/";
+  std::string path = "/tools/datasets/Imagenet/train/n01440764/";
   // std::string path = "/tools/datasets/Imagenet/train/n01530575/";
-  std::string path = "/home/filippo/workspace/NN2FPGA/test/tb/imagenet/images/n15075141/";
+  // std::string path = "/home/filippo/workspace/NN2FPGA/test/tb/imagenet/images/n15075141/";
   std::cout << "Taking images from " << path << std::endl;
 
 #ifndef CSIM
@@ -176,11 +176,11 @@ int main(int argc, char** argv) {
                 // for (int c = 2; c > -1; c--) {
                     //std::cout << (int)pixel[c] << std::endl;
                     int s_par = (s_bytes % ACTIVATION_PARALLELISM);
-                    if (s_par == 0) {
-                      std::cout << "Packet: ";
-                    }
+                    // if (s_par == 0) {
+                    //   std::cout << "Packet: ";
+                    // }
                     t_transform tmp = (float)pixel[c];
-                    std::cout << tmp << " ";
+                    // std::cout << tmp << " ";
                     t_net_produce_2 tmp2 = tmp;
                     s_data.range(8 * (s_par + 1) - 1, 8 * s_par) = tmp2.range(7,0);
 
@@ -190,7 +190,7 @@ int main(int argc, char** argv) {
 
                     if (s_par == (c_par - 1)) {
                         mem_activations[mem_activations_p++] = s_data;
-                        std::cout << std::endl;
+                        // std::cout << std::endl;
                     }
 
                     s_bytes++;
