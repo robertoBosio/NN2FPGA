@@ -1,12 +1,6 @@
-import torch
-import onnx
 import sys
 import os
 from backend.write_network import write_network
-import network_graph
-# import models.resnet20 as resnet20
-import models.resnet_brevitas_int as resnet20
-import torchvision
 from qonnx.core.modelwrapper import ModelWrapper
 from qonnx.transformation import infer_shapes
 from qonnx.core.datatype import DataType
