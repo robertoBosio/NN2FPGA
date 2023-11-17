@@ -83,7 +83,7 @@ csynth_design
 export_design -flow syn
 
 if {${COSIM} == 1} {
-  cosim_design
+  cosim_design -trace_level all
 }
 
 exit
