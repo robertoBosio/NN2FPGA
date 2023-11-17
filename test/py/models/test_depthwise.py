@@ -379,20 +379,3 @@ class QuantizedCifar10Net(nn.Module):
         x = self.features(x)
         x = self.classifier(x)
         return x
-
-# Example usage:
-
-# Create an instance of the QuantizedCifar10Net
-net = QuantizedCifar10Net()
-
-# Print the network architecture
-print(net)
-
-# Create a random input tensor
-input_tensor = torch.randn(1, 3, 32, 32)
-
-# Pass the input tensor through the network
-output_tensor = net(input_tensor)
-
-# Print the output tensor shape
-print(output_tensor.shape)

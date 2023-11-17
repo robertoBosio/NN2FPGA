@@ -135,3 +135,18 @@ def get_imagenet_iter_torch(type, image_dir, batch_size, num_threads, device_id,
         dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=False, num_workers=num_threads,
                                                  pin_memory=True)
     return dataloader
+
+def vww_transform(is_training=True, IMAGE_SIZE=128):
+    return transforms.Compose([
+        # transforms.RandomRotation(10),
+        # transforms.RandomHorizontalFlip(),
+        # transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4),
+        # transforms.Resize((IMAGE_SIZE, IMAGE_SIZE)),
+        # transforms.ToTensor(),
+        # transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+        transforms.Resize((IMAGE_SIZE, IMAGE_SIZE)),
+        transforms.ToTensor(),
+        # normalize between 0 and 1
+        transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5,0.5,0.5])
+        # transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+    ])
