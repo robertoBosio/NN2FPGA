@@ -381,7 +381,7 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
     else
       std::cout << "conv_op " << c_ich << " " << c_ops << " " << c_in_ops << std::endl;
     if constexpr(std::is_same<t_add_struct, std::nullptr_t>::value == false)
-      std::cout << "#### The convolution has bias" << std::endl;
+      std::cout << "#### The convolution has add" << std::endl;
     std::cout << "s_input.size() = " << i_input[0].size() << std::endl;
   #endif
 
