@@ -381,7 +381,7 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
     else
       std::cout << "conv_op " << c_ich << " " << c_ops << " " << c_in_ops << std::endl;
     if constexpr(std::is_same<t_add_struct, std::nullptr_t>::value == false)
-      std::cout << "#### The convolution has bias" << std::endl;
+      std::cout << "#### The convolution has add" << std::endl;
     std::cout << "s_input.size() = " << i_input[0].size() << std::endl;
   #endif
 
@@ -392,7 +392,7 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
         auto s_reuse = s_iter % c_reuse_iter;
         auto s_num_och = s_iter / c_reuse_iter;
 
-        if ((s_num_och == 0)) {
+        if (s_num_och == 0) {
           t_input_struct s_input_struct = i_input[0].read();
           #pragma HLS array_partition variable=s_input_struct.data type=complete
           s_input = s_input_struct.data;
@@ -402,7 +402,7 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
 
           /* Buffering to speed up computations */
           /* TODO: Adjust for generic bit quantizations */
-        if ((s_reuse == 0)) {
+        if (s_reuse == 0) {
           for (auto s_index = 0; s_index < c_index; s_index++) {
             s_weight[s_index] = i_weights[s_index].read();
           }
