@@ -29,10 +29,10 @@ class CommonUintActQuant(Uint8ActPerTensorFloatMaxInit):
     max_val = 6.0
     restrict_scaling_type = RestrictValueType.LOG_FP
 
-def conv(in_channels, out_channels, kernel_size=3, stride=1, padding=1, groups=1, bias=False, weight_bits=8, act_bits=8):
+def conv(in_channels, out_channels, kernel_size, stride=1, padding=1, groups=1, bias=False, weight_bits=8, act_bits=8):
     return qnn.QuantConv2d(
         in_channels, out_channels, 
-        kernel_size=(kernel_size, kernel_size),
+        kernel_size=kernel_size,
         weight_bit_width=weight_bits,
         input_bit_width=act_bits,
         outut_bit_width=act_bits,
@@ -45,6 +45,45 @@ def conv(in_channels, out_channels, kernel_size=3, stride=1, padding=1, groups=1
         input_quant=Int8ActPerTensorFixedPoint,
         output_quant=Int8ActPerTensorFixedPoint,
     )
+
+def depthwise_separable_conv(in_channels, out_channels, kernel_size, stride=1, padding=1, bias=False, weight_bits=8, act_bits=8):
+    return nn.Sequential(
+        qnn.QuantConv2d(
+            in_channels,in_channels, 
+            kernel_size=kernel_size,
+            weight_bit_width=weight_bits,
+            input_bit_width=act_bits,
+            outut_bit_width=act_bits,
+            stride=stride,
+            padding=padding, 
+            bias=bias, 
+            groups=in_channels,
+            weight_quant= Int8WeightPerTensorFixedPoint,
+            bias_quant=Int16Bias,
+            input_quant=Int8ActPerTensorFixedPoint,
+            output_quant=Int8ActPerTensorFixedPoint,
+        ),
+        nn.BatchNorm2d(in_channels),
+        relu(),
+        qnn.QuantConv2d(
+            in_channels, out_channels, 
+            kernel_size=1,
+            weight_bit_width=weight_bits,
+            input_bit_width=act_bits,
+            outut_bit_width=act_bits,
+            stride=1,
+            padding=0, 
+            bias=bias, 
+            groups=1,
+            weight_quant= Int8WeightPerTensorFixedPoint,
+            bias_quant=Int16Bias,
+            input_quant=Int8ActPerTensorFixedPoint,
+            output_quant=Int8ActPerTensorFixedPoint,
+        ),
+        nn.BatchNorm2d(out_channels),
+        relu(),
+    )
+
 
 def relu(bit_width=8):
     return qnn.QuantReLU(
@@ -64,59 +103,42 @@ class MobileNetV1(nn.Module):
         self.num_filters = num_filters
 
         self.features = nn.Sequential(
+            # 1st depthwise
             conv(3, num_filters, kernel_size=3, stride=2, padding=1, bias=False),
             nn.BatchNorm2d(num_filters),
             relu(),
 
-            conv(num_filters, num_filters, kernel_size=3, stride=1, padding=1, groups=num_filters, bias=False),
-            nn.BatchNorm2d(num_filters),
-            relu(),
-            conv(num_filters, 2 * num_filters, kernel_size=1, stride=1, padding=0, bias=False),
-            nn.BatchNorm2d(2 * num_filters),
-            relu(),
-
-            conv(2 * num_filters, 2 * num_filters, kernel_size=3, stride=2, padding=1, groups=2 * num_filters, bias=False),
-            nn.BatchNorm2d(2 * num_filters),
-            relu(),
-            conv(2 * num_filters, 4 * num_filters, kernel_size=1, stride=1, padding=0, bias=False),
-            nn.BatchNorm2d(4 * num_filters),
-            relu(),
-
-            conv(4 * num_filters, 4 * num_filters, kernel_size=3, stride=1, padding=1, groups=4 * num_filters, bias=False),
-            nn.BatchNorm2d(4 * num_filters),
-            relu(),
-            conv(4 * num_filters, 4 * num_filters, kernel_size=1, stride=1, padding=0, bias=False),
-            nn.BatchNorm2d(4 * num_filters),
-            relu(),
-
-            conv(4 * num_filters, 8 * num_filters, kernel_size=3, stride=2, padding=1, groups=4 * num_filters, bias=False),
-            nn.BatchNorm2d(8 * num_filters),
-            relu(),
-            conv(8 * num_filters, 8 * num_filters, kernel_size=1, stride=1, padding=0, bias=False),
-            nn.BatchNorm2d(8 * num_filters),
-            relu(),
-
-            # Repeat identical depthwise separable convs (8th-12th layers)
-            self._make_depthwise_block(8 * num_filters),
-            self._make_depthwise_block(8 * num_filters),
-            self._make_depthwise_block(8 * num_filters),
-            self._make_depthwise_block(8 * num_filters),
-            self._make_depthwise_block(8 * num_filters),
-
-            conv(8 * num_filters, 16 * num_filters, kernel_size=3, stride=2, padding=1, groups=8 * num_filters, bias=False),
-            nn.BatchNorm2d(16 * num_filters),
-            relu(),
-            conv(16 * num_filters, 16 * num_filters, kernel_size=1, stride=1, padding=0, bias=False),
-            nn.BatchNorm2d(16 * num_filters),
-            relu(),
-
-            self._make_depthwise_block(16 * num_filters),
-            self._make_depthwise_block(16 * num_filters),
+            # 2st depthwise
+            depthwise_separable_conv(num_filters, 2 * num_filters, kernel_size=3, stride=1, padding=1, bias=False),
+            # 3nd depthwise
+            depthwise_separable_conv(2 * num_filters, 4 * num_filters, kernel_size=3, stride=2, padding=1, bias=False),
+            # 4rd depthwise
+            depthwise_separable_conv(4 * num_filters, 4 * num_filters, kernel_size=3, stride=1, padding=1, bias=False),
+            # 5rd depthwise
+            depthwise_separable_conv(4 * num_filters, 8 * num_filters, kernel_size=3, stride=2, padding=1, bias=False),
+            # 6th depthwise
+            depthwise_separable_conv(8 * num_filters, 8 * num_filters, kernel_size=3, stride=1, padding=1, bias=False),
+            # 7th depthwise
+            depthwise_separable_conv(8 * num_filters, 16 * num_filters, kernel_size=3, stride=2, padding=1, bias=False),
+            # 8th depthwise
+            depthwise_separable_conv(16 * num_filters, 16 * num_filters, kernel_size=3, stride=1, padding=1, bias=False),
+            # 9th depthwise
+            depthwise_separable_conv(16 * num_filters, 16 * num_filters, kernel_size=3, stride=1, padding=1, bias=False),
+            # 10th depthwise
+            depthwise_separable_conv(16 * num_filters, 16 * num_filters, kernel_size=3, stride=1, padding=1, bias=False),
+            # 11th depthwise
+            depthwise_separable_conv(16 * num_filters, 16 * num_filters, kernel_size=3, stride=1, padding=1, bias=False),
+            # 12th depthwise
+            depthwise_separable_conv(16 * num_filters, 16 * num_filters, kernel_size=3, stride=1, padding=1, bias=False),
+            # 13th depthwise
+            depthwise_separable_conv(16 * num_filters, 32 * num_filters, kernel_size=3, stride=2, padding=1, bias=False),
+            # 14th depthwise
+            depthwise_separable_conv(32 * num_filters, 32 * num_filters, kernel_size=3, stride=1, padding=1, bias=False),
 
             nn.AdaptiveAvgPool2d(1)
         )
 
-        self.classifier = qnn.QuantConv2d(16 * num_filters, num_classes,
+        self.classifier = qnn.QuantConv2d(32 * num_filters, num_classes,
                 kernel_size=(1, 1), bias=False,
                 weight_quant = Int8WeightPerTensorFixedPoint,
                 input_quant = Int8ActPerTensorFixedPoint,
