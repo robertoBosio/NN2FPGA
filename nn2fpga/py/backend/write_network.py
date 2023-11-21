@@ -128,6 +128,7 @@ def write_network(
         io_dict,
         file_name,
         board,
+        uram_storage,
         prj_root=prj_root
     )
 

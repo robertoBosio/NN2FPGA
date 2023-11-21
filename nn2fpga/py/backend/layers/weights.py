@@ -917,7 +917,7 @@ def parse(name, node):
       
     return blocks
 
-def parse_all(io_dict, prj_root="/tmp", board="KRIA"):
+def parse_all(io_dict, prj_root="/tmp", board="KRIA", uram_storage = False):
     
     parsed_write = []
     
@@ -951,6 +951,8 @@ def parse_all(io_dict, prj_root="/tmp", board="KRIA"):
     DSPs = 0
     used_uram = used_bram = 0
     print(board_res)
+    with open("dict2.txt", "w") as f:
+        print(io_dict, file=f)
     for name, node in io_dict.items():
         if ('const' == node["type"]) and node["dynamic_init"]:
             n_weights[name] = node["n_weights"] * node["bits"] / 8
@@ -960,7 +962,7 @@ def parse_all(io_dict, prj_root="/tmp", board="KRIA"):
             # on input and output channel multiplied by the dimension of the
             # filter
             if not node["is_bias"]:
-                w_par = node["ops"] * node ["ich_ops"] * node["ih"] * node["iw"]
+                w_par = node["ops"] * node ["ich_ops"] * node["kernel"]
                 w_par_bits = w_par * node["bits"]
                 DSPs += w_par
                 target_pragmas = 0
@@ -975,7 +977,7 @@ def parse_all(io_dict, prj_root="/tmp", board="KRIA"):
                     n_bram = n_mem_bram
                 # wasted_uram = n_uram * SIZE_URAM - (node['n_weights'] * node["bits"])
                 # wasted_bram = n_bram * SIZE_BRAM - (node['n_weights'] * node["bits"])
-                fit_uram = (used_uram + n_uram) <= board_res["uram"]
+                fit_uram = (used_uram + n_uram) <= board_res["uram"] and uram_storage
                 fit_bram = (used_bram + n_bram) <= board_res["bram"]
                 # fit_uram = True
                 # fit_bram = True
@@ -1175,9 +1177,9 @@ def footer(file_name, parsed_write, prj_root="/tmp"):
         fd.write("\n")
         fd.write("#endif")
 
-def write(io_dict, network_name, board="KRIA", prj_root="/tmp"):
+def write(io_dict, network_name, board="KRIA", uram_storage = False, prj_root="/tmp"):
 
-    parsed_write = parse_all(io_dict, prj_root, board)
+    parsed_write = parse_all(io_dict, prj_root, board, uram_storage)
 
     uram_layer_include = False
     for layer in parsed_write:
