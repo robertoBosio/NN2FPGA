@@ -223,7 +223,7 @@ csim: check-top check-hls check-board generate
 backend: syn vivado_flow
 
 deploy:
-	./scripts/inference.sh $(BOARD)
+	./scripts/inference.sh $(BOARD) $(DATASET)
 
 build: $(BUILD_DIR)/$(TOP_NAME).xclbin
 
