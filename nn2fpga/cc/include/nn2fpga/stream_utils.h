@@ -79,6 +79,12 @@ void consume_stream(hls::stream<din_wrap_t> dinStream[WS],
         wrap = dinStream[0].read();
       dout_wrap_t dout;
       dout.data = wrap.data[0][s_ops];
+      #ifndef __SYNTHESIS__
+        #ifdef DEBUG
+        // if (c_depth == 1)
+          std::cout << dout.data << std::endl;
+        #endif
+      #endif
       dout.last = wrap.last & (i == (OSZ - 1));
       dout.keep = -1;
       doutStream << dout;

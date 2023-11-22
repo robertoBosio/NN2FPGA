@@ -35,13 +35,6 @@ cv::Mat opencv_transform(cv::Mat image) {
     int w = image.cols;
     std::cout << "#### Resizing image" << std::endl;
     std::cout << "#### Original size: " << h << "x" << w << std::endl;
-    int new_h, new_w;
-
-    new_h = 96;
-    new_w = 96;
-    std::cout << "#### New Size: " << new_h << "x" << new_w << std::endl;
-
-    cv::resize(image, image, cv::Size(new_w, new_h), 0, 0, cv::INTER_AREA);
 
     cv::Scalar mean(0.485, 0.456, 0.406);
     cv::Scalar std(0.229, 0.224, 0.225);
@@ -222,8 +215,8 @@ int main(int argc, char** argv) {
     int max_index = 0;
     std::cout << image << " image" << std::endl;
     for (int g = 0; g < CLASSES; g++) {
-      ap_int<8> data = mem_outputs[g + image * CLASSES];
-      std::cout << data << std::endl;
+      float data = mem_outputs[g + image * CLASSES];
+      std::cout << data << " " << mem_outputs[g + image * CLASSES] << std::endl;
       if (data > max_value) {
         max_value = data;
         max_index = g;
