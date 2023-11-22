@@ -2,6 +2,7 @@ import torch
 import torchvision
 # import torchvision.transforms as transforms
 from torch.utils.data import Dataset
+import torchvision.transforms as transforms
 import os
 from coco import CocoDetection
 from coco import preproc as coco_preproc
@@ -89,3 +90,35 @@ def coco_dataloader(batch_size):
     ]
 
     return test_loader, buffer_dim
+
+def vw_dataloader(batch_size):
+    print('#### Selected VW!')
+    IMAGE_SIZE = 96
+    BASE_DIR = os.path.join("/home/datasets/vw", 'vw_coco2014_96')
+    vw_transform = transforms.Compose([
+        # transforms.RandomRotation(10),
+        # transforms.RandomHorizontalFlip(),
+        # transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4),
+        # transforms.Resize((IMAGE_SIZE, IMAGE_SIZE)),
+        # transforms.ToTensor(),
+        # transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+        transforms.Resize((IMAGE_SIZE, IMAGE_SIZE)),
+        transforms.ToTensor(),
+        # normalize between 0 and 1
+        transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5,0.5,0.5])
+        # transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+    ])
+    train_args = {
+        'transform': vw_transform,
+        'root': BASE_DIR
+    }
+    dataset = torchvision.datasets.ImageFolder
+
+    dataset = dataset(**train_args)
+    loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=False)
+    buffer_dim = [
+        3*IMAGE_SIZE*IMAGE_SIZE,
+        2
+    ]
+
+    return loader, buffer_dim

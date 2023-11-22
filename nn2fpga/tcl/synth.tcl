@@ -80,7 +80,8 @@ config_compile -pipeline_style stp -enable_auto_rewind=false
 
 csynth_design
 
-export_design -flow syn
+# export_design -flow syn
+export_design
 
 if {${COSIM} == 1} {
   cosim_design -trace_level all
