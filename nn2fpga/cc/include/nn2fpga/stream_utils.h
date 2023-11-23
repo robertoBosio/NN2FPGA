@@ -13,6 +13,8 @@ void produce_stream(hls::stream<din_wrap_t>& dinStream,
                     hls::stream<dout_wrap_t> doutStream[c_ws_out]) {
   constexpr auto PAR = BITS / 8;
   constexpr auto ISZ = (ICH * IH * IW);
+  const ap_fixed<16,8> c_mean[3] = {0.485, 0.456, 0.406};
+  const ap_fixed<16,8> c_std[3] = {0.229, 0.224, 0.225};
 
   din_wrap_t dinWrap;
 	ap_uint<BITS> din_par;
@@ -21,6 +23,7 @@ PRODSTR:
 #pragma HLS pipeline style = stp
     auto par = i % PAR;
     auto ops = i % OPS;
+    auto ich = i % ICH;
     auto ws_out = (i / ICH) % c_ws_out;
 
     d_format_t din;
@@ -31,8 +34,9 @@ PRODSTR:
 
     dout_wrap_t doutWrap;
     din.range(7,0) = din_par & 0xff;
-    doutWrap.data[0][ops] = dout_t(din);
+    doutWrap.data[0][ops] = (dout_t(din)-c_mean[ich])/c_std[ich];
     #ifndef __SYNTHESIS__
+      std::cout << din << " ";
       std::cout << doutWrap.data[0][ops] << " ";
     #endif
 

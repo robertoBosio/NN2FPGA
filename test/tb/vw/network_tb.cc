@@ -29,16 +29,15 @@ cv::Mat opencv_transform(cv::Mat image) {
 
     // Convert to NumPy array and normalize
     image.convertTo(image, CV_32F);
-    image /= 255.0;  // Assuming the original image values are in the range [0, 255]
 
     int h = image.rows;
     int w = image.cols;
     std::cout << "#### Resizing image" << std::endl;
     std::cout << "#### Original size: " << h << "x" << w << std::endl;
 
-    cv::Scalar mean(0.485, 0.456, 0.406);
-    cv::Scalar std(0.229, 0.224, 0.225);
-    image = (image - mean) / std;
+    // cv::Scalar mean(0.485, 0.456, 0.406);
+    // cv::Scalar std(0.229, 0.224, 0.225);
+    // image = (image - mean) / std;
 
     // cv::split(transposed, image_channels);
 
@@ -55,7 +54,7 @@ int main(int argc, char** argv) {
  
   /* Images per batch */
   const unsigned int c_batch = stoi(parser.value("n_images"));
-  /* Bytes per activation data stream */
+    /* Bytes per activation data stream */
   const unsigned int c_par = c_inp_1 / ACTIVATION_PARALLELISM;
   /* Bytes per image */
   const unsigned int c_index =
@@ -104,8 +103,6 @@ int main(int argc, char** argv) {
   std::cout << "Allocated " << c_index * c_batch << " ap_uint<64> for activations." << std::endl;
   std::cout << "Allocated " << CLASSES * c_batch << " ap_uint<8> for output results." << std::endl;
   std::string path = "/tools/datasets/vw/vw_coco2014_96/person/";
-  // std::string path = "/tools/datasets/dataset/train/n01530575/";
-  // std::string path = "/home/filippo/workspace/NN2FPGA/test/tb/dataset/images/n15075141/";
   std::cout << "Taking images from " << path << std::endl;
 
 #ifndef CSIM
@@ -158,7 +155,7 @@ int main(int argc, char** argv) {
                     }
                     t_transform tmp = (float)pixel[c];
                     std::cout << tmp << " ";
-                    t_net_produce_2 tmp2 = tmp;
+                    ap_uint<8> tmp2 = tmp;
                     s_data.range(8 * (s_par + 1) - 1, 8 * s_par) = tmp2.range(7,0);
 
                     // #ifdef DEBUG
