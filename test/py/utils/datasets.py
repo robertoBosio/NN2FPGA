@@ -32,7 +32,7 @@ def get_dataset(dataset, cifar=10):
         eval_dataset = dataset(**val_args)
     elif dataset == 'vww':
         print('#### Selected VWW !')
-        IMG_SIZE = 128
+        IMG_SIZE = 96
         BASE_DIR = os.path.join("/home-ssd/datasets/vw", 'vw_coco2014_96')
         transforms_sel=vww_transform
         train_args = {

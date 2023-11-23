@@ -73,11 +73,12 @@ def main():
     print('#### Preparing data ..')
     device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
     # model = resnet20(wbit=Wbits,abit=Abits).to('cuda:0')
-    model = MobileNetV1(num_filters=3, num_classes=2).to(device)
+    model = MobileNetV1(num_filters=8, num_classes=2).to(device)
     # model = QuantizedCifar10Net().to(device)
     model.to(device)
 
     optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=wd)
+    # optimizer = torch.optim.Adam(model.parameters(),lr=lr,weight_decay=wd)
     # if 'cuda' in device:
     #     model = torch.nn.DataParallel(model)
     #     cudnn.benchmark = True
@@ -256,7 +257,6 @@ def main():
         print("#### RETRAINING") 
         retrain = 1
         # optimizer = torch.optim.SGD(model.parameters(), lr=0.0001)
-        # optimizer = torch.optim.Adam(model.parameters(),lr=lr,weight_decay=wd)
         lr_schedu = optim.lr_scheduler.MultiStepLR(optimizer, [90, 150, 200], gamma=0.1)
         criterion = torch.nn.CrossEntropyLoss()
         for epoch in range(start_epoch, start_epoch+20): 
