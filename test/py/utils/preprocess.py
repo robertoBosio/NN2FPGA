@@ -147,9 +147,10 @@ def vww_transform(is_training=True, IMAGE_SIZE=128):
             # transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
             transforms.Resize((IMAGE_SIZE, IMAGE_SIZE)),
             transforms.ToTensor(),
+            # lambda x: x / 255.0,
             # normalize between 0 and 1
-            transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5,0.5,0.5])
-            # transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+            # transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5,0.5,0.5])
+            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
         ])
     else:
         return transforms.Compose([
@@ -161,7 +162,8 @@ def vww_transform(is_training=True, IMAGE_SIZE=128):
             # transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
             transforms.Resize((IMAGE_SIZE, IMAGE_SIZE)),
             transforms.ToTensor(),
+            # lambda x: x / 255.0,
             # normalize between 0 and 1
-            transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5,0.5,0.5])
-            # transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+            # transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5,0.5,0.5])
+            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
         ])
