@@ -8,6 +8,11 @@ if [ $1 = "KRIA" ]; then
     path="/home/ubuntu/"
     ip="kriahlslab1"
     device="${user}@kriahlslab1"
+elif [ $1 = "ZCU102" ]; then
+    user="root"
+    path="/home/ubuntu/"
+    ip="192.168.166.168"
+    device="${user}@192.168.166.168"
 elif [ $1 = "ULTRA96v2" ]; then
     user="root"
     path="~/"
@@ -36,6 +41,7 @@ cp ${NN2FPGA_ROOT}/scripts/boards.py ${PRJ_ROOT}/overlay/boards.py
 cp ${NN2FPGA_ROOT}/scripts/datasets.py ${PRJ_ROOT}/overlay/datasets.py
 cp ${NN2FPGA_ROOT}/scripts/coco.py ${PRJ_ROOT}/overlay/coco.py
 cp ${NN2FPGA_ROOT}/scripts/cifar10.py ${PRJ_ROOT}/overlay/cifar10.py
+cp ${NN2FPGA_ROOT}/scripts/vw.py ${PRJ_ROOT}/overlay/vw.py
 if [ ${URAM_STORAGE} = 1 ]; then
     cp ${PRJ_ROOT}/npy/uram_${TOP_NAME}.npy ${PRJ_ROOT}/overlay/uram.npy
 fi
@@ -46,7 +52,7 @@ scp -r ${PRJ_ROOT}/overlay ${device}:${path}
 
 # execute kernel
 #cat ./host.py | ssh root@192.168.3.1 'python3 -'
-ssh ${device} "cd ${path} && source /etc/profile && python3 ${path}overlay/inference.py $1 cifar10 ${URAM_STORAGE}"
+ssh ${device} "cd ${path} && source /etc/profile && python3 ${path}overlay/inference.py $1 $2 ${URAM_STORAGE}"
 
 # cleanup
 scp ${device}:${path}overlay/results.txt ${PRJ_ROOT}/${res_file}

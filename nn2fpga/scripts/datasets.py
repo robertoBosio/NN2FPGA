@@ -2,6 +2,7 @@ import torch
 import torchvision
 # import torchvision.transforms as transforms
 from torch.utils.data import Dataset
+import torchvision.transforms as transforms
 import os
 from coco import CocoDetection
 from coco import preproc as coco_preproc
@@ -89,3 +90,25 @@ def coco_dataloader(batch_size):
     ]
 
     return test_loader, buffer_dim
+
+def vw_dataloader(batch_size):
+    print('#### Selected VW!')
+    IMAGE_SIZE = 96
+    BASE_DIR = os.path.join("/home/datasets/vw", 'vw_coco2014_96')
+    vw_transform = transforms.Compose([
+        transforms.ToTensor(),
+    ])
+    train_args = {
+        'transform': vw_transform,
+        'root': BASE_DIR
+    }
+    dataset = torchvision.datasets.ImageFolder
+
+    dataset = dataset(**train_args)
+    loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=False)
+    buffer_dim = [
+        3*IMAGE_SIZE*IMAGE_SIZE,
+        2
+    ]
+
+    return loader, buffer_dim

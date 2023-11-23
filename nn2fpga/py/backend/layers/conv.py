@@ -88,7 +88,10 @@ def info(io_dict, node, node_name, init_info, tensors_info, enable_ws):
     io_dict[node_name]["fh"]     = fh
     io_dict[node_name]["fw"]     = fw
     io_dict[node_name]["stride"] = stride
-    io_dict[node_name]["pad"]    = pad
+    if is_1x1:
+        io_dict[node_name]["pad"]    = 0
+    else:
+        io_dict[node_name]["pad"]    = pad
     io_dict[node_name]["is_1x1"] = is_1x1
     io_dict[node_name]["total"]  = total
     io_dict[node_name]["total_log"]  = total_log
