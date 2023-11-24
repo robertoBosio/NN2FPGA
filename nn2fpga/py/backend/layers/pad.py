@@ -54,7 +54,7 @@ def parse(name, node):
     block["template"].append("c_%s_stride" % name)
     block["template"].append("c_%s_pad" % name)
     block["template"].append("c_%s_ws" % name)
-    block["template"].append("%0d" % node["ich_ops"])
+    block["template"].append("%0d" % node["line_ops"]) #line_ops
     block["template"].append("%0d" % node["ich_ops"])
 
     block["args"] = []

@@ -51,14 +51,7 @@ ifndef TARGET
 	$(error ERROR! TARGET variable is not set, please set it to sw_emu, hw_emu or hw when using ALVEO boards)
 endif
 
-
-device2xsa = $(strip $(patsubst %.xpfm, % , $(shell basename $(PLATFORM))))
-
-XSA := 
-ifneq ($(PLATFORM), )
-XSA := $(call device2xsa, $(PLATFORM))
-endif
-
+XSA := $(BOARD).$(TOP_NAME)
 MK_PATH := $(abspath $(lastword $(MAKEFILE_LIST)))
 COMMON_REPO ?= $(shell bash -c 'export MK_PATH=$(MK_PATH); echo $${MK_PATH%/*}')
 PWD = $(shell readlink -f .)

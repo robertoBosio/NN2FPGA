@@ -6,23 +6,37 @@
 
 namespace nn2fpga {
 
-template <typename din_t, typename dout_t, int ICH, int IH, int IW, int c_fw, int c_fh,
-          int c_str, int c_pad, int c_ws, int c_ops, int c_ops_out>
-void pad_input(hls::stream<din_t> din[(c_fw+(c_ws-1)*c_str) * c_fh],
-               hls::stream<dout_t> o_data[1]) {
+template<typename din_t,
+         typename dout_t,
+         int ICH,
+         int IH,
+         int IW,
+         int c_fw,
+         int c_fh,
+         int c_str,
+         int c_pad,
+         int c_ws,
+         int c_ops,
+         int c_ops_out>
+void
+pad_input(hls::stream<din_t> din[(c_fw + (c_ws - 1) * c_str) * c_fh],
+          hls::stream<dout_t> o_data[1])
+{
   /* #pragma HLS inline */
+  static_assert(c_ops % c_ops_out == 0, "c_ops must be a multiple of c_ops_out");
 
   /* This handles padding aware inputs */
 
   constexpr int c_pad_index_h = c_pad * (c_fh - 1) / 2;
   constexpr int c_pad_index_w = c_pad * (c_fw - 1) / 2;
-  constexpr int IH_REM = IH - (IH % c_str)*(1-c_pad);
-  constexpr int IW_REM = IW - (IW % c_str)*(1-c_pad);
-  constexpr int IH_PAD = IH + c_pad_index_h * 2 - IH_REM*(1-c_pad);
-  constexpr int IW_PAD = IW + c_pad_index_w * 2 - IW_REM*(1-c_pad);
-  constexpr int FSZ = c_fh * (c_fw+(c_ws-1)*c_str);
-  constexpr int FW = (c_fw+(c_ws-1)*c_str);
-  constexpr int LAST_IDX = FSZ - 1 - (c_fw+(c_ws-1)*c_str-c_pad_index_w)%c_ws;
+  constexpr int IH_REM = IH - (IH % c_str) * (1 - c_pad);
+  constexpr int IW_REM = IW - (IW % c_str) * (1 - c_pad);
+  constexpr int IH_PAD = IH + c_pad_index_h * 2 - IH_REM * (1 - c_pad);
+  constexpr int IW_PAD = IW + c_pad_index_w * 2 - IW_REM * (1 - c_pad);
+  constexpr int FSZ = c_fh * (c_fw + (c_ws - 1) * c_str);
+  constexpr int FW = (c_fw + (c_ws - 1) * c_str);
+  constexpr int LAST_IDX =
+    FSZ - 1 - (c_fw + (c_ws - 1) * c_str - c_pad_index_w) % c_ws;
 
   bool s_last;
   
@@ -158,10 +172,29 @@ void bandwidth_adjust(
   }
 }
 
-template <typename din_t, typename dcomp_t, typename dout_t, int ICH, int OCH, int IH, int IW, int OH, int OW,
-          int c_fh, int c_fw, int c_str, int c_pad, int c_pos_h, int c_pos_w, int c_ws, int c_ops, int c_ops_out>
-void shift_op(hls::stream<din_t> &din, hls::stream<dcomp_t> &o_compute,
-              hls::stream<dout_t> &o_data) {
+template<typename din_t,
+         typename dcomp_t,
+         typename dout_t,
+         int ICH,
+         int OCH,
+         int IH,
+         int IW,
+         int OH,
+         int OW,
+         int c_fh,
+         int c_fw,
+         int c_str,
+         int c_pad,
+         int c_pos_h,
+         int c_pos_w,
+         int c_ws,
+         int c_ops,
+         int c_ops_out>
+void
+shift_op(hls::stream<din_t>& din,
+         hls::stream<dcomp_t>& o_compute,
+         hls::stream<dout_t>& o_data)
+{
   /* #pragma HLS inline */
 
   // Assert that c_ops is a multiple of c_ops_out
@@ -184,7 +217,7 @@ void shift_op(hls::stream<din_t> &din, hls::stream<dcomp_t> &o_compute,
 
   constexpr int c_endh = IH_PAD - c_pad_index_h;
   constexpr int c_endw = IW_PAD - c_pad_index_w + (c_fw - c_pos_w) % (c_ws);
-  constexpr int FW = (c_fw+(c_ws-1)*c_str);
+  constexpr int FW = (c_fw + (c_ws - 1) * c_str);
 
   // The window output is written as soon as the first data which falls
   // in the windows position is available
@@ -230,7 +263,7 @@ void shift_op(hls::stream<din_t> &din, hls::stream<dcomp_t> &o_compute,
           if (s_data_read) s_input = din.read();
           bool s_compute_write = true;
           auto s_index_h_str = s_index_h % c_str;
-          auto s_index_w_str = s_index_w % (c_str*c_str_adj);
+          auto s_index_w_str = s_index_w % (c_str * c_str_adj);
 
           s_compute_write &= (s_index_h >= c_paddingh_shift);
           s_compute_write &= (s_index_h < (IH - c_end_paddingh_shift));

@@ -2,10 +2,10 @@ import os
 import sys
 import pulp
 import json
-from pulp import const
 import math
 from backend.ilp_utils import find_divisors
 from backend.ilp_utils import find_range
+from backend.ilp_utils import generate_valid_combinations
 from backend.ilp_utils import find_higher_mult
 from backend.ilp_utils import find_lower_mult
 from backend.ilp_utils import find_common_mult
@@ -25,115 +25,187 @@ def parallel_ops_number(layers_info, worst_index, board="ULTRA96v2", prj_root="/
     elif (board == "ZCU102"):
         NUM_DSP = 2000
     elif (board == "U280"):
-        NUM_DSP = 2000
-        # NUM_DSP = 9024
+        # NUM_DSP = 2000
+        NUM_DSP = 9024
     elif (board == "U250"):
         NUM_DSP = 12288
     elif (board == "U55C"):
         NUM_DSP = 9024
 
-    # # Opening JSON file
-    # file_path = f"{prj_root}/../nn2fpga/boards/{board}.json"
-    # with open(file_path) as f:
-    #     board_dict = json.load(f)
+    # Opening JSON file
+    file_path = f"{prj_root}/../nn2fpga/boards/{board}.json"
+    with open(file_path) as f:
+        board_dict = json.load(f)
 
-    # # Right now consider the board as a monolithic block 
-    # board_res = {"uram" : 0, "bram" : 0, "dsp" : 0, "lut" : 0, "ff" : 0}
-    # for block in board_dict['resource']:
-    #     for res in block.keys():
-    #         if res in board_res:
-    #             board_res[res] += block[res]
+    # Right now consider the board as a monolithic block 
+    board_res = {"uram" : 0, "bram" : 0, "dsp" : 0, "lut" : 0, "ff" : 0}
+    for block in board_dict['resource']:
+        for res in block.keys():
+            if res in board_res:
+                board_res[res] += block[res]
 
-    # # Useful space in BRAM18. Each BRAM18 is 18kb with a maximum word width of
-    # # 36 bits, in which 4 bits are reserved to ECC code
-    # SIZE_BRAM18 = ((18 * 1024) / 36) * 32
+    # Useful space in BRAM18. Each BRAM18 is 18kb with a maximum word width of
+    # 36 bits, in which 4 bits are reserved to ECC code
+    SIZE_BRAM18 = ((18 * 1024) / 36) * 32
     
-    # # Useful space in BRAM36, composed by two BRAM18.
-    # SIZE_BRAM36 = SIZE_BRAM18 * 2
+    # Useful space in BRAM36, composed by two BRAM18.
+    SIZE_BRAM36 = SIZE_BRAM18 * 2
     
-    # # Useful space in URAM. Each URAM is 288kb with a maximum word width of 72
-    # # bits.
-    # SIZE_URAM = (288 * 1024)
+    # Useful space in URAM. Each URAM is 288kb with a maximum word width of 72
+    # bits.
+    SIZE_URAM = (288 * 1024)
 
+    NUM_PORTS = (board_res["bram"] + board_res["uram"]) * 2
+    NUM_DSP = board_res["dsp"]
     num_layers = len(layers_info)
 
-    # Counting merged 1x1 layers
-    for i in range(num_layers):
-        if layers_info[i]["merge_1x1"]:
-            NUM_DSP -= 1
+    # Generating all the valid combinations of ich_par and och_par for each layer.
+    valid_par_solutions = []
+    for layer in layers_info:
+        max_och_par = layer["och"]
+        max_ich_par = layer["ich"]
 
-    ####### Problem formulated as LP #######
-    # prob = pulp.LpProblem("Parallel ops", pulp.LpMaximize)
-    # # Variable to be optimized: Throughtput expressed as the number of filters
-    # # computed in parallel by the heaviest layer
-    # worst_par = pulp.LpVariable("Worst layer parallelization", 1, None, pulp.LpInteger)
-    # prob += worst_par, "Bottleneck layer parallelization"
-    # # Constraints: Sum of DSPs needed for each layer to keep throughtput
-    # # constant should be less than the threshold. The parallelism of each layer
-    # # is computed using the equality:
-    # #
-    # #    iter worst        iter layer  
-    # #  -------------- =  --------------
-    # #     par worst        par layer   
-    # prob += pulp.lpSum([worst_par * layers_info[i]["kernel"] / layers_info[i]["value"] for i in range(num_layers)]) <= NUM_DSP
-    # # Function to be maximized
-    # prob.writeLP(prj_root + "/parallel_ops.lp")
-    # prob.solve()
-    # print("Status:", pulp.LpStatus[prob.status])
-    # ilp_value = int(worst_par.value())
-    ########################################
+        # Depthwise parallelization cannot be parallelized on output channel.
+        if (layer["depth"]):
+            max_och_par = 1
+
+        # In case of merged convolutions, take into account the gcd of the
+        # maximum parallelization of och of the two. The transformation is
+        # described in the graph optimization section of the paper. 
+        if (layer["merge_1x1"]):
+            max_och_par = math.gcd(layer["och"], layer["och_1x1"])
+        
+        valid_par_solutions.append(generate_valid_combinations(max_och_par, max_ich_par))
+
+    ####### Problem formulated as ILP #######
+    prob = pulp.LpProblem("Parallel_ops", pulp.LpMaximize)
     
-    # ilp_value = math.floor(board_res['dsp'] * (1 / layers_info[worst_index]['total'])/sum(
-    #     layers_info[i]['kernel'] / layers_info[i]['total'] for i in range(num_layers)))
-    ilp_value = math.floor(NUM_DSP * (1 / layers_info[worst_index]['total'])/sum(
-        layers_info[i]['kernel'] / layers_info[i]['total'] for i in range(num_layers)))
-    
-    # if mem_bind[i] = 0 then BRAM
-    # prob += pulp.lpSum([(mem_bind[i] * worst_par * layers_info[i]["kernel"] / layers_info[i]["value"]
-    #                    for i in range(num_layers)) for i in range(num_layers)]) <= board_res["uram"]
-    # prob += pulp.lpSum([(abs(mem_bind[i] - 1) * worst_par * layers_info[i]["kernel"] / layers_info[i]
-    #                    ["value"] for i in range(num_layers)) for i in range(num_layers)]) <= board_res["bram"]
+    # Variables of the problem: for each layer each valid parallelization has a
+    # binary variable associated that select the chosen parameters.
+    layer_binary_variables = []
+    for i, solution_set in enumerate(valid_par_solutions):
+        layer_binary_variables.append(pulp.LpVariable.dicts(
+            f"Choice_l{i}", range(len(solution_set)), cat="Binary"))
 
-    #mem_bind = pulp.LpVariable.dicts("Memory binding", range(num_layers), pulp.LpBinary)
-
-    # For each layers compute the possible parallelization factors
-    all_divisors, layers_divisors, layers_offset = find_divisors(layers_info)
-
-    # Searching for an integer divisor of the number of DSPs that is the closest to the
-    # number of operations that should be executed in parallel
-    low_range, low_index, high_range, _ = find_range(
-        all_divisors[layers_offset[worst_index]:layers_offset[worst_index]+layers_divisors[worst_index]],
-        ilp_value
+    # Objective function: maximize the parallelization of the heaviest layer.
+    # The decision variable "layer_binary_variables[worst_index][i]" select only
+    # one combination of ich and och for the worst layer. The multiplication
+    # between the two parameters represent the level of parallelization
+    prob += (
+        pulp.lpSum([layer_binary_variables[worst_index][i] * tuple[0] * tuple[1]
+                    for i, tuple in enumerate(valid_par_solutions[worst_index])]),
+        "Bottleneck_layer_parallelization"
     )
 
-    low_index += layers_offset[worst_index]
-    # print(all_divisors[layers_offset[i]:layers_offset[i]+layers_divisors[i]], data, low_range, high_range, layers_info[best_index][5], layers_info[best_index][6])
-    parallel_op = {}
-    
-    # The parallelization factor for the bottleneck layer is the lower nearest
-    # value between the possible ones.
-    worst_par = low_range
-
-    # Based on the chosen parallalization, the layers are updated with their
-    # respective parallelization factors
-    for i in range(num_layers):
-        layer_par = worst_par / layers_info[i]["value"]
-
-        low_range, _ , high_range, _ = find_range(
-            all_divisors[layers_offset[i]:layers_offset[i]+layers_divisors[i]],
-            math.ceil(layer_par)
+    # Constraint: Only one binary variable per layer should be equal to 1
+    for layer in range(num_layers):
+        prob += (
+            pulp.lpSum([layer_binary_variables[layer][i]
+                       for i in range(len(valid_par_solutions[layer]))]) == 1,
+            f"One_choice_constraint_layer_{layer}"
         )
-        parallel_op[layers_info[i]["name"]] = high_range
-        # print(all_divisors[layers_offset[i]:layers_offset[i]+layers_divisors[i]], data, low_range, high_range, layers_info[i][5], layers_info[i][6])
+    
+    # Constraint: The total number of DSPs used to achieve the chosen
+    # parallelization should be lower than the available ones. The number of
+    # DSPs used for each layer is computed as filter_size * och_par * ich_par
+    prob += (
+        pulp.lpSum([layer["kernel"] * pulp.lpSum([layer_binary_variables[l][i] * tuple[0] * tuple[1]
+                   for i, tuple in enumerate(valid_par_solutions[l])]) for l, layer in enumerate(layers_info)]) <= NUM_DSP,
+        f"DSP_constraint"
+    )
+    
+    # Constraint: The total number of memory ports used to achieve the chosen
+    # parallelization should be lower than the available ones. The number of
+    # ports used for each layer is computed as (filter_size * och_par * ich_par
+    # * bits) / bandwidth_mem.
+    # We are not considering uram at this stage
+    prob += (
+        pulp.lpSum([layer["kernel"] * sum(layer["bits"]) *
+                    pulp.lpSum([layer_binary_variables[l][i] * tuple[0] * tuple[1]
+                                for i, tuple in enumerate(valid_par_solutions[l])]
+                               ) for l, layer in enumerate(layers_info)]) <= NUM_PORTS * 64,
+        f"PORTS_constraint"
+    )
+    
+    # Constraints: The throughtput of each layer should be equal or bigger to
+    # the heaviest one. The throughtput of each layer is computed as the parallelism
+    # over the total number of iterations:
+    #
+    #    par worst         par layer  
+    #  -------------- <= --------------
+    #    iter worst        iter layer   
+    for layer in range(num_layers):
+        prob += (
+            pulp.lpSum(
+                [layer_binary_variables[layer][i] * tuple[0] * tuple[1]
+                 for i, tuple in enumerate(valid_par_solutions[layer])]
+            ) * layers_info[layer]["value"] -
+            pulp.lpSum(
+                [layer_binary_variables[worst_index][i] * tuple[0] * tuple[1]
+                 for i, tuple in enumerate(valid_par_solutions[worst_index])]
+            ) >= 0,
+            f"Throughtput_constraint_layer_{layer}"
+        )
+    
+    # Constraints: To avoid bottlenecks the write/read bandwidth of consecutive
+    # layers should be balanced. The write bandwidth is computed as (och_par *
+    # ich_par) / (ich). The read bandwidth is computed as (och_par * ich_par) /
+    # (och). For depthwise convolution the write bandwidth is ich_par
+    for layer in range(1, num_layers):
+        if layers_info[layer - 1]["depth"]:
+            prob += (
+                pulp.lpSum(
+                    [layer_binary_variables[layer - 1][i] * tuple[1]
+                    for i, tuple in enumerate(valid_par_solutions[layer - 1])]
+                ) -
+                ( pulp.lpSum(
+                    [layer_binary_variables[layer][i] * tuple[0] * tuple[1]
+                    for i, tuple in enumerate(valid_par_solutions[layer])]
+                ) / layers_info[layer]["och"] ) >= 0,
+                f"ich_constraint_layer_{layer}"
+            )
+        else:
+            prob += (
+                ( pulp.lpSum(
+                    [layer_binary_variables[layer - 1][i] * tuple[0] * tuple[1]
+                    for i, tuple in enumerate(valid_par_solutions[layer - 1])]
+                ) / layers_info[layer - 1]["ich"] ) -
+                ( pulp.lpSum(
+                    [layer_binary_variables[layer][i] * tuple[0] * tuple[1]
+                    for i, tuple in enumerate(valid_par_solutions[layer])]
+                ) / layers_info[layer]["och"] ) >= 0,
+                f"ich_constraint_layer_{layer}"
+            )
 
-    print(f"DSP before: {sum(parallel_op.values())}")
+    
+    prob.writeLP(prj_root + "/parallel_ops.lp")
+    prob.solve()
+    print("Status:", pulp.LpStatus[prob.status])
+    ########################################
+
+    parallel_op = {}
+    for i, layer in enumerate(valid_par_solutions):
+        for s in range(len(layer)):
+            if int(layer_binary_variables[i][s].value()) == 1:
+                parallel_op[f"{layers_info[i]['name']}"] = layer[s]
+    
+    for layer in layers_info :
+        if layer["depth"]:
+            ich_ops = parallel_op[layer['name']][1]
+            och_ops = parallel_op[layer['name']][0]
+            print(f"{layer['name']} Bw: {ich_ops} Br:{ich_ops*och_ops/layer['och']}")
+        else:
+            ich_ops = parallel_op[layer['name']][1]
+            och_ops = parallel_op[layer['name']][0]
+            print(f"{layer['name']} Bw: {ich_ops*och_ops/layer['ich']} Br:{ich_ops*och_ops/layer['och']}")
+    
     return parallel_op
 
 def ilp(io_dict, off_chip_storage, model, board="ULTRA96v2", double_packing=True, prj_root="/tmp"):
 
     layers_info = []
 
-    # Find the highest number of operation done by a single convolution.
+    # Find the highest number of computations done by a single convolution.
     max_total = 1
     worst_index = 0
     iterator = 0
@@ -146,75 +218,58 @@ def ilp(io_dict, off_chip_storage, model, board="ULTRA96v2", double_packing=True
             iterator += 1
 
     total_computations = 0
+
     for node_name, node_info in io_dict.items():
         if 'conv' in node_info["type"]:
-            # print(node_info)
-            value = node_info["total"]/max_total
-            # value = 2**value
-            # print(node_name, node_info["total"], value)
+            value = node_info["total"] / max_total
             total_computations += node_info["total_log"]
-            
-            if node_info["depth"]:
-                max_par = node_info["ich"]
-            else:
-                max_par = node_info["och"]*node_info["ich"]
-
             layers_info.append(
                 {
                     "name": node_name,
                     "total": node_info["total"],
                     "kernel": node_info["kernel"],
-                    "img_ch": node_info["img_ch"],
                     "merge_1x1": node_info["merge_1x1"],
                     "value": value,
-                    "max_par": max_par,
-                    "max_par_1x1": max_par,
                     "bits": node_info["bits"],
-                    "n_weights": node_info["ih"] * node_info["iw"] * node_info["ich"] * node_info["och"]
+                    "ich" : node_info["ich"],
+                    "och" : node_info["och"],
+                    "depth": node_info["depth"],
                 }
             )
-
             if (node_info["merge_1x1"]):
-                layers_info[-1]["max_par_1x1"] = node_info["och_1x1"] * node_info["ich"]
-                # FIX: removing fix to try clamping ops to 1x1 layers
-                # layers_info[-1].append(node_info["och"])
+                layers_info[-1]["och_1x1"] = node_info["och_1x1"]
     
-    # print("Total computations:", total_computations)
-
     parallel_ops = parallel_ops_number(layers_info, worst_index, board, prj_root=prj_root)
-
     print(parallel_ops)
-
     io_connect = extract_connections(model, io_dict)
 
     for node_name, ops in parallel_ops.items():
-        print(node_name, io_dict[node_name]["ich"], io_dict[node_name]["och"], ops)
-        if (not io_dict[node_name]["depth"]):
-            och_ops = find_higher_mult(io_dict[node_name]["och"], ops)
-        else:
-            och_ops = 1
-        io_dict[node_name]["ops"] = och_ops
-        io_dict[node_name]["ich_ops"] = ops//och_ops
-        # io_dict[node_name]["ich_ops"] = ops
+        io_dict[node_name]["ops"] = ops[0]
+        io_dict[node_name]["ich_ops"] = ops[1]
         io_dict[node_name]["dp"] = False
 
-        # Evaluating neccessary output channels to avoid losing performance
-        io_dict[node_name]["out_par"] = int(io_dict[node_name]["oh"] * io_dict[node_name]["ow"] * io_dict[node_name]["och"] * io_dict[node_name]["total"])
-        if io_dict[node_name]["out_par"] == 0:
-            io_dict[node_name]["out_par"] = 1
-
-    # FIX: INCREASING OPS FOR DEPTH
+    # Avoid the line buffer to become a bottleneck when there is a mismatch
+    # between its iterations and the number of operation of the served
+    # convolution. Often for a depthwise.
     for name, node in io_dict.items():
-        if "ops" in node:
-            if "depth" in node:
-                if node["depth"]:
-                    input_dimension = node["ich"]*node["iw"]*node["ih"]
-                    pipeline_iterations = node["och"]*node["ow"]*node["oh"]
-                    ich_ops = math.ceil(input_dimension/pipeline_iterations)
-                    if node["ich_ops"] < ich_ops:
-                        io_dict[name]["ich_ops"] = ich_ops
-                        print("#### Changing ich_ops for", name, "to", io_dict[name]["ich_ops"], "to avoid bottleneck")
-
+        if node["type"] == "conv":
+            ich_ops = node["ich_ops"]
+            och_ops = node["ops"]
+            ich = node["ich"]
+            if node["depth"] == 1:
+                och = 1
+            else:
+                och = node["och"]
+            input_dimension = node["ich"] * node["iw"] * node["ih"]
+            pipeline_iterations = (och / och_ops) * (ich / ich_ops) * node["ow"] * node["oh"] 
+            line_ops = math.ceil(input_dimension / pipeline_iterations)
+            # io_dict[name]["line_ops"] = ich_ops
+            if node["ich_ops"] < line_ops:
+                io_dict[name]["line_ops"] = line_ops
+                print(f"#### Changing line_ops for {name} to {line_ops} to avoid bottleneck")
+            else:
+                io_dict[name]["line_ops"] = ich_ops
+    
     #TODO: Avoiding cycling twice because of pool layers
     for node_name, ops in parallel_ops.items():
         output_name = io_dict[node_name]["output"][0]
@@ -268,9 +323,7 @@ def ilp(io_dict, off_chip_storage, model, board="ULTRA96v2", double_packing=True
     # Input produce stream ops
     print_layers = ["conv", "pool"]
     for name, node in io_dict.items():
-        # print ops and ich_ops for conv and pool layers
         if node["type"] in print_layers:
-            print(f"{name}, {node['ops']}, {node['ich_ops']}, [{node['och']}][{node['ich']}]")
             # check if the input tensor is produced by a produce_stream node
             input_name = node["input"][0]
             input_node_name = io_connect[input_name][0][0]
@@ -282,30 +335,6 @@ def ilp(io_dict, off_chip_storage, model, board="ULTRA96v2", double_packing=True
     for name, node in io_dict.items():
         # print ops and ich_ops for conv and pool layers
         if node["type"] == "conv":
-            # Trading off ops for ich_ops to avoid problems in line buffer
-            cycles_line_buffer = node["ih"]*node["iw"]*node["ich"] // node["ich_ops"]
-            if not node["depth"]:
-                cycles_computation = (node["oh"]*node["ow"]*node["och"]*node["ich"]) // (node["ops"]*node["ich_ops"])
-            elif node["depth"]:
-                cycles_computation = (node["oh"]*node["ow"]*node["och"]) // (node["ich_ops"])
-            else:
-                continue
-
-            # If mult_factor is lower or equal than 1, then the line buffer is not the bottleneck
-            mult_factor = math.ceil(cycles_line_buffer/cycles_computation)
-            if mult_factor <= 1:
-                continue
-            
-            # If not paralllizing on the input channels
-            if node["depth"]:
-                mult_factor = find_higher_mult(io_dict[name]["ich"]//node["ich_ops"], mult_factor)
-                node["ich_ops"] = mult_factor*node["ich_ops"]
-            else:
-                mult_factor = find_higher_mult(io_dict[name]["ich"]//node["ich_ops"], mult_factor)
-                node["ich_ops"] = mult_factor*node["ich_ops"]
-                node["ops"] = find_higher_mult(node["ops"], node["ops"]//mult_factor)
-                if node["ops"] == 0:
-                    node["ops"] = 1
 
             output_name = node["output"][0]
             output_node_name = io_connect[output_name][1][0]
@@ -313,58 +342,6 @@ def ilp(io_dict, off_chip_storage, model, board="ULTRA96v2", double_packing=True
                 if node["depth"]:
                     io_dict[output_node_name]["in_ops"] = node["ich_ops"]
                 else:
-                    io_dict[output_node_name]["in_ops"] = node["ops"]
-        
-    # # Fastening previous layer to provide enough bandwidth to the next one
-    # print_layers = ["conv", "pool"]
-    # for name, node in io_dict.items():
-    #     if node["type"] in print_layers:
-    #         # check if the input tensor is produced by a produce_stream node
-    #         input_name = node["input"][0]
-    #         input_node_name = io_connect[input_name][0][0]
-    #         input_node = io_dict[input_node_name]
-    #         ich_par = True
-    #         ich_par = ich_par and input_node["type"] == "conv"
-    #         if ich_par:
-    #             ich_par = ich_par and input_node["depth"]
-    #         if ich_par:
-    #             dim_str = "ich"
-    #             ops_str = "ich_ops"
-    #         else:
-    #             dim_str = "och"
-    #             ops_str = "ops"
-    #         if input_node[ops_str] < node["ich_ops"]:
-    #             mult_factor = find_higher_mult(input_node[dim_str]//input_node[ops_str], node["ich_ops"])
-    #             mult_factor = input_node[ops_str] * mult_factor
-    #             input_node[ops_str] = mult_factor
-    #             node["in_ops"] = mult_factor
-    #             print("#### Changing ops for", input_node_name, "to", node["in_ops"], "to avoid bottleneck")
-        
-    # Fastening previous layer to provide enough bandwidth to the next one
-    print_layers = ["conv", "pool"]
-    for name, node in io_dict.items():
-        if node["type"] in print_layers:
-            # check if the input tensor is produced by a produce_stream node
-            input_name = node["input"][0]
-            input_node_name = io_connect[input_name][0][0]
-            input_node = io_dict[input_node_name]
-            ich_par = True
-            ich_par = ich_par and input_node["type"] == "conv"
-            if ich_par:
-                ich_par = ich_par and input_node["depth"]
-            if ich_par:
-                dim_str = "ich"
-                ops_str = "ich_ops"
-            else:
-                dim_str = "och"
-                ops_str = "ops"
-            if input_node[ops_str] < node["ich_ops"]:
-                if (node["och"]//node["ops"]) > node["ich_ops"]:
-                    node["ops"] = find_lower_mult(node["ops"]*node["ich_ops"], node["och"])
-                    node["ich_ops"] = 1
-                    print("#### Changing ops for", name, "to", node["ops"], "to avoid bottleneck")
-                    output_name = node["output"][0]
-                    output_node_name = io_connect[output_name][1][0]
                     io_dict[output_node_name]["in_ops"] = node["ops"]
 
     # Check for necessary bandwidth adjustements for the line buffer
@@ -392,7 +369,10 @@ def ilp(io_dict, off_chip_storage, model, board="ULTRA96v2", double_packing=True
                         add_name = node["input"][2]
 
                 add_node_name = io_connect[add_name][0][0]
-                add_ops = io_dict[add_node_name]["ich_ops"]
+                if (io_dict[add_node_name]["merge_1x1"]):
+                    add_ops = io_dict[add_node_name]["ops"]
+                else:
+                    add_ops = io_dict[add_node_name]["ich_ops"]
                 node["add_ops"] = add_ops
 
                 print("#### Add tensor read/write rate for", name, "read", node["ich_ops"], "write", node["add_ops"])
@@ -408,8 +388,7 @@ def ilp(io_dict, off_chip_storage, model, board="ULTRA96v2", double_packing=True
     
     print_layers = ["conv", "pool"]
     for name, node in io_dict.items():
-        # print ops and ich_ops for conv and pool layers
         if node["type"] in print_layers:
-            print(name, node["ops"], node["ich_ops"])
+            print(f'{name} -> och: {node["och"]} par {node["ops"]}, ich: {node["ich"]} par {node["ich_ops"]}')
 
     return io_dict
