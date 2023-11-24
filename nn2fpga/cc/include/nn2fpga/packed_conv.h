@@ -253,10 +253,8 @@ void conv_pipe(
       s_acc += s_data * i_weight[s_index][ich_idx][ops];
       #ifndef __SYNTHESIS__
         #ifdef DEBUG
-          if (c_depth == 1) {
-            std::cout << "W" << s_index << " " << i_weight[s_index][ich_idx][ops] << " ";
-            std::cout << "A" << s_index << " " << i_input[s_index][ich_idx] << " " << s_data << " ";
-          }
+          std::cout << "W" << s_index << " " << i_weight[s_index][ich_idx][ops] << " ";
+          std::cout << "A" << s_index << " " << i_input[s_index][ich_idx] << " " << s_data << " ";
         #endif
       #endif
     }

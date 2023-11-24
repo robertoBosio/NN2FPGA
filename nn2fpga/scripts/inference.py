@@ -44,7 +44,7 @@ if __name__ == "__main__":
 
     off_chip_memory = False
 
-    batch_size = 128
+    batch_size = 1000
 
     if (sel_dataset == "cifar10"):
         dataloader = cifar10_dataloader

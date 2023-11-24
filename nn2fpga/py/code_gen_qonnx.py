@@ -104,7 +104,7 @@ def main():
     else:
         dataset = 'cifar10'
     
-    preprocess_datasets = ['imagenet']
+    preprocess_datasets = ['imagenet', "vw", "coco"]
     if dataset in preprocess_datasets:
         transform = True
     else:

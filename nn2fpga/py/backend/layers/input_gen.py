@@ -70,6 +70,7 @@ def parse(name, node):
     block["template"].append("c_%s_ws_out" % name)
     block["template"].append("c_%s" % input_name)
     block["template"].append("c_%s_ops" % name)
+    block["template"].append(int(node["transform"]))
     # block["template"].append("c_ws")
 
     block["args"] = []
