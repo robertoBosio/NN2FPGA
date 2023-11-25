@@ -1,6 +1,7 @@
 import os
 import sys
 import pulp
+from pulp.apis import PULP_CBC_CMD
 import json
 import math
 from backend.ilp_utils import find_divisors
@@ -57,6 +58,7 @@ def parallel_ops_number(layers_info, worst_index, board="ULTRA96v2", prj_root="/
 
     NUM_PORTS = (board_res["bram"] + board_res["uram"]) * 2
     NUM_DSP = board_res["dsp"]
+    NUM_DSP = 1300
     num_layers = len(layers_info)
 
     # Generating all the valid combinations of ich_par and och_par for each layer.
@@ -179,7 +181,8 @@ def parallel_ops_number(layers_info, worst_index, board="ULTRA96v2", prj_root="/
 
     
     prob.writeLP(prj_root + "/parallel_ops.lp")
-    prob.solve()
+    # prob.solve()
+    prob.solve(PULP_CBC_CMD(msg=0))
     print("Status:", pulp.LpStatus[prob.status])
     ########################################
 
@@ -188,16 +191,21 @@ def parallel_ops_number(layers_info, worst_index, board="ULTRA96v2", prj_root="/
         for s in range(len(layer)):
             if int(layer_binary_variables[i][s].value()) == 1:
                 parallel_op[f"{layers_info[i]['name']}"] = layer[s]
-    
-    for layer in layers_info :
-        if layer["depth"]:
+
+    with open(f"{prj_root}/{board}_par.csv", "w") as f:
+        print(f"Worst layer: {layers_info[worst_index]['name']}", file = f)
+        DSPs = 0
+        PORTs = 0
+        for layer in layers_info :
             ich_ops = parallel_op[layer['name']][1]
             och_ops = parallel_op[layer['name']][0]
-            print(f"{layer['name']} Bw: {ich_ops} Br:{ich_ops*och_ops/layer['och']}")
-        else:
-            ich_ops = parallel_op[layer['name']][1]
-            och_ops = parallel_op[layer['name']][0]
-            print(f"{layer['name']} Bw: {ich_ops*och_ops/layer['ich']} Br:{ich_ops*och_ops/layer['och']}")
+            dsp = layer["kernel"] * och_ops * ich_ops
+            iter = int(1 / (ich_ops * och_ops * layer["total"]))
+            port = math.ceil(layer["kernel"] * sum(layer["bits"]) * och_ops * ich_ops / 64)
+            PORTs += port
+            DSPs += dsp
+            print(f"{layer['name']} [{layer['ich']}][{layer['och']}] -> ich_ops: {ich_ops}, och_ops: {och_ops}, DSPs: {dsp}, PORTs: {port}, Iter: {iter}", file=f)
+        print(f"Totals: DSPs {DSPs}, Ports: {PORTs}", file=f)
     
     return parallel_op
 
@@ -250,7 +258,7 @@ def ilp(io_dict, off_chip_storage, model, board="ULTRA96v2", double_packing=True
 
     # Avoid the line buffer to become a bottleneck when there is a mismatch
     # between its iterations and the number of operation of the served
-    # convolution. Often for a depthwise.
+    # convolution. The padding reduce the bandwidth. Often for a depthwise.
     for name, node in io_dict.items():
         if node["type"] == "conv":
             ich_ops = node["ich_ops"]
@@ -260,10 +268,9 @@ def ilp(io_dict, off_chip_storage, model, board="ULTRA96v2", double_packing=True
                 och = 1
             else:
                 och = node["och"]
-            input_dimension = node["ich"] * node["iw"] * node["ih"]
+            input_dimension = node["ich"] * node["iw"] * node["ih"] // ich_ops
             pipeline_iterations = (och / och_ops) * (ich / ich_ops) * node["ow"] * node["oh"] 
             line_ops = math.ceil(input_dimension / pipeline_iterations)
-            # io_dict[name]["line_ops"] = ich_ops
             if node["ich_ops"] < line_ops:
                 io_dict[name]["line_ops"] = line_ops
                 print(f"#### Changing line_ops for {name} to {line_ops} to avoid bottleneck")

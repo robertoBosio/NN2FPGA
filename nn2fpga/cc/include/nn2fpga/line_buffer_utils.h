@@ -51,43 +51,44 @@ pad_input(hls::stream<din_t> din[(c_fw + (c_ws - 1) * c_str) * c_fh],
 
   for (auto s_index_h = 0; s_index_h < IH_REM; s_index_h += c_str) {
     for (auto s_index_w = 0; s_index_w < IW_REM; s_index_w += c_str*c_ws) {
-      for (auto s_index_ich = 0; s_index_ich < ICH; s_index_ich+=c_ops_out) {
+      for (auto s_index_ich = 0; s_index_ich < ICH; s_index_ich+=c_ops) {
+        for (auto s_ops = 0; s_ops < c_ops; s_ops+=c_ops_out) {
 #pragma HLS pipeline style = stp II=1
-        dout_t s_write;
-        auto s_ops = s_index_ich % c_ops;
-        for (auto s_fh = 0; s_fh < c_fh; s_fh++) {
-          for (auto s_fw = 0; s_fw < FW; s_fw++) {
+          dout_t s_write;
+          for (auto s_fh = 0; s_fh < c_fh; s_fh++) {
+            for (auto s_fw = 0; s_fw < FW; s_fw++) {
 
-            auto s_index = s_fh * FW + s_fw;
+              auto s_index = s_fh * FW + s_fw;
 
-            bool s_data_read = true;
+              bool s_data_read = true;
 
-            s_data_read &= (s_index_h >= (c_pad_index_h - s_fh));
-            s_data_read &= (s_index_h < (IH + c_pad_index_h - s_fh));
-            s_data_read &= (s_index_w >= (c_pad_index_w - s_fw));
-            s_data_read &= (s_index_w < (IW + c_pad_index_w - s_fw));
+              s_data_read &= (s_index_h >= (c_pad_index_h - s_fh));
+              s_data_read &= (s_index_h < (IH + c_pad_index_h - s_fh));
+              s_data_read &= (s_index_w >= (c_pad_index_w - s_fw));
+              s_data_read &= (s_index_w < (IW + c_pad_index_w - s_fw));
 
-            if (s_data_read) {
-              if (s_ops == 0) {
-                s_read[FSZ - s_index - 1] = din[FSZ - s_index - 1].read();
-                if (s_index == LAST_IDX) s_last = s_read[FSZ - s_index - 1].last;
+              if (s_data_read) {
+                if (s_ops == 0) {
+                  s_read[FSZ - s_index - 1] = din[FSZ - s_index - 1].read();
+                  if (s_index == LAST_IDX) s_last = s_read[FSZ - s_index - 1].last;
+                }
+                for (auto s_i = 0; s_i < c_ops_out; s_i++) {
+                  s_write.data[FSZ - s_index - 1][s_i] = s_read[FSZ - s_index - 1].data[0][s_ops + s_i];
+                }
+                s_write.last = s_read[FSZ - s_index - 1].last;
+              } else {
+                // for (auto s_i = 0; s_i < c_ops; s_i++) {
+                // This is padding branch, if the data of the window should not be read
+                // form the input stream then we pad it with zeros
+                for (auto s_i = 0; s_i < c_ops_out; s_i++) {
+                  s_write.data[FSZ - s_index - 1][s_i] = 0;
+                }
+                s_write.last = s_last;
               }
-              for (auto s_i = 0; s_i < c_ops_out; s_i++) {
-                s_write.data[FSZ - s_index - 1][s_i] = s_read[FSZ - s_index - 1].data[0][s_ops + s_i];
-              }
-              s_write.last = s_read[FSZ - s_index - 1].last;
-            } else {
-              // for (auto s_i = 0; s_i < c_ops; s_i++) {
-              // This is padding branch, if the data of the window should not be read
-              // form the input stream then we pad it with zeros
-              for (auto s_i = 0; s_i < c_ops_out; s_i++) {
-                s_write.data[FSZ - s_index - 1][s_i] = 0;
-              }
-              s_write.last = s_last;
             }
           }
+          o_data[0].write(s_write);
         }
-        o_data[0].write(s_write);
       }
     }
   }

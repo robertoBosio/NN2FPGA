@@ -3,9 +3,9 @@
 
 #ifndef __SYNTHESIS__
 // #define DEBUG
-/* #define DEBUG_ACC */
-/* #define DEBUG_LINE */
-/* #define DEBUG_POOL */
+// #define DEBUG_ACC
+// #define DEBUG_LINE
+// #define DEBUG_POOL
 #endif  // __SYNTHESIS__
 
 #include "hls_stream.h"
