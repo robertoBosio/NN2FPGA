@@ -111,7 +111,7 @@ def parse(name, node):
     block["template"].append("c_%s_pad" % name)
     block["template"].append("c_%s_pool" % name)
     block["template"].append("c_%s_ow_ops" % name)
-    block["template"].append("c_%s_ow_ops" % name)
+    block["template"].append("c_%s_ow_ops_out" % name)
     block["template"].append("c_%s_ops" % name)
     block["template"].append("c_%s_in_ops" % name)
 
@@ -168,6 +168,7 @@ def parse(name, node):
     block["defines"]["c_%s_pad" % name]            = ["const", node["pad"]]
     block["defines"]["c_%s_pool" % name]           = ["const", node["pool"]]
     block["defines"]["c_%s_ow_ops" % name]         = ["const", node["ow_ops"]]
+    block["defines"]["c_%s_ow_ops_out" % name]     = ["const", node["ow_ops_out"]]
     block["defines"]["c_%s_ops" % name]            = ["const", node["ops"]]
     block["defines"]["c_%s_in_ops" % name]         = ["const", node["in_ops"]]
 

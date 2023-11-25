@@ -98,6 +98,8 @@ def hw_quant(model, io_dict):
 
                 if io_dict[layer_in_name]["type"] == "produce":
                     io_dict[layer_in_name]["ow_ops"] = ow_ops_partial
+                else:
+                    io_dict[layer_in_name]["ow_ops_out"] = ow_ops_partial
 
                 io_dict[layer_out_name]["actscale"].append(scale_factor0)
                 io_dict[layer_out_name]["actbits"].append(bits0)
