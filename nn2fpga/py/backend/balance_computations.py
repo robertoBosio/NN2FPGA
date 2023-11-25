@@ -20,7 +20,7 @@ def parallel_ops_number(layers_info, worst_index, board="ULTRA96v2", prj_root="/
     elif (board == "PYNQ"):
         NUM_DSP = 220
     elif (board == "KRIA"):
-        NUM_DSP = 800
+        NUM_DSP = 1300
         # NUM_DSP = 3000
     elif (board == "ZCU102"):
         NUM_DSP = 2000

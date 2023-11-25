@@ -8,7 +8,7 @@ import numpy as np
 import backend.quant
 from backend.layers.quant import get_quant_type, get_quant_constant
 
-def info(io_dict, node, node_name, init_info, tensors_info, enable_ws):
+def info(io_dict, node, node_name, init_info, tensors_info):
 
     attributes = getattr(node, "attribute" )
     inputs = getattr(node, "input" )
@@ -98,11 +98,7 @@ def info(io_dict, node, node_name, init_info, tensors_info, enable_ws):
     io_dict[node_name]["kernel"] = kernel
     io_dict[node_name]["img_ch"] = img_ch
     # Reuse is generic
-    io_dict[node_name]["enable_ws"] = enable_ws
     io_dict[node_name]["reuse"]  = 1
-    # Ws are the operations in parallel
-    io_dict[node_name]["ws"]     = 1
-    io_dict[node_name]["ws_out"] = 1
     io_dict[node_name]["relu"]   = relu
     io_dict[node_name]["add"]    = add
     io_dict[node_name]["scale_factor"] = 0
@@ -118,6 +114,7 @@ def info(io_dict, node, node_name, init_info, tensors_info, enable_ws):
     io_dict[node_name]["ops"] = 1
     io_dict[node_name]["in_ops"] = 1
     io_dict[node_name]["ich_ops"] = 1
+    io_dict[node_name]["ow_ops"] = 1
     io_dict[node_name]["weights_name"] = [weight_name]
     io_dict[node_name]["merge_1x1"] = False
     io_dict[node_name]["has_bias"] = False 
@@ -258,10 +255,12 @@ def parse_comp(name, node):
             block["template"].append("c_%s_add_ops" % add_name)
     else:
         block["template"].append("1")
+    block["template"].append("c_%s_ow_ops" % name)
     block["template"].append("c_%s_relu" % name)
     block["template"].append("c_%s_reuse" % name)
-    block["template"].append("c_%s_ws" % name)
-    block["template"].append("c_%s_ws_out" % name)
+    block["template"].append("c_%s_ow_ops" % name)
+    # TODO: impement packing over och
+    block["template"].append("1")
 
     ##############################################################################
     # PACKING: providing info on quantization from template because
@@ -350,7 +349,7 @@ def parse_comp(name, node):
     # input window type declaration
     input_reduce_type = "std::array<t_%s, %0d>" % (input_name, node["ich_ops"])
     block["defines"]["t_%s_reduce" % input_name] = ["type", input_reduce_type]
-    input_window_type = "std::array<t_%s_reduce, %0d>" % (input_name, node["fh"]*(node["fw"]+(node["ws"]-1)*node["stride"]))
+    input_window_type = "std::array<t_%s_reduce, %0d>" % (input_name, node["fh"]*(node["fw"]+(node["ow_ops"]-1)*node["stride"]))
     block["defines"]["t_%s_window" % input_name] = ["type", input_window_type]
     block["defines"]["t_%s_window_struct" % input_name] = [
         "struct",
@@ -453,8 +452,7 @@ def parse_comp(name, node):
     block["defines"]["c_%s_ich_ops" % name]        = ["const", node["ich_ops"]]
     block["defines"]["c_%s_index" % name]          = ["const", node["kernel"]]
     block["defines"]["c_%s_reuse" % name]          = ["const", node["reuse"]]
-    block["defines"]["c_%s_ws" % name]             = ["const", node["ws"]]
-    block["defines"]["c_%s_ws_out" % name]         = ["const", node["ws_out"]]
+    block["defines"]["c_%s_ow_ops" % name]             = ["const", node["ow_ops"]]
     if (node["has_forward"]):
         block["defines"]["c_%s_add_ops" % forward_name]         = ["const", node["ich_ops"]]
 
@@ -504,7 +502,7 @@ def parse_comp(name, node):
     declare["name"] = "s_%s" % output_name
     declare["type"] = "t_%s_struct" % output_name
     declare["is_array"] = True
-    declare["dim"] = node["ws"]
+    declare["dim"] = node["ow_ops"]
     block["declare"].append(declare)
 
 
@@ -513,7 +511,7 @@ def parse_comp(name, node):
         declare["name"] = "s_%s" % output_1x1_name
         declare["type"] = "t_%s_struct" % output_1x1_name
         declare["is_array"] = True
-        declare["dim"] = node["ws"]
+        declare["dim"] = node["ow_ops"]
         block["declare"].append(declare)
 
     if (node["has_forward"]):
@@ -521,7 +519,7 @@ def parse_comp(name, node):
         declare["name"] = "s_%s" % forward_name
         declare["type"] = "t_%s_struct" % forward_name
         declare["is_array"] = True
-        declare["dim"] = node["ws"]
+        declare["dim"] = node["ow_ops"]
         block["declare"].append(declare)
 
     block["pragma"] = []
@@ -542,7 +540,7 @@ def parse_comp(name, node):
         pragma["options"] = options
         block["pragma"].append(pragma)
 
-    depth = int(node["och"]/node["ops"])*node["ws"] + 1
+    depth = int(node["och"]/node["ops"])*node["ow_ops"] + 1
     # TODO: Modified to reduce bram usage but slowing down arch
     # depth = 2
 
@@ -556,17 +554,6 @@ def parse_comp(name, node):
     ]
     pragma["options"] = options
     block["pragma"].append(pragma)
-
-    # # FIX: Adding because with big pointwise layers there are II violations
-    # # because the array width is too high for a memory element
-    # for i in range(node["ws"]):
-    #     pragma = {}
-    #     pragma["name"] = "aggregate"
-    #     options = [
-    #         ["variable", "s_%s" % (output_name)],
-    #     ]
-    #     pragma["options"] = options
-    #     block["pragma"].append(pragma)
 
     # FIX: Adding pragma to bind storage to SRL
     # if the depth of the fifo is small enough to
@@ -599,17 +586,6 @@ def parse_comp(name, node):
         ]
         pragma["options"] = options
         block["pragma"].append(pragma)
-
-        # # FIX: Adding because with big pointwise layers there are II violations
-        # # because the array width is too high for a memory element
-        # for i in range(node["ws"]):
-        #     pragma = {}
-        #     pragma["name"] = "aggregate"
-        #     options = [
-        #         ["variable", "s_%s" % (output_1x1_name)],
-        #     ]
-        #     pragma["options"] = options
-        #     block["pragma"].append(pragma)
 
         # FIX: Adding pragma to bind storage to SRL
         # if the depth of the fifo is small enough to

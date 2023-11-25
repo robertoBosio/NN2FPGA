@@ -120,7 +120,6 @@ def main():
         object_detection=object_detection,
         anchors=anchors,
         prj_root=PRJ_ROOT,
-        enable_ws=packing,
         transform=transform
     )
 

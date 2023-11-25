@@ -7,7 +7,7 @@ import numpy as np
 import backend.quant
 from backend.layers.quant import get_quant_type, get_quant_constant
 
-def info(io_dict, node, node_name, init_info, tensors_info, enable_ws):
+def info(io_dict, node, node_name, init_info, tensors_info):
 
     attributes = getattr(node, "attribute" )
     inputs = getattr(node, "input" )
@@ -67,11 +67,8 @@ def info(io_dict, node, node_name, init_info, tensors_info, enable_ws):
     io_dict[node_name]["kernel"] = kernel
     io_dict[node_name]["img_ch"] = img_ch
     # Reuse is generic
-    io_dict[node_name]["enable_ws"] = enable_ws
     io_dict[node_name]["reuse"]  = 1
-    # Ws are the operations in parallel
-    io_dict[node_name]["ws"]     = 1
-    io_dict[node_name]["ws_out"] = 1
+    io_dict[node_name]["ow_ops"]     = 1
     io_dict[node_name]["relu"]   = relu
     io_dict[node_name]["add"]    = add
     io_dict[node_name]["scale_factor"] = 0

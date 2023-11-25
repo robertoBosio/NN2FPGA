@@ -12,8 +12,8 @@ namespace nn2fpga {
 template <class t_input_struct, class t_input, class t_output_struct,
           class t_output, class t_acc, int c_ich, int c_och, int c_ih, int c_iw,
           int c_oh, int c_ow, int c_fh, int c_fw, int c_str, int c_pad,
-          int c_pool, int c_ws, int c_ws_out, int c_ops, int c_in_ops>
-void pool_op(hls::stream<t_input_struct> i_data[c_ws],
+          int c_pool, int c_ow_ops, int c_ow_ops_out, int c_ops, int c_in_ops>
+void pool_op(hls::stream<t_input_struct> i_data[c_ow_ops],
              hls::stream<t_output_struct> o_data[1]) {
   const int c_index = c_fh * c_fw;
   const int c_f_map = (c_ih * c_iw);
@@ -24,10 +24,10 @@ void pool_op(hls::stream<t_input_struct> i_data[c_ws],
   // och partial accumulations
   const int c_adaptive = (c_index) == (c_f_map);
   const int c_acc_och = (c_adaptive) ? c_och : 1;
-  const int c_o_index = (c_adaptive) ? (c_oh * c_ow * c_index) / c_ws : (c_oh * c_ow);
+  const int c_o_index = (c_adaptive) ? (c_oh * c_ow * c_index) / c_ow_ops : (c_oh * c_ow);
   const int c_fh_iter = (c_adaptive) ? 1 : c_fh;
   const int c_fw_iter = (c_adaptive) ? 1 : c_fw;
-  const int c_ws_iter = (c_adaptive) ? 1 : c_ws;
+  const int c_ow_ops_iter = (c_adaptive) ? 1 : c_ow_ops;
   const int c_str_iter = (c_adaptive) ? 1 : c_str;
 
   bool s_last;
@@ -46,7 +46,7 @@ void pool_op(hls::stream<t_input_struct> i_data[c_ws],
   for (auto s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
     for (auto s_och = 0; s_och < c_och; s_och+=c_ops) {
   #pragma HLS pipeline style = stp
-      for (auto s_ws = 0; s_ws < c_ws; s_ws++) {
+      for (auto s_ow_ops = 0; s_ow_ops < c_ow_ops; s_ow_ops++) {
         for (auto s_ops = 0; s_ops < c_ops; s_ops++) {
           for (auto s_fh = 0; s_fh < c_fh_iter; s_fh++) {
             for (auto s_fw = 0; s_fw < c_fw_iter; s_fw++) {
@@ -57,9 +57,9 @@ void pool_op(hls::stream<t_input_struct> i_data[c_ws],
               if constexpr(c_adaptive){
                 s_index = 0;
                 s_acc_index = s_och + s_ops;
-                s_init = (s_o_index == 0) && (s_ws == 0);
+                s_init = (s_o_index == 0) && (s_ow_ops == 0);
               } else {
-                s_index = s_fh*c_fw_iter+s_fw+(c_ws_iter-s_ws-1)*c_str_iter;
+                s_index = s_fh*c_fw_iter+s_fw+(c_ow_ops_iter-s_ow_ops-1)*c_str_iter;
                 s_acc_index = 0;
                 s_init = (s_index == 0);
               }
@@ -68,14 +68,14 @@ void pool_op(hls::stream<t_input_struct> i_data[c_ws],
 
               if ((s_ops == 0)) {
                 if constexpr(c_adaptive)
-                  s_input_struct = i_data[s_ws].read();
+                  s_input_struct = i_data[s_ow_ops].read();
                 else{
                   if (s_index == 0)
                     s_input_struct = i_data[0].read();
                 }
                 s_last = s_input_struct.last;
               }
-              // std::cout << "s_input_struct.data[" << s_o_index*c_ws+s_ws << "][s_ops] = " << s_input_struct.data[0][s_ops] << std::endl;
+              // std::cout << "s_input_struct.data[" << s_o_index*c_ow_ops+s_ow_ops << "][s_ops] = " << s_input_struct.data[0][s_ops] << std::endl;
 
               if (c_pool == 0)  // Average Pool
                 s_acc_buff[s_acc_index] += s_input_struct.data[s_index][s_ops];
@@ -83,7 +83,7 @@ void pool_op(hls::stream<t_input_struct> i_data[c_ws],
                 if (s_input_struct.data[s_index][s_ops] > s_acc_buff[s_acc_index]) s_acc_buff[s_acc_index] = s_input_struct.data[s_index][s_ops];
               }
               if constexpr(c_adaptive){
-                s_pool_write = (s_o_index == (c_o_index - c_ws)) && (s_ws == (c_ws-1));
+                s_pool_write = (s_o_index == (c_o_index - c_ow_ops)) && (s_ow_ops == (c_ow_ops-1));
               } else {
                 s_pool_write = (s_index == (c_index - 1));
               }

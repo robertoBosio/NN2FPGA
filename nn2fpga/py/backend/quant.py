@@ -87,28 +87,23 @@ def hw_quant(model, io_dict):
                 bits_index0 = in_net_names.index(net_name)
                 bits0 = in_bits[bits_index0]
                 
-                if io_dict[layer_out_name]["type"] == "conv":
-                    enable_ws = io_dict[layer_out_name]["enable_ws"]
+                # TODO: check for pointwise convolutions not at the end
+                if (io_dict[layer_out_name]["iw"] % 2) == 0:
+                    #TODO: Generalize to other bit widths
+                    ow_ops_partial = 2
                 else:
-                    enable_ws = io_dict[layer_in_name]["enable_ws"]
-                    io_dict[layer_out_name]["enable_ws"] = enable_ws
+                    ow_ops_partial = 1
+                
+                print("Layer: %s, ws_out: %0d" % (layer_out_name,ow_ops_partial))
 
-                if (enable_ws):
-                    # TODO: check for pointwise convolutions not at the end
-                    if (io_dict[layer_out_name]["iw"] > 1):
-                        # ws_partial = int(16/bits0)
-                        #TODO: Generalize to other bit widths
-                        ws_partial = 2
-                    else:
-                        ws_partial = 1
-                    io_dict[layer_in_name]["ws_out"] = ws_partial
+                if io_dict[layer_in_name]["type"] == "produce":
+                    io_dict[layer_in_name]["ow_ops"] = ow_ops_partial
 
                 io_dict[layer_out_name]["actscale"].append(scale_factor0)
                 io_dict[layer_out_name]["actbits"].append(bits0)
 
-                if (enable_ws):
-                    io_dict[layer_out_name]["ws"] = ws_partial
-                    io_dict[layer_out_name]["reuse"] = ws_partial
+                io_dict[layer_out_name]["ow_ops"] = ow_ops_partial
+                io_dict[layer_out_name]["reuse"] = ow_ops_partial
 
             elif is_weight:
                 scale_factor = io_dict[layer_in_name]["scale_factor"]

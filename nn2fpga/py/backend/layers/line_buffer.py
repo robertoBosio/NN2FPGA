@@ -5,23 +5,23 @@ import qonnx
 from onnx import numpy_helper
 import numpy as np
 
-def return_index(fh, fw, ws, stride, iw, ih):
-    base_index = ih*(fw+(ws-1)*stride)+iw
-    if (iw >= (fw-1)) and (iw < (ws)):
-        return (ih+1)*(fw+(ws-1)*stride)+iw
+def return_index(fh, fw, ow_ops, stride, iw, ih):
+    base_index = ih*(fw+(ow_ops-1)*stride)+iw
+    if (iw >= (fw-1)) and (iw < (ow_ops)):
+        return (ih+1)*(fw+(ow_ops-1)*stride)+iw
     elif iw < (fw):
-        return base_index+ws
+        return base_index+ow_ops
     else:
-        return (ih+1)*(fw+(ws-1)*stride)+iw%ws
+        return (ih+1)*(fw+(ow_ops-1)*stride)+iw%ow_ops
     print("ERROR: return_index")
     sys.exit(1)
 
 def parse(name, node, debug=False):
 
     stride = node["stride"]
-    ws = node["ws"]
+    ow_ops = node["ow_ops"]
     dfh = node["fh"]
-    dfw = node["fw"] + (ws-1)*(stride)
+    dfw = node["fw"] + (ow_ops-1)*(stride)
     dindex = dfh*dfw
 
     line_buffer_blocks = []
@@ -38,7 +38,7 @@ def parse(name, node, debug=False):
         for fw in range(dfw):
             
             index = fh*dfw+fw
-            out_index = return_index(node["fh"], node["fw"], ws, stride, fw, fh)
+            out_index = return_index(node["fh"], node["fw"], ow_ops, stride, fw, fh)
             if debug:
                 print("index: %0d" % index, "out_index: %0d" % out_index, "fh: %0d" % fh, "fw: %0d" % fw)
 
@@ -47,7 +47,7 @@ def parse(name, node, debug=False):
 
             # Template parameters
             block["template"] = []
-            if index < ws:
+            if index < ow_ops:
                 if node["adjust_line_buffer"]:
                     block["template"].append("t_%s_adj_struct" % input_type_name)
                 else:
@@ -71,8 +71,8 @@ def parse(name, node, debug=False):
             block["template"].append("c_%s_pad" % name)
             block["template"].append("%0d" % (dfh - 1 - fh))
             block["template"].append("%0d" % (dfw - 1 - fw))
-            block["template"].append("c_%s_ws" % name)
-            if index < ws:
+            block["template"].append("c_%s_ow_ops" % name)
+            if index < ow_ops:
                 block["template"].append("%0d" % node["in_ops"])
             else:
                 block["template"].append("%0d" % node["ich_ops"])
@@ -80,15 +80,15 @@ def parse(name, node, debug=False):
 
             block["args"] = []
 
-            if index < ws:
+            if index < ow_ops:
                 if node["adjust_line_buffer"]:
-                    block["args"].append("s_%s_adj[%0d]" % (input_name, (dfw - 1 - fw - pad_value)%ws))
+                    block["args"].append("s_%s_adj[%0d]" % (input_name, (dfw - 1 - fw - pad_value)%ow_ops))
                 else:
-                    block["args"].append("s_%s[%0d]" % (input_name, (dfw - 1 - fw - pad_value)%ws))
+                    block["args"].append("s_%s[%0d]" % (input_name, (dfw - 1 - fw - pad_value)%ow_ops))
                 # block["args"].append("s_%s[%0d]" % (input_name, index))
             else:
                 block["args"].append(
-                    "s_%s_data[%0d]" % (input_name, index-ws)
+                    "s_%s_data[%0d]" % (input_name, index-ow_ops)
                 )
 
             block["args"].append(
@@ -97,7 +97,7 @@ def parse(name, node, debug=False):
 
             if out_index < (dindex):
                 block["args"].append(
-                    "s_%s_data[%0d]" % (input_name, out_index-ws)
+                    "s_%s_data[%0d]" % (input_name, out_index-ow_ops)
                 )
             else:
                 block["args"].append(
@@ -111,14 +111,14 @@ def parse(name, node, debug=False):
                 declare["name"] = "s_%s_data" % output_name
                 declare["type"] = "t_%s_lb_struct" % output_name
                 declare["is_array"] = True
-                declare["dim"] = dindex-ws
+                declare["dim"] = dindex-ow_ops
                 block["declare"].append(declare)
 
                 declare = {}
                 declare["name"] = "s_%s_null" % output_name
                 declare["type"] = "std::nullptr_t"
                 declare["is_array"] = True
-                declare["dim"] = ws
+                declare["dim"] = ow_ops
                 block["declare"].append(declare)
 
                 declare = {}
@@ -165,13 +165,13 @@ def parse(name, node, debug=False):
 
             pragma = {}
 
-            # Line buffer long branch must be split in ws parts
-            if (fw > (dfw-ws-1)):
-                depth = int(node["iw"]/node["ws"])*int(node["ich"]/node["ich_ops"])
+            # Line buffer long branch must be split in ow_ops parts
+            if (fw > (dfw-ow_ops-1)):
+                depth = int(node["iw"]/node["ow_ops"])*int(node["ich"]/node["ich_ops"])
             else:
                 depth = int(node["ich"]/node["ich_ops"])
 
-            if (index < (dindex-ws)):
+            if (index < (dindex-ow_ops)):
 
                 pragma["name"] = "stream"
                 options = [

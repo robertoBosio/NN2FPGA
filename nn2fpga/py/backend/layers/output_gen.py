@@ -5,7 +5,7 @@ import qonnx
 from onnx import numpy_helper
 import numpy as np
 
-def info(io_dict, tensors_info, model, enable_ws):
+def info(io_dict, tensors_info, model):
 
 
     node_name = "consume_stream"
@@ -28,8 +28,7 @@ def info(io_dict, tensors_info, model, enable_ws):
     io_dict[node_name]["och"]    = och
     io_dict[node_name]["oh"]     = oh
     io_dict[node_name]["ow"]     = ow
-    io_dict[node_name]["enable_ws"] = enable_ws
-    io_dict[node_name]["ws"]     = 1
+    io_dict[node_name]["ow_ops"]     = 1
 
     return io_dict
 
@@ -52,7 +51,7 @@ def parse(node, node_name):
     block["template"].append("c_%s_och" % node_name)
     block["template"].append("c_%s_ow" % node_name)
     block["template"].append("c_%s_oh" % node_name)
-    block["template"].append("c_%s_ws" % node_name)
+    block["template"].append("c_%s_ow_ops" % node_name)
     block["template"].append("c_%s_ops" % node_name)
 
     block["args"] = []
@@ -73,7 +72,7 @@ def parse(node, node_name):
     block["defines"]["c_%s_och" % node_name] = ["const", node["och"]]
     block["defines"]["c_%s_ow" % node_name] = ["const", node["ow"]]
     block["defines"]["c_%s_oh" % node_name] = ["const", node["oh"]]
-    block["defines"]["c_%s_ws" % node_name] = ["const", 1]
+    block["defines"]["c_%s_ow_ops" % node_name] = ["const", 1]
     block["defines"]["c_%s_ops" % node_name] = ["const", node["ops"]]
 
     block["output"] = ["outp1"]

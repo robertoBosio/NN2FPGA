@@ -6,7 +6,7 @@ from onnx import numpy_helper
 import numpy as np
 from backend.layers.quant import get_quant_type
 
-def info(io_dict, tensors_info, model, ws, graph_input_name, transform=False):
+def info(io_dict, tensors_info, model, graph_input_name, transform=False):
 
 
     node_name = "produce_stream"
@@ -30,9 +30,8 @@ def info(io_dict, tensors_info, model, ws, graph_input_name, transform=False):
     io_dict[node_name]["ich"]    = ich
     io_dict[node_name]["ih"]     = ih
     io_dict[node_name]["iw"]     = iw
-    io_dict[node_name]["enable_ws"] = ws
-    io_dict[node_name]["ws_out"]    = 1
-    io_dict[node_name]["ops"]       = 1
+    io_dict[node_name]["ops"]    = 1
+    io_dict[node_name]["ow_ops"] = 1
     io_dict[node_name]["transform"] = transform
 
     return io_dict
@@ -67,11 +66,10 @@ def parse(name, node):
     block["template"].append("c_%s_ich" % name)
     block["template"].append("c_%s_iw" % name)
     block["template"].append("c_%s_ih" % name)
-    block["template"].append("c_%s_ws_out" % name)
+    block["template"].append("c_%s_ow_ops" % name)
     block["template"].append("c_%s" % input_name)
     block["template"].append("c_%s_ops" % name)
     block["template"].append(int(node["transform"]))
-    # block["template"].append("c_ws")
 
     block["args"] = []
     block["args"].append("i_%s" % input_name)
@@ -144,9 +142,9 @@ def parse(name, node):
         "const",
         node["ih"]
     ]
-    block["defines"]["c_%s_ws_out" % name] = [
+    block["defines"]["c_%s_ow_ops" % name] = [
         "const",
-        node["ws_out"]
+        node["ow_ops"]
     ]
 
     block["defines"]["c_%s_ops" % name] = [
@@ -160,7 +158,7 @@ def parse(name, node):
     declare["name"] = "s_%s" % output_name
     declare["type"] = "t_%s_struct" % output_name
     declare["is_array"] = True
-    declare["dim"] = node["ws_out"]
+    declare["dim"] = node["ow_ops"]
     block["declare"].append(declare)
 
     block["pragma"] = []

@@ -211,7 +211,7 @@ def extract_tensors_info(model):
 
     return tensors_info
 
-def graph_info(model, init_info, object_detection=False, anchors=None, enable_ws=True, transform=False):
+def graph_info(model, init_info, object_detection=False, anchors=None, transform=False):
 
     tensors_info = extract_tensors_info(
         model
@@ -233,7 +233,6 @@ def graph_info(model, init_info, object_detection=False, anchors=None, enable_ws
             io_dict,
             tensors_info,
             model,
-            enable_ws,
             graph_input_name.name,
             transform=transform
         )
@@ -277,7 +276,6 @@ def graph_info(model, init_info, object_detection=False, anchors=None, enable_ws
                 node_name,
                 init_info,
                 tensors_info,
-                enable_ws
             )
             # Save last layer name if it is a recognized layer
             last_layer_name = node_name
@@ -304,7 +302,6 @@ def graph_info(model, init_info, object_detection=False, anchors=None, enable_ws
                 node_name,
                 init_info,
                 tensors_info,
-                enable_ws
             )
             last_layer_name = node_name
             continue
@@ -316,7 +313,6 @@ def graph_info(model, init_info, object_detection=False, anchors=None, enable_ws
                 node_name,
                 init_info,
                 tensors_info,
-                enable_ws
             )
             # Save last layer name if it is a recognized layer
             last_layer_name = node_name
@@ -400,7 +396,7 @@ def graph_info(model, init_info, object_detection=False, anchors=None, enable_ws
     if object_detection:
         concat_net = None
         for i, layer_name in enumerate(cut_name):
-            io_dict = detect.info(io_dict, i, anchors[i], layer_name, len(cut_name), ws)
+            io_dict = detect.info(io_dict, i, anchors[i], layer_name, len(cut_name), io_dict[layer_name]["ow_ops"])
         io_dict = non_max_suppression.info(io_dict, graph_output_name, len(cut_name), anchors, cut_name)
     elif len(cut_name) == 1:
         graph_output_name = model.graph.output[0].name

@@ -9,7 +9,7 @@
 namespace nn2fpga {
 
 template <typename din_t, typename dout_t, int ICH, int OCH, int IH, int IW, int OH, int OW,
-          int c_fh, int c_fw, int c_str, int c_pad, int c_pos_h, int c_pos_w, int c_ws, int c_ops>
+          int c_fh, int c_fw, int c_str, int c_pad, int c_pos_h, int c_pos_w, int c_ow_ops, int c_ops>
 void line_buffer(hls::stream<din_t> &din, hls::stream<din_t> &o_compute,
               hls::stream<dout_t> &o_data) {
   /* #pragma HLS inline */
@@ -22,7 +22,7 @@ void line_buffer(hls::stream<din_t> &din, hls::stream<din_t> &o_compute,
   constexpr int c_strideh_shift = (c_str - 1);
   constexpr int c_stridew_shift = (c_str - 1);
   constexpr int c_end_paddingh_shift = (c_fh - 1 - c_pos_h);
-  // constexpr int c_end_paddingw_shift = (c_fw + c_ws - 2 - c_pos_w);
+  // constexpr int c_end_paddingw_shift = (c_fw + c_ow_ops - 2 - c_pos_w);
   constexpr int c_end_paddingw_shift = (c_fw - 1 - c_pos_w);
 
   /* Constants for new version */
@@ -33,7 +33,7 @@ void line_buffer(hls::stream<din_t> &din, hls::stream<din_t> &o_compute,
   constexpr int c_endh = IH_PAD - c_pad_index_h;
   constexpr int c_endw = IW_PAD - c_pad_index_w;
 
-  constexpr int c_fw_ext = c_fw + (c_ws - 1)*c_str;
+  constexpr int c_fw_ext = c_fw + (c_ow_ops - 1)*c_str;
 
 
   hls::stream<din_t> s_compute;
@@ -44,7 +44,7 @@ void line_buffer(hls::stream<din_t> &din, hls::stream<din_t> &o_compute,
   dout_t s_output;
 
   for (auto s_index_h = c_starth; s_index_h < c_endh; s_index_h++) {
-    for (auto s_index_w = c_startw; s_index_w < c_endw; s_index_w+=c_ws) {
+    for (auto s_index_w = c_startw; s_index_w < c_endw; s_index_w+=c_ow_ops) {
       for (auto s_index_ich = 0; s_index_ich < (ICH/c_ops); s_index_ich++) {
       // for (auto s_index_ich = 0; s_index_ich < ICH; s_index_ich+=c_ops) {
 #pragma HLS pipeline style = stp
@@ -62,7 +62,7 @@ void line_buffer(hls::stream<din_t> &din, hls::stream<din_t> &o_compute,
           s_compute_value &= (s_index_w_str == (c_paddingw_shift % c_str));
 
           bool s_compute_read = true;
-          s_compute_read &= s_fw < c_ws;
+          s_compute_read &= s_fw < c_ow_ops;
 
           if (s_compute_read) din_t s_input = din.read();
           if (!s_compute_value) o_compute.write(s_output);
