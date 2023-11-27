@@ -53,7 +53,7 @@ def parse(name, node):
     block["template"].append("c_%s_fw" % name)
     block["template"].append("c_%s_stride" % name)
     block["template"].append("c_%s_pad" % name)
-    block["template"].append("c_%s_ws" % name)
+    block["template"].append("c_%s_ow_ops" % name)
     block["template"].append("%0d" % node["line_ops"]) #line_ops
     block["template"].append("%0d" % node["ich_ops"])
 
@@ -68,7 +68,6 @@ def parse(name, node):
     declare["name"] = "s_%s_compute" % input_name
     declare["type"] = "t_%s_window_struct" % input_name
     declare["is_array"] = True
-    # declare["dim"] = node["fh"]*(node["fw"]+(node["ws"]-1)*node["stride"])
     declare["dim"] = 1
 
     block["declare"].append(declare)

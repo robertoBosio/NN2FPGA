@@ -20,6 +20,7 @@ export NUM_WORKERS=4
 export WBITS=8
 export ABITS=8
 export PYTHON=python
+export ONNX_FILE=""
 
 # Run the calibration with batchnorm fuse
 train:
@@ -27,3 +28,11 @@ train:
 
 bnfuse:
 	${PYTHON} py/export_withbnfuse_fx.py
+
+all:
+	${PYTHON} py/train_fx.py
+	make bnfuse PYTHON=${PYTHON} LOG_NAME=${LOG_NAME} DATASET=${DATASET} MAX_EPOCHS=5 BATCH_SIZE=32 PRETRAIN_FILE=tmp/ckpt/${LOG_NAME}/checkpoint_quant_fx.t7 PRETRAIN=True
+
+export_qonnx:
+	qonnx-cleanup ${ONNX_FILE}.onnx --out-file=${ONNX_FILE}_clean.onnx
+	qonnx-convert ${ONNX_FILE}_clean.onnx --output-style quant --output-file=${ONNX_FILE}_clean_quant.onnx

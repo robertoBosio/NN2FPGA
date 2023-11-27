@@ -189,14 +189,14 @@ vivado_flow:
 
 .PHONY: generate
 generate: check_prj_root check-top check-board check-onnx
-	cd $(PRJ_ROOT) && python $(NN2FPGA_ROOT)/py/code_gen_qonnx.py
+	cd $(PRJ_ROOT) && ${PYTHON} $(NN2FPGA_ROOT)/py/code_gen_qonnx.py
 
 host: check-xrt check-top $(HOST_SRCS) $(PRJ_ROOT)/cc/include/$(TOP_NAME)_sim.h
 	cp $(PRJ_ROOT)/cc/include/$(TOP_NAME)_sim.h $(PRJ_ROOT)/cc/include/network_sim.h
 	g++ -o host.o $(HOST_SRCS) $(CXXFLAGS) $(LDFLAGS)
 
 run_model:
-	cd $(PRJ_ROOT) && python $(NN2FPGA_ROOT)/py/utils/test_model.py
+	cd $(PRJ_ROOT) && ${PYTHON} $(NN2FPGA_ROOT)/py/utils/test_model.py
 
 download_cifar10:
 	$(TB_ROOT)/cifar10/download_cifar10.sh
@@ -216,7 +216,7 @@ csim: check-top check-hls check-board generate
 backend: syn vivado_flow
 
 deploy:
-	./scripts/inference.sh $(BOARD)
+	./scripts/inference.sh $(BOARD) $(DATASET)
 
 build: $(BUILD_DIR)/$(TOP_NAME).xclbin
 

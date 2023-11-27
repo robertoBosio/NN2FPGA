@@ -73,16 +73,16 @@ def main():
     print('#### Preparing data ..')
     device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
     # model = resnet20(wbit=Wbits,abit=Abits).to('cuda:0')
-    model = MobileNetV1(num_filters=3, num_classes=2).to(device)
+    model = MobileNetV1(num_filters=8, num_classes=2).to(device)
     # model = QuantizedCifar10Net().to(device)
     model.to(device)
 
+    optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=wd)
+    # optimizer = torch.optim.Adam(model.parameters(),lr=lr,weight_decay=wd)
     # if 'cuda' in device:
     #     model = torch.nn.DataParallel(model)
     #     cudnn.benchmark = True
     #     #print("no cuda")
-
-    model.to(device)
     
     if pretrain:
         print("#### Loading pretrain model..")
@@ -162,11 +162,11 @@ def main():
             'acc': acc,
             'epoch': epoch,
         }
-        torch.save(state, os.path.join(ckpt_dir, f'checkpoint_quant_fx.t7'))
+        torch.save(state, os.path.join(ckpt_dir, f'checkpoint_quant_bnfuse_fx.t7'))
         # model.to('cpu')
         dummy_input = torch.randn(input_shape, device=device)
         accuracy_str = f'{acc:.2f}'.replace('.', '_')
-        exported_model = export_onnx_qcdq(model, args=dummy_input, export_path=onnx_dir + "%s_%s" % (log_name, accuracy_str), opset_version=13)
+        exported_model = export_onnx_qcdq(model, args=dummy_input, export_path=onnx_dir + "%s_%s.onnx" % (log_name, accuracy_str), opset_version=13)
         best_acc = acc
         # model.to(device)
 
@@ -256,43 +256,15 @@ def main():
         test(start_epoch, criterion)
         print("#### RETRAINING") 
         retrain = 1
-        # optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=wd)
-        optimizer = torch.optim.SGD(model.parameters(), lr=0.0001)
-        # optimizer = torch.optim.Adam(model.parameters(),lr=lr,weight_decay=wd)
-        # lr_schedu = optim.lr_scheduler.MultiStepLR(optimizer, [90, 150, 200], gamma=0.1)
+        # optimizer = torch.optim.SGD(model.parameters(), lr=0.0001)
+        lr_schedu = optim.lr_scheduler.MultiStepLR(optimizer, [90, 150, 200], gamma=0.1)
         criterion = torch.nn.CrossEntropyLoss()
         for epoch in range(start_epoch, start_epoch+20): 
-           if(not(post_quant)) :
-               train(epoch, criterion, optimizer)
-           test(epoch, criterion)
-           lr_schedu.step(epoch)
+            if(not(post_quant)) :
+                train(epoch, criterion, optimizer)
+            else:
+                test(epoch, criterion)
+            lr_schedu.step(epoch)
 
-
-    # for name, output in print_partial(model).items():
-    #     # print the tensors permuting the dimensions
-    #     print(name, output.permute(0, 2, 3, 1))
-
-    #print(model.module)
-
-    model.to('cpu')
-    # dummy_input = torch.randn(10, 3, 32, 32, device="cpu")
-    # example_path = './onnx/'
-    # path = example_path + 'Brevonnx_resnet_final_fx.onnx'   
-    # os.makedirs(example_path, exist_ok=True)
-    # QONNXManager.export(model.module, input_shape=(1, 3, 32, 32), export_path='onnx/Brevonnx_resnet_final_fx.onnx')
-    # from qonnx.transformation import infer_shapes
-   
-    #onnx.save(onnx_model, 'onnx/Brevonnx_resnet_final.onnx')                                                                        
-    if (print_onnx) :   
-        from qonnx.core.modelwrapper import ModelWrapper                                
-        from qonnx.transformation import infer_shapes 
-
-        
-        model = ModelWrapper(path)
-        inferred_model = model.transform(infer_shapes.InferShapes())
-        # for node in inferred_model.graph.node:                                               
-        #     print(node.name)
-        #     print(node)                                                        
-   
 if __name__ == '__main__':
     main()

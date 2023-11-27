@@ -53,6 +53,7 @@ def parse_on_chip(
     # print("dich: %d" % dich)
     # print("doch: %d" % doch)
     # print("dops: %d" % dops)
+    # print("dim: ", pre_values.shape)
 
     assert dich_iter_ops > 0
     assert doch_ops > 0

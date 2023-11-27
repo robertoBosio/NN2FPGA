@@ -7,7 +7,7 @@ import numpy as np
 from backend.layers.quant import get_quant_type
 import math
 
-def info(io_dict, node, node_name, init_info, tensors_info, enable_ws):
+def info(io_dict, node, node_name, init_info, tensors_info):
 
     attributes = getattr(node, "attribute" )
     input_shape = tensors_info[node.input[0]].tensor_type.shape
@@ -66,9 +66,7 @@ def info(io_dict, node, node_name, init_info, tensors_info, enable_ws):
     io_dict[node_name]["actscale"] = []
     io_dict[node_name]["is_adaptive"] = adaptive
     io_dict[node_name]["actbits"] = []
-    io_dict[node_name]["enable_ws"] = enable_ws
-    io_dict[node_name]["ws"] = 1
-    io_dict[node_name]["ws_out"] = 1
+    io_dict[node_name]["ow_ops"] = 1
     io_dict[node_name]["ops"] = 1
     io_dict[node_name]["in_ops"] = 1
     io_dict[node_name]["ich_ops"] = 1
@@ -112,12 +110,10 @@ def parse(name, node):
     block["template"].append("c_%s_stride" % name)
     block["template"].append("c_%s_pad" % name)
     block["template"].append("c_%s_pool" % name)
-    block["template"].append("c_%s_ws" % name)
-    block["template"].append("c_%s_ws_out" % name)
+    block["template"].append("c_%s_ow_ops" % name)
+    block["template"].append("c_%s_ow_ops_out" % name)
     block["template"].append("c_%s_ops" % name)
     block["template"].append("c_%s_in_ops" % name)
-    # block["template"].append("c_ws")
-    # block["template"].append("c_%s_in_scale_factor" % name)
 
     block["args"] = []
     if (node["is_adaptive"]):
@@ -141,7 +137,7 @@ def parse(name, node):
 
     input_reduce_type = "std::array<t_%s, %0d>" % (input_name, node["ich_ops"])
     block["defines"]["t_%s_reduce" % input_name] = ["type", input_reduce_type]
-    input_window_type = "std::array<t_%s_reduce, %0d>" % (input_name, node["fh"]*(node["fw"]+(node["ws"]-1)*node["stride"]))
+    input_window_type = "std::array<t_%s_reduce, %0d>" % (input_name, node["fh"]*(node["fw"]+(node["ow_ops"]-1)*node["stride"]))
     block["defines"]["t_%s_window" % input_name] = ["type", input_window_type]
     block["defines"]["t_%s_window_struct" % input_name] = [
         "struct",
@@ -159,7 +155,7 @@ def parse(name, node):
     else:
         acc_bits = node["actbits"][0] + math.ceil(math.log2(node["fh"]*node["fw"]))
         acc_type = get_quant_type(True, acc_bits, node["actscale"][0], acc_reg=True)
-        block["defines"]["t_%s_acc" % name]            = ["type", acc_type]
+        block["defines"]["t_%s_acc" % name]        = ["type", acc_type]
     block["defines"]["c_%s_ich" % name]            = ["const", node["ich"]]
     block["defines"]["c_%s_och" % name]            = ["const", node["och"]]
     block["defines"]["c_%s_iw" % name]             = ["const", node["iw"]]
@@ -171,8 +167,8 @@ def parse(name, node):
     block["defines"]["c_%s_stride" % name]         = ["const", node["stride"]]
     block["defines"]["c_%s_pad" % name]            = ["const", node["pad"]]
     block["defines"]["c_%s_pool" % name]           = ["const", node["pool"]]
-    block["defines"]["c_%s_ws" % name]             = ["const", node["ws"]]
-    block["defines"]["c_%s_ws_out" % name]         = ["const", node["ws_out"]]
+    block["defines"]["c_%s_ow_ops" % name]         = ["const", node["ow_ops"]]
+    block["defines"]["c_%s_ow_ops_out" % name]     = ["const", node["ow_ops_out"]]
     block["defines"]["c_%s_ops" % name]            = ["const", node["ops"]]
     block["defines"]["c_%s_in_ops" % name]         = ["const", node["in_ops"]]
 
@@ -182,7 +178,7 @@ def parse(name, node):
     declare["name"] = "s_%s" % output_name
     declare["type"] = "t_%s_struct" % output_name
     declare["is_array"] = True
-    declare["dim"] = node["ws_out"]
+    declare["dim"] = node["ow_ops"]
 
     block["declare"].append(declare)
 

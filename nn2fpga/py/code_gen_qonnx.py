@@ -104,7 +104,8 @@ def main():
     else:
         dataset = 'cifar10'
     
-    if dataset == 'imagenet':
+    preprocess_datasets = ['imagenet', "vw", "coco"]
+    if dataset in preprocess_datasets:
         transform = True
     else:
         transform = False
@@ -119,7 +120,6 @@ def main():
         object_detection=object_detection,
         anchors=anchors,
         prj_root=PRJ_ROOT,
-        enable_ws=packing,
         transform=transform
     )
 

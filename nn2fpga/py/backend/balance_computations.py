@@ -21,7 +21,7 @@ def parallel_ops_number(layers_info, worst_index, board="ULTRA96v2", prj_root="/
     elif (board == "PYNQ"):
         NUM_DSP = 220
     elif (board == "KRIA"):
-        NUM_DSP = 1500
+        NUM_DSP = 1300
         # NUM_DSP = 3000
     elif (board == "ZCU102"):
         NUM_DSP = 2000
@@ -397,5 +397,10 @@ def ilp(io_dict, off_chip_storage, model, board="ULTRA96v2", double_packing=True
     for name, node in io_dict.items():
         if node["type"] in print_layers:
             print(f'{name} -> och: {node["och"]} par {node["ops"]}, ich: {node["ich"]} par {node["ich_ops"]}')
+            # Testing resnet8
+            if "is_1x1" in node.keys():
+                if node["is_1x1"]:
+                    continue
+            node["ow_ops"] = 2
 
     return io_dict

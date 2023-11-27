@@ -27,7 +27,6 @@ def write_network(
     object_detection=False,
     anchors=[],
     prj_root="/tmp",
-    enable_ws=False,
     transform=False
 ):
 
@@ -50,7 +49,6 @@ def write_network(
         init_info,
         object_detection,
         anchors,
-        enable_ws=enable_ws,
         transform=transform
     )
 

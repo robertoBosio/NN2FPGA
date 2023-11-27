@@ -87,28 +87,34 @@ def hw_quant(model, io_dict):
                 bits_index0 = in_net_names.index(net_name)
                 bits0 = in_bits[bits_index0]
                 
-                if io_dict[layer_out_name]["type"] == "conv":
-                    enable_ws = io_dict[layer_out_name]["enable_ws"]
-                else:
-                    enable_ws = io_dict[layer_in_name]["enable_ws"]
-                    io_dict[layer_out_name]["enable_ws"] = enable_ws
+                # TODO: check for pointwise convolutions not at the end
+                # if (io_dict[layer_out_name]["iw"] % 2) == 0:
+                #     #TODO: Generalize to other bit widths
+                #     ow_ops_partial = 2
+                # else:
+                #     ow_ops_partial = 1
+                ow_ops_partial = io_dict[layer_out_name]["ow_ops"]
+                
+                print("Layer: %s, ws_out: %0d" % (layer_out_name,ow_ops_partial))
 
-                if (enable_ws):
-                    # TODO: check for pointwise convolutions not at the end
-                    if (io_dict[layer_out_name]["iw"] > 1):
-                        # ws_partial = int(16/bits0)
-                        #TODO: Generalize to other bit widths
-                        ws_partial = 2
-                    else:
-                        ws_partial = 1
-                    io_dict[layer_in_name]["ws_out"] = ws_partial
+                if io_dict[layer_in_name]["type"] == "produce":
+                    io_dict[layer_in_name]["ow_ops"] = ow_ops_partial
+                else:
+                    io_dict[layer_in_name]["ow_ops_out"] = ow_ops_partial
+                 
+                # Admitting packing on ow only if the number of ops is a multiple
+                # of the packing factor
+                ow_pack_partial = 16 // bits0
+                if (ow_ops_partial % ow_pack_partial) == 0:
+                    io_dict[layer_out_name]["ow_pack"] = ow_pack_partial
+                else:
+                    io_dict[layer_out_name]["ow_pack"] = 1
 
                 io_dict[layer_out_name]["actscale"].append(scale_factor0)
                 io_dict[layer_out_name]["actbits"].append(bits0)
 
-                if (enable_ws):
-                    io_dict[layer_out_name]["ws"] = ws_partial
-                    io_dict[layer_out_name]["reuse"] = ws_partial
+                io_dict[layer_out_name]["ow_ops"] = ow_ops_partial
+                io_dict[layer_out_name]["reuse"] = ow_ops_partial
 
             elif is_weight:
                 scale_factor = io_dict[layer_in_name]["scale_factor"]

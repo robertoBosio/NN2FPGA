@@ -51,7 +51,6 @@ def kria_inference(
 
             # print("Total time:", batch_time, "seconds")
             # print("Inference time:", batch_time/BATCH_SIZE, "seconds")
-            # print("Batch accuracy:", accuracy_batch/BATCH_SIZE)
 
         if (off_chip_memory):
             network.write(0x0, 0x0)

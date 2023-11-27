@@ -7,15 +7,16 @@ import os
 import numpy as np
 
 from boards import kria_inference, ultra96_inference
-from datasets import cifar10_dataloader, coco_dataloader
+from datasets import cifar10_dataloader, coco_dataloader, vw_dataloader
 from coco import postprocess as coco_postprocess
 from cifar10 import postprocess as cifar10_postprocess
+from vw import postprocess as vw_postprocess
 
 if __name__ == "__main__":
     # Uploading all data
 
     supported_boards = ["KRIA", "ULTRA96v2"]
-    supported_datasets = ["cifar10"]
+    supported_datasets = ["cifar10", "vw"]
     supported_uram_storage = [0, 1]
 
     if (len(sys.argv) < 3):
@@ -43,11 +44,14 @@ if __name__ == "__main__":
 
     off_chip_memory = False
 
-    batch_size = 2000
+    batch_size = 1000
 
     if (sel_dataset == "cifar10"):
         dataloader = cifar10_dataloader
         postprocess = cifar10_postprocess
+    if (sel_dataset == "vw"):
+        dataloader = vw_dataloader
+        postprocess = vw_postprocess
     if (sel_dataset == "coco"):
         dataloader = coco_dataloader
         postprocess = coco_postprocess

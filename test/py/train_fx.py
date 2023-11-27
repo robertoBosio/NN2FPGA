@@ -10,6 +10,7 @@ from tiny_torch.benchmark.training_torch.visual_wake_words.vww_torch import Mobi
 from brevitas.export import export_onnx_qcdq
 from tqdm import tqdm
 from utils.datasets import get_dataset
+import torchsummary
 
 os.environ.setdefault('ROOT_DIR', './tmp')
 os.environ.setdefault('DATA_DIR', 'data')
@@ -75,12 +76,14 @@ def main():
     print('#### Building model..')
     device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
     # model = resnet20(wbit=Wbits,abit=Abits).to('cuda:0')
-    model = MobileNetV1(num_filters=3, num_classes=2).to(device)
+    model = MobileNetV1(num_filters=8, num_classes=2).to(device)
     # model = QuantizedCifar10Net().to(device)
+
     model.to(device)
 
     criterion = torch.nn.CrossEntropyLoss()
     optimizer = optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=wd)
+    # optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=wd)
 
     
     if pretrain:
@@ -107,12 +110,14 @@ def main():
     def train(epoch, criterion, optimizer):
         train_loss, correct, total = 0, 0 ,0
 
+        model.train()
         with tqdm(train_loader, unit="batch") as tepoch:
             tepoch.set_description(f"Epoch {epoch}")
             for inputs, targets in tepoch:
                 inputs, targets = inputs.to(device), targets.to(device)
                 optimizer.zero_grad()
-                outputs = model(inputs).view(model(inputs).size(0),-1)
+                outputs = model(inputs)
+                outputs = outputs.view(outputs.size(0),-1)
                 loss = criterion(outputs, targets)
                 loss.backward()
                 optimizer.step()
@@ -133,6 +138,7 @@ def main():
         # pass
         global best_acc
 
+        model.eval()
         test_loss, correct, total = 0, 0, 0
         with torch.no_grad():
             with tqdm(eval_loader, unit="batch") as tepoch:

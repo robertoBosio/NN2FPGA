@@ -16,6 +16,8 @@ set URAM_STORAGE $::env(URAM_STORAGE)
 set OBJECT_DETECTION $::env(OBJECT_DETECTION)
 set SIMD_DSP $::env(SIMD_DSP)
 
+set VIVADO_VERSION $::env(VIVADO_VERSION)
+
 if {$BOARD == "PYNQ"} {
  set FPGA_PART "xc7z020clg400-1"
  set BOARD_PART "tul.com.tw:pynq-z2:part0:1.0"
