@@ -50,14 +50,14 @@ set_property CLOCK_DOMAINS INDEPENDENT [get_cells design_1_i/two_layers_0/inst/s
 # Time Constraints
 set_multicycle_path -setup -from [get_clocks clk_pl_0] -to [get_clocks clk_out1_design_1_clk_wiz_0_0] 2
 set_multicycle_path -hold -from [get_clocks clk_pl_0] -to [get_clocks clk_out1_design_1_clk_wiz_0_0] 1
-#set_multicycle_path -setup -from [get_clocks clk_out1_design_1_clk_wiz_0_0] -to [get_clocks clk_pl_0] 2
-#set_multicycle_path -hold -from [get_clocks clk_out1_design_1_clk_wiz_0_0] -to [get_clocks clk_pl_0] 1
+set_multicycle_path -setup -from [get_clocks clk_out1_design_1_clk_wiz_0_0] -to [get_clocks clk_pl_0] 2
+set_multicycle_path -hold -from [get_clocks clk_out1_design_1_clk_wiz_0_0] -to [get_clocks clk_pl_0] 1
 set_multicycle_path 2 -setup -from [ get_clocks clk_out1_design_1_clk_wiz_0_0 ] -to [ get_clocks clk_out2_design_1_clk_wiz_0_0]
 set_multicycle_path 1 -hold -from [ get_clocks clk_out1_design_1_clk_wiz_0_0 ] -to [ get_clocks clk_out2_design_1_clk_wiz_0_0]
 set_multicycle_path -setup -from [get_clocks clk_pl_0] -to [get_clocks clk_out2_design_1_clk_wiz_0_0] 2
 set_multicycle_path -hold -from [get_clocks clk_pl_0] -to [get_clocks clk_out2_design_1_clk_wiz_0_0] 1
-#set_multicycle_path -setup -from [get_clocks clk_out2_design_1_clk_wiz_0_0] -to [get_clocks clk_pl_0] 2
-#set_multicycle_path -hold -from [get_clocks clk_out2_design_1_clk_wiz_0_0] -to [get_clocks clk_pl_0] 1
+set_multicycle_path -setup -from [get_clocks clk_out2_design_1_clk_wiz_0_0] -to [get_clocks clk_pl_0] 2
+set_multicycle_path -hold -from [get_clocks clk_out2_design_1_clk_wiz_0_0] -to [get_clocks clk_pl_0] 1
 
 create_net design_1_i/peripheral_aresetn
 connect_net -hier -net design_1_i/peripheral_aresetn -objects [get_pins design_1_i/proc_sys_reset_0/peripheral_aresetn]
