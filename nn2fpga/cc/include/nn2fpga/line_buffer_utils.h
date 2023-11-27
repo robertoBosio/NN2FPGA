@@ -136,7 +136,7 @@ void bandwidth_adjust(
           s_write.data[0][s_i+s_j] = s_read.data[0][s_j];
         }
         if (s_i == (c_ops_out - c_ops))
-          o_data[s_ws].write(s_write);
+          o_data.write(s_write);
       }
     }
   }
@@ -149,7 +149,7 @@ void bandwidth_adjust(
   hls::stream<dout_t> o_data[c_ws]
 ) {
 
-  dout_t s_write;
+  dout_t s_write[c_ws];
   #ifndef __SYNTHESIS__
       std::cout << "bandwidth_adjust " << ICH << " " << c_ops << " " << c_ops_out << std::endl;
       // Printing the size
@@ -164,10 +164,10 @@ void bandwidth_adjust(
         din_t s_read = din[s_ws].read();
         for (auto s_j = 0; s_j < c_ops; s_j++) {
           auto read_data = s_read.data[0][s_j];
-          s_write.data[0][s_i+s_j] = read_data;
+          s_write[s_ws].data[0][s_i+s_j] = read_data;
         }
         if (s_i == (c_ops_out - c_ops))
-          o_data[s_ws].write(s_write);
+          o_data[s_ws].write(s_write[s_ws]);
       }
     }
   }
