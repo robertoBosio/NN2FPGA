@@ -75,8 +75,8 @@ def parse(name, node, debug=False):
             if index < ow_ops:
                 block["template"].append("%0d" % node["in_ops"])
             else:
-                block["template"].append("%0d" % node["ich_ops"])
-            block["template"].append("%0d" % node["ich_ops"])
+                block["template"].append("%0d" % node["line_ops"]) #line_ops
+            block["template"].append("%0d" % node["line_ops"]) #line_ops
 
             block["args"] = []
 

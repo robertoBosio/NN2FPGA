@@ -11,11 +11,13 @@ template <typename din_t, typename dout_t, int ICH, int IH, int IW, int c_fw, in
 void pad_input(hls::stream<din_t> din[(c_fw+(c_ow_ops-1)*c_str) * c_fh],
                hls::stream<dout_t> o_data[1]) {
   /* #pragma HLS inline */
+  static_assert(c_ops % c_ops_out == 0, "c_ops must be a multiple of c_ops_out");
 
   /* This handles padding aware inputs */
 
   constexpr int c_pad_index_h = c_pad * (c_fh - 1) / 2;
   constexpr int c_pad_index_w = c_pad * (c_fw - 1) / 2;
+
   constexpr int IH_REM = IH - (IH % c_str)*(1-c_pad);
   constexpr int IW_REM = IW - (IW % c_str)*(1-c_pad);
   constexpr int IH_PAD = IH + c_pad_index_h * 2 - IH_REM*(1-c_pad);
@@ -39,41 +41,41 @@ void pad_input(hls::stream<din_t> din[(c_fw+(c_ow_ops-1)*c_str) * c_fh],
     for (auto s_index_w = 0; s_index_w < IW_REM; s_index_w += c_str*c_ow_ops) {
       for (auto s_index_ich = 0; s_index_ich < ICH; s_index_ich+=c_ops_out) {
 #pragma HLS pipeline style = stp II=1
-        dout_t s_write;
-        auto s_ops = s_index_ich % c_ops;
-        for (auto s_fh = 0; s_fh < c_fh; s_fh++) {
-          for (auto s_fw = 0; s_fw < FW; s_fw++) {
+          dout_t s_write;
+          for (auto s_fh = 0; s_fh < c_fh; s_fh++) {
+            for (auto s_fw = 0; s_fw < FW; s_fw++) {
 
-            auto s_index = s_fh * FW + s_fw;
+              auto s_index = s_fh * FW + s_fw;
 
-            bool s_data_read = true;
+              bool s_data_read = true;
 
-            s_data_read &= (s_index_h >= (c_pad_index_h - s_fh));
-            s_data_read &= (s_index_h < (IH + c_pad_index_h - s_fh));
-            s_data_read &= (s_index_w >= (c_pad_index_w - s_fw));
-            s_data_read &= (s_index_w < (IW + c_pad_index_w - s_fw));
+              s_data_read &= (s_index_h >= (c_pad_index_h - s_fh));
+              s_data_read &= (s_index_h < (IH + c_pad_index_h - s_fh));
+              s_data_read &= (s_index_w >= (c_pad_index_w - s_fw));
+              s_data_read &= (s_index_w < (IW + c_pad_index_w - s_fw));
 
-            if (s_data_read) {
-              if (s_ops == 0) {
-                s_read[FSZ - s_index - 1] = din[FSZ - s_index - 1].read();
-                if (s_index == LAST_IDX) s_last = s_read[FSZ - s_index - 1].last;
+              if (s_data_read) {
+                if (s_ops == 0) {
+                  s_read[FSZ - s_index - 1] = din[FSZ - s_index - 1].read();
+                  if (s_index == LAST_IDX) s_last = s_read[FSZ - s_index - 1].last;
+                }
+                for (auto s_i = 0; s_i < c_ops_out; s_i++) {
+                  s_write.data[FSZ - s_index - 1][s_i] = s_read[FSZ - s_index - 1].data[0][s_ops + s_i];
+                }
+                s_write.last = s_read[FSZ - s_index - 1].last;
+              } else {
+                // for (auto s_i = 0; s_i < c_ops; s_i++) {
+                // This is padding branch, if the data of the window should not be read
+                // form the input stream then we pad it with zeros
+                for (auto s_i = 0; s_i < c_ops_out; s_i++) {
+                  s_write.data[FSZ - s_index - 1][s_i] = 0;
+                }
+                s_write.last = s_last;
               }
-              for (auto s_i = 0; s_i < c_ops_out; s_i++) {
-                s_write.data[FSZ - s_index - 1][s_i] = s_read[FSZ - s_index - 1].data[0][s_ops + s_i];
-              }
-              s_write.last = s_read[FSZ - s_index - 1].last;
-            } else {
-              // for (auto s_i = 0; s_i < c_ops; s_i++) {
-              // This is padding branch, if the data of the window should not be read
-              // form the input stream then we pad it with zeros
-              for (auto s_i = 0; s_i < c_ops_out; s_i++) {
-                s_write.data[FSZ - s_index - 1][s_i] = 0;
-              }
-              s_write.last = s_last;
             }
           }
+          o_data[0].write(s_write);
         }
-        o_data[0].write(s_write);
       }
     }
   }
@@ -121,7 +123,7 @@ void bandwidth_adjust(
           s_write.data[0][s_i+s_j] = s_read.data[0][s_j];
         }
         if (s_i == (c_ops_out - c_ops))
-          o_data[s_ow_ops].write(s_write);
+          o_data.write(s_write);
       }
     }
   }
@@ -134,7 +136,7 @@ void bandwidth_adjust(
   hls::stream<dout_t> o_data[c_ow_ops]
 ) {
 
-  dout_t s_write;
+  dout_t s_write[c_ow_ops];
   #ifndef __SYNTHESIS__
       std::cout << "bandwidth_adjust " << ICH << " " << c_ops << " " << c_ops_out << std::endl;
       // Printing the size
@@ -149,10 +151,10 @@ void bandwidth_adjust(
         din_t s_read = din[s_ow_ops].read();
         for (auto s_j = 0; s_j < c_ops; s_j++) {
           auto read_data = s_read.data[0][s_j];
-          s_write.data[0][s_i+s_j] = read_data;
+          s_write[s_ow_ops].data[0][s_i+s_j] = read_data;
         }
         if (s_i == (c_ops_out - c_ops))
-          o_data[s_ow_ops].write(s_write);
+          o_data[s_ow_ops].write(s_write[s_ow_ops]);
       }
     }
   }
@@ -230,7 +232,7 @@ void shift_op(hls::stream<din_t> &din, hls::stream<dcomp_t> &o_compute,
           if (s_data_read) s_input = din.read();
           bool s_compute_write = true;
           auto s_index_h_str = s_index_h % c_str;
-          auto s_index_w_str = s_index_w % (c_str*c_str_adj);
+          auto s_index_w_str = s_index_w % (c_str * c_str_adj);
 
           s_compute_write &= (s_index_h >= c_paddingh_shift);
           s_compute_write &= (s_index_h < (IH - c_end_paddingh_shift));

@@ -347,7 +347,7 @@ def parse_comp(name, node):
 
     # TODO: check type declaration
     # input window type declaration
-    input_reduce_type = "std::array<t_%s, %0d>" % (input_name, node["ich_ops"])
+    input_reduce_type = "std::array<t_%s, %0d>" % (input_name, node["line_ops"])
     block["defines"]["t_%s_reduce" % input_name] = ["type", input_reduce_type]
     input_window_type = "std::array<t_%s_reduce, %0d>" % (input_name, node["fh"]*(node["fw"]+(node["ow_ops"]-1)*node["stride"]))
     block["defines"]["t_%s_window" % input_name] = ["type", input_window_type]

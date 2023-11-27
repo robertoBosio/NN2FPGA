@@ -39,6 +39,14 @@ def find_divisors(layers_info):
         offset = offset + divisors
     return all_divisors, layers_divisors, layers_offset
 
+def generate_valid_combinations(och, ich):
+    combinations = []
+    divisors = lambda n: [i for i in range(1, n + 1) if n % i == 0]
+    for div_och in divisors(och):
+        for div_ich in divisors(ich):
+            combinations.append((div_och, div_ich))
+    return combinations 
+
 def find_range(divisors, ilp_value):
     low_bound = divisors[0]
     low_index = 0
