@@ -88,11 +88,12 @@ def hw_quant(model, io_dict):
                 bits0 = in_bits[bits_index0]
                 
                 # TODO: check for pointwise convolutions not at the end
-                if (io_dict[layer_out_name]["iw"] % 2) == 0:
-                    #TODO: Generalize to other bit widths
-                    ow_ops_partial = 2
-                else:
-                    ow_ops_partial = 1
+                # if (io_dict[layer_out_name]["iw"] % 2) == 0:
+                #     #TODO: Generalize to other bit widths
+                #     ow_ops_partial = 2
+                # else:
+                #     ow_ops_partial = 1
+                ow_ops_partial = io_dict[layer_out_name]["ow_ops"]
                 
                 print("Layer: %s, ws_out: %0d" % (layer_out_name,ow_ops_partial))
 
@@ -100,6 +101,14 @@ def hw_quant(model, io_dict):
                     io_dict[layer_in_name]["ow_ops"] = ow_ops_partial
                 else:
                     io_dict[layer_in_name]["ow_ops_out"] = ow_ops_partial
+                 
+                # Admitting packing on ow only if the number of ops is a multiple
+                # of the packing factor
+                ow_pack_partial = 16 // bits0
+                if (ow_ops_partial % ow_pack_partial) == 0:
+                    io_dict[layer_out_name]["ow_pack"] = ow_pack_partial
+                else:
+                    io_dict[layer_out_name]["ow_pack"] = 1
 
                 io_dict[layer_out_name]["actscale"].append(scale_factor0)
                 io_dict[layer_out_name]["actbits"].append(bits0)

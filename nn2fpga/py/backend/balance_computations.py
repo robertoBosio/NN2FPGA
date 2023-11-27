@@ -411,5 +411,10 @@ def ilp(io_dict, off_chip_storage, model, board="ULTRA96v2", double_packing=True
         # print ops and ich_ops for conv and pool layers
         if node["type"] in print_layers:
             print(name, node["ops"], node["ich_ops"])
+            # Testing resnet8
+            if "is_1x1" in node.keys():
+                if node["is_1x1"]:
+                    continue
+            node["ow_ops"] = 2
 
     return io_dict
