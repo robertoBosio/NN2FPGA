@@ -5,6 +5,7 @@ import torchvision
 from utils.convbn_merge import replace_layers
 from utils.convbn_merge import fuse_layers
 from models.resnet_brevitas_fx import resnet20
+from models.resnet8 import resnet8
 from models.test_depthwise import QuantizedCifar10Net
 from tiny_torch.benchmark.training_torch.visual_wake_words.vww_torch import MobileNetV1
 from utils.preprocess import *
@@ -73,7 +74,8 @@ def main():
     print('#### Preparing data ..')
     device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
     # model = resnet20(wbit=Wbits,abit=Abits).to('cuda:0')
-    model = MobileNetV1(num_filters=8, num_classes=2).to(device)
+    # model = MobileNetV1(num_filters=8, num_classes=2).to(device)
+    model = resnet8(weight_bits=Wbits,act_bits=Abits).to('cuda:0')
     # model = QuantizedCifar10Net().to(device)
     model.to(device)
 
@@ -166,7 +168,7 @@ def main():
         # model.to('cpu')
         dummy_input = torch.randn(input_shape, device=device)
         accuracy_str = f'{acc:.2f}'.replace('.', '_')
-        exported_model = export_onnx_qcdq(model, args=dummy_input, export_path=onnx_dir + "%s_%s.onnx" % (log_name, accuracy_str), opset_version=13)
+        exported_model = export_onnx_qcdq(model, args=dummy_input, export_path=onnx_dir + "/%s_%s.onnx" % (log_name, accuracy_str), opset_version=13)
         best_acc = acc
         # model.to(device)
 
