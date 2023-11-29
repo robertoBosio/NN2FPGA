@@ -58,7 +58,7 @@ def parallel_ops_number(layers_info, worst_index, board="ULTRA96v2", prj_root="/
 
     NUM_PORTS = (board_res["bram"] + board_res["uram"]) * 2
     NUM_DSP = board_res["dsp"]
-    NUM_DSP = 1300
+    NUM_DSP = 800
     num_layers = len(layers_info)
 
     # Generating all the valid combinations of ich_par and och_par for each layer.
@@ -401,6 +401,6 @@ def ilp(io_dict, off_chip_storage, model, board="ULTRA96v2", double_packing=True
             if "is_1x1" in node.keys():
                 if node["is_1x1"]:
                     continue
-            node["ow_ops"] = 4
+            node["ow_ops"] = 1
 
     return io_dict

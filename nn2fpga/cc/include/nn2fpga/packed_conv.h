@@ -214,7 +214,7 @@ void conv_pipe(
         s_acc_add = i_add[0].data[0][ich_idx_add];
         #ifndef __SYNTHESIS__
           // if (c_depth == 1)
-          #ifdef DEBUG
+          #ifdef DEBUG_CONV
             std::cout << "ADD " << s_acc_add << " ";
           #endif
         #endif
@@ -254,7 +254,7 @@ void conv_pipe(
         s_data = t_input_mod(s_data);
       s_acc += s_data * i_weight[s_index][ich_idx][ops];
       #ifndef __SYNTHESIS__
-        #ifdef DEBUG
+        #ifdef DEBUG_CONV
           std::cout << "W" << s_index << " " << i_weight[s_index][ich_idx][ops] << " ";
           std::cout << "A" << s_index << " " << i_input[s_index][ich_idx] << " " << s_data << " ";
         #endif
@@ -275,7 +275,7 @@ void conv_pipe(
       s_output_struct[0].last = last;
       #ifndef __SYNTHESIS__
         // if (c_depth == 1)
-        #ifdef DEBUG
+        #ifdef DEBUG_CONV
           std::cout <<  "RES " << s_acc << " " << s_output_struct[0].data[0][s_index_ops] << " " ;
         #endif
       #endif
@@ -584,7 +584,7 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
           for (auto s_ow_ops = 0; s_ow_ops < c_ow_ops; s_ow_ops++) {
             o_output[s_ow_ops % c_ow_ops].write(s_output_struct[s_ow_ops]);
             #ifndef __SYNTHESIS__
-              #ifdef DEBUG
+              #ifdef DEBUG_CONV
               // if (c_depth == 1)
                 std::cout << std::endl;
               #endif

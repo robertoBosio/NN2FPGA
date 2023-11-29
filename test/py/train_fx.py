@@ -95,11 +95,12 @@ def main():
             model.load_state_dict(ckpt)
         else:
             model.load_state_dict(ckpt['model_state_dict'])
-        if 'optimizer_state_dict' in ckpt:
-            optimizer.load_state_dict(ckpt['optimizer_state_dict'])
-        if 'epoch' in ckpt:
-            start_epoch = ckpt['epoch']
-        else: start_epoch = 0
+        # if 'optimizer_state_dict' in ckpt:
+        #     optimizer.load_state_dict(ckpt['optimizer_state_dict'])
+        # if 'epoch' in ckpt:
+        #     start_epoch = ckpt['epoch']
+        # else: start_epoch = 0
+        start_epoch = 0
         # print('#### Load last checkpoint data')
         model = model.to(device)
     else:
@@ -155,18 +156,18 @@ def main():
 
         acc = 100. * correct / total
         # if acc > best_acc and retrain:
-        print('#### Exporting..')
-        state = {
-            'model_state_dict': model.state_dict(),
-            'optimizer_state_dict': optimizer.state_dict(),
-            'acc': acc,
-            'epoch': epoch,
-        }
-        torch.save(state, os.path.join(ckpt_dir, f'checkpoint_quant_fx.t7'))
         # model.to('cpu')
         dummy_input = torch.randn(input_shape, device=device)
         accuracy_str = f'{acc:.2f}'.replace('.', '_')
         if acc > best_acc:
+            state = {
+                'model_state_dict': model.state_dict(),
+                'optimizer_state_dict': optimizer.state_dict(),
+                'acc': acc,
+                'epoch': epoch,
+            }
+            torch.save(state, os.path.join(ckpt_dir, f'checkpoint_quant_fx.t7'))
+            print('#### Exporting..')
             exported_model = export_onnx_qcdq(model, args=dummy_input, export_path=onnx_dir + "/%s.onnx" % (log_name), opset_version=14)
             best_acc = acc
         return best_acc
@@ -176,6 +177,7 @@ def main():
     print('#### Training.. start_epoch: %d, max_epochs: %d' % (start_epoch, max_epochs))
     for epoch in range(start_epoch, max_epochs):
         best_acc = train(epoch, criterion, optimizer, best_acc)
+    print('#### Finished Training.. with best_acc: %f' % (best_acc))
 
    
 if __name__ == '__main__':

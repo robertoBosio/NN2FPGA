@@ -30,7 +30,7 @@ PRODSTR:
     auto ich = i % ICH;
     auto ow_ops_out = (i / ICH) % c_ow_ops_out;
 
-    d_format_t din;
+    ap_ufixed<8,0> din;
     if (par == 0) {
       dinWrap = dinStream.read();
       din_par = dinWrap.data;
@@ -39,7 +39,7 @@ PRODSTR:
     dout_wrap_t doutWrap;
     din.range(7,0) = din_par & 0xff;
     if constexpr(PREPROC == 1)
-      doutWrap.data[0][ops] = (dout_t(din)-c_mean[ich])/c_std[ich];
+      doutWrap.data[0][ops] = dout_t((din-c_mean[ich])/c_std[ich]);
     else
       doutWrap.data[0][ops] = (dout_t(din));
     #ifndef __SYNTHESIS__

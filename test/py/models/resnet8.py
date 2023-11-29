@@ -17,13 +17,13 @@ def conv3x3(in_planes, out_planes, stride=1, weight_bits=4, act_bits=4):
                        stride=stride,
                        padding=1,
                        bias=None,
-                       input_quant_bits=act_bits,
-                       weight_bit_width = weight_bits, 
-                       output_quant_bits=act_bits,
-                       weight_quant = Int8WeightPerTensorFixedPoint,
-                       bias_quant = Int16Bias,
-                       input_quant = Int8ActPerTensorFixedPoint,
-                       output_quant = Int8ActPerTensorFixedPoint,
+                       input_bit_width=act_bits,
+                       weight_bit_width=weight_bits, 
+                       output_bit_width=8,
+                       weight_quant=Int8WeightPerTensorFixedPoint,
+                       bias_quant=Int16Bias,
+                       input_quant=Int8ActPerTensorFixedPoint,
+                       output_quant=Int8ActPerTensorFixedPoint,
                        )
 class BasicBlock(nn.Module):
     expansion=1
@@ -76,7 +76,7 @@ class ResNet(nn.Module):
                      bias_quant=Int16Bias,
                      input_quant = Int8ActPerTensorFixedPoint,
                      output_quant = Int8ActPerTensorFixedPoint,
-                     output_quant_bits=8,
+                     output_bit_width=8,
                      )
         self.bn1 = nn.BatchNorm2d(16)
         self.relu = QuantReLU(
@@ -97,7 +97,7 @@ class ResNet(nn.Module):
                 input_quant = Int8ActPerTensorFixedPoint,
                 output_quant = Int8ActPerTensorFixedPoint,
                 bias_quant=Int16Bias,
-                output_quant_bits=8,
+                output_bit_width=8,
                 )
 
 
@@ -121,7 +121,7 @@ class ResNet(nn.Module):
                     input_quant = Int8ActPerTensorFixedPoint,
                     output_quant=Int8ActPerTensorFixedPoint,
                     bias_quant=Int16Bias,
-                    input_quant_bits=act_bits,
+                    input_bit_width=act_bits,
                     ),
                 nn.BatchNorm2d(planes * block.expansion)
             )
