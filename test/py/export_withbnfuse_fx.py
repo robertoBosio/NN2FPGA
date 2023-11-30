@@ -139,7 +139,7 @@ def main():
                 tepoch.set_postfix(postfix)
             return test(epoch, criterion, best_acc)
 
-    def test(epoch, criterion, best_acc):
+    def test(epoch, criterion, best_acc, log=False):
         # pass
 
         test_loss, correct, total = 0, 0, 0
@@ -158,6 +158,13 @@ def main():
                     correct += predicted.eq(targets).sum().item()
 
                     tepoch.set_postfix({"Acc": f"{100.0 * correct / total:.2f}%", "Loss": f"{loss.item():.4f}"})
+                    if log and tepoch.n == 1:
+                        with open(os.path.join(log_dir, 'test_inference.txt'), 'a') as f:
+                            # log input and output
+                            for i in range(inputs.size(0)):
+                                f.write(f'input: {inputs[i].cpu().numpy().tolist()}\n')
+                                f.write(f'output: {outputs[i].cpu().numpy().tolist()}\n')
+                        break
 
         acc = 100. * correct / total
         # if acc > best_acc and retrain:
@@ -251,6 +258,7 @@ def main():
         quant_model.apply(finalize_collect_stats)    
         return quant_model
   
+    test(epoch, criterion, 1, log=True)
     #change not hand-written
     print("#### MERGE BN")
     
@@ -276,6 +284,11 @@ def main():
                 best_acc = test(epoch, criterion, best_acc)
             lr_schedu.step(epoch)
     print('#### Finished Training.. with best_acc: %f' % (best_acc))
+    print('#### Logging data from best checkpoint')
+    ckpt = torch.load(os.path.join(ckpt_dir, f'checkpoint_quant_bnfuse_fx.t7'), map_location=device)
+    model.load_state_dict(ckpt['model_state_dict'])
+    model.to(device)
+    test(epoch, criterion, 1, log=True)
 
 if __name__ == '__main__':
     main()

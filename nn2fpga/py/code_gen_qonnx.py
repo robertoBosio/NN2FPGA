@@ -104,12 +104,7 @@ def main():
     else:
         dataset = 'cifar10'
     
-    preprocess_datasets = ['imagenet', "vw", "coco", "cifar10"]
-    # preprocess_datasets = ['imagenet', "vw", "coco"]
-    if dataset in preprocess_datasets:
-        transform = True
-    else:
-        transform = False
+    transform = bool(int(os.environ['TRANSFORM']))
 
     write_network(
         inferred_model,

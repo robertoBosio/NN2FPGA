@@ -147,14 +147,18 @@ def merge_quant(io_dict, quant_info, inherit_quant=False):
             new_node.setdefault("seq_out", [])
             new_node.setdefault("seq_clip", [])
             new_node.setdefault("seq_clip_signed", [])
+            new_node.setdefault("seq_clip_bits", [])
             new_node.setdefault("seq_mask", [])
             new_node.setdefault("seq_mask_signed", [])
+            new_node.setdefault("seq_mask_bits", [])
             new_node.setdefault("changed", False)
             new_node.setdefault("removed", [])
             new_node.setdefault("clip", [])
             new_node.setdefault("mask", [])
             new_node.setdefault("clip_signed", [])
             new_node.setdefault("mask_signed", [])
+            new_node.setdefault("clip_bits", [])
+            new_node.setdefault("mask_bits", [])
 
             # Looking for node with in input the previous output
             for i, output in enumerate(node["seq_out"]):
@@ -179,32 +183,42 @@ def merge_quant(io_dict, quant_info, inherit_quant=False):
                             # Propagating clip, the smaller one must be kept
                             new_clip = quant_info[output]["seq_clip"][j]
                             new_clip_signed = quant_info[output]["seq_clip_signed"][j]
+                            new_clip_bits = quant_info[output]["seq_clip_bits"][j]
                             clip_index = node["seq_out"].index(output)
                             old_clip = node["seq_clip"][clip_index]
                             old_clip_signed = node["seq_clip_signed"][clip_index]
+                            old_clip_bits = node["seq_clip_bits"][clip_index]
                             if old_clip < new_clip:
                                 new_clip = old_clip
                                 new_clip_signed = old_clip_signed
+                                new_clip_bits = old_clip_bits
                             if new_clip is list:
                                 new_clip = new_clip[0]
                                 new_clip_signed = new_clip_signed[0]
+                                new_clip_bits = new_clip_bits[0]
                             new_node["seq_clip"].append(new_clip)
                             new_node["seq_clip_signed"].append(new_clip_signed)
+                            new_node["seq_clip_bits"].append(new_clip_bits)
 
                             # Propagating mask, the higher one must be kept
                             new_mask = quant_info[output]["seq_mask"][j]
                             new_mask_signed = quant_info[output]["seq_mask_signed"][j]
+                            new_mask_bits = quant_info[output]["seq_mask_bits"][j]
                             mask_index = node["seq_out"].index(output)
                             old_mask = node["seq_mask"][mask_index]
                             old_mask_signed = node["seq_mask_signed"][mask_index]
+                            old_mask_bits = node["seq_mask_bits"][mask_index]
                             if old_mask > new_mask:
                                 new_mask = old_mask
                                 new_mask_signed = old_mask_signed
+                                new_mask_bits = old_mask_bits
                             if new_mask is list:
                                 new_mask = new_mask[0]
                                 new_mask_signed = new_mask_signed[0]
+                                new_mask_bits = new_mask_bits[0]
                             new_node["seq_mask"].append(new_mask)
                             new_node["seq_mask_signed"].append(new_mask_signed)
+                            new_node["seq_mask_bits"].append(new_mask_bits)
 
                         new_node["removed"].append(quant_info[output]["seq"][0])
                         remove_node.append(output)
@@ -226,16 +240,21 @@ def merge_quant(io_dict, quant_info, inherit_quant=False):
                 new_node["seq_out"].append(quant_info[name]["seq_out"][i])
                 new_clip = quant_info[name]["seq_clip"][i]
                 new_clip_signed = quant_info[name]["seq_clip_signed"][i]
+                new_clip_bits = quant_info[name]["seq_clip_bits"][i]
                 if new_clip is list:
                     new_clip = new_clip[0]
                     new_clip_signed = new_clip_signed[0]
+                    new_clip_bits = new_clip_bits[0]
                 if new_mask is list:
                     new_mask = new_mask[0]
                     new_mask_signed = new_mask_signed[0]
+                    new_mask_bits = new_mask_bits[0]
                 new_node["seq_clip"].append(new_clip)
                 new_node["seq_mask"].append(quant_info[name]["seq_mask"][i])
                 new_node["seq_clip_signed"].append(new_clip_signed)
                 new_node["seq_mask_signed"].append(quant_info[name]["seq_mask_signed"][i])
+                new_node["seq_clip_bits"].append(new_clip_bits)
+                new_node["seq_mask_bits"].append(quant_info[name]["seq_mask_bits"][i])
 
             quant_info[name] = new_node
 
@@ -263,6 +282,8 @@ def merge_quant(io_dict, quant_info, inherit_quant=False):
             new_mask   = []
             new_clip_signed   = []
             new_mask_signed   = []
+            new_clip_bits   = []
+            new_mask_bits   = []
             # The quant_info database is already selecting the point where 
             # quant layers can be merged, for this reason only the changed layers
             # should be updated
@@ -278,6 +299,8 @@ def merge_quant(io_dict, quant_info, inherit_quant=False):
                     seq_mask = quant_info[input_name]["seq_mask"]
                     seq_clip_signed = quant_info[input_name]["seq_clip_signed"]
                     seq_mask_signed = quant_info[input_name]["seq_mask_signed"]
+                    seq_clip_bits = quant_info[input_name]["seq_clip_bits"]
+                    seq_mask_bits = quant_info[input_name]["seq_mask_bits"]
                     for i, next_output in enumerate(seq_out):
                         new_output.append(next_output)
                         new_scale.append(seq_scale[i])
@@ -291,7 +314,9 @@ def merge_quant(io_dict, quant_info, inherit_quant=False):
                             new_clip.append(seq_clip[i])
                         new_mask.append(seq_mask[i])
                         new_clip_signed.append(seq_clip_signed[i])
+                        new_clip_bits.append(seq_clip_bits[i])
                         new_mask_signed.append(seq_mask_signed[i])
+                        new_mask_bits.append(seq_mask_bits[i])
                     for rem_name in quant_info[input_name]["removed"]:
                         remove_node.append(rem_name)
 
@@ -303,7 +328,9 @@ def merge_quant(io_dict, quant_info, inherit_quant=False):
                 io_dict[name]["mask"] = new_mask
                 io_dict[name]["signed"] = new_signed
                 io_dict[name]["clip_signed"] = new_clip_signed
+                io_dict[name]["clip_bits"] = new_clip_bits
                 io_dict[name]["mask_signed"] = new_mask_signed
+                io_dict[name]["mask_bits"] = new_mask_bits
 
     # print(remove_node)
     for name in remove_node:
@@ -342,6 +369,12 @@ def extract_quant_info(model, io_dict, init_info):
             mask_signed = node["mask_signed"]
             if mask_signed is list:
                 mask_signed = mask_signed[0]
+            clip_bits = node["clip_bits"]
+            if clip_bits is list:
+                clip_bits = clip_bits[0]
+            mask_bits = node["mask_bits"]
+            if mask_bits is list:
+                mask_bits = mask_bits[0]
 
             if node["signed"] is list:
                 signed = node["signed"][-1]
@@ -365,6 +398,8 @@ def extract_quant_info(model, io_dict, init_info):
             quant_info[node["input"][0]].setdefault("seq_mask", [])
             quant_info[node["input"][0]].setdefault("seq_clip_signed", [])
             quant_info[node["input"][0]].setdefault("seq_mask_signed", [])
+            quant_info[node["input"][0]].setdefault("seq_clip_bits", [])
+            quant_info[node["input"][0]].setdefault("seq_mask_bits", [])
 
             quant_info[node["input"][0]][node["output"][0]] = node_name
             quant_info[node["input"][0]]["seq"].append(node_name)
@@ -376,6 +411,8 @@ def extract_quant_info(model, io_dict, init_info):
             quant_info[node["input"][0]]["seq_mask"].append(mask)
             quant_info[node["input"][0]]["seq_clip_signed"].append(clip_signed)
             quant_info[node["input"][0]]["seq_mask_signed"].append(mask_signed)
+            quant_info[node["input"][0]]["seq_clip_bits"].append(clip_bits)
+            quant_info[node["input"][0]]["seq_mask_bits"].append(mask_bits)
 
         else:
 

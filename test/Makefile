@@ -33,6 +33,9 @@ all:
 	${PYTHON} py/train_fx.py
 	make bnfuse PYTHON=${PYTHON} LOG_NAME=${LOG_NAME} DATASET=${DATASET} MAX_EPOCHS=5 BATCH_SIZE=32 PRETRAIN_FILE=tmp/ckpt/${LOG_NAME}/checkpoint_quant_fx.t7 PRETRAIN=True
 
+test:
+	${PYTHON} py/test_fx.py
+
 export_qonnx:
 	qonnx-cleanup ${ONNX_FILE}.onnx --out-file=${ONNX_FILE}_clean.onnx
 	qonnx-convert ${ONNX_FILE}_clean.onnx --output-style quant --output-file=${ONNX_FILE}_clean_quant.onnx

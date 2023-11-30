@@ -76,6 +76,11 @@ void conv_pipe(
       if (ich == 0) {
         auto s_bias = i_bias[0][ops];
         for (auto s_ow_pack = 0; s_ow_pack < c_ow_pack; s_ow_pack++) {
+          #ifndef __SYNTHESIS__
+            #ifdef DEBUG_CONV
+              std::cout << "B" << s_bias << " ";
+            #endif
+          #endif
           s_acc[s_ow_pack] = s_bias;
         }
       } else {
@@ -221,8 +226,14 @@ void conv_pipe(
       }
 
       if constexpr(std::is_same<t_bias, std::nullptr_t>::value == false) {
-        if ((ich == 0) | (c_depth == 1))
+        if ((ich == 0) | (c_depth == 1)) {
           s_acc = i_bias[0][s_index_ops] + s_acc_add;
+          #ifndef __SYNTHESIS__
+            #ifdef DEBUG_CONV
+              std::cout << "B " << i_bias[0][s_index_ops] << " ";
+            #endif
+          #endif
+        }
         else
           s_acc = s_acc_add;
       } else {
@@ -231,8 +242,14 @@ void conv_pipe(
 
     } else {
       if constexpr(std::is_same<t_bias, std::nullptr_t>::value == false) {
-        if ((ich == 0) | (c_depth == 1))
+        if ((ich == 0) | (c_depth == 1)) {
           s_acc = i_bias[0][s_index_ops];
+          #ifndef __SYNTHESIS__
+            #ifdef DEBUG_CONV
+              std::cout << "B " << i_bias[0][s_index_ops] << std::endl;
+            #endif
+          #endif
+        }
         else
           s_acc = 0;
       } else {
@@ -258,8 +275,16 @@ void conv_pipe(
           std::cout << "W" << s_index << " " << i_weight[s_index][ich_idx][ops] << " ";
           std::cout << "A" << s_index << " " << i_input[s_index][ich_idx] << " " << s_data << " ";
         #endif
+        #ifdef DEBUG_WEIGHTS
+          std::cout << i_weight[c_index - 1 - s_index][ich_idx][ops] << std::endl;
+        #endif
       #endif
     }
+    #ifndef __SYNTHESIS__
+      #ifdef DEBUG_CONV
+        std::cout << std::endl;
+      #endif
+    #endif
 
     if (ich != 0) s_acc += s_acc_base;
 
@@ -276,7 +301,13 @@ void conv_pipe(
       #ifndef __SYNTHESIS__
         // if (c_depth == 1)
         #ifdef DEBUG_CONV
-          std::cout <<  "RES " << s_acc << " " << s_output_struct[0].data[0][s_index_ops] << " " ;
+          std::cout <<  "RES " << s_acc << " " << s_output_struct[0].data[0][s_index_ops] << std::endl;
+        #endif
+        #ifdef DEBUG_RES
+          if constexpr(std::is_same<t_output_clip, std::nullptr_t>::value == false)
+            std::cout << t_output_clip(s_acc) << std::endl;
+          // std::cout << s_acc << " " << s_output_struct[0].data[0][s_index_ops] << std::endl;
+          // std::cout << s_output_struct[0].data[0][s_index_ops] << std::endl;
         #endif
       #endif
     }
@@ -583,12 +614,6 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
         if ((s_num_ich == (c_ich-c_in_ops)) | (c_depth == 1)) {
           for (auto s_ow_ops = 0; s_ow_ops < c_ow_ops; s_ow_ops++) {
             o_output[s_ow_ops % c_ow_ops].write(s_output_struct[s_ow_ops]);
-            #ifndef __SYNTHESIS__
-              #ifdef DEBUG_CONV
-              // if (c_depth == 1)
-                std::cout << std::endl;
-              #endif
-            #endif
             if constexpr(std::is_same<t_output_struct_1x1, std::nullptr_t>::value == false) {
               if (s_iter < c_iter_1x1) o_output_1x1[s_ow_ops % c_ow_ops].write(s_output_1x1_struct[s_ow_ops]);
             }

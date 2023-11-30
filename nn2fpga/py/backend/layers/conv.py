@@ -342,8 +342,8 @@ def parse_comp(name, node):
     ]
 
     output_type = get_quant_type(node["signed"], node["bits"][0], node["scale_factor"][0])
-    output_type_clip = get_quant_type(node["clip_signed"][0], node["bits"][0], node["clip_factor"][0])
-    output_type_mask = get_quant_type(node["mask_signed"][0], node["bits"][0], node["mask_factor"][0])
+    output_type_clip = get_quant_type(node["clip_signed"][0], node["clip_bits"][0], node["clip_factor"][0])
+    output_type_mask = get_quant_type(node["mask_signed"][0], node["mask_bits"][0], node["mask_factor"][0])
 
     # TODO: check type declaration
     # input window type declaration

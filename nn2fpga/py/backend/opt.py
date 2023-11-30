@@ -401,6 +401,8 @@ def assign_quant(model, io_dict):
             io_dict[layer_in_name]["mask_factor"] = [0]
             io_dict[layer_in_name]["clip_signed"] = [0]
             io_dict[layer_in_name]["mask_signed"] = [0]
+            io_dict[layer_in_name]["clip_bits"] = [0]
+            io_dict[layer_in_name]["mask_bits"] = [0]
 
     return io_dict
 
@@ -474,6 +476,12 @@ def opt_quant(model, io_dict, quant_info):
                     mask_signed = quant_info[net_name]["seq_mask_signed"][0]
                     if isinstance(mask_signed, list):
                         mask_signed = mask_signed[0]
+                    clip_bits = quant_info[net_name]["seq_clip_bits"][0]
+                    if isinstance(clip_bits, list):
+                        clip_bits = clip_bits[0]
+                    mask_bits = quant_info[net_name]["seq_mask_bits"][0]
+                    if isinstance(mask_bits, list):
+                        mask_bits = mask_bits[0]
                     signed = quant_info[net_name]["signed"]
 
                     in_index = io_dict[layer_in_name]["output"].index(net_name)
@@ -484,15 +492,19 @@ def opt_quant(model, io_dict, quant_info):
                         # quantization is clipping to a lower max value
                         old_clip = io_dict[layer_in_name]["clip_factor"][in_index]
                         old_clip_signed = io_dict[layer_in_name]["clip_signed"][in_index]
+                        old_clip_bits = io_dict[layer_in_name]["clip_bits"][in_index]
                         if (old_clip < clip_factor):
                             io_dict[layer_in_name]["clip_factor"][in_index] = old_clip
                             io_dict[layer_in_name]["clip_signed"][in_index] = old_clip_signed
+                            io_dict[layer_in_name]["clip_bits"][in_index] = old_clip_bits
                         else:
                             io_dict[layer_in_name]["clip_factor"][in_index] = clip_factor
                             io_dict[layer_in_name]["clip_signed"][in_index] = clip_signed
+                            io_dict[layer_in_name]["clip_bits"][in_index] = clip_bits
                     else:
                         io_dict[layer_in_name]["clip_factor"] = [clip_factor]
                         io_dict[layer_in_name]["clip_signed"] = [clip_signed]
+                        io_dict[layer_in_name]["clip_bits"] = [clip_bits]
 
                     if "quant" in io_dict[layer_in_name].keys():
                         # The old mask must be saved to have coherent behavior
@@ -500,15 +512,19 @@ def opt_quant(model, io_dict, quant_info):
                         # quantization is masking the LSBs
                         old_mask = io_dict[layer_in_name]["mask_factor"][in_index]
                         old_mask_signed = io_dict[layer_in_name]["mask_signed"][in_index]
+                        old_mask_bits = io_dict[layer_in_name]["mask_bits"][in_index]
                         if (old_mask > mask_factor):
                             io_dict[layer_in_name]["mask_factor"][in_index] = old_mask
                             io_dict[layer_in_name]["mask_signed"][in_index] = old_mask_signed
+                            io_dict[layer_in_name]["mask_bits"][in_index] = old_mask_bits
                         else:
                             io_dict[layer_in_name]["mask_factor"][in_index] = mask_factor
                             io_dict[layer_in_name]["mask_signed"][in_index] = mask_signed
+                            io_dict[layer_in_name]["mask_bits"][in_index] = mask_bits
                     else:
                         io_dict[layer_in_name]["mask_factor"] = [mask_factor]
                         io_dict[layer_in_name]["mask_signed"] = [mask_signed]
+                        io_dict[layer_in_name]["mask_bits"] = [mask_bits]
 
                     io_dict[layer_in_name]["quant"] = True
                     io_dict[layer_in_name]["scale_factor"] = [scale_factor]
