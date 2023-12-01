@@ -6,6 +6,7 @@
 // #define DEBUG_CONV
 // #define DEBUG_RES
 // #define DEBUG_WEIGHTS
+// #define DEBUG_ACT
 // #define DEBUG_ACC
 // #define DEBUG_LINE
 // #define DEBUG_POOL

@@ -64,11 +64,12 @@ void conv_pipe(
     t_output_struct s_output_struct[c_ow_ops]) {
 #pragma HLS inline
 
+  const int FW = (c_fw+(c_ow_ops-1)*c_str);
+
   if constexpr(c_ow_pack > 1) {
     
     t_acc s_acc[c_ow_pack];
     t_acc s_acc_base[c_ow_pack];
-    const int FW = (c_fw+(c_ow_ops-1)*c_str);
 
     ap_uint<48> s_acc_simd[c_simd];
 
@@ -137,6 +138,10 @@ void conv_pipe(
           else
             s_input_ext[s_ow_pack].range(c_pad_bits*s_ow_pack+c_bits-1, c_pad_bits*s_ow_pack) = i_input[s_index][ich_idx].range(c_bits-1, 0);
 
+          #ifdef DEBUG_ACT
+            std::cout << "A" << s_index << " " << i_input[s_index][ich_idx] << std::endl;
+          #endif
+
           for (auto pos = c_pad_bits*s_ow_pack+c_bits; pos < 27; pos++) {
             s_input_ext[s_ow_pack].range(pos,pos) = s_input_ext[s_ow_pack].range(c_pad_bits*s_ow_pack+c_bits-1, c_pad_bits*s_ow_pack+c_bits-1);
           }
@@ -197,6 +202,18 @@ void conv_pipe(
           t_output, t_output_clip, t_output_mask, t_acc, c_relu
         >(s_acc[s_ow_pack]);
         s_output_struct[s_ow_ops+s_ow_pack].last = last;
+        #ifndef __SYNTHESIS__
+          // if (c_depth == 1)
+          #ifdef DEBUG_CONV
+            std::cout <<  "RES " << s_acc << " " << s_output_struct[s_ow_ops+s_ow_pack].data[0][ops] << std::endl;
+          #endif
+          #ifdef DEBUG_RES
+            if constexpr(std::is_same<t_output_clip, std::nullptr_t>::value == false)
+              // std::cout << t_output_clip(s_acc) << std::endl;
+            // std::cout << s_acc << " " << s_output_struct[0].data[0][s_index_ops] << std::endl;
+              std::cout <<  "RES " << s_output_struct[s_ow_ops+s_ow_pack].data[0][ops] << std::endl;
+          #endif
+        #endif
       }
     }
 
@@ -206,8 +223,8 @@ void conv_pipe(
 
   if constexpr(c_ow_pack == 1) {
 
-    t_acc s_acc;
-    t_acc s_acc_base;
+    t_acc s_acc = 0;
+    t_acc s_acc_base = 0;
 
     auto s_index_ops = (c_depth == 1) ? ich_idx : (ops);
     if constexpr(std::is_same<t_add_struct, std::nullptr_t>::value == false) {
@@ -216,7 +233,7 @@ void conv_pipe(
       // DSPs is not working, moving things before
       t_acc s_acc_add = 0;
       if ((ich == och) | (c_depth == 1)) {
-        s_acc_add = i_add[0].data[0][ich_idx_add];
+        s_acc_add = i_add[s_ow_ops].data[0][ich_idx_add];
         #ifndef __SYNTHESIS__
           // if (c_depth == 1)
           #ifdef DEBUG_CONV
@@ -262,23 +279,30 @@ void conv_pipe(
     if constexpr(c_depth == 1) {
       s_acc_base = 0;
     } else {
-      s_acc_base = i_acc_buff[reuse][och];
+      s_acc_base = i_acc_buff[reuse][och*c_ow_ops+s_ow_ops];
     }
 
-    for (auto s_index = 0; s_index < c_index; s_index++) {
-      auto s_data = i_input[s_index][ich_idx];
-      if constexpr(std::is_same<t_input_mod, std::nullptr_t>::value == false)
-        s_data = t_input_mod(s_data);
-      s_acc += s_data * i_weight[s_index][ich_idx][ops];
-      #ifndef __SYNTHESIS__
-        #ifdef DEBUG_CONV
-          std::cout << "W" << s_index << " " << i_weight[s_index][ich_idx][ops] << " ";
-          std::cout << "A" << s_index << " " << i_input[s_index][ich_idx] << " " << s_data << " ";
+    for (auto s_fh = 0; s_fh < c_fh; s_fh++) {
+      for (auto s_fw = 0; s_fw < c_fw; s_fw++) {
+        auto s_index_act = s_fh*FW+s_fw+(c_ow_ops-s_ow_ops-1)*c_str;
+        auto s_index = s_fh*c_fw+s_fw;
+        auto s_data = i_input[s_index_act][ich_idx];
+        if constexpr(std::is_same<t_input_mod, std::nullptr_t>::value == false)
+          s_data = t_input_mod(s_data);
+        s_acc += s_data * i_weight[s_index][ich_idx][ops];
+        #ifndef __SYNTHESIS__
+          #ifdef DEBUG_CONV
+            std::cout << "W" << s_index << " " << i_weight[s_index][ich_idx][ops] << " ";
+            std::cout << "A" << s_index << " " << i_input[s_index][ich_idx] << " " << s_data << " ";
+          #endif
+          #ifdef DEBUG_ACT
+            std::cout << "A" << s_index << " " << s_data << std::endl;
+          #endif
+          #ifdef DEBUG_WEIGHTS
+            std::cout << i_weight[c_index - 1 - s_index][ich_idx][ops] << std::endl;
+          #endif
         #endif
-        #ifdef DEBUG_WEIGHTS
-          std::cout << i_weight[c_index - 1 - s_index][ich_idx][ops] << std::endl;
-        #endif
-      #endif
+      }
     }
     #ifndef __SYNTHESIS__
       #ifdef DEBUG_CONV
@@ -291,17 +315,17 @@ void conv_pipe(
     // If c_depth is 1 then there is no need to store the previous
     // results
     if constexpr(c_depth == 0)
-      i_acc_buff[reuse][och] = s_acc;
+      i_acc_buff[reuse][och*c_ow_ops+s_ow_ops] = s_acc;
 
     if ((ich == c_ich-1) | (c_depth == 1)) {
-      s_output_struct[0].data[0][s_index_ops] = quant_stream<
+      s_output_struct[s_ow_ops].data[0][s_index_ops] = quant_stream<
         t_output, t_output_clip, t_output_mask, t_acc, c_relu
       >(s_acc);
-      s_output_struct[0].last = last;
+      s_output_struct[s_ow_ops].last = last;
       #ifndef __SYNTHESIS__
         // if (c_depth == 1)
         #ifdef DEBUG_CONV
-          std::cout <<  "RES " << s_acc << " " << s_output_struct[0].data[0][s_index_ops] << std::endl;
+          std::cout <<  "RES " << s_acc << " " << s_output_struct[s_ow_ops].data[0][s_index_ops] << std::endl;
         #endif
         #ifdef DEBUG_RES
           if constexpr(std::is_same<t_output_clip, std::nullptr_t>::value == false)
@@ -338,7 +362,7 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
                hls::stream<t_add_struct> i_add[c_ow_ops],
                hls::stream<t_forward_struct> o_forward[c_ow_ops],
                hls::stream<t_output_struct> o_output[c_ow_ops],
-               hls::stream<t_output_struct_1x1> o_output_1x1[1]) {
+               hls::stream<t_output_struct_1x1> o_output_1x1[c_ow_ops]) {
   /* #pragma HLS inline */
   // Generic Convolution Computation
 
@@ -415,6 +439,8 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
       std::cout << "conv_op " << c_ich << " " << c_ops << " " << c_in_ops << std::endl;
     if constexpr(std::is_same<t_add_struct, std::nullptr_t>::value == false)
       std::cout << "#### The convolution has add" << std::endl;
+    std::cout << "parallelism " << c_ops << " " << c_in_ops << " " << c_ow_ops << std::endl;
+    std::cout << "packing " << c_och_pack << " " << c_ow_pack << std::endl;
     std::cout << "s_input.size() = " << i_input[0].size() << std::endl;
   #endif
 
@@ -473,6 +499,13 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
                 s_add[s_ow_ops] = i_add[s_ow_ops].read();   
               }
             }
+          }
+
+          std::array<t_input_data, c_ow_ops> s_input_1x1;
+        #pragma HLS array_partition variable = s_input_1x1 type = complete
+          for (auto s_ow_ops = 0; s_ow_ops < c_ow_ops; s_ow_ops++) {
+            // s_input_1x1[s_ow_ops] = s_input[MO + MO%c_str - s_ow_ops*c_str];
+            s_input_1x1[c_ow_ops - s_ow_ops - 1] = s_input[MO + MO%c_str - s_ow_ops*c_str];
           }
 
           COMPUTE:
@@ -539,12 +572,6 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
                   if constexpr(c_ops_1x1 != c_ops){
                     if ((s_och > 0) | (s_ops > c_ops_1x1))  continue;
                   }
-                  std::array<t_input_data, c_ow_ops> s_input_1x1;
-                #pragma HLS array_partition variable = s_input_1x1 type = complete
-                  for (auto s_ow_ops = 0; s_ow_ops < c_ow_ops; s_ow_ops++) {
-                    // s_input_1x1[s_ow_ops] = s_input[MO + MO%c_str - s_ow_ops*c_str];
-                    s_input_1x1[c_ow_ops - s_ow_ops - 1] = s_input[MO + MO%c_str - s_ow_ops*c_str];
-                  }
                   conv_pipe<
                     std::array<t_input_data, c_ow_ops>,
                     t_weight_1x1,
@@ -607,15 +634,15 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
               t_forward_struct s_forward;
               s_forward.data[0] = s_input[MO + MO%c_str - s_ow_ops*c_str];
               s_forward.last = false;
-              o_forward[s_ow_ops % c_ow_ops].write(s_forward);
+              o_forward[s_ow_ops].write(s_forward);
             }
           }
         }
         if ((s_num_ich == (c_ich-c_in_ops)) | (c_depth == 1)) {
           for (auto s_ow_ops = 0; s_ow_ops < c_ow_ops; s_ow_ops++) {
-            o_output[s_ow_ops % c_ow_ops].write(s_output_struct[s_ow_ops]);
+            o_output[s_ow_ops].write(s_output_struct[s_ow_ops]);
             if constexpr(std::is_same<t_output_struct_1x1, std::nullptr_t>::value == false) {
-              if (s_iter < c_iter_1x1) o_output_1x1[s_ow_ops % c_ow_ops].write(s_output_1x1_struct[s_ow_ops]);
+              if (s_iter < c_iter_1x1) o_output_1x1[s_ow_ops].write(s_output_1x1_struct[s_ow_ops]);
             }
           }
         }
