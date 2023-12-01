@@ -266,15 +266,16 @@ def parse_comp(name, node):
     # PACKING: providing info on quantization from template because
     # ap_fixed methods are not available at compile time and the
     # synthesizer gives an error
-    simd_bits = 2
+    if (node["in_scale_factor"][0] is not None):
+        abits, aibits = get_quant_constant(node["signed"], node["in_bits"][0], node["in_scale_factor"][0])
+        simd_bits = 18 - (node["in_bits"][0] + node["wbits"][0])
+    else:
+        abits, aibits = get_quant_constant(node["signed"], node["actbits"][0], node["actscale"][0])
+        simd_bits = 18 - (node["actbits"][0] + node["wbits"][0])
     simd = int(np.log2(node["kernel"])/simd_bits) + (0 != (np.log2(node["kernel"]) - int(np.log2(node["kernel"]))))
     if (simd == 0):
         simd = 1
     mask = (1 << (simd-1)) - 1;
-    if (node["in_scale_factor"][0] is not None):
-        abits, aibits = get_quant_constant(node["signed"], node["in_bits"][0], node["in_scale_factor"][0])
-    else:
-        abits, aibits = get_quant_constant(node["signed"], node["actbits"][0], node["actscale"][0])
     block["template"].append("%0d" % abits)
     block["template"].append("%0d" % aibits)
     abits, aibits = get_quant_constant(node["signed"], node["wbits"][0], node["wscale"][0])
@@ -290,17 +291,19 @@ def parse_comp(name, node):
     # synthesizer gives an error, for 1x1 conv the dimension of the simd
     # partial results array is fixed at 1
 
-    simd_bits = 2
-    simd = 1
-    mask = (1 << (simd-1)) - 1;
     if (node["merge_1x1"]):
         if (node["in_scale_factor"][1] is not None):
-            abits, aibits = get_quant_constant(node["signed"], node["bits"][1], node["in_scale_factor"][1])
+            simd_bits = 18 - (node["in_bits"][1] + node["wbits"][1])
+            abits, aibits = get_quant_constant(node["signed"], node["in_bits"][1], node["in_scale_factor"][1])
         else:
+            simd_bits = 18 - (node["actbits"][0] + node["wbits"][1])
             abits, aibits = get_quant_constant(node["signed"], node["actbits"][0], node["actscale"][0])
     else:
         abits = 0
         aibits = 0
+        simd_bits = 2
+    simd = 1
+    mask = (1 << (simd-1)) - 1;
     block["template"].append("%0d" % abits)
     block["template"].append("%0d" % aibits)
 
@@ -405,7 +408,7 @@ def parse_comp(name, node):
     if (node["merge_1x1"]):
 
         if (node["in_scale_factor"][1] is not None):
-            input_1x1_type = get_quant_type(True, node["bits"][1], node["in_scale_factor"][1])
+            input_1x1_type = get_quant_type(True, node["in_bits"][1], node["in_scale_factor"][1])
         else:
             input_1x1_type = "std::nullptr_t"
         block["defines"]["t_%s_1x1" % input_name] = ["type", input_1x1_type]

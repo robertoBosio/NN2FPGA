@@ -207,12 +207,6 @@ void conv_pipe(
           #ifdef DEBUG_CONV
             std::cout <<  "RES " << s_acc << " " << s_output_struct[s_ow_ops+s_ow_pack].data[0][ops] << std::endl;
           #endif
-          #ifdef DEBUG_RES
-            if constexpr(std::is_same<t_output_clip, std::nullptr_t>::value == false)
-              // std::cout << t_output_clip(s_acc) << std::endl;
-            // std::cout << s_acc << " " << s_output_struct[0].data[0][s_index_ops] << std::endl;
-              std::cout <<  "RES " << s_output_struct[s_ow_ops+s_ow_pack].data[0][ops] << std::endl;
-          #endif
         #endif
       }
     }
@@ -326,12 +320,6 @@ void conv_pipe(
         // if (c_depth == 1)
         #ifdef DEBUG_CONV
           std::cout <<  "RES " << s_acc << " " << s_output_struct[s_ow_ops].data[0][s_index_ops] << std::endl;
-        #endif
-        #ifdef DEBUG_RES
-          if constexpr(std::is_same<t_output_clip, std::nullptr_t>::value == false)
-            std::cout << t_output_clip(s_acc) << std::endl;
-          // std::cout << s_acc << " " << s_output_struct[0].data[0][s_index_ops] << std::endl;
-          // std::cout << s_output_struct[0].data[0][s_index_ops] << std::endl;
         #endif
       #endif
     }
@@ -641,8 +629,16 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
         if ((s_num_ich == (c_ich-c_in_ops)) | (c_depth == 1)) {
           for (auto s_ow_ops = 0; s_ow_ops < c_ow_ops; s_ow_ops++) {
             o_output[s_ow_ops].write(s_output_struct[s_ow_ops]);
+            #ifdef DEBUG_RES
+              for (auto ops = 0; ops < c_ops; ops++)
+                std::cout <<  "RES " << s_output_struct[s_ow_ops].data[0][ops] << std::endl;
+            #endif
             if constexpr(std::is_same<t_output_struct_1x1, std::nullptr_t>::value == false) {
               if (s_iter < c_iter_1x1) o_output_1x1[s_ow_ops].write(s_output_1x1_struct[s_ow_ops]);
+              #ifdef DEBUG_RES
+                for (auto ops = 0; ops < c_ops; ops++)
+                  std::cout <<  "RES " << s_output_1x1_struct[s_ow_ops].data[0][ops] << std::endl;
+              #endif
             }
           }
         }

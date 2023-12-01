@@ -59,8 +59,9 @@ def hw_quant(model, io_dict):
         # Recognize bias through convolution layer field
         is_not_bias = True
         is_weight = False
+        is_not_skip = 'skip' not in net_name.lower()
 
-        if layer_out_name != "consume_stream":
+        if layer_out_name != "consume_stream" and is_not_skip:
             is_out_conv = 'conv' in io_dict[layer_out_name]['type']
             # is_not_bias = 'bias' not in io_dict[layer_in_name]["input"][0].lower()
             if is_out_conv:
@@ -105,6 +106,10 @@ def hw_quant(model, io_dict):
                 # Admitting packing on ow only if the number of ops is a multiple
                 # of the packing factor
                 ow_pack_partial = 16 // bits0
+                # ow_pack_partial = 1
+                if (ow_ops_partial < ow_pack_partial):
+                    ow_pack_partial = ow_ops_partial
+
                 if (ow_ops_partial % ow_pack_partial) == 0:
                     io_dict[layer_out_name]["ow_pack"] = ow_pack_partial
                 else:

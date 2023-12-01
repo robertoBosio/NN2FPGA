@@ -401,6 +401,6 @@ def ilp(io_dict, off_chip_storage, model, board="ULTRA96v2", double_packing=True
             if "is_1x1" in node.keys():
                 if node["is_1x1"]:
                     continue
-            node["ow_ops"] = 1
+            node["ow_ops"] = 2
 
     return io_dict
