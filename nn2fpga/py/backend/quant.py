@@ -109,6 +109,9 @@ def hw_quant(model, io_dict):
                 # ow_pack_partial = 1
                 if (ow_ops_partial < ow_pack_partial):
                     ow_pack_partial = ow_ops_partial
+                
+                if ow_pack_partial > 2:
+                    ow_pack_partial = 2
 
                 if (ow_ops_partial % ow_pack_partial) == 0:
                     io_dict[layer_out_name]["ow_pack"] = ow_pack_partial
