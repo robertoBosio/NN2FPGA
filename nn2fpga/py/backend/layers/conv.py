@@ -263,8 +263,7 @@ def parse_comp(name, node):
     block["template"].append("c_%s_relu" % name)
     block["template"].append("c_%s_reuse" % name)
     block["template"].append("c_%s_ow_pack" % name)
-    # TODO: impement packing over och
-    block["template"].append("1")
+    block["template"].append("c_%s_och_pack" % name)
 
     ##############################################################################
     # PACKING: providing info on quantization from template because
@@ -461,6 +460,7 @@ def parse_comp(name, node):
     block["defines"]["c_%s_reuse" % name]          = ["const", node["reuse"]]
     block["defines"]["c_%s_ow_ops" % name]         = ["const", node["ow_ops"]]
     block["defines"]["c_%s_ow_pack" % name]        = ["const", node["ow_pack"]]
+    block["defines"]["c_%s_och_pack" % name]       = ["const", node["och_pack"]]
     if (node["has_forward"]):
         block["defines"]["c_%s_add_ops" % forward_name]         = ["const", node["ich_ops"]]
 

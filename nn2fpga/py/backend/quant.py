@@ -5,6 +5,7 @@ import qonnx
 from onnx import numpy_helper
 import numpy as np
 from backend.graph import *
+from backend.layers.conv import get_add_name
 
 def compute_out_quant(
         actscale=None,
@@ -59,7 +60,14 @@ def hw_quant(model, io_dict):
         # Recognize bias through convolution layer field
         is_not_bias = True
         is_weight = False
-        is_not_skip = 'skip' not in net_name.lower()
+        is_not_skip = True
+
+        if not (layer_out_name in io_dict.keys()):
+            continue
+
+        if io_dict[layer_out_name]["type"] == "conv":
+            if io_dict[layer_out_name]["add"]:
+                is_not_skip = net_name != get_add_name(io_dict[layer_out_name])
 
         if layer_out_name != "consume_stream" and is_not_skip:
             is_out_conv = 'conv' in io_dict[layer_out_name]['type']
@@ -98,8 +106,6 @@ def hw_quant(model, io_dict):
                 #     ow_ops_partial = 1
                 ow_ops_partial = io_dict[layer_out_name]["ow_ops"]
                 
-                print("Layer: %s, ws_out: %0d" % (layer_out_name,ow_ops_partial))
-
                 if io_dict[layer_in_name]["type"] == "produce":
                     io_dict[layer_in_name]["ow_ops"] = ow_ops_partial
                 else:
@@ -133,6 +139,10 @@ def hw_quant(model, io_dict):
                     io_dict[layer_out_name]["och_pack"] = och_pack_partial
                 else:
                     io_dict[layer_out_name]["och_pack"] = 1
+                
+                print("##### Layer: %s, ow_pack: %0d" % (layer_out_name,io_dict[layer_out_name]["ow_pack"]))
+                print("##### Layer: %s, och_pack: %0d" % (layer_out_name,io_dict[layer_out_name]["och_pack"]))
+                print("##### Layer: %s, bits: %0d" % (layer_out_name,bits0))
 
                 io_dict[layer_out_name]["actscale"].append(scale_factor0)
                 io_dict[layer_out_name]["actbits"].append(bits0)
@@ -150,7 +160,6 @@ def hw_quant(model, io_dict):
 
                 signed = io_dict[layer_in_name]["signed"]
                 io_dict[layer_out_name]["wsigned"].append(signed)
-
 
     return io_dict
 
