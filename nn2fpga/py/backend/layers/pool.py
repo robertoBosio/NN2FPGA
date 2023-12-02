@@ -70,6 +70,8 @@ def info(io_dict, node, node_name, init_info, tensors_info):
     io_dict[node_name]["ops"] = 1
     io_dict[node_name]["in_ops"] = 1
     io_dict[node_name]["ich_ops"] = 1
+    io_dict[node_name]["total"] = 1/(oh*ow*och)
+    io_dict[node_name]["total_log"] = 2*oh*ow*och*fh*fw
 
     return io_dict
 
