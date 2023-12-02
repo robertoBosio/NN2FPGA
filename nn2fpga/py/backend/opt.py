@@ -152,6 +152,7 @@ def opt_skip(model, io_dict):
                 in_index = in_layer["output"].index(net_name)
                 in_scale = in_layer["scale_factor"][in_index]
                 in_bits  = in_layer["bits"][in_index]
+                in_signed  = in_layer["signed"][in_index]
                 in_clip  = in_layer["clip_factor"][in_index]
                 if in_clip is list:
                     in_clip = in_clip[0]
@@ -186,6 +187,9 @@ def opt_skip(model, io_dict):
                         )
                         io_dict[layer_base_name]["bits"].append(
                             in_bits
+                        )
+                        io_dict[layer_base_name]["signed"].append(
+                            in_signed
                         )
                         io_dict[layer_base_name]["clip_factor"].append(
                             in_clip
@@ -278,16 +282,19 @@ def opt_merge_conv(model, io_dict):
                     output_tensor = []
                     scale_factor = []
                     bits = []
+                    signed = []
                     clip_factor = []
                     mask_factor = []
                     clip_signed = []
                     mask_signed = []
                     in_scale_factor = []
                     in_bits = []
+                    in_signed = []
                     weights_name = []
                     for layer_merge_name in layer_out_names:
                         if layer_base_name != layer_merge_name:
                             layer_merge = io_dict[layer_merge_name]
+                            print(layer_merge_name, "merged in", layer_base_name)
                             rem_layer.append(layer_merge_name)
                             for input in layer_merge["input"]:
                                 if input not in output_names:
@@ -299,6 +306,8 @@ def opt_merge_conv(model, io_dict):
                                 scale_factor.append(scale_value)
                                 bits_value = layer_merge["bits"][i]
                                 bits.append(bits_value)
+                                signed_value = layer_merge["signed"][i]
+                                signed.append(signed_value)
                                 clip_value = layer_merge["clip_factor"][i]
                                 if clip_value is list:
                                     clip_value = clip_value[0]
@@ -319,6 +328,8 @@ def opt_merge_conv(model, io_dict):
                                 in_scale_factor.append(in_scale_value)
                                 in_bits_value = layer_merge["in_bits"][i]
                                 in_bits.append(in_bits_value)
+                                in_signed_value = layer_merge["in_signed"][i]
+                                in_signed.append(in_signed_value)
                                 weights_name.append(layer_merge["weights_name"][i])
                             
                     io_dict[layer_base_name]["merge_1x1"] = True
@@ -333,12 +344,14 @@ def opt_merge_conv(model, io_dict):
 
                     io_dict[layer_base_name]["scale_factor"] += scale_factor
                     io_dict[layer_base_name]["bits"] += bits
+                    io_dict[layer_base_name]["signed"] += signed
                     io_dict[layer_base_name]["clip_factor"] += clip_factor
                     io_dict[layer_base_name]["mask_factor"] += mask_factor
                     io_dict[layer_base_name]["clip_signed"] += clip_signed
                     io_dict[layer_base_name]["mask_signed"] += mask_signed
                     io_dict[layer_base_name]["in_scale_factor"] += in_scale_factor
                     io_dict[layer_base_name]["in_bits"] += in_bits
+                    io_dict[layer_base_name]["in_signed"] += in_signed
                     io_dict[layer_base_name]["weights_name"] += weights_name
 
                     # Removing merged layer
@@ -395,6 +408,7 @@ def assign_quant(model, io_dict):
             io_dict[layer_in_name]["narrow"] = [0]
             io_dict[layer_in_name]["bits"] = [32]
             io_dict[layer_in_name]["actscale"] = [0]
+            io_dict[layer_in_name]["actsigned"] = [0]
             io_dict[layer_in_name]["clip"] = [0]
             io_dict[layer_in_name]["mask"] = [0]
             io_dict[layer_in_name]["clip_factor"] = [0]
@@ -453,6 +467,7 @@ def opt_quant(model, io_dict, quant_info):
 
                     seq_scale = io_dict[layer_out_name]["scale_factor"]
                     seq_bits = io_dict[layer_out_name]["bits"]
+                    seq_signed = io_dict[layer_out_name]["signed"]
                     # seq_scale = quant_info[net_name]["seq_scale"]
                     if isinstance(seq_scale, list):
                         scale_factor = seq_scale[0]
@@ -463,6 +478,11 @@ def opt_quant(model, io_dict, quant_info):
                         bits = seq_bits[0]
                     else:
                         bits = seq_bits
+
+                    if isinstance(seq_signed, list):
+                        signed = seq_signed[0]
+                    else:
+                        signed = seq_signed
 
                     clip_factor = quant_info[net_name]["seq_clip"][0]
                     if isinstance(clip_factor, list):
@@ -482,7 +502,6 @@ def opt_quant(model, io_dict, quant_info):
                     mask_bits = quant_info[net_name]["seq_mask_bits"][0]
                     if isinstance(mask_bits, list):
                         mask_bits = mask_bits[0]
-                    signed = quant_info[net_name]["signed"]
 
                     in_index = io_dict[layer_in_name]["output"].index(net_name)
 
@@ -529,7 +548,7 @@ def opt_quant(model, io_dict, quant_info):
                     io_dict[layer_in_name]["quant"] = True
                     io_dict[layer_in_name]["scale_factor"] = [scale_factor]
                     io_dict[layer_in_name]["bits"] = [bits]
-                    io_dict[layer_in_name]["signed"] = signed
+                    io_dict[layer_in_name]["signed"] = [signed]
                     io_dict[layer_in_name]["output"] = out_names
 
                     removed_layers.append(layer_out_name)
@@ -628,11 +647,13 @@ def opt_skip_quant(model, io_dict, quant_info, init_info):
                     scale_index = quant_dict["seq_out"].index(net_name)
                     scale_factor = quant_dict["seq_scale"][scale_index]
                     bits = quant_dict["seq_bits"][scale_index]
+                    signed = quant_dict["seq_signed"][scale_index]
 
                     # The scale factor is stored and the activation is 
                     # requantized before performing convolution
                     io_dict[layer_out_name]["in_scale_factor"] = [scale_factor]
                     io_dict[layer_out_name]["in_bits"] = [bits]
+                    io_dict[layer_out_name]["in_signed"] = [signed]
                     io_dict[layer_out_name]["input"][0] = quant_input
                     change = True
                     del io_dict[layer_in_name]

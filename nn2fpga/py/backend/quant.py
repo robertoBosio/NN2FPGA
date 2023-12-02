@@ -78,6 +78,7 @@ def hw_quant(model, io_dict):
             if is_quant0 and is_quant1:
                 in_scale_factors = io_dict[layer_in_name]["scale_factor"]
                 in_bits = io_dict[layer_in_name]["bits"]
+                in_signed = io_dict[layer_in_name]["signed"]
 
                 # Multiple outputs from previous layer in case of skip 
                 # connections
@@ -87,6 +88,7 @@ def hw_quant(model, io_dict):
 
                 bits_index0 = in_net_names.index(net_name)
                 bits0 = in_bits[bits_index0]
+                signed0 = in_signed[bits_index0]
                 
                 # TODO: check for pointwise convolutions not at the end
                 # if (io_dict[layer_out_name]["iw"] % 2) == 0:
@@ -105,21 +107,36 @@ def hw_quant(model, io_dict):
                  
                 # Admitting packing on ow only if the number of ops is a multiple
                 # of the packing factor
-                ow_pack_partial = 16 // bits0
+                bits_packing = 16 // bits0
                 # ow_pack_partial = 1
-                if (ow_ops_partial < ow_pack_partial):
+                if (ow_ops_partial < bits_packing):
                     ow_pack_partial = ow_ops_partial
-                
+                else:
+                    ow_pack_partial = bits_packing
+
                 if ow_pack_partial > 2:
                     ow_pack_partial = 2
+                
+                och_pack_partial = bits_packing // ow_pack_partial
+                if och_pack_partial > 2:
+                    och_pack_partial = 2
+                
+                if signed0:
+                    och_pack_partial = 1
 
                 if (ow_ops_partial % ow_pack_partial) == 0:
                     io_dict[layer_out_name]["ow_pack"] = ow_pack_partial
                 else:
                     io_dict[layer_out_name]["ow_pack"] = 1
+                
+                if (io_dict[layer_out_name]["ops"] % och_pack_partial) == 0:
+                    io_dict[layer_out_name]["och_pack"] = och_pack_partial
+                else:
+                    io_dict[layer_out_name]["och_pack"] = 1
 
                 io_dict[layer_out_name]["actscale"].append(scale_factor0)
                 io_dict[layer_out_name]["actbits"].append(bits0)
+                io_dict[layer_out_name]["actsigned"].append(in_signed)
 
                 io_dict[layer_out_name]["ow_ops"] = ow_ops_partial
                 io_dict[layer_out_name]["reuse"] = ow_ops_partial
@@ -130,6 +147,9 @@ def hw_quant(model, io_dict):
 
                 bits = io_dict[layer_in_name]["bits"]
                 io_dict[layer_out_name]["wbits"].append(bits)
+
+                signed = io_dict[layer_in_name]["signed"]
+                io_dict[layer_out_name]["wsigned"].append(signed)
 
 
     return io_dict
@@ -401,7 +421,7 @@ def extract_quant_info(model, io_dict, init_info):
             quant_info[node["input"][0]].setdefault("others_signed", [])
             quant_info[node["input"][0]].setdefault("changed", False)
             quant_info[node["input"][0]].setdefault("removed", [])
-            quant_info[node["input"][0]].setdefault("signed", signed)
+            quant_info[node["input"][0]].setdefault("signed", [])
             quant_info[node["input"][0]].setdefault("seq_clip", [])
             quant_info[node["input"][0]].setdefault("seq_mask", [])
             quant_info[node["input"][0]].setdefault("seq_clip_signed", [])

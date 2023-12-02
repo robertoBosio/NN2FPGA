@@ -58,6 +58,7 @@ def info(io_dict, node, node_name, init_info, tensors_info):
     add      = False
     in_scale_factor = [None]
     in_bits = [None]
+    in_signed = [None]
 
     # Check if groups exist and if not set to 1
     if 'group_index' not in locals():
@@ -105,12 +106,15 @@ def info(io_dict, node, node_name, init_info, tensors_info):
     io_dict[node_name]["in_scale_factor"] = in_scale_factor
     io_dict[node_name]["bits"]    = 0
     io_dict[node_name]["in_bits"] = in_bits
+    io_dict[node_name]["in_signed"] = in_signed
     io_dict[node_name]["type"]   = 'conv'
     io_dict[node_name]["wbias"]  = len(node.input) > 2
     io_dict[node_name]["wbits"]  = []
+    io_dict[node_name]["wsigned"]  = []
     io_dict[node_name]["actbits"] = []
     io_dict[node_name]["wscale"]  = []
     io_dict[node_name]["actscale"] = []
+    io_dict[node_name]["actsigned"] = []
     io_dict[node_name]["ops"] = 1
     io_dict[node_name]["in_ops"] = 1
     io_dict[node_name]["ich_ops"] = 1
@@ -267,10 +271,10 @@ def parse_comp(name, node):
     # ap_fixed methods are not available at compile time and the
     # synthesizer gives an error
     if (node["in_scale_factor"][0] is not None):
-        abits, aibits = get_quant_constant(node["signed"], node["in_bits"][0], node["in_scale_factor"][0])
+        abits, aibits = get_quant_constant(node["in_signed"][0], node["in_bits"][0], node["in_scale_factor"][0])
         simd_bits = 18 - (node["in_bits"][0] + node["wbits"][0])
     else:
-        abits, aibits = get_quant_constant(node["signed"], node["actbits"][0], node["actscale"][0])
+        abits, aibits = get_quant_constant(node["actsigned"][0], node["actbits"][0], node["actscale"][0])
         simd_bits = 18 - (node["actbits"][0] + node["wbits"][0])
     simd = int(np.log2(node["kernel"])/simd_bits) + (0 != (np.log2(node["kernel"]) - int(np.log2(node["kernel"]))))
     if (simd == 0):
@@ -278,7 +282,7 @@ def parse_comp(name, node):
     mask = (1 << (simd-1)) - 1;
     block["template"].append("%0d" % abits)
     block["template"].append("%0d" % aibits)
-    abits, aibits = get_quant_constant(node["signed"], node["wbits"][0], node["wscale"][0])
+    abits, aibits = get_quant_constant(node["wsigned"][0], node["wbits"][0], node["wscale"][0])
     block["template"].append("%0d" % abits)
     block["template"].append("%0d" % aibits)
     block["template"].append("%0d" % simd_bits)
@@ -294,10 +298,10 @@ def parse_comp(name, node):
     if (node["merge_1x1"]):
         if (node["in_scale_factor"][1] is not None):
             simd_bits = 18 - (node["in_bits"][1] + node["wbits"][1])
-            abits, aibits = get_quant_constant(node["signed"], node["in_bits"][1], node["in_scale_factor"][1])
+            abits, aibits = get_quant_constant(node["in_signed"][1], node["in_bits"][1], node["in_scale_factor"][1])
         else:
             simd_bits = 18 - (node["actbits"][0] + node["wbits"][1])
-            abits, aibits = get_quant_constant(node["signed"], node["actbits"][0], node["actscale"][0])
+            abits, aibits = get_quant_constant(node["actsigned"][0], node["actbits"][0], node["actscale"][0])
     else:
         abits = 0
         aibits = 0
@@ -308,7 +312,7 @@ def parse_comp(name, node):
     block["template"].append("%0d" % aibits)
 
     if (node["merge_1x1"]):
-        abits, aibits = get_quant_constant(node["signed"], node["wbits"][1], node["wscale"][1])
+        abits, aibits = get_quant_constant(node["wsigned"][1], node["wbits"][1], node["wscale"][1])
     else:
         abits = 0
         aibits = 0
@@ -344,7 +348,7 @@ def parse_comp(name, node):
         [["data", "t_%s_acc" % output_name], ["last", "bool"]]
     ]
 
-    output_type = get_quant_type(node["signed"], node["bits"][0], node["scale_factor"][0])
+    output_type = get_quant_type(node["signed"][0], node["bits"][0], node["scale_factor"][0])
     output_type_clip = get_quant_type(node["clip_signed"][0], node["clip_bits"][0], node["clip_factor"][0])
     output_type_mask = get_quant_type(node["mask_signed"][0], node["mask_bits"][0], node["mask_factor"][0])
 
