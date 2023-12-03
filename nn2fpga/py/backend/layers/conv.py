@@ -271,10 +271,33 @@ def parse_comp(name, node):
     # synthesizer gives an error
     if (node["in_scale_factor"][0] is not None):
         abits, aibits = get_quant_constant(node["in_signed"][0], node["in_bits"][0], node["in_scale_factor"][0])
-        simd_bits = 18 - (node["in_bits"][0] + node["wbits"][0])
     else:
         abits, aibits = get_quant_constant(node["actsigned"][0], node["actbits"][0], node["actscale"][0])
-        simd_bits = 18 - (node["actbits"][0] + node["wbits"][0])
+
+    # Computing Packing guard bits for accumulation process
+    if node["och_pack"] > 1:
+        a_d_bits = node["wbits"][0]
+    else:
+        if (node["in_scale_factor"][0] is not None):
+            a_d_bits = node["in_bits"][0]
+        else:
+            a_d_bits = node["actbits"][0]
+
+    if node["och_pack"] > 1:
+        if (node["in_scale_factor"][0] is not None):
+            b_bits = node["in_bits"][0]
+        else:
+            b_bits = node["actbits"][0]
+    else:
+        b_bits = node["wbits"][0]
+
+    end_simd_bit = 27 - 1 - a_d_bits
+    # number of partial results which must be padded in the 27-bits word
+    n_partial = node["och_pack"]*node["ow_pack"]//2
+    if (n_partial == 0):
+        n_partial = 1
+    simd_bits = (end_simd_bit - (a_d_bits + b_bits)*n_partial)//n_partial
+
     simd = int(np.log2(node["kernel"])/simd_bits) + (0 != (np.log2(node["kernel"]) - int(np.log2(node["kernel"]))))
     if (simd == 0):
         simd = 1
@@ -295,12 +318,34 @@ def parse_comp(name, node):
     # partial results array is fixed at 1
 
     if (node["merge_1x1"]):
+        # Computing Packing guard bits for accumulation process
         if (node["in_scale_factor"][1] is not None):
-            simd_bits = 18 - (node["in_bits"][1] + node["wbits"][1])
             abits, aibits = get_quant_constant(node["in_signed"][1], node["in_bits"][1], node["in_scale_factor"][1])
         else:
-            simd_bits = 18 - (node["actbits"][0] + node["wbits"][1])
             abits, aibits = get_quant_constant(node["actsigned"][0], node["actbits"][0], node["actscale"][0])
+
+        if node["och_pack"] > 1:
+            a_d_bits = node["wbits"][1]
+        else:
+            if (node["in_scale_factor"][0] is not None):
+                a_d_bits = node["in_bits"][1]
+            else:
+                a_d_bits = node["actbits"][0]
+
+        if node["och_pack"] > 1:
+            if (node["in_scale_factor"][0] is not None):
+                b_bits = node["in_bits"][1]
+            else:
+                b_bits = node["actbits"][0]
+        else:
+            b_bits = node["wbits"][1]
+
+        end_simd_bit = 27 - 1 - a_d_bits
+        # number of partial results which must be padded in the 27-bits word
+        n_partial = node["och_pack"]*node["ow_pack"]//2
+        if (n_partial == 0):
+            n_partial = 1
+        simd_bits = (end_simd_bit - (a_d_bits + b_bits)*n_partial)//n_partial
     else:
         abits = 0
         aibits = 0

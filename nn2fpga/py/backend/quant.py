@@ -129,6 +129,9 @@ def hw_quant(model, io_dict):
                     och_pack_partial = 2
                 
                 if signed0:
+                    print("##### Layer: %s, signed, reducing och_pack" % (layer_out_name))
+                    print(signed0)
+                    print(io_dict[layer_in_name])
                     och_pack_partial = 1
 
                 if (ow_ops_partial % ow_pack_partial) == 0:
@@ -165,10 +168,16 @@ def hw_quant(model, io_dict):
 
     return io_dict
 
-def merge_quant(io_dict, quant_info, inherit_quant=False):
+def merge_quant(model, io_dict, init_info, inherit_quant=False):
 
     # Merging consecutive quantizations
     new_quant_info = {}
+    quant_info = extract_quant_info(
+        model,
+        io_dict,
+        init_info
+    )
+
     while True:
 
         remove_node = []
@@ -211,6 +220,8 @@ def merge_quant(io_dict, quant_info, inherit_quant=False):
                             new_scale = quant_info[output]["seq_scale"][j]
                             new_bits = quant_info[output]["seq_bits"][j]
                             new_signed = quant_info[output]["seq_signed"][j]
+                            if new_signed is list:
+                                new_signed = new_signed[0]
                             new_node[new_output] = new_node_name
                             new_node["seq"].append(new_node_name)
                             new_node["seq_scale"].append(new_scale)
@@ -317,6 +328,7 @@ def merge_quant(io_dict, quant_info, inherit_quant=False):
             new_output  = []
             new_scale   = []
             new_bits   = []
+            new_signed   = []
             new_clip   = []
             new_mask   = []
             new_clip_signed   = []
@@ -344,9 +356,10 @@ def merge_quant(io_dict, quant_info, inherit_quant=False):
                         new_output.append(next_output)
                         new_scale.append(seq_scale[i])
                         new_bits.append(seq_bits[i])
-                        if new_signed is not list:
-                            new_signed = [new_signed]
-                        new_signed.append(seq_signed[i])
+                        if seq_signed[i] is list:
+                            new_signed.append(seq_signed[i][0])
+                        else:
+                            new_signed.append(seq_signed[i])
                         if seq_clip[i] is list:
                             new_clip.append(seq_clip[i][0])
                         else:
@@ -396,6 +409,9 @@ def extract_quant_info(model, io_dict, init_info):
             bits_name   = io_dict[node_name]["input"][3]
             bits_info   = init_info[bits_name]
             bits        = int(numpy_helper.to_array(bits_info))
+            signed = node["signed"]
+            if node["signed"] is list:
+                signed = signed[0]
             clip = node["clip"]
             if clip is list:
                 clip = clip[0]
@@ -414,11 +430,6 @@ def extract_quant_info(model, io_dict, init_info):
             mask_bits = node["mask_bits"]
             if mask_bits is list:
                 mask_bits = mask_bits[0]
-
-            if node["signed"] is list:
-                signed = node["signed"][-1]
-            else:
-                signed = node["signed"]
 
             quant_info.setdefault(node["input"][0], {})
             quant_info[node["input"][0]].setdefault("seq", [])
