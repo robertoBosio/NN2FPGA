@@ -122,6 +122,7 @@ def hw_quant(model, io_dict):
 
                 if ow_pack_partial > 2:
                     ow_pack_partial = 2
+                # ow_pack_partial = 1
                 
                 och_pack_partial = bits_packing // ow_pack_partial
                 if och_pack_partial > 2:
@@ -139,6 +140,7 @@ def hw_quant(model, io_dict):
                     io_dict[layer_out_name]["och_pack"] = och_pack_partial
                 else:
                     io_dict[layer_out_name]["och_pack"] = 1
+                # io_dict[layer_out_name]["och_pack"] = 1
                 
                 print("##### Layer: %s, ow_pack: %0d" % (layer_out_name,io_dict[layer_out_name]["ow_pack"]))
                 print("##### Layer: %s, och_pack: %0d" % (layer_out_name,io_dict[layer_out_name]["och_pack"]))
