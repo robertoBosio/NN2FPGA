@@ -46,7 +46,8 @@ template <class t_input, class t_weight, class t_weight_st, class t_bias, class 
           class t_output_mask, int c_reuse, int c_fh, int c_fw, int c_index, int c_str,
           int c_ops, int c_in_ops, int c_ow_ops, int c_ow_pack, int c_och_pack, 
           int c_relu, int c_ich, int c_och, int c_bits, int c_simd_bits,
-          int c_simd, int c_pad_bits, int c_int_pad_bits, int c_mask, int c_w_bits, int c_depth>
+          int c_simd, int c_pad_bits, int c_int_pad_bits, int c_pad_acc_bits, int c_mask, 
+          int c_w_bits, int c_depth>
 void conv_pipe(
     t_input i_input,
     t_weight i_weight[c_index],
@@ -170,8 +171,8 @@ void conv_pipe(
           t_acc_simd s_acc_simd_value = 0;
           t_acc_simd s_acc_adj = 0;
           if (s_ow_pack > 0)
-            s_acc_adj.range(0,0) = s_acc_simd[s_simd].range(c_pad_bits*(s_index_r)-1, c_pad_bits*(s_index_r)-1);
-          s_acc_simd_value.range(c_pad_bits-1, 0) = s_acc_simd[s_simd].range(c_pad_bits*(s_index_r+1)-1, c_pad_bits*(s_index_r));
+            s_acc_adj.range(0,0) = s_acc_simd[s_simd].range(c_pad_acc_bits*(s_index_r)-1, c_pad_acc_bits*(s_index_r)-1);
+          s_acc_simd_value.range(c_pad_acc_bits-1, 0) = s_acc_simd[s_simd].range(c_pad_acc_bits*(s_index_r+1)-1, c_pad_acc_bits*(s_index_r));
           s_acc[s_index_r] += s_acc_simd_value + s_acc_adj;
         }
         #ifndef __SYNTHESIS__
@@ -559,6 +560,7 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
   // round to the higher log2 c_simd
   const int c_pad_bits = 27-c_in_bits-1;
   const int c_int_pad_bits = c_simd_bits+c_in_ibits+c_w_ibits;
+  const int c_pad_acc_bits = c_simd_bits+c_in_bits+c_w_bits;
   // mask on c_simd bits
   ////////////////////////////////////////////////////////////////////////////
 
@@ -567,13 +569,14 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
   // mask on c_simd bits
 
   const int c_pad_bits_1x1 = 27-c_in_bits_1x1-1;
-  const int c_int_pad_bits_1x1 = c_simd_bits+c_in_ibits_1x1+c_w_ibits_1x1;
+  const int c_int_pad_bits_1x1 = c_simd_bits_1x1+c_in_ibits_1x1+c_w_ibits_1x1;
+  const int c_pad_acc_bits_1x1 = c_simd_bits_1x1+c_in_bits_1x1+c_w_bits_1x1;
 
   ////////////////////////////////////////////////////////////////////////////
 
   // TODO: the numbre of integer bits of the weights type must be considered
-  typedef ap_fixed<c_pad_bits, c_int_pad_bits, AP_RND, AP_WRAP> t_acc_simd;
-  typedef ap_fixed<c_pad_bits_1x1, c_int_pad_bits_1x1, AP_RND, AP_WRAP> t_acc_simd_1x1;
+  typedef ap_fixed<c_pad_acc_bits, c_int_pad_bits, AP_RND, AP_WRAP> t_acc_simd;
+  typedef ap_fixed<c_pad_acc_bits_1x1, c_int_pad_bits_1x1, AP_RND, AP_WRAP> t_acc_simd_1x1;
 
   auto s_ich_idx_add = 0;
 
@@ -586,7 +589,7 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
       std::cout << "#### The convolution has add" << std::endl;
     std::cout << "parallelism " << c_ops << " " << c_in_ops << " " << c_ow_ops << std::endl;
     std::cout << "packing " << c_och_pack << " " << c_ow_pack << std::endl;
-    std::cout << "padding " << c_pad_bits << " " << c_int_pad_bits << std::endl;
+    std::cout << "padding " << c_pad_bits << " " << c_int_pad_bits << " " << c_simd_bits << std::endl;
     std::cout << "s_input.size() = " << i_input[0].size() << std::endl;
   #endif
 
@@ -691,6 +694,7 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
                 c_simd,
                 c_pad_bits,
                 c_int_pad_bits,
+                c_pad_acc_bits,
                 c_mask,
                 c_w_bits,
                 c_depth
@@ -750,6 +754,7 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
                     c_simd_1x1,
                     c_pad_bits,
                     c_int_pad_bits,
+                    c_pad_acc_bits_1x1,
                     c_mask_1x1,
                     c_w_bits_1x1,
                     c_depth

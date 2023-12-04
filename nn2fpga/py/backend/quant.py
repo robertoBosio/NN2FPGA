@@ -122,17 +122,18 @@ def hw_quant(model, io_dict):
 
                 if ow_pack_partial > 2:
                     ow_pack_partial = 2
-                # ow_pack_partial = 1
+                ow_pack_partial = 1
                 
                 och_pack_partial = bits_packing // ow_pack_partial
                 if och_pack_partial > 2:
                     och_pack_partial = 2
                 
                 if signed0:
-                    print("##### Layer: %s, signed, reducing och_pack" % (layer_out_name))
-                    print(signed0)
-                    print(io_dict[layer_in_name])
+                    # print("##### Layer: %s, signed, reducing och_pack" % (layer_out_name))
+                    # print(signed0)
+                    # print(io_dict[layer_in_name])
                     och_pack_partial = 1
+                # och_pack_partial = 1
 
                 if (ow_ops_partial % ow_pack_partial) == 0:
                     io_dict[layer_out_name]["ow_pack"] = ow_pack_partial
