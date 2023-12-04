@@ -40,11 +40,22 @@ def find_divisors(layers_info):
     return all_divisors, layers_divisors, layers_offset
 
 def generate_valid_combinations(och, ich):
+    """ Generate valid combinations of parallelization over ich and och """
     combinations = []
     divisors = lambda n: [i for i in range(1, n + 1) if n % i == 0]
     for div_och in divisors(och):
         for div_ich in divisors(ich):
             combinations.append((div_och, div_ich))
+    return combinations 
+
+def generate_valid_combinations(och, ich, iw):
+    """ Generate valid combinations of parallelization over ich, och and iw """
+    combinations = []
+    divisors = lambda n: [i for i in range(1, n + 1) if n % i == 0]
+    for div_och in divisors(och):
+        for div_ich in divisors(ich):
+            for div_iw in divisors(iw):
+                combinations.append((div_och, div_ich, div_iw))
     return combinations 
 
 def find_range(divisors, ilp_value):

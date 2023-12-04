@@ -4,6 +4,7 @@ import pulp
 from pulp.apis import PULP_CBC_CMD
 import json
 import math
+import numpy as np
 from backend.ilp_utils import find_divisors
 from backend.ilp_utils import find_range
 from backend.ilp_utils import generate_valid_combinations
@@ -41,7 +42,6 @@ def parallel_ops_number(io_dict, board="ULTRA96v2", prj_root="/tmp"):
                 max_total = node_info["total"]
                 worst_index = iter
             iter +=1
-
 
     total_computations = 0
     index = 0
@@ -91,10 +91,14 @@ def parallel_ops_number(io_dict, board="ULTRA96v2", prj_root="/tmp"):
     for layer in layers_info:
         max_och_par = layer["och"]
         max_ich_par = layer["ich"]
+        max_iw_par = layer["iw"]
         
-        # Depthwise parallelization cannot be parallelized on output channel.
+        # Depthwise convolutions cannot be parallelized on output channel.
         if (layer["depth"] or layer["type"] == "pool"):
             max_och_par = 1
+
+        if (layer["type"] == "pool"):
+            max_iw_par = 1
 
         # In case of merged convolutions, take into account the gcd of the
         # maximum parallelization of och of the two. The transformation is
@@ -102,7 +106,12 @@ def parallel_ops_number(io_dict, board="ULTRA96v2", prj_root="/tmp"):
         if (layer["merge_1x1"]):
             max_och_par = math.gcd(layer["och"], layer["och_1x1"])
 
-        valid_par_solutions.append(generate_valid_combinations(max_och_par, max_ich_par))
+        # Temporary clamping
+        max_iw_par = np.clip(1, 2, max_iw_par)
+
+
+        valid_par_solutions.append(generate_valid_combinations(
+            och=max_och_par, ich=max_ich_par, iw=max_iw_par))
 
     # valid_tot_par_solutions stores the total parallelization for each valid
     # solution and it is useful to use lpDot to compute the parallelization
@@ -111,7 +120,7 @@ def parallel_ops_number(io_dict, board="ULTRA96v2", prj_root="/tmp"):
     for i, par_sol in enumerate(valid_par_solutions):
         valid_tot_par_solutions.append([])
         for single_par in par_sol:
-            valid_tot_par_solutions[i].append(single_par[0] * single_par[1])
+            valid_tot_par_solutions[i].append(np.prod(single_par))
 
     # Creating a second dictionary in which merged convolution are splitted and
     # pool layers are removed to better compute DSPs and PORTs
@@ -177,10 +186,11 @@ def parallel_ops_number(io_dict, board="ULTRA96v2", prj_root="/tmp"):
     # parallelization should be lower than the available ones. The number of
     # ports used for each layer is computed as (filter_size * och_par * ich_par
     # * bits) / bandwidth_mem.
+    valid_par_solutions_mem = [[x[0] * x[1] for x in layer_sol] for layer_sol in valid_par_solutions]
     prob += (
         pulp.lpSum([layer["kernel"] * layer["bits"] / 72 *
                     pulp.lpDot(layer_binary_variables[layer['index']].values(),
-                    valid_tot_par_solutions[layer['index']]) for layer in layers_info_unmerged]) <= NUM_PORTS,
+                    valid_par_solutions_mem[layer['index']]) for layer in layers_info_unmerged]) <= NUM_PORTS,
         f"PORTS_constraint"
     )
     
@@ -214,7 +224,7 @@ def parallel_ops_number(io_dict, board="ULTRA96v2", prj_root="/tmp"):
         if layers_info[layer_index - 1]["depth"] or layers_info[layer_index - 1]["type"] == "pool":
             prob += (
                 pulp.lpSum(
-                    [layer_binary_variables[layer_index - 1][i] * tuple[1]
+                    [layer_binary_variables[layer_index - 1][i] * tuple[1] * tuple[2]
                     for i, tuple in enumerate(valid_par_solutions[layer_index - 1])]
                 ) -
                 ( pulp.lpDot(layer_binary_variables[layer_index].values(),
@@ -242,25 +252,38 @@ def parallel_ops_number(io_dict, board="ULTRA96v2", prj_root="/tmp"):
         for s in range(len(layer)):
             if int(layer_binary_variables[i][s].value()) == 1:
                 parallel_op[f"{layers_info[i]['name']}"] = layer[s]
+    print(parallel_op)
+    # for i, layer in enumerate(layers_info):
+    #     if layer["depth"] or layer["type"] == "pool":
+    #         Bw = parallel_op[layer['name']][0] * parallel_op[layer['name']][2]
+    #         Br = np.prod(parallel_op[layer['name']]) / layer['och']
+    #         print(f"{layer['name']} Br = {Br} Bw = {Bw}")
+    #     else:
+    #         Bw = np.prod(parallel_op[layer['name']]) / layer['ich']
+    #         Br = np.prod(parallel_op[layer['name']]) / layer['och']
+    #         print(f"{layer['name']} Br = {Br} Bw = {Bw}")
 
-    # Retriving only the parallelism combinations for lower throughput to save resources in fast layers
+    # Retriving only the parallelism combinations for lower throughput to save
+    # resources in fast layers. The parallelization over ow is fixed
     layer_binary_variables = []
     clamped_valid_par_solutions = []
     clamped_valid_tot_par_solutions = []
     for i, solution_set in enumerate(valid_par_solutions):
         clamped_valid_par_solutions.append([])
         clamped_valid_tot_par_solutions.append([])
+        chosen_par = np.prod(parallel_op[layers_info[i]['name']][0:2])
+        chosen_ow = parallel_op[layers_info[i]['name']][2]
         for combination in solution_set:
-            tot_par = combination[0] * combination[1]
-            chosen_par = parallel_op[layers_info[i]['name']][0] * parallel_op[layers_info[i]['name']][1]
+            tot_par = np.prod(combination[0:2])
+            ow_par = combination[2]
             if  (i != worst_index):
-                if (tot_par <= chosen_par):
+                if (tot_par <= chosen_par and ow_par == chosen_ow):
                     clamped_valid_par_solutions[i].append(combination)
-                    clamped_valid_tot_par_solutions[i].append(combination[0] * combination[1])
+                    clamped_valid_tot_par_solutions[i].append(np.prod(combination))
             else:
-                if (tot_par == chosen_par):
+                if (tot_par == chosen_par and ow_par == chosen_ow):
                     clamped_valid_par_solutions[i].append(combination)
-                    clamped_valid_tot_par_solutions[i].append(combination[0] * combination[1])
+                    clamped_valid_tot_par_solutions[i].append(np.prod(combination))
 
         layer_binary_variables.append(pulp.LpVariable.dicts(
             f"Choice_l{i}", range(len(clamped_valid_par_solutions[i])), cat="Binary"))
@@ -313,7 +336,7 @@ def parallel_ops_number(io_dict, board="ULTRA96v2", prj_root="/tmp"):
         if layers_info[layer_index - 1]["depth"] or layers_info[layer_index - 1]["type"] == "pool":
             prob_min += (
                 pulp.lpSum(
-                    [layer_binary_variables[layer_index - 1][i] * tuple[1]
+                    [layer_binary_variables[layer_index - 1][i] * tuple[1] * tuple[2]
                     for i, tuple in enumerate(clamped_valid_par_solutions[layer_index - 1])]
                 ) -
                 ( pulp.lpDot(layer_binary_variables[layer_index].values(),
@@ -336,15 +359,16 @@ def parallel_ops_number(io_dict, board="ULTRA96v2", prj_root="/tmp"):
         for s in range(len(layer)):
             if int(layer_binary_variables[i][s].value()) == 1:
                 parallel_op[f"{layers_info[i]['name']}"] = layer[s]
+    print(parallel_op)
 
     ich_ops = parallel_op[layers_info[worst_index]["name"]][1]
     och_ops = parallel_op[layers_info[worst_index]["name"]][0]
+    ow_ops = parallel_op[layers_info[worst_index]["name"]][2]
     ich = layers_info[worst_index]["ich"]
     och = layers_info[worst_index]["och"]
     oh = layers_info[worst_index]["oh"]
     ow = layers_info[worst_index]["ow"]
-    ow_ops = 1
-    pipeline_iterations = (och / och_ops) * (ich / ich_ops) * ow * oh
+    pipeline_iterations = (och / och_ops) * (ich / ich_ops) * (ow / ow_ops) * oh
     for i, layer in enumerate(layers_info):
         ich_ops = parallel_op[layer["name"]][1]
         ich = layer["ich"]
@@ -358,34 +382,36 @@ def parallel_ops_number(io_dict, board="ULTRA96v2", prj_root="/tmp"):
         DSPs = 0
         PORTs = 0
         for layer in layers_info:
+            ow_ops = parallel_op[layer['name']][2]
             ich_ops = parallel_op[layer['name']][1]
             och_ops = parallel_op[layer['name']][0]
             bits = layer["bits"][0]
-            dsp = layer["kernel"] * och_ops * ich_ops
+            dsp = layer["kernel"] * och_ops * ich_ops * ow_ops
             if layer["type"] == "pool":
                 dsp = 0
-            iter = int(1 / (ich_ops * och_ops * layer["total"]))
+            iter = int(1 / (ich_ops * och_ops * ow_ops * layer["total"]))
             port = math.ceil(layer["kernel"] * bits * och_ops * ich_ops / 72)
             PORTs += port
             DSPs += dsp
-            print(f"{layer['name']} [{layer['ich']}][{layer['och']}] -> ich_ops: {ich_ops}, och_ops: {och_ops}, DSPs: {dsp}, PORTs: {port}, Iter: {iter}", file=f)
+            print(f"{layer['name']} [{layer['ich']}][{layer['och']}] -> ich_ops: {ich_ops}, och_ops: {och_ops}, ow_ops: {ow_ops}, DSPs: {dsp}, PORTs: {port}, Iter: {iter}", file=f)
             if (layer["merge_1x1"]):
                 bits = layer["bits"][1]
                 dsp = och_ops * ich_ops
-                iter = int(1 / (ich_ops * och_ops * layer["total"]))
+                iter = int(1 / (ich_ops * och_ops * ow_ops * layer["total"]))
                 port = math.ceil(bits * och_ops * ich_ops / 72)
                 PORTs += port
                 DSPs += dsp
-                print(f"{layer['name']}_merge [{layer['ich']}][{layer['och']}] -> ich_ops: {ich_ops}, och_ops: {och_ops}, DSPs: {dsp}, PORTs: {port}, Iter: {iter}", file=f)
+                print(f"{layer['name']}_merge [{layer['ich']}][{layer['och']}] -> ich_ops: {ich_ops}, och_ops: {och_ops}, ow_ops: {ow_ops}, DSPs: {dsp}, PORTs: {port}, Iter: {iter}", file=f)
         print(f"Totals: DSPs {DSPs}, Ports: {PORTs}", file=f)
+
         for i, layer in enumerate(layers_info):
             if layer["depth"] or layer["type"] == "pool":
-                Bw = parallel_op[layer['name']][0]
-                Br = (parallel_op[layer['name']][0] * parallel_op[layer['name']][1]) / layer['och']
+                Bw = parallel_op[layer['name']][0] * parallel_op[layer['name']][2]
+                Br = np.prod(parallel_op[layer['name']]) / layer['och']
                 print(f"{layer['name']} Br = {Br} Bw = {Bw}", file=f)
             else:
-                Bw = (parallel_op[layer['name']][0] * parallel_op[layer['name']][1]) / layer['ich']
-                Br = (parallel_op[layer['name']][0] * parallel_op[layer['name']][1]) / layer['och']
+                Bw = np.prod(parallel_op[layer['name']]) / layer['ich']
+                Br = np.prod(parallel_op[layer['name']]) / layer['och']
                 print(f"{layer['name']} Br = {Br} Bw = {Bw}", file=f)
 
     
@@ -401,9 +427,11 @@ def ilp(io_dict, off_chip_storage, model, board="ULTRA96v2", double_packing=True
         if (io_dict[node_name]["type"] == "pool"):
             io_dict[node_name]["ops"] = ops[1]
             io_dict[node_name]["ich_ops"] = ops[0]
+            io_dict[node_name]["ow_ops"] = ops[2]
         else:
             io_dict[node_name]["ops"] = ops[0]
             io_dict[node_name]["ich_ops"] = ops[1]
+            io_dict[node_name]["ow_ops"] = ops[2]
             io_dict[node_name]["dp"] = False
 
     # Avoid the line buffer to become a bottleneck when there is a mismatch
@@ -541,14 +569,15 @@ def ilp(io_dict, off_chip_storage, model, board="ULTRA96v2", double_packing=True
             else:
                 node["adjust_add"] = False
     
-    print_layers = ["conv", "pool"]
-    for name, node in io_dict.items():
-        if node["type"] in print_layers:
-            print(f'{name} -> och: {node["och"]} par {node["ops"]}, ich: {node["ich"]} par {node["ich_ops"]}')
-            # Testing resnet8
-            if "is_1x1" in node.keys():
-                if node["is_1x1"]:
-                    continue
-            node["ow_ops"] = 1
+    # print_layers = ["conv", "pool"]
+    # for name, node in io_dict.items():
+    #     if node["type"] in print_layers:
+    #         print(f'{name} -> och: {node["och"]} par {node["ops"]}, ich: {node["ich"]} par {node["ich_ops"]}')
+            
+    #         # Final layer of classification
+    #         if "is_1x1" in node.keys():
+    #             if node["is_1x1"]:
+    #                 continue
+    #         node["ow_ops"] = 2
 
     return io_dict
