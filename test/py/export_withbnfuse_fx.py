@@ -5,6 +5,7 @@ import torchvision
 from utils.convbn_merge import replace_layers
 from utils.convbn_merge import fuse_layers
 from models.resnet_brevitas_fx import resnet20
+from models.resnet8 import resnet8
 from models.test_depthwise import QuantizedCifar10Net
 from tiny_torch.benchmark.training_torch.visual_wake_words.vww_torch import MobileNetV1
 from utils.preprocess import *
@@ -73,11 +74,16 @@ def main():
     print('#### Preparing data ..')
     device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
     # model = resnet20(wbit=Wbits,abit=Abits).to('cuda:0')
-    model = MobileNetV1(num_filters=8, num_classes=2).to(device)
+    # model = MobileNetV1(num_filters=8, num_classes=2).to(device)
+    model = resnet8(weight_bits=Wbits,act_bits=Abits).to('cuda:0')
     # model = QuantizedCifar10Net().to(device)
     model.to(device)
 
-    optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=wd)
+    if Wbits < 8:
+        optimizer = torch.optim.SGD(model.parameters(), lr=0.001, momentum=0.9, weight_decay=wd)
+    else:
+        optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=wd)
+
     # optimizer = torch.optim.Adam(model.parameters(),lr=lr,weight_decay=wd)
     # if 'cuda' in device:
     #     model = torch.nn.DataParallel(model)
@@ -94,11 +100,12 @@ def main():
             model.load_state_dict(ckpt)
         else:
             model.load_state_dict(ckpt['model_state_dict'])
-        if 'optimizer_state_dict' in ckpt:
-            optimizer.load_state_dict(ckpt['optimizer_state_dict'])
-        if 'epoch' in ckpt:
-            start_epoch = ckpt['epoch']
-        else: start_epoch = 0
+        # if 'optimizer_state_dict' in ckpt:
+        #     optimizer.load_state_dict(ckpt['optimizer_state_dict'])
+        # if 'epoch' in ckpt:
+        #     start_epoch = ckpt['epoch']
+        # else: start_epoch = 0
+        start_epoch = 0
         # print('#### Load last checkpoint data')
         model = model.to(device)
     else:
@@ -107,7 +114,7 @@ def main():
 
     retrain = 0
 
-    def train(epoch, criterion, optimizer):
+    def train(epoch, criterion, optimizer, best_acc):
         train_loss, correct, total = 0, 0 ,0
 
         with tqdm(train_loader, unit="batch") as tepoch:
@@ -130,11 +137,10 @@ def main():
                     "Loss": f"{loss.item():.4f}"
                 }
                 tepoch.set_postfix(postfix)
-            test(epoch, criterion)
+            return test(epoch, criterion, best_acc)
 
-    def test(epoch, criterion):
+    def test(epoch, criterion, best_acc, log=False):
         # pass
-        global best_acc
 
         test_loss, correct, total = 0, 0, 0
         with torch.no_grad():
@@ -152,23 +158,32 @@ def main():
                     correct += predicted.eq(targets).sum().item()
 
                     tepoch.set_postfix({"Acc": f"{100.0 * correct / total:.2f}%", "Loss": f"{loss.item():.4f}"})
+                    if log and tepoch.n == 1:
+                        with open(os.path.join(log_dir, 'test_inference.txt'), 'a') as f:
+                            # log input and output
+                            for i in range(inputs.size(0)):
+                                f.write(f'input: {inputs[i].cpu().numpy().tolist()}\n')
+                                f.write(f'output: {outputs[i].cpu().numpy().tolist()}\n')
+                        break
 
         acc = 100. * correct / total
         # if acc > best_acc and retrain:
-        print('#### Exporting..')
-        state = {
-            'model_state_dict': model.state_dict(),
-            'optimizer_state_dict': optimizer.state_dict(),
-            'acc': acc,
-            'epoch': epoch,
-        }
-        torch.save(state, os.path.join(ckpt_dir, f'checkpoint_quant_bnfuse_fx.t7'))
-        # model.to('cpu')
-        dummy_input = torch.randn(input_shape, device=device)
-        accuracy_str = f'{acc:.2f}'.replace('.', '_')
-        exported_model = export_onnx_qcdq(model, args=dummy_input, export_path=onnx_dir + "%s_%s.onnx" % (log_name, accuracy_str), opset_version=13)
-        best_acc = acc
+        if acc > best_acc:
+            print('#### Exporting..')
+            state = {
+                'model_state_dict': model.state_dict(),
+                'optimizer_state_dict': optimizer.state_dict(),
+                'acc': acc,
+                'epoch': epoch,
+            }
+            torch.save(state, os.path.join(ckpt_dir, f'checkpoint_quant_bnfuse_fx.t7'))
+            # model.to('cpu')
+            dummy_input = torch.randn(input_shape, device=device)
+            accuracy_str = f'{acc:.2f}'.replace('.', '_')
+            exported_model = export_onnx_qcdq(model, args=dummy_input, export_path=onnx_dir + "/%s_bnfuse.onnx" % (log_name), opset_version=13)
+            best_acc = acc
         # model.to(device)
+        return best_acc
 
 
     def print_partial(model):
@@ -214,14 +229,15 @@ def main():
         lr_schedu = optim.lr_scheduler.MultiStepLR(optimizer, [90, 150, 200], gamma=0.1)
         criterion = torch.nn.CrossEntropyLoss()
         print("#### TRAINING")
+        best_acc = 0
         for epoch in range(0, max_epochs): 
-            train(epoch, criterion, optimizer)
+            best_acc = train(epoch, criterion, optimizer, best_acc)
             lr_schedu.step(epoch)
 
     if(val) :
         criterion = torch.nn.CrossEntropyLoss()
         for epoch in range(start_epoch, start_epoch+1):
-            test(epoch, criterion)
+            test(epoch, criterion, best_acc=1)
 
 
     def calibrate_model(calibration_loader, quant_model):
@@ -242,6 +258,7 @@ def main():
         quant_model.apply(finalize_collect_stats)    
         return quant_model
   
+    test(epoch, criterion, 1, log=True)
     #change not hand-written
     print("#### MERGE BN")
     
@@ -253,18 +270,25 @@ def main():
     if(post_quant) :
         model = calibrate_model(train_loader,model)
     if(val) :
-        test(start_epoch, criterion)
+        test(start_epoch, criterion, best_acc=0)
         print("#### RETRAINING") 
         retrain = 1
         # optimizer = torch.optim.SGD(model.parameters(), lr=0.0001)
         lr_schedu = optim.lr_scheduler.MultiStepLR(optimizer, [90, 150, 200], gamma=0.1)
         criterion = torch.nn.CrossEntropyLoss()
+        best_acc = 0
         for epoch in range(start_epoch, start_epoch+20): 
             if(not(post_quant)) :
-                train(epoch, criterion, optimizer)
+                best_acc = train(epoch, criterion, optimizer, best_acc)
             else:
-                test(epoch, criterion)
+                best_acc = test(epoch, criterion, best_acc)
             lr_schedu.step(epoch)
+    print('#### Finished Training.. with best_acc: %f' % (best_acc))
+    print('#### Logging data from best checkpoint')
+    ckpt = torch.load(os.path.join(ckpt_dir, f'checkpoint_quant_bnfuse_fx.t7'), map_location=device)
+    model.load_state_dict(ckpt['model_state_dict'])
+    model.to(device)
+    test(epoch, criterion, 1, log=True)
 
 if __name__ == '__main__':
     main()

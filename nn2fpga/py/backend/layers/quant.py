@@ -68,6 +68,8 @@ def info(io_dict, node, node_name, init_info, tensors_info):
     io_dict[node_name]["mask"] = scale_factor
     io_dict[node_name]["clip_signed"] = signed
     io_dict[node_name]["mask_signed"] = signed
+    io_dict[node_name]["clip_bits"] = int(bits)
+    io_dict[node_name]["mask_bits"] = int(bits)
     io_dict[node_name]["ich"]  = ich
     io_dict[node_name]["ih"]   = ih
     io_dict[node_name]["iw"]   = iw

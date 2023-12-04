@@ -53,6 +53,8 @@ def parse_on_chip(
     # print("dich_ops: %d" % dich_ops)
     # print("depth: %d" % node_info["depth"])
     # print("dich: %d" % dich)
+    # print("diw: %d" % diw)
+    # print("dih: %d" % dih)
     # print("doch: %d" % doch)
     # print("dops: %d" % dops)
     # print("dim: ", pre_values.shape)
@@ -64,15 +66,19 @@ def parse_on_chip(
         [dih*diw, dich_iter_ops*doch_ops, dich_ops*dops]
     )
 
-    for ih in range(dih-1, -1, -1):
-        for iw in range(diw-1, -1, -1):
-            for ich in range(dich_iter_ops):
-                for och in range(doch_ops):
-                    off = och*dops
-                    for ich_ops in range(dich_ops):
+    # if node_info["ich"] == 3:
+    #     print("####################################################")
+    for ich in range(dich_iter_ops):
+        for och in range(doch_ops):
+            off = och*dops
+            for ich_ops in range(dich_ops):
+                for ih in range(dih-1, -1, -1):
+                    for iw in range(diw-1, -1, -1):
                         off_ich = ich*dich_ops + ich_ops
                         for ops in range(dops):
                             quant_value = pre_values[off+ops][off_ich][ih][iw]
+                            # if (node_info["ich"] == 3):
+                                # print("quant_value: %f" % quant_value)
                             quant_value = np.round(quant_value/scale_factor)
                             if (limit_h < quant_value):
                                 quant_value = limit_h
@@ -82,6 +88,9 @@ def parse_on_chip(
                             
                             if not dynamic_init:
                                 quant_value = quant_value*scale_factor
+
+                            # if (node_info["ich"] == 3):
+                            #     print("quant_value post: %f" % quant_value)
 
                             index = ih*diw+iw
                             ch = ich*doch_ops+och
@@ -255,7 +264,7 @@ def extract_info(
     new_node["pad"]    = pad
     # FIX: adding this check to avoid problems in merged pipelines
     # with same inputs but different output channels
-    # Check if ops are mode than och and clip
+    # Check if ops are more than och and clip
     if ops > och:
         new_node["ops"] = och
     else:

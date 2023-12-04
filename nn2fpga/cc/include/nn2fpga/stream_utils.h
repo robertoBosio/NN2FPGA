@@ -14,11 +14,15 @@ void produce_stream(hls::stream<din_wrap_t>& dinStream,
                     hls::stream<dout_wrap_t> doutStream[c_ow_ops_out]) {
   constexpr auto PAR = BITS / 8;
   constexpr auto ISZ = (ICH * IH * IW);
-  const ap_fixed<16,8> c_mean[3] = {0.485, 0.456, 0.406};
-  const ap_fixed<16,8> c_std[3] = {0.229, 0.224, 0.225};
+  const ap_ufixed<32,0> c_mean[3] = {0.485, 0.456, 0.406};
+  const ap_ufixed<32,0> c_std[3] = {0.229, 0.224, 0.225};
 
   #ifndef __SYNTHESIS__
       std::cout << "produce_stream act " << ICH << " " << c_ow_ops_out << std::endl;
+      for (auto i = 0; i < 3; i++) {
+        std::cout << c_mean[i] << " ";
+        std::cout << c_std[i] << std::endl;
+      }
   #endif
   din_wrap_t dinWrap;
 	ap_uint<BITS> din_par;
@@ -30,7 +34,7 @@ PRODSTR:
     auto ich = i % ICH;
     auto ow_ops_out = (i / ICH) % c_ow_ops_out;
 
-    d_format_t din;
+    ap_ufixed<8,0,AP_RND_ZERO> din;
     if (par == 0) {
       dinWrap = dinStream.read();
       din_par = dinWrap.data;
@@ -39,13 +43,19 @@ PRODSTR:
     dout_wrap_t doutWrap;
     din.range(7,0) = din_par & 0xff;
     if constexpr(PREPROC == 1)
-      doutWrap.data[0][ops] = (dout_t(din)-c_mean[ich])/c_std[ich];
+      doutWrap.data[0][ops] = dout_t((din-c_mean[ich])/c_std[ich]);
     else
       doutWrap.data[0][ops] = (dout_t(din));
     #ifndef __SYNTHESIS__
       #ifdef DEBUG
+        std::cout << ap_uint<8>(din_par & 0xff) << " ";
         std::cout << din << " ";
+        std::cout << (din-c_mean[ich])/c_std[ich] << " ";
         std::cout << doutWrap.data[0][ops] << " ";
+      #endif
+      #ifdef DEBUG_RES
+        // std::cout << (din-c_mean[ich])/c_std[ich] << std::endl;
+        std::cout << doutWrap.data[0][ops] << std::endl;
       #endif
     #endif
 

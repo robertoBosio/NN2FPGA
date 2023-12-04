@@ -4,7 +4,7 @@ import os
 
 def get_dataset(dataset, cifar=10):
     print('#### Loading dataset..')
-    if dataset == 'cifar':
+    if dataset == 'cifar10':
         transforms_sel = cifar_transform
         BASE_DIR = "/home-ssd/datasets/cifar10/"
         train_args = {

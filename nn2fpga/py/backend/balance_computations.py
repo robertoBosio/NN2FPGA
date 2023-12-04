@@ -42,6 +42,7 @@ def parallel_ops_number(io_dict, board="ULTRA96v2", prj_root="/tmp"):
                 worst_index = iter
             iter +=1
 
+
     total_computations = 0
     index = 0
     layers_info = []

@@ -245,6 +245,9 @@ def graph_info(model, init_info, object_detection=False, anchors=None, transform
 
         node_name = node.name
         node_name = node_name.replace(".", "_")
+        
+        if node_name in io_dict.keys():
+            node_name = node_name + "_1"
 
         io_dict[node_name] = {}
         io_dict[node_name]["input"] = []

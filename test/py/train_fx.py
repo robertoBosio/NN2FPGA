@@ -5,6 +5,7 @@ import torchvision
 from utils.convbn_merge import replace_layers
 from utils.convbn_merge import fuse_layers
 from models.resnet_brevitas_fx import resnet20
+from models.resnet8 import resnet8
 from models.test_depthwise import QuantizedCifar10Net
 from tiny_torch.benchmark.training_torch.visual_wake_words.vww_torch import MobileNetV1
 from brevitas.export import export_onnx_qcdq
@@ -48,7 +49,6 @@ def main():
     Wbits = int(os.environ['WBITS'])
     Abits = int(os.environ['ABITS'])
 
-    best_acc = 0  # best test accuracy
     start_epoch = 0
 
     log_dir = os.path.join(root_dir, 'logs', log_name)
@@ -75,8 +75,8 @@ def main():
 
     print('#### Building model..')
     device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
-    # model = resnet20(wbit=Wbits,abit=Abits).to('cuda:0')
-    model = MobileNetV1(num_filters=8, num_classes=2).to(device)
+    model = resnet8(weight_bits=Wbits,act_bits=Abits).to('cuda:0')
+    # model = MobileNetV1(num_filters=8, num_classes=2).to(device)
     # model = QuantizedCifar10Net().to(device)
 
     model.to(device)
@@ -85,7 +85,6 @@ def main():
     optimizer = optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=wd)
     # optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=wd)
 
-    
     if pretrain:
         print("#### Loading pretrain model..")
         if pretrain_file != '':
@@ -96,18 +95,19 @@ def main():
             model.load_state_dict(ckpt)
         else:
             model.load_state_dict(ckpt['model_state_dict'])
-        if 'optimizer_state_dict' in ckpt:
-            optimizer.load_state_dict(ckpt['optimizer_state_dict'])
-        if 'epoch' in ckpt:
-            start_epoch = ckpt['epoch']
-        else: start_epoch = 0
+        # if 'optimizer_state_dict' in ckpt:
+        #     optimizer.load_state_dict(ckpt['optimizer_state_dict'])
+        # if 'epoch' in ckpt:
+        #     start_epoch = ckpt['epoch']
+        # else: start_epoch = 0
+        start_epoch = 0
         # print('#### Load last checkpoint data')
         model = model.to(device)
     else:
         start_epoch = 0
         print('#### Start from scratch')
 
-    def train(epoch, criterion, optimizer):
+    def train(epoch, criterion, optimizer, best_acc):
         train_loss, correct, total = 0, 0 ,0
 
         model.train()
@@ -132,12 +132,10 @@ def main():
                     "Loss": f"{loss.item():.4f}"
                 }
                 tepoch.set_postfix(postfix)
-            test(epoch, criterion)
+            return test(epoch, criterion, best_acc)
 
-    def test(epoch, criterion):
+    def test(epoch, criterion, best_acc):
         # pass
-        global best_acc
-
         model.eval()
         test_loss, correct, total = 0, 0, 0
         with torch.no_grad():
@@ -158,23 +156,28 @@ def main():
 
         acc = 100. * correct / total
         # if acc > best_acc and retrain:
-        print('#### Exporting..')
-        state = {
-            'model_state_dict': model.state_dict(),
-            'optimizer_state_dict': optimizer.state_dict(),
-            'acc': acc,
-            'epoch': epoch,
-        }
-        torch.save(state, os.path.join(ckpt_dir, f'checkpoint_quant_fx.t7'))
         # model.to('cpu')
         dummy_input = torch.randn(input_shape, device=device)
         accuracy_str = f'{acc:.2f}'.replace('.', '_')
-        exported_model = export_onnx_qcdq(model, args=dummy_input, export_path=onnx_dir + "%s_%s" % (log_name, accuracy_str), opset_version=13)
-        best_acc = acc
+        if acc > best_acc:
+            state = {
+                'model_state_dict': model.state_dict(),
+                'optimizer_state_dict': optimizer.state_dict(),
+                'acc': acc,
+                'epoch': epoch,
+            }
+            torch.save(state, os.path.join(ckpt_dir, f'checkpoint_quant_fx.t7'))
+            print('#### Exporting..')
+            exported_model = export_onnx_qcdq(model, args=dummy_input, export_path=onnx_dir + "/%s.onnx" % (log_name), opset_version=14)
+            best_acc = acc
+        return best_acc
         # model.to(device)
 
+    best_acc = 0  # best test accuracy
+    print('#### Training.. start_epoch: %d, max_epochs: %d' % (start_epoch, max_epochs))
     for epoch in range(start_epoch, max_epochs):
-        train(epoch, criterion, optimizer)
+        best_acc = train(epoch, criterion, optimizer, best_acc)
+    print('#### Finished Training.. with best_acc: %f' % (best_acc))
 
    
 if __name__ == '__main__':

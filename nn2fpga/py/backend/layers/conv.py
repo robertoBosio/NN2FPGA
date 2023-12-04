@@ -58,6 +58,7 @@ def info(io_dict, node, node_name, init_info, tensors_info):
     add      = False
     in_scale_factor = [None]
     in_bits = [None]
+    in_signed = [None]
 
     # Check if groups exist and if not set to 1
     if 'group_index' not in locals():
@@ -105,12 +106,15 @@ def info(io_dict, node, node_name, init_info, tensors_info):
     io_dict[node_name]["in_scale_factor"] = in_scale_factor
     io_dict[node_name]["bits"]    = 0
     io_dict[node_name]["in_bits"] = in_bits
+    io_dict[node_name]["in_signed"] = in_signed
     io_dict[node_name]["type"]   = 'conv'
     io_dict[node_name]["wbias"]  = len(node.input) > 2
     io_dict[node_name]["wbits"]  = []
+    io_dict[node_name]["wsigned"]  = []
     io_dict[node_name]["actbits"] = []
     io_dict[node_name]["wscale"]  = []
     io_dict[node_name]["actscale"] = []
+    io_dict[node_name]["actsigned"] = []
     io_dict[node_name]["ops"] = 1
     io_dict[node_name]["in_ops"] = 1
     io_dict[node_name]["ich_ops"] = 1
@@ -259,25 +263,48 @@ def parse_comp(name, node):
     block["template"].append("c_%s_relu" % name)
     block["template"].append("c_%s_reuse" % name)
     block["template"].append("c_%s_ow_pack" % name)
-    # TODO: impement packing over och
-    block["template"].append("1")
+    block["template"].append("c_%s_och_pack" % name)
 
     ##############################################################################
     # PACKING: providing info on quantization from template because
     # ap_fixed methods are not available at compile time and the
     # synthesizer gives an error
-    simd_bits = 2
+    if (node["in_scale_factor"][0] is not None):
+        abits, aibits = get_quant_constant(node["in_signed"][0], node["in_bits"][0], node["in_scale_factor"][0])
+    else:
+        abits, aibits = get_quant_constant(node["actsigned"][0], node["actbits"][0], node["actscale"][0])
+
+    # Computing Packing guard bits for accumulation process
+    if node["och_pack"] > 1:
+        a_d_bits = node["wbits"][0]
+    else:
+        if (node["in_scale_factor"][0] is not None):
+            a_d_bits = node["in_bits"][0]
+        else:
+            a_d_bits = node["actbits"][0]
+
+    if node["och_pack"] > 1:
+        if (node["in_scale_factor"][0] is not None):
+            b_bits = node["in_bits"][0]
+        else:
+            b_bits = node["actbits"][0]
+    else:
+        b_bits = node["wbits"][0]
+
+    end_simd_bit = 27 - 1 - a_d_bits
+    # number of partial results which must be padded in the 27-bits word
+    n_partial = node["och_pack"]*node["ow_pack"]//2
+    if (n_partial == 0):
+        n_partial = 1
+    simd_bits = (end_simd_bit - (a_d_bits + b_bits)*n_partial)//n_partial
+
     simd = int(np.log2(node["kernel"])/simd_bits) + (0 != (np.log2(node["kernel"]) - int(np.log2(node["kernel"]))))
     if (simd == 0):
         simd = 1
     mask = (1 << (simd-1)) - 1;
-    if (node["in_scale_factor"][0] is not None):
-        abits, aibits = get_quant_constant(node["signed"], node["in_bits"][0], node["in_scale_factor"][0])
-    else:
-        abits, aibits = get_quant_constant(node["signed"], node["actbits"][0], node["actscale"][0])
     block["template"].append("%0d" % abits)
     block["template"].append("%0d" % aibits)
-    abits, aibits = get_quant_constant(node["signed"], node["wbits"][0], node["wscale"][0])
+    abits, aibits = get_quant_constant(node["wsigned"][0], node["wbits"][0], node["wscale"][0])
     block["template"].append("%0d" % abits)
     block["template"].append("%0d" % aibits)
     block["template"].append("%0d" % simd_bits)
@@ -290,22 +317,46 @@ def parse_comp(name, node):
     # synthesizer gives an error, for 1x1 conv the dimension of the simd
     # partial results array is fixed at 1
 
-    simd_bits = 2
-    simd = 1
-    mask = (1 << (simd-1)) - 1;
     if (node["merge_1x1"]):
+        # Computing Packing guard bits for accumulation process
         if (node["in_scale_factor"][1] is not None):
-            abits, aibits = get_quant_constant(node["signed"], node["bits"][1], node["in_scale_factor"][1])
+            abits, aibits = get_quant_constant(node["in_signed"][1], node["in_bits"][1], node["in_scale_factor"][1])
         else:
-            abits, aibits = get_quant_constant(node["signed"], node["actbits"][0], node["actscale"][0])
+            abits, aibits = get_quant_constant(node["actsigned"][0], node["actbits"][0], node["actscale"][0])
+
+        if node["och_pack"] > 1:
+            a_d_bits = node["wbits"][1]
+        else:
+            if (node["in_scale_factor"][0] is not None):
+                a_d_bits = node["in_bits"][1]
+            else:
+                a_d_bits = node["actbits"][0]
+
+        if node["och_pack"] > 1:
+            if (node["in_scale_factor"][0] is not None):
+                b_bits = node["in_bits"][1]
+            else:
+                b_bits = node["actbits"][0]
+        else:
+            b_bits = node["wbits"][1]
+
+        end_simd_bit = 27 - 1 - a_d_bits
+        # number of partial results which must be padded in the 27-bits word
+        n_partial = node["och_pack"]*node["ow_pack"]//2
+        if (n_partial == 0):
+            n_partial = 1
+        simd_bits = (end_simd_bit - (a_d_bits + b_bits)*n_partial)//n_partial
     else:
         abits = 0
         aibits = 0
+        simd_bits = 2
+    simd = 1
+    mask = (1 << (simd-1)) - 1;
     block["template"].append("%0d" % abits)
     block["template"].append("%0d" % aibits)
 
     if (node["merge_1x1"]):
-        abits, aibits = get_quant_constant(node["signed"], node["wbits"][1], node["wscale"][1])
+        abits, aibits = get_quant_constant(node["wsigned"][1], node["wbits"][1], node["wscale"][1])
     else:
         abits = 0
         aibits = 0
@@ -341,9 +392,9 @@ def parse_comp(name, node):
         [["data", "t_%s_acc" % output_name], ["last", "bool"]]
     ]
 
-    output_type = get_quant_type(node["signed"], node["bits"][0], node["scale_factor"][0])
-    output_type_clip = get_quant_type(node["clip_signed"][0], node["bits"][0], node["clip_factor"][0])
-    output_type_mask = get_quant_type(node["mask_signed"][0], node["bits"][0], node["mask_factor"][0])
+    output_type = get_quant_type(node["signed"][0], node["bits"][0], node["scale_factor"][0])
+    output_type_clip = get_quant_type(node["clip_signed"][0], node["clip_bits"][0], node["clip_factor"][0])
+    output_type_mask = get_quant_type(node["mask_signed"][0], node["mask_bits"][0], node["mask_factor"][0])
 
     # TODO: check type declaration
     # input window type declaration
@@ -405,7 +456,7 @@ def parse_comp(name, node):
     if (node["merge_1x1"]):
 
         if (node["in_scale_factor"][1] is not None):
-            input_1x1_type = get_quant_type(True, node["bits"][1], node["in_scale_factor"][1])
+            input_1x1_type = get_quant_type(True, node["in_bits"][1], node["in_scale_factor"][1])
         else:
             input_1x1_type = "std::nullptr_t"
         block["defines"]["t_%s_1x1" % input_name] = ["type", input_1x1_type]
@@ -454,6 +505,7 @@ def parse_comp(name, node):
     block["defines"]["c_%s_reuse" % name]          = ["const", node["reuse"]]
     block["defines"]["c_%s_ow_ops" % name]         = ["const", node["ow_ops"]]
     block["defines"]["c_%s_ow_pack" % name]        = ["const", node["ow_pack"]]
+    block["defines"]["c_%s_och_pack" % name]       = ["const", node["och_pack"]]
     if (node["has_forward"]):
         block["defines"]["c_%s_add_ops" % forward_name]         = ["const", node["ich_ops"]]
 

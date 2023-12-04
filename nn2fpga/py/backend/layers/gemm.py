@@ -36,6 +36,7 @@ def info(io_dict, node, node_name, init_info, tensors_info):
     add      = False
     in_scale_factor = [None]
     in_bits = [None]
+    in_signed = [None]
 
     groups = 1
 
@@ -75,6 +76,7 @@ def info(io_dict, node, node_name, init_info, tensors_info):
     io_dict[node_name]["in_scale_factor"] = in_scale_factor
     io_dict[node_name]["bits"]    = 0
     io_dict[node_name]["in_bits"] = in_bits
+    io_dict[node_name]["in_signed"] = in_signed
     io_dict[node_name]["type"]   = 'conv'
     io_dict[node_name]["wbias"]  = len(node.input) > 2
     io_dict[node_name]["wbits"]  = []

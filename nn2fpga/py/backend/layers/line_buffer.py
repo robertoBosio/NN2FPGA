@@ -7,10 +7,10 @@ import numpy as np
 
 def return_index(fh, fw, ow_ops, stride, iw, ih):
     base_index = ih*(fw+(ow_ops-1)*stride)+iw
-    if (iw >= (fw-1)) and (iw < (ow_ops)):
-        return (ih+1)*(fw+(ow_ops-1)*stride)+iw
-    elif iw < (fw):
+    if iw < ((fw+(ow_ops-1)*stride)-ow_ops):
         return base_index+ow_ops
+    elif (iw >= (fw-1)) and (iw < (ow_ops)):
+        return (ih+1)*(fw+(ow_ops-1)*stride)+iw
     else:
         return (ih+1)*(fw+(ow_ops-1)*stride)+iw%ow_ops
     print("ERROR: return_index")
@@ -199,6 +199,6 @@ def parse(name, node, debug=False):
 
 
             line_buffer_blocks.append(block)
-
+    
     return line_buffer_blocks
 
