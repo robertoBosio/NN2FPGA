@@ -24,6 +24,6 @@ export PRJ_ROOT := $(shell cd .. && pwd)/work
 export TEST_ROOT := $(shell cd .. && pwd)/test
 export TB_ROOT := $(TEST_ROOT)/tb
 export PLATFORM := xilinx_u280_gen3x16_xdma_1_202211_1/xilinx_u280_gen3x16_xdma_1_202211_1.xpfm
-export PYTHON := python3.10
+export PYTHON := python3
 export VIVADO_VERSION := 2023.2
 
