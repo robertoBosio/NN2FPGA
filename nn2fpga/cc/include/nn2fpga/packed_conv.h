@@ -92,6 +92,17 @@ void conv_pipe(
       }
     }
 
+    if constexpr(std::is_same<t_add_struct, std::nullptr_t>::value == false) {
+      for (auto s_och_pack = 0; s_och_pack < c_och_pack; s_och_pack++) {
+        if (ich == (och+s_och_pack)) {
+        // TODO: Add support for multiple inputs (vector type)
+          for (auto s_ow_pack = 0; s_ow_pack < c_ow_pack; s_ow_pack++) {
+            s_acc[s_ow_pack*c_och_pack+s_och_pack] += i_add[s_ow_pack+s_ow_ops].data[0][ich_idx_add];
+          }
+        }
+      }
+    }
+
     // If c_depth is 1 then there is no need to accumulate the previous
     // results
     for (auto s_ow_pack = 0; s_ow_pack < c_ow_pack; s_ow_pack++) {
@@ -143,7 +154,7 @@ void conv_pipe(
 
           auto s_index = s_fh*FW+s_fw+(c_ow_ops-(s_ow_pack+s_ow_ops)-1)*c_str;
 
-          auto s_w_index = s_ow_pack*(c_w_bits+c_bits+3);
+          auto s_w_index = s_ow_pack*(c_pad_acc_bits);
 
           if constexpr(std::is_same<t_input_mod, std::nullptr_t>::value == false)
             s_b_ext.range(s_w_index + c_bits - 1, s_w_index) = t_input_mod(i_input[s_index][ich_idx]).range(c_bits-1, 0);
@@ -170,7 +181,7 @@ void conv_pipe(
         for (auto s_simd = 0; s_simd < c_simd; s_simd++) {
           t_acc_simd s_acc_simd_value = 0;
           t_acc_simd s_acc_adj = 0;
-          if (s_ow_pack > 0)
+          if ((s_index_r > 0))
             s_acc_adj.range(0,0) = s_acc_simd[s_simd].range(c_pad_acc_bits*(s_index_r)-1, c_pad_acc_bits*(s_index_r)-1);
           s_acc_simd_value.range(c_pad_acc_bits-1, 0) = s_acc_simd[s_simd].range(c_pad_acc_bits*(s_index_r+1)-1, c_pad_acc_bits*(s_index_r));
           s_acc[s_index_r] += s_acc_simd_value + s_acc_adj;
@@ -212,10 +223,9 @@ void conv_pipe(
           >(s_acc[s_ow_pack*c_och_pack+s_och_pack]);
           s_output_struct[s_ow_ops+s_ow_pack].last = last;
           #ifndef __SYNTHESIS__
-            // if (c_depth == 1)
-            // #ifdef DEBUG_RES
-            //   std::cout <<  "RES " << s_acc << " " << s_output_struct[s_ow_ops+s_ow_pack].data[0][ops+s_och_pack] << std::endl;
-            // #endif
+            #ifdef DEBUG_ACC
+              std::cout <<  "ACC " << s_acc[s_ow_pack*c_och_pack+s_och_pack] << " " << s_output_struct[s_ow_ops+s_ow_pack].data[0][ops+s_och_pack] << std::endl;
+            #endif
           #endif
         }
       }
@@ -359,10 +369,9 @@ void conv_pipe(
           >(s_acc[s_ow_pack]);
           s_output_struct[s_ow_ops+s_ow_pack].last = last;
           #ifndef __SYNTHESIS__
-            // if (c_depth == 1)
-            // #ifdef DEBUG_CONV
-            //   std::cout <<  "RES " << s_acc << " " << s_output_struct[s_ow_ops+s_ow_pack].data[0][ops] << std::endl;
-            // #endif
+            #ifdef DEBUG_ACC
+              std::cout <<  "ACC " << s_acc << " " << s_output_struct[s_ow_ops+s_ow_pack].data[0][ops] << std::endl;
+            #endif
           #endif
         }
       }
@@ -473,10 +482,9 @@ void conv_pipe(
         >(s_acc);
         s_output_struct[s_ow_ops].last = last;
         #ifndef __SYNTHESIS__
-          // if (c_depth == 1)
-          // #ifdef DEBUG_CONV
-          //   std::cout <<  "RES " << s_acc << " " << s_output_struct[s_ow_ops].data[0][s_index_ops] << std::endl;
-          // #endif
+          #ifdef DEBUG_ACC
+            std::cout <<  "ACC " << s_acc << " " << s_output_struct[s_ow_ops].data[0][s_index_ops] << std::endl;
+          #endif
         #endif
       }
       // return s_acc_struct;
@@ -575,8 +583,8 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
   ////////////////////////////////////////////////////////////////////////////
 
   // TODO: the numbre of integer bits of the weights type must be considered
-  typedef ap_fixed<c_pad_acc_bits, c_int_pad_bits, AP_RND, AP_WRAP> t_acc_simd;
-  typedef ap_fixed<c_pad_acc_bits_1x1, c_int_pad_bits_1x1, AP_RND, AP_WRAP> t_acc_simd_1x1;
+  typedef ap_fixed<c_pad_acc_bits, c_int_pad_bits, AP_RND_ZERO, AP_WRAP> t_acc_simd;
+  typedef ap_fixed<c_pad_acc_bits_1x1, c_int_pad_bits_1x1, AP_RND_ZERO, AP_WRAP> t_acc_simd_1x1;
 
   auto s_ich_idx_add = 0;
 
@@ -750,10 +758,10 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
                     c_ich,
                     c_och_depth,
                     c_in_bits_1x1,
-                    c_simd_bits,
+                    c_simd_bits_1x1,
                     c_simd_1x1,
-                    c_pad_bits,
-                    c_int_pad_bits,
+                    c_pad_bits_1x1,
+                    c_int_pad_bits_1x1,
                     c_pad_acc_bits_1x1,
                     c_mask_1x1,
                     c_w_bits_1x1,
