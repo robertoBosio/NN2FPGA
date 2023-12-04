@@ -4,6 +4,8 @@ import sys
 import qonnx
 from onnx import numpy_helper
 import numpy as np
+import pulp
+from pulp.apis import PULP_CBC_CMD
 import math
 import json
 from backend.graph import extract_connections
@@ -947,163 +949,36 @@ def parse_all(io_dict, prj_root="/tmp", board="KRIA", uram_storage = False):
     # Useful space in URAM. Each URAM is 288kb with a maximum word width of 72
     # bits.
     SIZE_URAM = (288 * 1024)
-
-    n_weights = {}
-    DSPs = 0
-    used_uram = used_bram = 0
+    
+    # On-chip memory BANDWIDTH
+    BANDWIDTH = 72
     print(board_res)
-    with open("dict2.txt", "w") as f:
-        print(io_dict, file=f)
+    
+    n_weights = []
     for name, node in io_dict.items():
         if ('const' == node["type"]) and node["dynamic_init"]:
-            n_weights[name] = node["n_weights"] * node["bits"] / 8
-            
-            # Number of weights needed in parallel for each clock cycle, which is
-            # computed as the number of filter needed to achieved the parallelism
-            # on input and output channel multiplied by the dimension of the
-            # filter
-            if not node["is_bias"]:
-                w_par = node["ops"] * node ["ich_ops"] * node["kernel"]
-                w_par_bits = w_par * node["bits"]
-                DSPs += w_par
-                target_pragmas = 0
+            w_par = node["ops"] * node ["ich_ops"] * node["kernel"]
+            w_par_bits = w_par * node["bits"]
+            n_mem = math.ceil(w_par_bits / BANDWIDTH)
+            n_weights.append(
+                {
+                    "name": name,
+                    "n_weights": node['n_weights'],
+                    "value": ((node["n_weights"] * node["bits"] / 8) / n_mem),
+                    "par": w_par,
+                    "bits": node['bits'],
+                    "is_bias": node["is_bias"],
+                    "uram_storage": False
+                }
+            )
+    
+    sorted_bind_storage(n_weights, board_res, uram_storage)
 
-                n_mem_bram = math.ceil(w_par_bits / 64)
-                n_mem_uram = math.ceil(w_par_bits / 72)
-                n_uram = math.ceil((node['n_weights'] * node["bits"]) / SIZE_URAM)
-                n_bram = math.ceil((node['n_weights'] * node["bits"]) / SIZE_BRAM36)
-                if (n_uram < n_mem_uram):
-                    n_uram = n_mem_uram
-                if (n_bram < n_mem_bram):
-                    n_bram = n_mem_bram
-                # wasted_uram = n_uram * SIZE_URAM - (node['n_weights'] * node["bits"])
-                # wasted_bram = n_bram * SIZE_BRAM - (node['n_weights'] * node["bits"])
-                fit_uram = (used_uram + n_uram) <= board_res["uram"] and uram_storage
-                fit_bram = (used_bram + n_bram) <= board_res["bram"]
-                # fit_uram = True
-                # fit_bram = True
-                if (not fit_bram and not fit_uram):
-                    print("There is not enough space.")
-                    exit(-1)
-                elif ((fit_bram and fit_uram and n_uram < n_bram) or not fit_bram):
-                    used_uram += n_uram
-                    target_pragmas = n_uram
-                    print(f"{name} P:{w_par} of {node['bits']}b. {node['n_weights']}. {n_uram}U {n_bram}B.")
-                    io_dict[name]["uram_storage"] = True
-                    bandwidth = 72
-                else:
-                    used_bram += n_bram
-                    target_pragmas = n_bram
-                    print(f"{name} P:{w_par} of {node['bits']}b. {node['n_weights']}. {n_bram}B {n_uram}U.")
-                    io_dict[name]["uram_storage"] = False
-                    bandwidth = 64
-                
-                # Pragma section
-                reshape_factor = bandwidth // node["bits"]
-                partition_factor = math.ceil(w_par_bits / bandwidth)
-                actual_bandwidth = node["bits"]
-                actual_ports = 1
-                reshape_pragma = [ 1, 1, 1 ]
-                partition_pragma = [ 1, 1, 1 ]
-                dim = [ 1, 1, 1 ]
-                dim[0] = node["ih"] * node ["iw"]
-                dim[2] = node["ops"] * node ["ich_ops"]
-                dim[1] = (node["n_weights"] // dim[0]) // dim[2]
-                print(f"Starting from {actual_ports}x mem[{dim[0]}][{dim[1]}][{dim[2]}] x {actual_bandwidth}. ") 
-
-                # Try perfectly fitting reshaping only on dimension 1 and 3
-                order = [2, 0, 1]
-                index = 0
-                while (reshape_factor != 1):
-                   
-                   # Dimension under consideration for reshaping
-                    curr_dim = order[index]
-                    d = dim[curr_dim]
-
-                    reshape_fit = (reshape_factor % d) == 0
-                    reshape_fit |= (d % reshape_factor) == 0
-                    reshape_fit &= d != 1
-                    if (reshape_fit):
-                        reshape_pragma[curr_dim] *= np.clip(reshape_factor, 1, d)
-                        reshape_factor = reshape_factor // reshape_pragma[curr_dim]
-                        dim[curr_dim] //= reshape_pragma[curr_dim]
-                        print(f" - Reshape dim={curr_dim} factor={reshape_pragma[curr_dim]}, ", end="")
-                        actual_bandwidth = actual_bandwidth * reshape_pragma[curr_dim]
-                        print(f"{actual_ports}x mem[{dim[0]}][{dim[1]}][{dim[2]}] x {actual_bandwidth}. ") 
-                    
-                    if (dim[curr_dim]) == 1 or not reshape_fit:
-                        index += 1
-                        if (index == 2):
-                            break;
-
-                # Push for not perfectly fitting reshaping, wasting space 
-                index = 0
-                while (reshape_factor != 1):
-                   
-                   # Dimension under consideration for reshaping
-                    curr_dim = order[index]
-                    d = dim[curr_dim]
-
-                    reshape_fit = (d != 1 and d > reshape_factor)
-                    if (reshape_fit):
-                        curr_reshape = np.clip(reshape_factor, 1, d)
-                        reshape_pragma[curr_dim] *= curr_reshape
-                        reshape_factor = 1
-                        dim[curr_dim] = math.ceil(dim[curr_dim] / curr_reshape)
-                        print(f" - Reshape dim={curr_dim} factor={reshape_pragma[curr_dim]}, ", end="")
-                        actual_bandwidth = actual_bandwidth * reshape_pragma[curr_dim]
-                        print(f"{actual_ports}x mem[{dim[0]}][{dim[1]}][{dim[2]}] x {actual_bandwidth}. ") 
-                    
-                    if (dim[curr_dim]) == 1 or not reshape_fit:
-                        index += 1
-                        if (index == 3):
-                            break;
-
-                # Partitoning 
-                index = 0
-                while (partition_factor > 1):
-                   
-                   # Dimension under consideration for reshaping
-                    curr_dim = order[index]
-                    d = dim[curr_dim]
-
-                    partition_fit = (partition_factor % d) == 0
-                    partition_fit |= (d % partition_factor) == 0
-                    partition_fit &= d != 1
-                    if (partition_fit):
-                        curr_partition = np.clip(partition_factor, 1, d)
-                        partition_pragma[curr_dim] *= curr_partition
-                        partition_factor = partition_factor // curr_partition
-                        dim[curr_dim] = dim[curr_dim] // curr_partition
-                        print(f" - Partition dim={curr_dim} factor={partition_pragma[curr_dim]}, ", end="")
-                        actual_ports = actual_ports * partition_pragma[curr_dim]
-                        print(f"{actual_ports}x mem[{dim[0]}][{dim[1]}][{dim[2]}] x {actual_bandwidth}. ") 
-                    
-                    if (dim[curr_dim]) == 1 or not partition_fit:
-                        index += 1
-                        if (index == 2):
-                            break;
-
-                if (partition_factor > 1 or reshape_factor > 1):
-                    "PARALLELISM NOT ACHIEVED"
-                elif (target_pragmas != actual_ports):
-                    "ERROR"
-
-    print(f"Totally used {used_bram} BRAMs and {used_uram} URAMs, {DSPs} DSPs.")
-    # Sort in descending order
-    # n_weights = {k: v for k, v in sorted(n_weights.items(), key=lambda item: item[1], reverse=True)}
-    #print(n_weights) 
-
-    # Count the number of URAMs and remove the layers that do not fit
-    # uram_count = 0
-    # MAX_COUNT = board_res['uram']
-    # for name, node in n_weights.items():
-    #     uram_count = uram_count + math.ceil(node/36864)
-    #     # print(f"{name} before: {io_dict[name]['uram_storage']}, now {uram_count < MAX_COUNT}")
-    #     if uram_count > MAX_COUNT:
-    #         io_dict[name]["uram_storage"] = False
+    for layer in n_weights:
+        if not layer["is_bias"]:
+            io_dict[layer["name"]]["uram_storage"] = layer["uram_storage"]
+    
     for name, node in io_dict.items():
-
         if ('const' == node["type"]) and node["dynamic_init"]:
             dynamic_init = True
 
@@ -1120,6 +995,175 @@ def parse_all(io_dict, prj_root="/tmp", board="KRIA", uram_storage = False):
         parsed_write[0] = fill_uram_layer(parsed_write)
 
     return parsed_write
+
+def sorted_bind_storage(dict_layers, board_res, uram_storage=False):
+    # Useful space in BRAM18. Each BRAM18 is 18kb with a maximum word width of
+    # 36 bits, in which 4 bits are reserved to ECC code
+    SIZE_BRAM18 = ((18 * 1024) / 36) * 32
+    
+    # Useful space in BRAM36, composed by two BRAM18.
+    SIZE_BRAM36 = SIZE_BRAM18 * 2
+    
+    # Useful space in URAM. Each URAM is 288kb with a maximum word width of 72
+    # bits.
+    SIZE_URAM = (288 * 1024)
+
+    used_uram = 0 
+    used_bram = 0 
+    # Sort in descending order
+    n_weights = sorted(dict_layers, key=lambda item: item["value"], reverse=True).copy()
+    for node in n_weights:
+        # Number of weights needed in parallel for each clock cycle, which is
+        # computed as the number of filter needed to achieved the parallelism
+        # on input and output channel multiplied by the dimension of the
+        # filter
+        if not node["is_bias"]:
+            w_par = node["par"]
+            wpp = 72 / node["bits"]
+            ports = math.ceil(w_par / wpp)
+            lpm = node["n_weights"] / (wpp * ports)
+            tot_bram = math.ceil(lpm / (SIZE_BRAM36 / 72)) * ports
+            tot_uram = math.ceil(lpm / (SIZE_URAM / 72)) * ports
+            
+            # wasted_uram = n_uram * SIZE_URAM - (node['n_weights'] * node["bits"])
+            # wasted_bram = n_bram * SIZE_BRAM - (node['n_weights'] * node["bits"])
+            fit_uram = (used_uram + tot_uram) <= board_res["uram"] and uram_storage
+            fit_bram = (used_bram + tot_bram) <= board_res["bram"]
+            # fit_uram = True
+            # fit_bram = True
+            if (not fit_bram and not fit_uram):
+                print("There is not enough space.")
+                exit(-1)
+            elif ((fit_bram and fit_uram and tot_uram < tot_bram) or not fit_bram):
+                used_uram += tot_uram
+                print(f"{node['name']} P:{w_par} of {node['bits']}b. {node['n_weights']}. {tot_uram}U {tot_bram}B.")
+                node["uram_storage"] = True
+            else:
+                used_bram += tot_bram
+                print(f"{node['name']} P:{w_par} of {node['bits']}b. {node['n_weights']}. {tot_bram}B {tot_uram}U.")
+                node["uram_storage"] = False
+        else:
+            node["uram_storage"] = False
+    
+    print(f"Total: {used_bram}B {used_uram}U.")
+
+# def ILP_bind_storage(dict_layers, board_res, uram_storage=False):
+    
+#     ####### Problem formulated as ILP #######
+#     # Minimize wasted space
+#     prob = pulp.LpProblem("Parallel_ops", pulp.LpMinimize)
+    
+#     # Variables of the problem: for each layer each valid parallelization has a
+#     # binary variable associated that select the chosen parameters.
+#     ram_binary_variables = pulp.LpVariable.dicts(
+#             f"Choice_l{i}", range(len(dict_layers)), cat="Binary")
+
+#     # Objective function: maximize the parallelization of the heaviest layer.
+#     # The decision variable "layer_binary_variables[worst_index][i]" select only
+#     # one combination of ich and och for the worst layer. The multiplication
+#     # between the two parameters represent the level of parallelization
+#     wasted_uram = n_uram * SIZE_URAM - (node['n_weights'] * node["bits"])
+#     wasted_bram = n_bram * SIZE_BRAM - (node['n_weights'] * node["bits"])
+
+#     prob += (
+#         pulp.lpSum([ram_binary_variables[i] * 
+#                     for i, layer tuple in enumerate(dict_layers)]),
+#         "Bottleneck_layer_parallelization"
+#     )
+
+#     # Constraint: Only one binary variable per layer should be equal to 1
+#     for layer in range(num_layers):
+#         prob += (
+#             pulp.lpSum([layer_binary_variables[layer][i]
+#                        for i in range(len(valid_par_solutions[layer]))]) == 1,
+#             f"One_choice_constraint_layer_{layer}"
+#         )
+
+#     # Constraint: The total number of DSPs used to achieve the chosen
+#     # parallelization should be lower than the available ones. The number of
+#     # DSPs used for each layer is computed as filter_size * och_par * ich_par
+#     prob += (
+#         pulp.lpSum([layer["kernel"] * pulp.lpSum([layer_binary_variables[layer['index']][i] * tuple[0] * tuple[1] 
+#                for i, tuple in enumerate(valid_par_solutions[layer["index"]])]) for layer in layers_info_unmerged]) <= NUM_DSP,
+#         f"DSP_constraint"
+#     )
+
+    
+#     # Constraint: The total number of memory ports used to achieve the chosen
+#     # parallelization should be lower than the available ones. The number of
+#     # ports used for each layer is computed as (filter_size * och_par * ich_par
+#     # * bits) / bandwidth_mem.
+#     # We are not considering uram at this stage
+#     prob += (
+#         pulp.lpSum([layer["kernel"] * layer["bits"] / 64 *
+#                     pulp.lpSum([layer_binary_variables[layer["index"]][i] * tuple[0] * tuple[1]
+#                                 for i, tuple in enumerate(valid_par_solutions[layer["index"]])]
+#                                ) for layer in layers_info_unmerged]) <= NUM_PORTS,
+#         f"PORTS_constraint"
+#     )
+    
+#     # Constraints: The throughtput of each layer should be equal or bigger to
+#     # the heaviest one. The throughtput of each layer is computed as the parallelism
+#     # over the total number of iterations:
+#     #
+#     #    par worst         par layer  
+#     #  -------------- <= --------------
+#     #    iter worst        iter layer   
+#     for layer in range(num_layers):
+#         prob += (
+#             pulp.lpSum(
+#                 [layer_binary_variables[layer][i] * tuple[0] * tuple[1]
+#                  for i, tuple in enumerate(valid_par_solutions[layer])]
+#             ) * layers_info[layer]["value"] -
+#             pulp.lpSum(
+#                 [layer_binary_variables[worst_index][i] * tuple[0] * tuple[1]
+#                  for i, tuple in enumerate(valid_par_solutions[worst_index])]
+#             ) >= 0,
+#             f"Throughtput_constraint_layer_{layer}"
+#         )
+    
+#     # Constraints: To avoid bottlenecks the write/read bandwidth of consecutive
+#     # layers should be balanced. The write bandwidth is computed as (och_par *
+#     # ich_par) / (ich). The read bandwidth is computed as (och_par * ich_par) /
+#     # (och). For depthwise convolution the write bandwidth is ich_par
+#     for layer in range(1, num_layers):
+#         if layers_info[layer - 1]["depth"]:
+#             prob += (
+#                 pulp.lpSum(
+#                     [layer_binary_variables[layer - 1][i] * tuple[1]
+#                     for i, tuple in enumerate(valid_par_solutions[layer - 1])]
+#                 ) -
+#                 ( pulp.lpSum(
+#                     [layer_binary_variables[layer][i] * tuple[0] * tuple[1]
+#                     for i, tuple in enumerate(valid_par_solutions[layer])]
+#                 ) / layers_info[layer]["och"] ) >= 0,
+#                 f"ich_constraint_layer_{layer}"
+#             )
+#         else:
+#             prob += (
+#                 ( pulp.lpSum(
+#                     [layer_binary_variables[layer - 1][i] * tuple[0] * tuple[1]
+#                     for i, tuple in enumerate(valid_par_solutions[layer - 1])]
+#                 ) / layers_info[layer - 1]["ich"] ) -
+#                 ( pulp.lpSum(
+#                     [layer_binary_variables[layer][i] * tuple[0] * tuple[1]
+#                     for i, tuple in enumerate(valid_par_solutions[layer])]
+#                 ) / layers_info[layer]["och"] ) >= 0,
+#                 f"ich_constraint_layer_{layer}"
+#             )
+
+    
+#     prob.solve(PULP_CBC_CMD(msg=0))
+#     print("Status:", pulp.LpStatus[prob.status])
+#     ########################################
+
+#     # Recovering the values of the paralellism for each layer from the binary variables.
+#     parallel_op = {}
+#     for i, layer in enumerate(valid_par_solutions):
+#         for s in range(len(layer)):
+#             if int(layer_binary_variables[i][s].value()) == 1:
+#                 parallel_op[f"{layers_info[i]['name']}"] = layer[s]
+
 
 def init(file_name, network_name, parsed_write, uram_layer_include, prj_root="/tmp"):
 
