@@ -40,9 +40,9 @@ t_output quant_stream(t_acc i_acc) {
 }
 
 // Write template for the conv_pipe function.
-template <class t_input, class t_weight, class t_weight_st, class t_bias, class t_add_struct,
-          class t_input_mod, class t_acc_struct, class t_acc, class t_acc_simd,
-          class t_output_struct, class t_output, class t_output_clip, 
+template <class t_input, class t_input_st, class t_weight, class t_weight_st, class t_bias,
+          class t_add_struct, class t_input_mod, class t_acc_struct, class t_acc, 
+          class t_acc_simd, class t_output_struct, class t_output, class t_output_clip, 
           class t_output_mask, int c_reuse, int c_fh, int c_fw, int c_index, int c_str,
           int c_ops, int c_in_ops, int c_ow_ops, int c_ow_pack, int c_och_pack, 
           int c_relu, int c_ich, int c_och, int c_bits, int c_simd_bits,
@@ -74,10 +74,10 @@ void conv_pipe(
 
     ap_uint<48> s_acc_simd[c_simd];
 
-    for (auto s_ow_pack = 0; s_ow_pack < c_ow_pack; s_ow_pack++) {
-      for (auto s_och_pack = 0; s_och_pack < c_och_pack; s_och_pack++) {
-        auto s_w_index = s_ow_pack*c_och_pack+s_och_pack;
-        s_acc[s_ow_pack*c_och_pack+s_och_pack] = 0;
+    for (auto s_och_pack = 0; s_och_pack < c_och_pack; s_och_pack++) {
+      for (auto s_ow_pack = 0; s_ow_pack < c_ow_pack; s_ow_pack++) {
+        auto s_w_index = s_och_pack*c_ow_pack+s_ow_pack;
+        s_acc[s_w_index] = 0;
         if constexpr(std::is_same<t_bias, std::nullptr_t>::value == false) {
           if (ich == 0) {
             auto s_bias = i_bias[0][ops+s_och_pack];
@@ -86,7 +86,7 @@ void conv_pipe(
                 std::cout << "B" << " " << s_bias << std::endl;
               #endif
             #endif
-            s_acc[s_ow_pack*c_och_pack+s_och_pack] = s_bias;
+            s_acc[s_w_index] = s_bias;
           }
         }
       }
@@ -97,7 +97,7 @@ void conv_pipe(
         if (ich == (och+s_och_pack)) {
         // TODO: Add support for multiple inputs (vector type)
           for (auto s_ow_pack = 0; s_ow_pack < c_ow_pack; s_ow_pack++) {
-            s_acc[s_ow_pack*c_och_pack+s_och_pack] += i_add[s_ow_pack+s_ow_ops].data[0][ich_idx_add];
+            s_acc[s_och_pack*c_ow_pack+s_ow_pack] += i_add[s_ow_pack+s_ow_ops].data[0][ich_idx_add];
           }
         }
       }
@@ -107,7 +107,7 @@ void conv_pipe(
     // results
     for (auto s_ow_pack = 0; s_ow_pack < c_ow_pack; s_ow_pack++) {
       for (auto s_och_pack = 0; s_och_pack < c_och_pack; s_och_pack++) {
-        auto s_w_index = s_ow_pack*c_och_pack+s_och_pack;
+        auto s_w_index = s_och_pack*c_ow_pack+s_ow_pack;
         auto s_r_index = (och+s_och_pack)*c_ow_ops+s_ow_pack+s_ow_ops;
         if constexpr(c_depth == 1) {
           s_acc_base[s_w_index] = 0;
@@ -142,8 +142,10 @@ void conv_pipe(
             #endif
           #endif
 
-          for (auto pos = c_pad_bits*s_och_pack+c_w_bits; pos < 27; pos++) {
-            s_a_d_ext[s_och_pack].range(pos,pos) = s_a_d_ext[s_och_pack].range(c_pad_bits*s_och_pack+c_w_bits-1, c_pad_bits*s_och_pack+c_w_bits-1);
+          if constexpr(std::is_same<typename t_weight_st::Base::Base, _AP_ROOT_TYPE<t_weight_st::Base::width, true>>::value) {
+            for (auto pos = c_pad_bits*s_och_pack+c_w_bits; pos < 27; pos++) {
+              s_a_d_ext[s_och_pack].range(pos,pos) = s_a_d_ext[s_och_pack].range(c_pad_bits*s_och_pack+c_w_bits-1, c_pad_bits*s_och_pack+c_w_bits-1);
+            }
           }
 
           s_data += s_a_d_ext[s_och_pack];
@@ -156,10 +158,22 @@ void conv_pipe(
 
           auto s_w_index = s_ow_pack*(c_pad_acc_bits);
 
-          if constexpr(std::is_same<t_input_mod, std::nullptr_t>::value == false)
+          if constexpr(std::is_same<t_input_mod, std::nullptr_t>::value == false) {
             s_b_ext.range(s_w_index + c_bits - 1, s_w_index) = t_input_mod(i_input[s_index][ich_idx]).range(c_bits-1, 0);
-          else
+            if constexpr(std::is_same<typename t_input_mod::Base::Base, _AP_ROOT_TYPE<t_input_mod::Base::width, true>>::value) {
+              for (auto pos = s_w_index+c_bits; pos < 18; pos++) {
+                s_b_ext.range(pos,pos) = s_b_ext.range(s_w_index + c_bits - 1, s_w_index + c_bits - 1);
+              }
+            }
+          }
+          else {
             s_b_ext.range(s_w_index + c_bits - 1, s_w_index) = i_input[s_index][ich_idx].range(c_bits-1, 0);
+            if constexpr(std::is_same<typename t_input_st::Base::Base, _AP_ROOT_TYPE<t_input_st::Base::width, true>>::value) {
+              for (auto pos = s_w_index+c_bits; pos < 18; pos++) {
+                s_b_ext.range(pos,pos) = s_b_ext.range(s_w_index + c_bits - 1, s_w_index + c_bits - 1);
+              }
+            }
+          }
 
           #ifndef __SYNTHESIS__
             #ifdef DEBUG_CONV
@@ -177,7 +191,7 @@ void conv_pipe(
 
     for (auto s_ow_pack = 0; s_ow_pack < c_ow_pack; s_ow_pack++) {
       for (auto s_och_pack = 0; s_och_pack < c_och_pack; s_och_pack++) {
-        auto s_index_r = s_ow_pack*c_och_pack+s_och_pack;
+        auto s_index_r = s_och_pack*c_ow_pack+s_ow_pack;
         for (auto s_simd = 0; s_simd < c_simd; s_simd++) {
           t_acc_simd s_acc_simd_value = 0;
           t_acc_simd s_acc_adj = 0;
@@ -198,18 +212,28 @@ void conv_pipe(
     if (ich != 0) {
       for (auto s_ow_pack = 0; s_ow_pack < c_ow_pack; s_ow_pack++) {
         for (auto s_och_pack = 0; s_och_pack < c_och_pack; s_och_pack++) {
-          auto s_w_index = s_ow_pack*c_och_pack+s_och_pack;
+          auto s_w_index = s_och_pack*c_ow_pack+s_ow_pack;
           s_acc[s_w_index] += s_acc_base[s_w_index];
         }
       }
     }
+
+    #ifndef __SYNTHESIS__
+      for (auto s_ow_pack = 0; s_ow_pack < c_ow_pack; s_ow_pack++) {
+        for (auto s_och_pack = 0; s_och_pack < c_och_pack; s_och_pack++) {
+          #ifdef DEBUG_ACC
+            std::cout <<  "ACC " << s_acc[s_och_pack*c_ow_pack+s_ow_pack] << std::endl;
+          #endif
+        }
+      }
+    #endif
 
     // If c_depth is 1 then there is no need to store the previous
     // results
     if constexpr(c_depth == 0) {
       for (auto s_ow_pack = 0; s_ow_pack < c_ow_pack; s_ow_pack++) {
         for (auto s_och_pack = 0; s_och_pack < c_och_pack; s_och_pack++) {
-          auto s_r_index = s_ow_pack*c_och_pack+s_och_pack;
+          auto s_r_index = s_och_pack*c_ow_pack+s_ow_pack;
           i_acc_buff[reuse][(och+s_och_pack)*c_ow_ops+s_ow_ops+s_ow_pack] = s_acc[s_r_index];
         }
       }
@@ -220,13 +244,8 @@ void conv_pipe(
         for (auto s_och_pack = 0; s_och_pack < c_och_pack; s_och_pack++) {
           s_output_struct[s_ow_ops+s_ow_pack].data[0][ops+s_och_pack] = quant_stream<
             t_output, t_output_clip, t_output_mask, t_acc, c_relu
-          >(s_acc[s_ow_pack*c_och_pack+s_och_pack]);
+          >(s_acc[s_och_pack*c_ow_pack+s_ow_pack]);
           s_output_struct[s_ow_ops+s_ow_pack].last = last;
-          #ifndef __SYNTHESIS__
-            #ifdef DEBUG_ACC
-              std::cout <<  "ACC " << s_acc[s_ow_pack*c_och_pack+s_och_pack] << " " << s_output_struct[s_ow_ops+s_ow_pack].data[0][ops+s_och_pack] << std::endl;
-            #endif
-          #endif
         }
       }
     }
@@ -299,18 +318,26 @@ void conv_pipe(
 
             s_input_ext[s_ow_pack] = 0;
 
-            if constexpr(std::is_same<t_input_mod, std::nullptr_t>::value == false)
+            if constexpr(std::is_same<t_input_mod, std::nullptr_t>::value == false) {
               s_input_ext[s_ow_pack].range(c_pad_bits*s_ow_pack+c_bits-1, c_pad_bits*s_ow_pack) = t_input_mod(i_input[s_index][ich_idx]).range(c_bits-1, 0);
-            else
+              if constexpr(std::is_same<typename t_input_mod::Base::Base, _AP_ROOT_TYPE<t_input_mod::Base::width, true>>::value) {
+                for (auto pos = c_pad_bits*s_ow_pack+c_bits; pos < 27; pos++) {
+                  s_input_ext[s_ow_pack].range(pos,pos) = s_input_ext[s_ow_pack].range(c_pad_bits*s_ow_pack+c_bits-1, c_pad_bits*s_ow_pack+c_bits-1);
+                }
+              }
+            }
+            else {
               s_input_ext[s_ow_pack].range(c_pad_bits*s_ow_pack+c_bits-1, c_pad_bits*s_ow_pack) = i_input[s_index][ich_idx].range(c_bits-1, 0);
+              if constexpr(std::is_same<typename t_input_st::Base::Base, _AP_ROOT_TYPE<t_input_st::Base::width, true>>::value) {
+                for (auto pos = c_pad_bits*s_ow_pack+c_bits; pos < 27; pos++) {
+                  s_input_ext[s_ow_pack].range(pos,pos) = s_input_ext[s_ow_pack].range(c_pad_bits*s_ow_pack+c_bits-1, c_pad_bits*s_ow_pack+c_bits-1);
+                }
+              }
+            }
 
             #ifdef DEBUG_ACT
               std::cout << "A" << s_index << " " << i_input[s_index][ich_idx] << std::endl;
             #endif
-
-            for (auto pos = c_pad_bits*s_ow_pack+c_bits; pos < 27; pos++) {
-              s_input_ext[s_ow_pack].range(pos,pos) = s_input_ext[s_ow_pack].range(c_pad_bits*s_ow_pack+c_bits-1, c_pad_bits*s_ow_pack+c_bits-1);
-            }
 
             #ifndef SIMD_DSP
               s_data += s_input_ext[s_ow_pack];
@@ -320,8 +347,11 @@ void conv_pipe(
           auto s_index = s_fh*c_fw+s_fw;
 
           s_weight.range(c_w_bits - 1, 0) = i_weight[s_index][ich_idx][ops].range(c_w_bits - 1, 0);
-          for (auto pos = c_w_bits; pos < 18; pos++) {
-            s_weight.range(pos,pos) = s_weight.range(c_w_bits - 1, c_w_bits - 1);
+          // Check if the type is signed and then perform extension
+          if constexpr(std::is_same<typename t_weight_st::Base::Base, _AP_ROOT_TYPE<t_weight_st::Base::width, true>>::value) {
+            for (auto pos = c_w_bits; pos < 18; pos++) {
+              s_weight.range(pos,pos) = s_weight.range(c_w_bits - 1, c_w_bits - 1);
+            }
           }
 
           #ifdef SIMD_DSP
@@ -341,9 +371,10 @@ void conv_pipe(
 
           t_acc_simd s_acc_simd_value = 0;
           t_acc_simd s_acc_adj = 0;
+
           if (s_ow_pack > 0)
-            s_acc_adj.range(0,0) = s_acc_simd[s_simd].range(c_pad_bits*(s_ow_pack)-1, c_pad_bits*(s_ow_pack)-1);
-          s_acc_simd_value.range(c_pad_bits-1, 0) = s_acc_simd[s_simd].range(c_pad_bits*(s_ow_pack+1)-1, c_pad_bits*s_ow_pack);
+            s_acc_adj.range(0,0) = s_acc_simd[s_simd].range(c_pad_acc_bits*(s_ow_pack)-1, c_pad_acc_bits*(s_ow_pack)-1);
+          s_acc_simd_value.range(c_pad_acc_bits-1, 0) = s_acc_simd[s_simd].range(c_pad_acc_bits*(s_ow_pack+1)-1, c_pad_acc_bits*s_ow_pack);
           s_acc[s_ow_pack] += s_acc_simd_value + s_acc_adj;
         }
       }
@@ -362,17 +393,20 @@ void conv_pipe(
         }
       }
 
+      for (auto s_ow_pack = 0; s_ow_pack < c_ow_pack; s_ow_pack++) {
+        #ifndef __SYNTHESIS__
+          #ifdef DEBUG_ACC
+            std::cout <<  "ACC " << s_acc[s_ow_ops+s_ow_pack] << std::endl;
+          #endif
+        #endif
+      }
+
       if (ich == c_ich-1) {
         for (auto s_ow_pack = 0; s_ow_pack < c_ow_pack; s_ow_pack++) {
           s_output_struct[s_ow_ops+s_ow_pack].data[0][ops] = quant_stream<
             t_output, t_output_clip, t_output_mask, t_acc, c_relu
           >(s_acc[s_ow_pack]);
           s_output_struct[s_ow_ops+s_ow_pack].last = last;
-          #ifndef __SYNTHESIS__
-            #ifdef DEBUG_ACC
-              std::cout <<  "ACC " << s_acc << " " << s_output_struct[s_ow_ops+s_ow_pack].data[0][ops] << std::endl;
-            #endif
-          #endif
         }
       }
 
@@ -463,13 +497,14 @@ void conv_pipe(
           #endif
         }
       }
-      #ifndef __SYNTHESIS__
-        // #ifdef DEBUG_CONV
-        //   std::cout << std::endl;
-        // #endif
-      #endif
 
       if (ich != 0) s_acc += s_acc_base;
+
+      #ifndef __SYNTHESIS__
+        #ifdef DEBUG_ACC
+          std::cout <<  "ACC " << s_acc << std::endl;
+        #endif
+      #endif
 
       // If c_depth is 1 then there is no need to store the previous
       // results
@@ -481,11 +516,6 @@ void conv_pipe(
           t_output, t_output_clip, t_output_mask, t_acc, c_relu
         >(s_acc);
         s_output_struct[s_ow_ops].last = last;
-        #ifndef __SYNTHESIS__
-          #ifdef DEBUG_ACC
-            std::cout <<  "ACC " << s_acc << " " << s_output_struct[s_ow_ops].data[0][s_index_ops] << std::endl;
-          #endif
-        #endif
       }
       // return s_acc_struct;
 
@@ -496,7 +526,8 @@ void conv_pipe(
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-template <class t_input_struct, class t_input, class t_input_data, class t_weight, class t_weight_st, class t_bias,
+template <class t_input_struct, class t_input, class t_input_data, class t_input_st, class t_weight, 
+          class t_weight_st, class t_bias,
           class t_add_struct, class t_add, class t_forward_struct, class t_input_mod, class t_input_1x1,
           class t_weight_1x1, class t_weight_1x1_st, class t_bias_1x1, class t_acc_struct, class t_acc,
           class t_acc_1x1_struct, class t_acc_1x1, 
@@ -597,7 +628,9 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
       std::cout << "#### The convolution has add" << std::endl;
     std::cout << "parallelism " << c_ops << " " << c_in_ops << " " << c_ow_ops << std::endl;
     std::cout << "packing " << c_och_pack << " " << c_ow_pack << std::endl;
-    std::cout << "padding " << c_pad_bits << " " << c_int_pad_bits << " " << c_simd_bits << std::endl;
+    std::cout << "padding " << c_pad_bits << " " << c_int_pad_bits << " " << c_simd_bits << " " << c_pad_acc_bits << " " << c_simd << std::endl;
+    std::cout << "input type " << std::is_same<typename t_input_st::Base::Base, _AP_ROOT_TYPE<c_w_bits, true>>::value << std::endl;
+    std::cout << "weight type " << std::is_same<typename t_weight_st::Base::Base, _AP_ROOT_TYPE<c_w_bits, true>>::value << std::endl;
     std::cout << "s_input.size() = " << i_input[0].size() << std::endl;
   #endif
 
@@ -672,6 +705,7 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
 
               conv_pipe<
                 t_input,
+                t_input_st,
                 t_weight,
                 t_weight_st,
                 t_bias,
@@ -732,6 +766,7 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
                   }
                   conv_pipe<
                     std::array<t_input_data, c_ow_ops>,
+                    t_input_st,
                     t_weight_1x1,
                     t_weight_1x1_st,
                     t_bias_1x1,
@@ -808,7 +843,7 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
               if (s_iter < c_iter_1x1) o_output_1x1[s_ow_ops].write(s_output_1x1_struct[s_ow_ops]);
               #ifdef DEBUG_RES
                 for (auto ops = 0; ops < c_ops; ops++)
-                  std::cout <<  "RES " << s_output_1x1_struct[s_ow_ops].data[0][ops] << std::endl;
+                  std::cout <<  "RES 1x1 " << s_output_1x1_struct[s_ow_ops].data[0][ops] << std::endl;
               #endif
             }
           }

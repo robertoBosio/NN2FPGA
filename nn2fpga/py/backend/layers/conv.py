@@ -182,6 +182,7 @@ def parse_comp(name, node):
         block["template"].append("t_%s_window_struct" % input_type_name)
         block["template"].append("t_%s_window" % input_type_name)
         block["template"].append("t_%s_reduce" % input_type_name)
+    block["template"].append("t_%s" % input_type_name)
     block["template"].append("t_%s" % weight_name)
     block["template"].append("t_%s_st" % weight_name)
     if (has_bias):
@@ -327,13 +328,13 @@ def parse_comp(name, node):
         if node["och_pack"] > 1:
             a_d_bits = node["wbits"][1]
         else:
-            if (node["in_scale_factor"][0] is not None):
+            if (node["in_scale_factor"][1] is not None):
                 a_d_bits = node["in_bits"][1]
             else:
                 a_d_bits = node["actbits"][0]
 
         if node["och_pack"] > 1:
-            if (node["in_scale_factor"][0] is not None):
+            if (node["in_scale_factor"][1] is not None):
                 b_bits = node["in_bits"][1]
             else:
                 b_bits = node["actbits"][0]
@@ -446,7 +447,7 @@ def parse_comp(name, node):
         ]
 
     if (node["in_scale_factor"][0] is not None):
-        input_type_mod = get_quant_type(True, node["in_bits"][0], node["in_scale_factor"][0])
+        input_type_mod = get_quant_type(node["in_signed"][0], node["in_bits"][0], node["in_scale_factor"][0])
 
     else:
         input_type_mod = "std::nullptr_t"
@@ -456,7 +457,7 @@ def parse_comp(name, node):
     if (node["merge_1x1"]):
 
         if (node["in_scale_factor"][1] is not None):
-            input_1x1_type = get_quant_type(True, node["in_bits"][1], node["in_scale_factor"][1])
+            input_1x1_type = get_quant_type(node["in_signed"][1], node["in_bits"][1], node["in_scale_factor"][1])
         else:
             input_1x1_type = "std::nullptr_t"
         block["defines"]["t_%s_1x1" % input_name] = ["type", input_1x1_type]
@@ -465,14 +466,14 @@ def parse_comp(name, node):
             if (node["depth"] == 1):
                 acc_bits = node["in_bits"][1] + node["wbits"][1]
             else:
-                acc_bits = node["actbits"][0] + node["wbits"][1] + math.ceil(node["ich"])
-            acc_type_1x1 = get_quant_type(True, 32, node["in_scale_factor"][1]+node["wscale"][1]-2)
+                acc_bits = node["actbits"][0] + node["wbits"][1] + math.ceil(math.log2(node["ich"]))
+            acc_type_1x1 = get_quant_type(True, acc_bits, node["in_scale_factor"][1]+node["wscale"][1])
         else:
             if (node["depth"] == 1):
                 acc_bits = node["in_bits"][1] + node["wbits"][1]
             else:
-                acc_bits = node["actbits"][0] + node["wbits"][1] + math.ceil(node["ich"])
-            acc_type_1x1 = get_quant_type(True, 32, node["actscale"][0]+node["wscale"][1])
+                acc_bits = node["actbits"][0] + node["wbits"][1] + math.ceil(math.log2(node["ich"]))
+            acc_type_1x1 = get_quant_type(True, acc_bits, node["actscale"][0]+node["wscale"][1])
 
         block["defines"]["t_%s_acc" % output_1x1_name] = ["type", acc_type_1x1]
         block["defines"]["t_%s_acc_struct" % output_1x1_name] = [
