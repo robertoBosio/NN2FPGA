@@ -79,7 +79,7 @@ void pool_op(hls::stream<t_input_struct> i_data[c_ow_ops],
 
               if (c_pool == 0)  // Average Pool
                 s_acc_buff[s_acc_index] += s_input_struct.data[s_index][s_ops];
-              if (c_pool == 1) {  // Max Poool
+              if (c_pool == 1) {  // Max Pool
                 if (s_input_struct.data[s_index][s_ops] > s_acc_buff[s_acc_index]) s_acc_buff[s_acc_index] = s_input_struct.data[s_index][s_ops];
               }
               if constexpr(c_adaptive){
