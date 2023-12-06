@@ -10,9 +10,9 @@ from brevitas_examples.imagenet_classification.ptq.ptq_common import quantize_mo
 def get_torchvision_model(model_name, pretrained=False, progress=True):
     model_fn = getattr(torchvision.models, model_name)
     if model_name == 'inception_v3' or model_name == 'googlenet':
-        model = model_fn(pretrained=True, transform_input=False)
+        model = model_fn(pretrained=pretrained, transform_input=False)
     else:
-        model = model_fn(pretrained=True)
+        model = model_fn(pretrained=pretrained)
 
     return model
 

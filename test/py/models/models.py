@@ -6,7 +6,7 @@ def get_model(dataset, device, Wbits, Abits):
     if dataset == 'cifar10':
         model = resnet8(weight_bits=Wbits,act_bits=Abits).to(device)
     elif dataset == 'imagenet':
-        model = mobilenetv2(pretrained=True, progress=True, Abits=Abits, Wbits=Wbits)
+        model = mobilenetv2(pretrained=True, progress=True, Abits=Abits, Wbits=Wbits).to(device)
     elif dataset == 'vww':
         model = MobileNetV1(num_filters=8, num_classes=2).to(device)
     else:

@@ -32,8 +32,7 @@ class ImageNet(Dataset):
     
     def __getitem__(self, idx):
             x = Image.open(self.samples[idx]).convert("RGB")
-            if self.transform:
-                x = self.transform(x)
+            x = self.transform(x)
             return x, self.targets[idx]
 
 def get_dataset(dataset, cifar=10):
@@ -66,7 +65,7 @@ def get_dataset(dataset, cifar=10):
         eval_dataset = dataset(**val_args)
     elif dataset == 'imagenet':
         print('#### Selected ImageNet !')
-        IMG_SIZE = 224
+        IMG_SIZE = 256
         BASE_DIR = "/home-ssd/datasets/Imagenet/"
         transforms_sel = imagenet_transform
         train_args = {

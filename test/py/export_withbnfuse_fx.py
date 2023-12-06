@@ -115,6 +115,7 @@ def main():
     def train(epoch, criterion, optimizer, best_acc):
         train_loss, correct, total = 0, 0 ,0
 
+        model.train()
         with tqdm(train_loader, unit="batch") as tepoch:
             tepoch.set_description(f"Epoch {epoch}")
             for inputs, targets in tepoch:
@@ -141,6 +142,7 @@ def main():
         # pass
 
         test_loss, correct, total = 0, 0, 0
+        model.eval()
         with torch.no_grad():
             with tqdm(eval_loader, unit="batch") as tepoch:
                 for inputs, targets in tepoch:
@@ -148,6 +150,8 @@ def main():
                     inputs, targets = inputs.to(device), targets.to(device)
                     outputs = model(inputs)
                     outputs = outputs.view(outputs.size(0),-1)
+                    # print(outputs, targets)
+                    # exit()
                     loss = criterion(outputs, targets)
 
                     test_loss += loss.item()
@@ -156,13 +160,6 @@ def main():
                     correct += predicted.eq(targets).sum().item()
 
                     tepoch.set_postfix({"Acc": f"{100.0 * correct / total:.2f}%", "Loss": f"{loss.item():.4f}"})
-                    if log and tepoch.n == 1:
-                        with open(os.path.join(log_dir, 'test_inference.txt'), 'a') as f:
-                            # log input and output
-                            for i in range(inputs.size(0)):
-                                f.write(f'input: {inputs[i].cpu().numpy().tolist()}\n')
-                                f.write(f'output: {outputs[i].cpu().numpy().tolist()}\n')
-                        break
 
         acc = 100. * correct / total
         # if acc > best_acc and retrain:
