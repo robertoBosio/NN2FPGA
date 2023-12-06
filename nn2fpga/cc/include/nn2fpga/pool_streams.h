@@ -44,57 +44,59 @@ void pool_op(hls::stream<t_input_struct> i_data[c_ow_ops],
 
   t_input_struct s_input_struct;
   for (auto s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
-    for (auto s_och = 0; s_och < c_och; s_och+=c_ops) {
+    for (auto s_och = 0; s_och < c_och; s_och+=c_in_ops) {
+      for (auto s_in_ops = 0; s_in_ops < c_in_ops; s_in_ops+=c_ops) {
   #pragma HLS pipeline style = stp
-      for (auto s_ow_ops = 0; s_ow_ops < c_ow_ops; s_ow_ops++) {
-        for (auto s_ops = 0; s_ops < c_ops; s_ops++) {
-          for (auto s_fh = 0; s_fh < c_fh_iter; s_fh++) {
-            for (auto s_fw = 0; s_fw < c_fw_iter; s_fw++) {
-              int s_index ;
-              int s_acc_index;
-              bool s_init;
-              bool s_pool_write;
-              if constexpr(c_adaptive){
-                s_index = 0;
-                s_acc_index = s_och + s_ops;
-                s_init = (s_o_index == 0) && (s_ow_ops == 0);
-              } else {
-                s_index = s_fh*c_fw_iter+s_fw+(c_ow_ops_iter-s_ow_ops-1)*c_str_iter;
-                s_acc_index = 0;
-                s_init = (s_index == 0);
-              }
-
-              if (s_init) s_acc_buff[s_acc_index] = c_quant;
-
-              if ((s_ops == 0)) {
-                if constexpr(c_adaptive)
-                  s_input_struct = i_data[s_ow_ops].read();
-                else{
-                  if (s_index == 0)
-                    s_input_struct = i_data[0].read();
+        for (auto s_ow_ops = 0; s_ow_ops < c_ow_ops; s_ow_ops++) {
+          for (auto s_ops = 0; s_ops < c_ops; s_ops++) {
+            for (auto s_fh = 0; s_fh < c_fh_iter; s_fh++) {
+              for (auto s_fw = 0; s_fw < c_fw_iter; s_fw++) {
+                int s_index ;
+                int s_acc_index;
+                bool s_init;
+                bool s_pool_write;
+                if constexpr(c_adaptive){
+                  s_index = 0;
+                  s_acc_index = s_och + s_in_ops + s_ops;
+                  s_init = (s_o_index == 0) && (s_ow_ops == 0);
+                } else {
+                  s_index = s_fh*c_fw_iter+s_fw+(c_ow_ops_iter-s_ow_ops-1)*c_str_iter;
+                  s_acc_index = 0;
+                  s_init = (s_index == 0);
                 }
-                s_last = s_input_struct.last;
-              }
-              // std::cout << "s_input_struct.data[" << s_o_index*c_ow_ops+s_ow_ops << "][s_ops] = " << s_input_struct.data[0][s_ops] << std::endl;
 
-              if (c_pool == 0)  // Average Pool
-                s_acc_buff[s_acc_index] += s_input_struct.data[s_index][s_ops];
-              if (c_pool == 1) {  // Max Pool
-                if (s_input_struct.data[s_index][s_ops] > s_acc_buff[s_acc_index]) s_acc_buff[s_acc_index] = s_input_struct.data[s_index][s_ops];
-              }
-              if constexpr(c_adaptive){
-                s_pool_write = (s_o_index == (c_o_index - c_ow_ops)) && (s_ow_ops == (c_ow_ops-1));
-              } else {
-                s_pool_write = (s_index == (c_index - 1));
-              }
-              if (s_pool_write) {
-                t_acc s_acc = s_acc_buff[s_acc_index];
+                if (s_init) s_acc_buff[s_acc_index] = c_quant;
+
+                if (((s_in_ops) == 0)) {
+                  if constexpr(c_adaptive)
+                    s_input_struct = i_data[s_ow_ops].read();
+                  else{
+                    if (s_index == 0)
+                      s_input_struct = i_data[0].read();
+                  }
+                  s_last = s_input_struct.last;
+                }
+                // std::cout << "s_input_struct.data[" << s_o_index*c_ow_ops+s_ow_ops << "][s_ops] = " << s_input_struct.data[0][s_ops] << std::endl;
+
                 if (c_pool == 0)  // Average Pool
-                  s_acc = s_acc >> c_average_scale;
-                s_output_struct.data[0][s_ops] = t_output(s_acc);
-                if (s_ops == (c_in_ops - 1)) {
-                  s_output_struct.last = s_last;
-                  o_data[0].write(s_output_struct);
+                  s_acc_buff[s_acc_index] += s_input_struct.data[s_index][s_in_ops+s_ops];
+                if (c_pool == 1) {  // Max Pool
+                  if (s_input_struct.data[s_index][s_in_ops+s_ops] > s_acc_buff[s_acc_index]) s_acc_buff[s_acc_index] = s_input_struct.data[s_index][s_in_ops+s_ops];
+                }
+                if constexpr(c_adaptive){
+                  s_pool_write = (s_o_index == (c_o_index - c_ow_ops)) && (s_ow_ops == (c_ow_ops-1));
+                } else {
+                  s_pool_write = (s_index == (c_index - 1));
+                }
+                if (s_pool_write) {
+                  t_acc s_acc = s_acc_buff[s_acc_index];
+                  if (c_pool == 0)  // Average Pool
+                    s_acc = s_acc >> c_average_scale;
+                  s_output_struct.data[0][s_ops] = t_output(s_acc);
+                  if (s_ops == (c_ops - 1)) {
+                    s_output_struct.last = s_last;
+                    o_data[0].write(s_output_struct);
+                  }
                 }
               }
             }
