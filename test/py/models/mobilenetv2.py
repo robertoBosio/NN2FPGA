@@ -6,7 +6,6 @@ import torch.nn.functional as F
 import torchvision
 from brevitas.graph.quantize import preprocess_for_quantize
 from brevitas_examples.imagenet_classification.ptq.ptq_common import quantize_model
-from brevitas_examples.imagenet_classification.ptq.ptq_common import calibrate
 
 def get_torchvision_model(model_name, pretrained=False, progress=True):
     model_fn = getattr(torchvision.models, model_name)
