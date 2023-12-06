@@ -11,6 +11,7 @@ from tiny_torch.benchmark.training_torch.visual_wake_words.vww_torch import Mobi
 from brevitas.export import export_onnx_qcdq
 from tqdm import tqdm
 from utils.datasets import get_dataset
+from models.models import get_model
 import torchsummary
 
 os.environ.setdefault('ROOT_DIR', './tmp')
@@ -75,9 +76,8 @@ def main():
 
     print('#### Building model..')
     device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
-    model = resnet8(weight_bits=Wbits,act_bits=Abits).to('cuda:0')
-    # model = MobileNetV1(num_filters=8, num_classes=2).to(device)
-    # model = QuantizedCifar10Net().to(device)
+
+    model = get_model(dataset, device, Wbits, Abits)
 
     model.to(device)
 
