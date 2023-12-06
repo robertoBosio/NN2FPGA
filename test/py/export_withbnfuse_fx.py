@@ -229,19 +229,6 @@ def main():
         test(0, criterion, 1, log=False)
     
 
-    if(not(pretrain)) :
-        print('#### Start from scratch')
-        # optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=wd)
-        # optimizer = torch.optim.SGD(model.parameters(), lr=lr)
-        # optimizer = torch.optim.Adam(model.parameters(),lr=lr,weight_decay=wd)
-        # lr_schedu = optim.lr_scheduler.MultiStepLR(optimizer, [90, 150, 200], gamma=0.1)
-        print("#### TRAINING")
-        best_acc = 0
-        for epoch in range(0, max_epochs): 
-            best_acc = train(epoch, criterion, optimizer, best_acc)
-            lr_schedu.step(epoch)
-
-
     def calibrate_model(calibration_loader, quant_model):
         with torch.no_grad():
             # Put the model in training mode to collect statistics
@@ -275,7 +262,7 @@ def main():
         print("#### RETRAINING") 
         retrain = 1
         # optimizer = torch.optim.SGD(model.parameters(), lr=0.0001)
-        lr_schedu = optim.lr_scheduler.MultiStepLR(optimizer, [90, 150, 200], gamma=0.1)
+        # lr_schedu = optim.lr_scheduler.MultiStepLR(optimizer, [90, 150, 200], gamma=0.1)
         criterion = torch.nn.CrossEntropyLoss()
         best_acc = 0
         for epoch in range(start_epoch, start_epoch+20): 
@@ -283,7 +270,7 @@ def main():
                 best_acc = train(epoch, criterion, optimizer, best_acc)
             else:
                 best_acc = test(epoch, criterion, best_acc)
-            lr_schedu.step(epoch)
+            # lr_schedu.step(epoch)
     print('#### Finished Training.. with best_acc: %f' % (best_acc))
     print('#### Logging data from best checkpoint')
     ckpt = torch.load(os.path.join(ckpt_dir, f'checkpoint_quant_bnfuse_fx.t7'), map_location=device)
