@@ -1,6 +1,7 @@
 from .resnet8 import resnet8
 from tiny_torch.benchmark.training_torch.visual_wake_words.vww_torch import MobileNetV1
 from .mobilenetv2 import mobilenetv2
+from utils.datasets import get_dataset
 
 def get_model(dataset, device, Wbits, Abits):
     if dataset == 'cifar10':

@@ -8,6 +8,7 @@ from models.resnet_brevitas_fx import resnet20
 from models.resnet8 import resnet8
 from models.test_depthwise import QuantizedCifar10Net
 from tiny_torch.benchmark.training_torch.visual_wake_words.vww_torch import MobileNetV1
+from brevitas_examples.imagenet_classification.ptq.ptq_common import calibrate
 from utils.preprocess import *
 from brevitas.export import export_onnx_qcdq
 from tqdm import tqdm
@@ -219,6 +220,14 @@ def main():
     
     criterion = torch.nn.CrossEntropyLoss()
     test(0, criterion, 1, log=False)
+    is_calibrate = True
+    if is_calibrate:
+        calib_dataset, _, _= get_dataset(dataset, sample_size=1000)
+        calib_loader = torch.utils.data.DataLoader(calib_dataset, batch_size=1, shuffle=True,
+                                                num_workers=4)
+        calibrate(calib_loader, model, True)
+        test(0, criterion, 1, log=False)
+    
 
     if(not(pretrain)) :
         print('#### Start from scratch')

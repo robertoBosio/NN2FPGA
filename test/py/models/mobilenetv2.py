@@ -6,6 +6,7 @@ import torch.nn.functional as F
 import torchvision
 from brevitas.graph.quantize import preprocess_for_quantize
 from brevitas_examples.imagenet_classification.ptq.ptq_common import quantize_model
+from brevitas_examples.imagenet_classification.ptq.ptq_common import calibrate
 
 def get_torchvision_model(model_name, pretrained=False, progress=True):
     model_fn = getattr(torchvision.models, model_name)
@@ -19,22 +20,22 @@ def get_torchvision_model(model_name, pretrained=False, progress=True):
 def mobilenetv2(pretrained=False, progress=True, Abits=8, Wbits=8):
     model = get_torchvision_model('mobilenet_v2', pretrained, progress)
 
-    # model = preprocess_for_quantize(
-    #     model,
-    #     equalize_iters=10,
-    #     equalize_merge_bias=False
-    # )
+    model = preprocess_for_quantize(
+        model,
+        equalize_iters=20,
+        equalize_merge_bias=False
+    )
 
-    # model = quantize_model(
-    #     model,
-    #     backend="layerwise",
-    #     act_bit_width=Abits,
-    #     weight_bit_width=Wbits,
-    #     weight_narrow_range=True,
-    #     bias_bit_width="int16",
-    #     scaling_per_output_channel=False,
-    #     act_quant_percentile=0.99,
-    #     act_quant_type="",
-    #     scale_factor_type="po2")
-    
+    model = quantize_model(
+        model,
+        backend="layerwise",
+        act_bit_width=Abits,
+        weight_bit_width=Wbits,
+        weight_narrow_range=True,
+        bias_bit_width="int16",
+        scaling_per_output_channel=False,
+        act_quant_percentile=99.999,
+        act_quant_type="symmetric",
+        scale_factor_type="po2")
+
     return model
