@@ -25,16 +25,23 @@ def mobilenetv2(pretrained=False, progress=True, Abits=8, Wbits=8):
         equalize_merge_bias=False
     )
 
+    # understand why when with the error it was working
     model = quantize_model(
         model,
-        backend="layerwise",
-        act_bit_width=Abits,
+        backend="fx",
+        scale_factor_type="po2_scale",
+        bias_bit_width=16,
         weight_bit_width=Wbits,
         weight_narrow_range=True,
-        bias_bit_width="int16",
-        scaling_per_output_channel=False,
+        weight_param_method="stats",
+        weight_quant_granularity="per_tensor",
+        weight_quant_type="sym",
+        layerwise_first_last_bit_width=8,
+        act_bit_width=8,
+        act_param_method="stats",
         act_quant_percentile=99.999,
-        act_quant_type="symmetric",
-        scale_factor_type="po2")
+        act_quant_type="sym",
+        quant_format="int"
+    )
 
     return model

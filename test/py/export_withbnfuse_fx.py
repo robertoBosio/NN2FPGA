@@ -9,6 +9,7 @@ from models.resnet8 import resnet8
 from models.test_depthwise import QuantizedCifar10Net
 from tiny_torch.benchmark.training_torch.visual_wake_words.vww_torch import MobileNetV1
 from brevitas_examples.imagenet_classification.ptq.ptq_common import calibrate
+from brevitas_examples.imagenet_classification.ptq.ptq_common import apply_gptq
 from utils.preprocess import *
 from brevitas.export import export_onnx_qcdq
 from tqdm import tqdm
@@ -90,7 +91,8 @@ def main():
     #     cudnn.benchmark = True
     #     #print("no cuda")
     
-    if pretrain:
+    # if pretrain:
+    if 0:
         print("#### Loading pretrain model..")
         if pretrain_file != '':
             ckpt = torch.load(pretrain_file, map_location=device)
@@ -220,14 +222,38 @@ def main():
     
     criterion = torch.nn.CrossEntropyLoss()
     test(0, criterion, 1, log=False)
-    is_calibrate = True
-    if is_calibrate:
-        calib_dataset, _, _= get_dataset(dataset, sample_size=1000)
-        calib_loader = torch.utils.data.DataLoader(calib_dataset, batch_size=1, shuffle=True,
-                                                num_workers=4)
-        calibrate(calib_loader, model, True)
-        test(0, criterion, 1, log=False)
+    # if not(pretrain):
+    if 1:
+        is_calibrate = True
+        if is_calibrate:
+            calib_dataset, _, _= get_dataset(dataset, sample_size=100)
+            calib_loader = torch.utils.data.DataLoader(calib_dataset, batch_size=1, shuffle=True,
+                                                    num_workers=4)
+            calibrate(calib_loader, model)
+            apply_gptq(calib_loader, model, act_order="")
+            # calibrate(calib_loader, model, True)
+            # test(0, criterion, 1, log=False)
     
+    if 1:
+        print("#### Loading pretrain model..")
+        if pretrain_file != '':
+            ckpt = torch.load(pretrain_file, map_location=device)
+        else:
+            ckpt = torch.load(os.path.join(ckpt_dir, f'checkpoint_fx.t7'), map_location=device)
+        if 'model_state_dict' not in ckpt:
+            model.load_state_dict(ckpt)
+        else:
+            model.load_state_dict(ckpt['model_state_dict'])
+        # if 'optimizer_state_dict' in ckpt:
+        #     optimizer.load_state_dict(ckpt['optimizer_state_dict'])
+        # if 'epoch' in ckpt:
+        #     start_epoch = ckpt['epoch']
+        # else: start_epoch = 0
+        start_epoch = 0
+        # print('#### Load last checkpoint data')
+        model = model.to(device)
+    else:
+        start_epoch = 0
 
     def calibrate_model(calibration_loader, quant_model):
         with torch.no_grad():
@@ -258,13 +284,15 @@ def main():
     if(post_quant) :
         model = calibrate_model(train_loader,model)
     if(val) :
-        test(start_epoch, criterion, best_acc=0)
+        best_acc = test(start_epoch, criterion, best_acc=0)
         print("#### RETRAINING") 
         retrain = 1
         # optimizer = torch.optim.SGD(model.parameters(), lr=0.0001)
         # lr_schedu = optim.lr_scheduler.MultiStepLR(optimizer, [90, 150, 200], gamma=0.1)
         criterion = torch.nn.CrossEntropyLoss()
-        best_acc = 0
+        if is_calibrate:
+            # optimizer = torch.optim.SGD(model.parameters(), lr=0.0001, momentum=0.9, weight_decay=wd)
+            optimizer = torch.optim.SGD(model.parameters(), lr=0.00005, weight_decay=wd)
         for epoch in range(start_epoch, start_epoch+20): 
             if(not(post_quant)) :
                 best_acc = train(epoch, criterion, optimizer, best_acc)
