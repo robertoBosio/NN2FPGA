@@ -8,6 +8,7 @@ from models.resnet_brevitas_fx import resnet20
 from models.resnet8 import resnet8
 from models.test_depthwise import QuantizedCifar10Net
 from tiny_torch.benchmark.training_torch.visual_wake_words.vww_torch import MobileNetV1
+from tiny_torch.benchmark.training_torch.anomaly_detection.torch_model import Autoencoder
 from brevitas.export import export_onnx_qcdq
 from tqdm import tqdm
 from utils.datasets import get_dataset
@@ -29,6 +30,7 @@ os.environ.setdefault('LOG_INTERVAL', '40')
 os.environ.setdefault('NUM_WORKERS', '4')
 os.environ.setdefault('WBITS', '8')
 os.environ.setdefault('ABITS', '8')
+os.environ.setdefault('TRAINING_TYPE', 'regression')
 
 def main():
 
@@ -48,6 +50,7 @@ def main():
     num_workers = int(os.environ['NUM_WORKERS'])
     Wbits = int(os.environ['WBITS'])
     Abits = int(os.environ['ABITS'])
+    training_type = os.environ['TRAINING_TYPE']
 
     start_epoch = 0
 
@@ -75,13 +78,19 @@ def main():
 
     print('#### Building model..')
     device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
-    model = resnet8(weight_bits=Wbits,act_bits=Abits).to('cuda:0')
+    model = Autoencoder(input_shape[1], weight_bits=Wbits, act_bits=Abits).to('cuda:0')
     # model = MobileNetV1(num_filters=8, num_classes=2).to(device)
     # model = QuantizedCifar10Net().to(device)
 
     model.to(device)
 
-    criterion = torch.nn.CrossEntropyLoss()
+    if (training_type == "classification"):
+        criterion = torch.nn.CrossEntropyLoss()
+    elif (training_type == "regression"):
+        criterion = torch.nn.MSELoss()
+    else:
+        criterion = torch.nn.CrossEntropyLoss()
+    
     optimizer = optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=wd)
     # optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=wd)
 
@@ -117,20 +126,23 @@ def main():
                 inputs, targets = inputs.to(device), targets.to(device)
                 optimizer.zero_grad()
                 outputs = model(inputs)
-                outputs = outputs.view(outputs.size(0),-1)
+                if dataset != "ToyADMOS":
+                    outputs = outputs.view(outputs.size(0),-1)
+                # print(outputs.shape)
                 loss = criterion(outputs, targets)
                 loss.backward()
                 optimizer.step()
 
                 train_loss += loss.item()
-                _, predicted = outputs.max(1)
-                total += targets.size(0)
-                correct += predicted.eq(targets).sum().item()
+                postfix = {}
+                if (training_type == "classification"):
+                    _, predicted = outputs.max(1)
+                    total += targets.size(0)
+                    correct += predicted.eq(targets).sum().item()
+                    postfix["Acc"] = f"{100.0 * correct / total:.2f}%"
 
-                postfix = {
-                    "Acc": f"{100.0 * correct / total:.2f}%",
-                    "Loss": f"{loss.item():.4f}"
-                }
+                postfix["Loss"] = f"{loss.item():.4f}"
+
                 tepoch.set_postfix(postfix)
             return test(epoch, criterion, best_acc)
 
@@ -144,19 +156,33 @@ def main():
                     tepoch.set_description(f"Epoch {epoch}")
                     inputs, targets = inputs.to(device), targets.to(device)
                     outputs = model(inputs)
-                    outputs = outputs.view(outputs.size(0),-1)
+                    if dataset != "ToyADMOS":
+                        outputs = outputs.view(outputs.size(0),-1)
                     loss = criterion(outputs, targets)
 
                     test_loss += loss.item()
-                    _, predicted = outputs.max(1)
-                    total += targets.size(0)
-                    correct += predicted.eq(targets).sum().item()
+                    postfix = {}
+                    if (training_type == "classification"):
+                        _, predicted = outputs.max(1)
+                        total += targets.size(0)
+                        correct += predicted.eq(targets).sum().item()
+                        postfix["Acc"] = f"{100.0 * correct / total:.2f}%"
+                    elif (training_type == "regression"):
+                        pass
 
-                    tepoch.set_postfix({"Acc": f"{100.0 * correct / total:.2f}%", "Loss": f"{loss.item():.4f}"})
+                    postfix["Loss"] = f"{loss.item():.4f}"
 
-        acc = 100. * correct / total
+                    tepoch.set_postfix(postfix)
+
+
+        if (training_type == "classification"):
+            acc = 100. * correct / total
+        elif (training_type == "regression"):
+            acc = 1/test_loss
+    
         # if acc > best_acc and retrain:
         # model.to('cpu')
+        print(acc, best_acc)
         dummy_input = torch.randn(input_shape, device=device)
         accuracy_str = f'{acc:.2f}'.replace('.', '_')
         if acc > best_acc:
