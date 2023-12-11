@@ -121,6 +121,23 @@ def parallel_ops_number(io_dict, board="ULTRA96v2", prj_root="/tmp"):
         valid_tot_par_solutions.append([])
         for single_par in par_sol:
             valid_tot_par_solutions[i].append(np.prod(single_par))
+    
+    # valid_iter_linebuffer stores the line buffer number of iteration for each valid
+    # solution and it is useful to linearize the constraint of the line buffer
+    valid_iter_linebuffer = []
+    for par_sol, layer in zip(valid_par_solutions, layers_info):
+        valid_iter_linebuffer.append([])
+        layer_iter =  layer["ich"] * layer["iw"] * layer["ih"]
+        for single_par in par_sol:
+            valid_iter_linebuffer[-1].append(layer_iter // (single_par[1] * single_par[2]))
+    
+    # valid_iter_worstlayer stores the worst layer number of iteration for each valid
+    # solution and it is useful to linearize the constraint of the line buffer
+    valid_iter_worstlayer = []
+    layer_w = layers_info[worst_index]
+    layer_iter = layer_w["ich"] * layer_w["ow"] * layer_w["oh"] * layer_w["och"]
+    for par in valid_tot_par_solutions[layer_w["index"]]:
+        valid_iter_worstlayer.append(layer_iter // par)
 
     # Creating a second dictionary in which merged convolution are splitted and
     # pool layers are removed to better compute DSPs and PORTs
@@ -239,8 +256,21 @@ def parallel_ops_number(io_dict, board="ULTRA96v2", prj_root="/tmp"):
                     valid_tot_par_solutions[layer_index]) / layers_info[layer_index]["och"] ) >= 0,
                 f"ich_constraint_layer_{layer_index}"
             )
+    
+    # Constraints: The iteration done by a line_buffer should be always less
+    # than the one done by the heaviest layer, to avoid being a bottleneck
+    for layer_index, layer in enumerate(layers_info):
+        prob += (
+            ( pulp.lpDot(layer_binary_variables[layer_index].values(),
+                valid_iter_linebuffer[layer_index]) - 
+            ( pulp.lpDot(layer_binary_variables[worst_index].values(),
+                valid_iter_worstlayer))) <= 0,
+            f"linebuffer_constraint_layer_{layer_index}"
+        )
 
-    prob.solve(PULP_CBC_CMD(msg=0))
+
+    #prob.solve(PULP_CBC_CMD(msg=0))
+    prob.solve()
     prob.writeLP(prj_root + "/parallel_ops1.lp")
     if (prob.status == pulp.LpStatusInfeasible):
         print("Problem unfeasible")
@@ -287,6 +317,23 @@ def parallel_ops_number(io_dict, board="ULTRA96v2", prj_root="/tmp"):
 
         layer_binary_variables.append(pulp.LpVariable.dicts(
             f"Choice_l{i}", range(len(clamped_valid_par_solutions[i])), cat="Binary"))
+    
+    # valid_iter_linebuffer stores the line buffer number of iteration for each valid
+    # solution and it is useful to linearize the constraint of the line buffer
+    clamped_valid_iter_linebuffer = []
+    for par_sol, layer in zip(clamped_valid_par_solutions, layers_info):
+        clamped_valid_iter_linebuffer.append([])
+        layer_iter =  layer["ich"] * layer["iw"] * layer["ih"]
+        for single_par in par_sol:
+            clamped_valid_iter_linebuffer[-1].append(layer_iter // (single_par[1] * single_par[2]))
+    
+    # valid_iter_worstlayer stores the worst layer number of iteration for each valid
+    # solution and it is useful to linearize the constraint of the line buffer
+    clamped_valid_iter_worstlayer = []
+    layer_w = layers_info[worst_index]
+    layer_iter = layer_w["ich"] * layer_w["ow"] * layer_w["oh"] * layer_w["och"]
+    for par in clamped_valid_tot_par_solutions[layer_w["index"]]:
+        clamped_valid_iter_worstlayer.append(layer_iter // par)
     
     # Minimize resource usage
     prob_min = pulp.LpProblem("Resource_usage", pulp.LpMinimize)
@@ -352,6 +399,17 @@ def parallel_ops_number(io_dict, board="ULTRA96v2", prj_root="/tmp"):
                 f"ich_constraint_layer_{layer_index}"
             )
     
+    # Constraints: The iteration done by a line_buffer should be always less
+    # than the one done by the heaviest layer, to avoid being a bottleneck
+    for layer_index, layer in enumerate(layers_info):
+        prob_min += (
+            ( pulp.lpDot(layer_binary_variables[layer_index].values(),
+                clamped_valid_iter_linebuffer[layer_index]) - 
+            ( pulp.lpDot(layer_binary_variables[worst_index].values(),
+                clamped_valid_iter_worstlayer))) <= 0,
+            f"linebuffer_constraint_layer_{layer_index}"
+        )
+    
     prob_min.solve(PULP_CBC_CMD(msg=0))
     
     parallel_op = {}
@@ -371,8 +429,8 @@ def parallel_ops_number(io_dict, board="ULTRA96v2", prj_root="/tmp"):
     pipeline_iterations = (och / och_ops) * (ich / ich_ops) * (ow / ow_ops) * oh
     for i, layer in enumerate(layers_info):
         ich_ops = parallel_op[layer["name"]][1]
+        ow_ops = parallel_op[layer["name"]][2]
         ich = layer["ich"]
-        ow_ops = 1
         input_dimension = ich * layer["iw"] * layer["ih"] // (ich_ops * ow_ops)
         print(f"{layer['ich']} lb_iter:{input_dimension}, conv_iter:{pipeline_iterations}, {input_dimension//pipeline_iterations}")
 
@@ -393,7 +451,7 @@ def parallel_ops_number(io_dict, board="ULTRA96v2", prj_root="/tmp"):
             port = math.ceil(layer["kernel"] * bits * och_ops * ich_ops / 72)
             PORTs += port
             DSPs += dsp
-            print(f"{layer['name']} [{layer['ich']}][{layer['och']}] -> ich_ops: {ich_ops}, och_ops: {och_ops}, ow_ops: {ow_ops}, DSPs: {dsp}, PORTs: {port}, Iter: {iter}", file=f)
+            print(f"{layer['name']} [{layer['ich']}][{layer['och']}][{layer['iw']}] -> ich_ops: {ich_ops}, och_ops: {och_ops}, ow_ops: {ow_ops}, DSPs: {dsp}, PORTs: {port}, Iter: {iter}", file=f)
             if (layer["merge_1x1"]):
                 bits = layer["bits"][1]
                 dsp = och_ops * ich_ops
@@ -401,7 +459,7 @@ def parallel_ops_number(io_dict, board="ULTRA96v2", prj_root="/tmp"):
                 port = math.ceil(bits * och_ops * ich_ops / 72)
                 PORTs += port
                 DSPs += dsp
-                print(f"{layer['name']}_merge [{layer['ich']}][{layer['och']}] -> ich_ops: {ich_ops}, och_ops: {och_ops}, ow_ops: {ow_ops}, DSPs: {dsp}, PORTs: {port}, Iter: {iter}", file=f)
+                print(f"{layer['name']}_merge [{layer['ich']}][{layer['och']}][{layer['iw']}] -> ich_ops: {ich_ops}, och_ops: {och_ops}, ow_ops: {ow_ops}, DSPs: {dsp}, PORTs: {port}, Iter: {iter}", file=f)
         print(f"Totals: DSPs {DSPs}, Ports: {PORTs}", file=f)
 
         for i, layer in enumerate(layers_info):
@@ -453,7 +511,7 @@ def ilp(io_dict, off_chip_storage, model, board="ULTRA96v2", double_packing=True
             line_ops = int(input_dimension // pipeline_iterations)
             if line_ops == 0:
                 line_ops = 1
-            print(name, line_ops, node["ich"], node["ich_ops"])
+            print(name, input_dimension, pipeline_iterations, node["ich"], node["ich_ops"])
             if node["ich_ops"] < line_ops:
                 io_dict[name]["line_ops"] = line_ops
                 print(f"#### Changing line_ops for {name} to {line_ops} to avoid bottleneck")
