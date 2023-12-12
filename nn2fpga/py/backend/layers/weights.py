@@ -965,7 +965,7 @@ def parse_all(io_dict, prj_root="/tmp", board="KRIA", uram_storage = False):
     
     n_weights = []
     for name, node in io_dict.items():
-        if ('const' == node["type"]) and node["dynamic_init"]:
+        if ('const' == node["type"]):
             w_par = node["ops"] * node ["ich_ops"] * node["kernel"]
             w_par_bits = w_par * node["bits"]
             n_mem = math.ceil(w_par_bits / BANDWIDTH)
@@ -986,10 +986,6 @@ def parse_all(io_dict, prj_root="/tmp", board="KRIA", uram_storage = False):
     for layer in n_weights:
         if not layer["is_bias"]:
             io_dict[layer["name"]]["uram_storage"] = layer["uram_storage"]
-    
-    for name, node in io_dict.items():
-        if ('const' == node["type"]) and node["dynamic_init"]:
-            dynamic_init = True
 
     if dynamic_init:
         parsed_write.append(add_uram_layer())

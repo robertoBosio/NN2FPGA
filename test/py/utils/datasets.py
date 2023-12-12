@@ -3,6 +3,34 @@ import torchvision
 from torch.utils.data import Dataset
 from PIL import Image
 import os
+import glob
+import random
+from torch.utils.data import Dataset, DataLoader
+
+class ToyADMOSDataset_train(Dataset):
+    def __init__(self, data_array):
+        self.data = torch.from_numpy(data_array).float()
+        self.data = self.data.unsqueeze(2)
+        self.data = self.data.unsqueeze(3)
+
+    def __len__(self):
+        return len(self.data)
+
+    def __getitem__(self, index):
+        return self.data[index], self.data[index]
+
+class ToyADMOSDataset_test(Dataset):
+    def __init__(self, data_array, labels):
+        self.data = torch.from_numpy(data_array).float()
+        self.data = self.data.unsqueeze(2)
+        self.data = self.data.unsqueeze(3)
+        self.labels = labels
+
+    def __len__(self):
+        return len(self.data)
+
+    def __getitem__(self, index):
+        return self.data[index], self.labels[index / 196]
 
 class ImageNet(Dataset):
     def __init__(self, root, train, transform=None):
@@ -39,6 +67,7 @@ class ImageNet(Dataset):
 def get_dataset(dataset, cifar=10):
     print('#### Loading dataset..')
     if dataset == 'cifar10':
+
         transforms_sel = cifar_transform
         BASE_DIR = "/home-ssd/datasets/cifar10/"
         train_args = {
@@ -54,16 +83,72 @@ def get_dataset(dataset, cifar=10):
             'root': BASE_DIR
         }
         if cifar == 10:
-            print('#### Selected CIFAR-10 !')
+            print('#### Selected CIFAR-10!')
             dataset = torchvision.datasets.CIFAR10
         elif cifar == 100:
-            print('#### Selected CIFAR-100 !')
+            print('#### Selected CIFAR-100!')
             dataset = torchvision.datasets.CIFAR100
         else:
             assert False, 'dataset unknown !'
         input_shape = (1, 3, 32, 32)
         train_dataset = dataset(**train_args)
-        eval_dataset = dataset(**val_args)
+        eval_dataset = dataset(**val_args)    
+    elif dataset == 'ToyADMOS_train':
+        print('#### Selected ToyADMOS train!')
+        BASE_DIR = "/home/datasets/tinyML/anomaly_detection/ToyCar"
+        def file_list_generator(target_dir,
+                                dir_name="train",
+                                ext="wav"):
+            """
+            target_dir : str
+                base directory path of the dev_data or eval_data
+            dir_name : str (default="train")
+                directory name containing training data
+            ext : str (default="wav")
+                file extension of audio files
+
+            return :
+                train_files : list [ str ]
+                    file list for training
+            """
+            print("target_dir : {}".format(target_dir))
+
+            # generate training list
+            training_list_path = os.path.abspath("{dir}/{dir_name}/*.{ext}".format(dir=target_dir, dir_name=dir_name, ext=ext))
+            files = sorted(glob.glob(training_list_path))
+            if len(files) == 0:
+                print("no_wav_file!!")
+
+            # print("train_file num : {num}".format(num=len(files)))
+            return files
+        
+        files = file_list_generator(BASE_DIR)
+        split_index = int(len(files) * 0.9)
+
+        # Shuffle the list randomly
+        random.shuffle(files)
+
+        # Divide the list into two parts
+        train_files = files[:split_index]
+        eval_files =  files[split_index:]
+        params = {"n_mels": 128, "frames": 5, "n_fft": 1024, "hop_length": 512, "power": 2.0}
+
+        train_dataset = fft_transform_train(train_files, params)
+        eval_dataset = fft_transform_train(eval_files, params)
+        train_dataset = ToyADMOSDataset_train(train_dataset)
+        eval_dataset = ToyADMOSDataset_train(eval_dataset)
+        input_shape = (1, 640, 1, 1)
+
+    elif dataset == 'ToyADMOS_test':
+        print('#### Selected ToyADMOS test!')
+        BASE_DIR = "/home/datasets/tinyML/anomaly_detection/ToyCar"
+        param = {"n_mels": 128, "frames": 5, "n_fft": 1024, "hop_length": 512, "power": 2.0}
+        data, labels = fft_transform_test(BASE_DIR, param)
+        eval_dataset = []
+        for machine_data, machine_labels in zip(data, labels):
+            eval_dataset.append(ToyADMOSDataset_test(machine_data, machine_labels))
+        input_shape = (1, 640, 1, 1)
+        train_dataset = []
     elif dataset == 'imagenet':
         print('#### Selected ImageNet !')
         IMG_SIZE = 224
@@ -84,7 +169,7 @@ def get_dataset(dataset, cifar=10):
         train_dataset = dataset(**train_args)
         eval_dataset = dataset(**val_args)
     elif dataset == 'vww':
-        print('#### Selected VWW !')
+        print('#### Selected VWW!')
         IMG_SIZE = 96
         BASE_DIR = os.path.join("/home-ssd/datasets/vw", 'vw_coco2014_96')
         transforms_sel=vww_transform
@@ -104,6 +189,6 @@ def get_dataset(dataset, cifar=10):
         test_size = len(dataset) - train_size
         train_dataset, eval_dataset = torch.utils.data.random_split(dataset, [train_size, test_size])
     else:
-        assert False, 'dataset unknown !'
+        assert False, 'dataset unknown!'
 
     return train_dataset, eval_dataset, input_shape
