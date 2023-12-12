@@ -13,6 +13,7 @@ from utils.preprocess import *
 from brevitas.export import export_onnx_qcdq
 from tqdm import tqdm
 from utils.datasets import get_dataset
+from models.models import get_model
 
 os.environ.setdefault('ROOT_DIR', './tmp')
 os.environ.setdefault('DATA_DIR', 'data')
@@ -76,17 +77,16 @@ def main():
 
     print('#### Preparing data ..')
     device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
-    # model = resnet20(wbit=Wbits,abit=Abits).to('cuda:0')
-    # model = MobileNetV1(num_filters=8, num_classes=2).to(device)
-    # model = resnet8(weight_bits=Wbits,act_bits=Abits).to('cuda:0')
-    # model = QuantizedCifar10Net().to(device)
-    model = Autoencoder(input_shape[1], weight_bits=Wbits, act_bits=Abits).to('cuda:0')
+    #model = Autoencoder(input_shape[1], weight_bits=Wbits, act_bits=Abits).to('cuda:0')
+    model = get_model(dataset, device, Wbits, Abits)
+
     model.to(device)
 
     if Wbits < 8:
         optimizer = torch.optim.SGD(model.parameters(), lr=0.001, momentum=0.9, weight_decay=wd)
     else:
-        optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=wd)
+        optimizer = torch.optim.SGD(model.parameters(), lr=0.001, momentum=0.9, weight_decay=wd)
+        # optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=wd)
 
     # optimizer = torch.optim.Adam(model.parameters(),lr=lr,weight_decay=wd)
     # if 'cuda' in device:
@@ -114,7 +114,6 @@ def main():
         model = model.to(device)
     else:
         start_epoch = 0
-        print('#### Start from scratch')
 
     retrain = 0
 
@@ -240,7 +239,11 @@ def main():
     #print(model)
     #return 0
     
+    criterion = torch.nn.CrossEntropyLoss()
+    test(0, criterion, 1, log=False)
+
     if(not(pretrain)) :
+        print('#### Start from scratch')
         # optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=wd)
         # optimizer = torch.optim.SGD(model.parameters(), lr=lr)
         optimizer = torch.optim.Adam(model.parameters(),lr=lr,weight_decay=wd)
@@ -251,6 +254,7 @@ def main():
             criterion = torch.nn.MSELoss()
         else:
             criterion = torch.nn.CrossEntropyLoss()
+
         print("#### TRAINING")
         best_acc = 0
         for epoch in range(0, max_epochs): 
@@ -266,7 +270,6 @@ def main():
             criterion = torch.nn.CrossEntropyLoss()
         for epoch in range(start_epoch, start_epoch+1):
             test(epoch, criterion, best_acc=1)
-
 
     def calibrate_model(calibration_loader, quant_model):
         with torch.no_grad():
@@ -286,7 +289,6 @@ def main():
         quant_model.apply(finalize_collect_stats)    
         return quant_model
   
-    test(epoch, criterion, 1, log=True)
     #change not hand-written
     print("#### MERGE BN")
     

@@ -227,3 +227,20 @@ def vww_transform(is_training=True, IMAGE_SIZE=128):
             # transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5,0.5,0.5])
             transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
         ])
+
+def imagenet_transform(is_training=True, IMAGE_SIZE=128):
+    if is_training:
+        return transforms.Compose([
+            transforms.RandomRotation(10),
+            transforms.RandomHorizontalFlip(),
+            transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4),
+            transforms.Resize((IMAGE_SIZE, IMAGE_SIZE)),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+        ])
+    else:
+        return transforms.Compose([
+            transforms.Resize((IMAGE_SIZE, IMAGE_SIZE)),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+        ])
