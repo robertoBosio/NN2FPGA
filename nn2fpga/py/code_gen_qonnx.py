@@ -114,6 +114,7 @@ def main():
         dynamic_init=dynamic_init,
         uram_storage=uram_storage,
         object_detection=object_detection,
+        packing=packing,
         anchors=anchors,
         prj_root=PRJ_ROOT,
         transform=transform
