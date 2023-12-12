@@ -10,6 +10,7 @@ from models.test_depthwise import QuantizedCifar10Net
 from tiny_torch.benchmark.training_torch.visual_wake_words.vww_torch import MobileNetV1
 from brevitas_examples.imagenet_classification.ptq.ptq_common import calibrate
 from brevitas_examples.imagenet_classification.ptq.ptq_common import apply_gptq
+from tiny_torch.benchmark.training_torch.anomaly_detection.torch_model import Autoencoder
 from utils.preprocess import *
 from brevitas.export import export_onnx_qcdq
 from tqdm import tqdm
@@ -32,6 +33,7 @@ os.environ.setdefault('LOG_INTERVAL', '40')
 os.environ.setdefault('NUM_WORKERS', '4')
 os.environ.setdefault('WBITS', '8')
 os.environ.setdefault('ABITS', '8')
+os.environ.setdefault('TRAINING_TYPE', 'regression')
 
 def main():
 
@@ -51,6 +53,7 @@ def main():
     num_workers = int(os.environ['NUM_WORKERS'])
     Wbits = int(os.environ['WBITS'])
     Abits = int(os.environ['ABITS'])
+    training_type = os.environ['TRAINING_TYPE']
 
     best_acc = 0  # best test accuracy
     start_epoch = 0
@@ -76,7 +79,9 @@ def main():
 
     print('#### Preparing data ..')
     device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
+    #model = Autoencoder(input_shape[1], weight_bits=Wbits, act_bits=Abits).to('cuda:0')
     model = get_model(dataset, device, Wbits, Abits)
+
     model.to(device)
 
     if Wbits < 8:
@@ -124,20 +129,23 @@ def main():
             for inputs, targets in tepoch:
                 inputs, targets = inputs.to(device), targets.to(device)
                 optimizer.zero_grad()
-                outputs = model(inputs).view(model(inputs).size(0),-1)
+                outputs = model(inputs)
+                if dataset != "ToyADMOS":
+                    outputs = outputs.view(outputs.size(0),-1)
                 loss = criterion(outputs, targets)
                 loss.backward()
                 optimizer.step()
 
                 train_loss += loss.item()
-                _, predicted = outputs.max(1)
-                total += targets.size(0)
-                correct += predicted.eq(targets).sum().item()
+                postfix = {}
+                if (training_type == "classification"):
+                    _, predicted = outputs.max(1)
+                    total += targets.size(0)
+                    correct += predicted.eq(targets).sum().item()
+                    postfix["Acc"] = f"{100.0 * correct / total:.2f}%"
 
-                postfix = {
-                    "Acc": f"{100.0 * correct / total:.2f}%",
-                    "Loss": f"{loss.item():.4f}"
-                }
+                postfix["Loss"] = f"{loss.item():.4f}"
+
                 tepoch.set_postfix(postfix)
             return test(epoch, criterion, best_acc)
 
@@ -152,19 +160,35 @@ def main():
                     tepoch.set_description(f"Epoch {epoch}")
                     inputs, targets = inputs.to(device), targets.to(device)
                     outputs = model(inputs)
-                    outputs = outputs.view(outputs.size(0),-1)
-                    # print(outputs, targets)
-                    # exit()
+                    if dataset != "ToyADMOS":
+                        outputs = outputs.view(outputs.size(0),-1)
                     loss = criterion(outputs, targets)
 
                     test_loss += loss.item()
-                    _, predicted = outputs.max(1)
-                    total += targets.size(0)
-                    correct += predicted.eq(targets).sum().item()
+                    postfix = {}
+                    if (training_type == "classification"):
+                        _, predicted = outputs.max(1)
+                        total += targets.size(0)
+                        correct += predicted.eq(targets).sum().item()
+                        postfix["Acc"] = f"{100.0 * correct / total:.2f}%"
+                    elif (training_type == "regression"):
+                        pass
+
+                    postfix["Loss"] = f"{loss.item():.4f}"
 
                     tepoch.set_postfix({"Acc": f"{100.0 * correct / total:.2f}%", "Loss": f"{loss.item():.4f}"})
+                    if log and tepoch.n == 1:
+                        with open(os.path.join(log_dir, 'test_inference.txt'), 'a') as f:
+                            # log input and output
+                            for i in range(inputs.size(0)):
+                                f.write(f'input: {inputs[i].cpu().numpy().tolist()}\n')
+                                f.write(f'output: {outputs[i].cpu().numpy().tolist()}\n')
+                        break
 
-        acc = 100. * correct / total
+        if (training_type == "classification"):
+            acc = 100. * correct / total
+        elif (training_type == "regression"):
+            acc = 1/test_loss
         # if acc > best_acc and retrain:
         if acc > best_acc:
             print('#### Exporting..')
@@ -222,7 +246,7 @@ def main():
     
     criterion = torch.nn.CrossEntropyLoss()
     test(0, criterion, 1, log=False)
-    # if not(pretrain):
+
     if 1:
         is_calibrate = True
         if is_calibrate:
@@ -234,26 +258,34 @@ def main():
             # calibrate(calib_loader, model, True)
             # test(0, criterion, 1, log=False)
     
-    if 1:
-        print("#### Loading pretrain model..")
-        if pretrain_file != '':
-            ckpt = torch.load(pretrain_file, map_location=device)
+    if(not(pretrain)) :
+        print('#### Start from scratch')
+        # optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=wd)
+        # optimizer = torch.optim.SGD(model.parameters(), lr=lr)
+        optimizer = torch.optim.Adam(model.parameters(),lr=lr,weight_decay=wd)
+        lr_schedu = optim.lr_scheduler.MultiStepLR(optimizer, [90, 150, 200], gamma=0.1)
+        if (training_type == "classification"):
+            criterion = torch.nn.CrossEntropyLoss()
+        elif (training_type == "regression"):
+            criterion = torch.nn.MSELoss()
         else:
-            ckpt = torch.load(os.path.join(ckpt_dir, f'checkpoint_fx.t7'), map_location=device)
-        if 'model_state_dict' not in ckpt:
-            model.load_state_dict(ckpt)
+            criterion = torch.nn.CrossEntropyLoss()
+
+        print("#### TRAINING")
+        best_acc = 0
+        for epoch in range(0, max_epochs): 
+            best_acc = train(epoch, criterion, optimizer, best_acc)
+            lr_schedu.step(epoch)
+
+    if(val) :
+        if (training_type == "classification"):
+            criterion = torch.nn.CrossEntropyLoss()
+        elif (training_type == "regression"):
+            criterion = torch.nn.MSELoss()
         else:
-            model.load_state_dict(ckpt['model_state_dict'])
-        # if 'optimizer_state_dict' in ckpt:
-        #     optimizer.load_state_dict(ckpt['optimizer_state_dict'])
-        # if 'epoch' in ckpt:
-        #     start_epoch = ckpt['epoch']
-        # else: start_epoch = 0
-        start_epoch = 0
-        # print('#### Load last checkpoint data')
-        model = model.to(device)
-    else:
-        start_epoch = 0
+            criterion = torch.nn.CrossEntropyLoss()
+        for epoch in range(start_epoch, start_epoch+1):
+            test(epoch, criterion, best_acc=1)
 
     def calibrate_model(calibration_loader, quant_model):
         with torch.no_grad():

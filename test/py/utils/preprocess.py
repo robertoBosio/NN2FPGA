@@ -6,8 +6,11 @@ import torchvision.datasets as datasets
 # from nvidia.dali.pipeline import Pipeline
 import torchvision.transforms as transforms
 # from nvidia.dali.plugin.pytorch import DALIClassificationIterator, DALIGenericIterator
-
 import torchvision.transforms as transforms
+
+import tiny_torch.benchmark.training_torch.anomaly_detection.common as com
+from tqdm import tqdm
+import numpy
 
 def cifar_transform(is_training=True):
     if is_training:
@@ -48,6 +51,59 @@ def imgnet_transform(is_training=True):
                                              transforms.Normalize(mean=[0.485, 0.456, 0.406],
                                                                   std=[0.229, 0.224, 0.225])])
     return transform_list
+
+def fft_transform_train(file_list, param):
+    def list_to_vector_array(file_list,
+                            msg="calc...",
+                            n_mels=64,
+                            frames=5,
+                            n_fft=1024,
+                            hop_length=512,
+                            power=2.0):
+        """
+        convert the file_list to a vector array.
+        file_to_vector_array() is iterated, and the output vector array is concatenated.
+
+        file_list : list [ str ]
+            .wav filename list of dataset
+        msg : str ( default = "calc..." )
+            description for tqdm.
+            this parameter will be input into "desc" param at tqdm.
+
+        return : numpy.array( numpy.array( float ) )
+            vector array for training (this function is not used for test.)
+            * dataset.shape = (number of feature vectors, dimensions of feature vectors)
+        """
+        # calculate the number of dimensions
+        dims = n_mels * frames
+
+        # iterate file_to_vector_array()
+        for idx in tqdm(range(len(file_list)), desc=msg):
+            vector_array = com.file_to_vector_array(file_list[idx],
+                                                    n_mels=n_mels,
+                                                    frames=frames,
+                                                    n_fft=n_fft,
+                                                    hop_length=hop_length,
+                                                    power=power)
+            if idx == 0:
+                dataset = numpy.zeros((vector_array.shape[0] * len(file_list), dims), float)
+            dataset[vector_array.shape[0] * idx: vector_array.shape[0] * (idx + 1), :] = vector_array
+
+        return dataset
+
+    return list_to_vector_array(file_list, "calc...", param["n_mels"],
+    param["frames"], param["n_fft"], param["hop_length"], param["power"])
+
+def fft_transform_test(target_dir, param):
+    machine_id_list = com.get_machine_id_list_for_test(target_dir)
+    dataset = []
+    anomaly = []
+    print(machine_id_list)
+    for id_str in machine_id_list:
+        test_files, y_true = com.test_file_list_generator(target_dir, id_str, True)
+        dataset.append(fft_transform_train(test_files, param))
+        anomaly.append(y_true)
+    return dataset, anomaly
 
 # class HybridTrainPipe(Pipeline):
 #     def __init__(self, batch_size, num_threads, device_id, data_dir, crop, dali_cpu=False, local_rank=0, world_size=1):

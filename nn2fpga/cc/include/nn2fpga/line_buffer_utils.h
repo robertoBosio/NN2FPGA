@@ -130,32 +130,57 @@ void bandwidth_adjust(
   }
 }
 
+/* Adjust the tensor by merging the c_ow_ops_in streams in c_ow_ops_out stream.
+ * c_ow_ops_in should be always >= c_ow_ops_out. At the same time aggragate data
+ * by reading enough c_ops_in packet to create a c_ops_out one */
 template <typename din_t, typename dout_t, int ICH, int IH, int IW,
-          int c_ow_ops, int c_ops, int c_ops_out> 
+          int c_ow_ops_in, int c_ow_ops_out, int c_ops_in, int c_ops_out> 
 void bandwidth_adjust(
-  hls::stream<din_t> din[c_ow_ops],
-  hls::stream<dout_t> o_data[c_ow_ops]
+  hls::stream<din_t> din[c_ow_ops_in],
+  hls::stream<dout_t> o_data[c_ow_ops_out]
 ) {
+  static_assert(c_ow_ops_in % c_ow_ops_out == 0, "c_ow_ops_in is not a multiple of c_ow_ops_out");
+  static_assert(c_ow_ops_in > c_ow_ops_out, "c_ow_ops_in is not bigger than c_ow_ops_out");
+  static_assert(c_ops_out % c_ops_in == 0, "c_ops_out is not a multiple of c_ops_in");
+  static_assert(c_ops_out > c_ops_in, "c_ops_out is not bigger than c_ops_in");
 
-  dout_t s_write[c_ow_ops];
-  #ifndef __SYNTHESIS__
-      std::cout << "bandwidth_adjust " << ICH << " " << c_ops << " " << c_ops_out << std::endl;
-      // Printing the size
-      for (auto s_i = 0; s_i < c_ow_ops; s_i++) {
-        std::cout << "din[" << s_i << "] = " << din[s_i].size() << std::endl;
-      }
-  #endif
-  for (auto s_index = 0; s_index < IH * IW * ICH; s_index+=c_ops_out*c_ow_ops) {
-    for (auto s_i = 0; s_i < c_ops_out; s_i+=c_ops) {
-      #pragma HLS pipeline style = stp
-      for (auto s_ow_ops = 0; s_ow_ops < c_ow_ops; s_ow_ops++) {
-        din_t s_read = din[s_ow_ops].read();
-        for (auto s_j = 0; s_j < c_ops; s_j++) {
-          auto read_data = s_read.data[0][s_j];
-          s_write[s_ow_ops].data[0][s_i+s_j] = read_data;
+  
+#ifndef __SYNTHESIS__
+  // Printing stuff to debug
+  std::cout << "bandwidth_adjust " << ICH << " " << c_ops_in << " "
+            << c_ow_ops_in << " " << c_ops_out << " " << c_ow_ops_out
+            << std::endl;
+  for (auto s_i = 0; s_i < c_ow_ops_in; s_i++) {
+    std::cout << "din[" << s_i << "] = " << din[s_i].size() << std::endl;
+  }
+#endif
+
+  dout_t s_write[c_ow_ops_in];
+
+  /* Loop on all the tensor with windows of dimension c_ow_ops_in*/
+  for (auto s_index = 0; s_index < IH * IW * ICH;
+       s_index += c_ops_out * c_ow_ops_in) {
+    
+    /* Loop over the streams in input*/
+    for (auto s_ow_ops_in = 0; s_ow_ops_in < c_ow_ops_in; s_ow_ops_in += c_ow_ops_out) {
+
+      /* Loop over the packets in the ICH dimension */
+      for (auto s_i = 0; s_i < c_ops_out; s_i += c_ops_in) {
+#pragma HLS pipeline style = stp II = 1
+
+        /* Loop over the c_ops_in packet inside a c_ops_out one */
+        for (auto s_j = 0; s_j < c_ops_in; s_j++) {
+#pragma HLS unroll
+
+          /* Loop over c_ow_ops_out stream in input in parallel */
+          for (auto s_ow_ops_out = 0; s_ow_ops_out < c_ow_ops_out;
+               s_ow_ops_out++) {
+            din_t s_read = din[s_ow_ops_in + s_ow_ops_out].read();
+            s_write[s_ow_ops_out].data[0][s_i + s_j] = read_data;
+          }
+
+          o_data[s_ow_ops_out].write(s_write[s_i]);
         }
-        if (s_i == (c_ops_out - c_ops))
-          o_data[s_ow_ops].write(s_write[s_ow_ops]);
       }
     }
   }

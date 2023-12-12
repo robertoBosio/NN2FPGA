@@ -19,8 +19,9 @@ export LOG_INTERVAL=40
 export NUM_WORKERS=4
 export WBITS=8
 export ABITS=8
-export PYTHON=python
+export PYTHON=python3
 export ONNX_FILE=""
+export TRAINING_TYPE=regression
 
 # Run the calibration with batchnorm fuse
 train:

@@ -62,22 +62,20 @@ def main():
 
     train_dataset, eval_dataset, input_shape = get_dataset(dataset, cifar=cifar)
 
-    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=train_batch_size, shuffle=True,
-                                             num_workers=num_workers)
-
-    eval_loader = torch.utils.data.DataLoader(eval_dataset, batch_size=1, shuffle=False,
+    eval_loader = torch.utils.data.DataLoader(eval_dataset, batch_size=eval_batch_size, shuffle=False,
                                             num_workers=num_workers)
 
     # if 'cuda' in device:
     #     model = torch.nn.DataParallel(model)
     #     cudnn.benchmark = True
     #     #print("no cuda")
-
+    exit(-1)
     print('#### Building model..')
     device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
-    model = resnet8(weight_bits=Wbits,act_bits=Abits).to('cuda:0')
+    # model = resnet8(weight_bits=Wbits,act_bits=Abits).to('cuda:0')
     # model = MobileNetV1(num_filters=8, num_classes=2).to(device)
     # model = QuantizedCifar10Net().to(device)
+    model = Autoencoder(input_shape[1], weight_bits=Wbits, act_bits=Abits).to('cuda:0')
 
     model.to(device)
 
