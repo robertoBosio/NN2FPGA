@@ -28,6 +28,7 @@ def parse(name, node, adjust_name, in_ops, adjust_ops, dim="i"):
     block["template"].append("c_%s_%sch" % (node_name, dim))
     block["template"].append("c_%s_%sw" % (node_name, dim))
     block["template"].append("c_%s_%sh" % (node_name, dim))
+    block["template"].append("c_%s_ow_ops_in" % node_name)
     block["template"].append("c_%s_ow_ops" % node_name)
     block["template"].append("c_%s_old_in_ops" % node_name)
     block["template"].append("c_%s_in_ops" % node_name)
@@ -50,6 +51,7 @@ def parse(name, node, adjust_name, in_ops, adjust_ops, dim="i"):
     block["defines"]["c_%s_%sch" % (node_name, dim)] = ["const", node["%sch" % dim]]
     block["defines"]["c_%s_%sh" % (node_name, dim)] = ["const", node["%sh" % dim]]
     block["defines"]["c_%s_%sw" % (node_name, dim)] = ["const", node["%sw" % dim]]
+    block["defines"]["c_%s_ow_ops_in" % (node_name)] = ["const", node["ow_ops_in"]]
     block["defines"]["c_%s_ow_ops" % (node_name)] = ["const", node["ow_ops"]]
     block["defines"]["c_%s_old_in_ops" % node_name] = ["const", old_in_ops]
     block["defines"]["c_%s_in_ops" % node_name] = ["const", output_ops]
