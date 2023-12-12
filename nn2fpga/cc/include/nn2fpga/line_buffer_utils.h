@@ -155,32 +155,37 @@ void bandwidth_adjust(
   }
 #endif
 
-  dout_t s_write[c_ow_ops_in];
+  constexpr int c_ich_iter = ICH / c_ops_in;
+  dout_t s_write[c_ow_ops_out];
+  din_t s_read[c_ow_ops_in][c_ops_out];
 
   /* Loop on all the tensor with windows of dimension c_ow_ops_in*/
   for (auto s_index = 0; s_index < IH * IW * ICH;
-       s_index += c_ops_out * c_ow_ops_in) {
-    
-    /* Loop over the streams in input*/
-    for (auto s_ow_ops_in = 0; s_ow_ops_in < c_ow_ops_in; s_ow_ops_in += c_ow_ops_out) {
-
+      s_index += c_ops_out * c_ow_ops_in) {
+  
       /* Loop over the packets in the ICH dimension */
-      for (auto s_i = 0; s_i < c_ops_out; s_i += c_ops_in) {
+    for (auto s_i = 0; s_i < c_ops_out; s_i += c_ops_in) {
 #pragma HLS pipeline style = stp II = 1
 
-        /* Loop over the c_ops_in packet inside a c_ops_out one */
-        for (auto s_j = 0; s_j < c_ops_in; s_j++) {
-#pragma HLS unroll
+      /* Loop over the streams in input*/
+      for (auto s_ow_ops_in = 0; s_ow_ops_in < c_ow_ops_in; s_ow_ops_in += c_ow_ops_out) {
 
-          /* Loop over c_ow_ops_out stream in input in parallel */
-          for (auto s_ow_ops_out = 0; s_ow_ops_out < c_ow_ops_out;
-               s_ow_ops_out++) {
-            din_t s_read = din[s_ow_ops_in + s_ow_ops_out].read();
-            s_write[s_ow_ops_out].data[0][s_i + s_j] = read_data;
+        /* Loop over c_ow_ops_out stream in input in parallel */
+        for (auto s_ow_ops_out = 0; s_ow_ops_out < c_ow_ops_out; s_ow_ops_out++) {
+
+          s_read[s_ow_ops_in][s_i] = din[s_ow_ops_in + s_ow_ops_out].read();
+          /* Loop over the c_ops_in packet inside a c_ops_out one */
+          for (auto s_j = 0; s_j < c_ops_in; s_j++) {
+
+            s_write[s_ow_ops_out].data[0][s_i+s_j] = s_read[s_ow_ops_in][s_i].data[0][s_j];
           }
 
-          o_data[s_ow_ops_out].write(s_write[s_i]);
+          // If the packet is finished then write it
+          if (s_i == (c_ops_out - c_ops_in))
+            o_data[s_ow_ops_out].write(s_write[s_ow_ops_out]);
+
         }
+
       }
     }
   }
