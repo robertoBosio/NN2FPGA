@@ -140,9 +140,9 @@ void bandwidth_adjust(
   hls::stream<dout_t> o_data[c_ow_ops_out]
 ) {
   static_assert(c_ow_ops_in % c_ow_ops_out == 0, "c_ow_ops_in is not a multiple of c_ow_ops_out");
-  static_assert(c_ow_ops_in > c_ow_ops_out, "c_ow_ops_in is not bigger than c_ow_ops_out");
+  static_assert(c_ow_ops_in >= c_ow_ops_out, "c_ow_ops_in is not bigger than c_ow_ops_out");
   static_assert(c_ops_out % c_ops_in == 0, "c_ops_out is not a multiple of c_ops_in");
-  static_assert(c_ops_out > c_ops_in, "c_ops_out is not bigger than c_ops_in");
+  static_assert(c_ops_out >= c_ops_in, "c_ops_out is not bigger than c_ops_in");
 
   
 #ifndef __SYNTHESIS__
