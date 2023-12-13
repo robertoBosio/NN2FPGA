@@ -80,6 +80,8 @@ def info(io_dict, node, node_name, init_info, tensors_info):
 def parse(name, node):
 
     input_name  = node["input"][0]
+    if node["adjust_line_buffer"]:
+        input_name = input_name + "_adj"
     input_type_name = input_name.replace("_skip", "")
     output_name = node["output"][0]
     output_type_name = output_name.replace("_skip", "")

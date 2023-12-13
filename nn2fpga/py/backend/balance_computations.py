@@ -695,9 +695,11 @@ def ilp(io_dict, off_chip_storage, model, board="ULTRA96v2", double_packing=True
                 print("#### Found line buffer read/write rate for", name, "read", node["in_ops"], "write", node["line_ops"], "to avoid bottleneck")
                 print("#### Balancing line buffer for", name, "from", node["in_ops"], "to", node["adjust_ops"], "to avoid bottleneck")
             else:
+                node["adjust_ops"] = node["in_ops"]
                 node["adjust_line_buffer"] = False
 
             if (node['ow_ops'] < node['ow_ops_in']):
+                node["adjust_line_buffer"] = True
                 print(f"Insert bandwidth_adjust from {node['ow_ops_in']} to {node['ow_ops']}")
     
     # Check for necessary bandwidth adjustements for the add stream

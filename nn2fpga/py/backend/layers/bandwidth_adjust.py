@@ -5,7 +5,7 @@ import qonnx
 from onnx import numpy_helper
 import numpy as np
 
-def parse(name, node, adjust_name, in_ops, adjust_ops, dim="i"):
+def parse(name, node, adjust_name, in_ops, adjust_ops, ow_ops, dim="i"):
     
     node_name = "bandwidth_adjust_%s" % adjust_name
     input_name = adjust_name
@@ -39,7 +39,7 @@ def parse(name, node, adjust_name, in_ops, adjust_ops, dim="i"):
 
     # TODO: write the type declaration
     block["defines"] = {}
-    output_type = "t_%s" % output_type_name
+    block["defines"]["t_%s" % output_name] = ["type", "t_%s" % input_name.replace("_skip", "")]
     output_ops = node[adjust_ops]
     output_vector_type = "std::array<t_%s, %0d>" % (input_name.replace("_skip", ""), output_ops)
     block["defines"]["t_%s_vector" % output_name] = ["type", output_vector_type]
@@ -51,8 +51,8 @@ def parse(name, node, adjust_name, in_ops, adjust_ops, dim="i"):
     block["defines"]["c_%s_%sch" % (node_name, dim)] = ["const", node["%sch" % dim]]
     block["defines"]["c_%s_%sh" % (node_name, dim)] = ["const", node["%sh" % dim]]
     block["defines"]["c_%s_%sw" % (node_name, dim)] = ["const", node["%sw" % dim]]
-    block["defines"]["c_%s_ow_ops_in" % (node_name)] = ["const", node["ow_ops_in"]]
-    block["defines"]["c_%s_ow_ops" % (node_name)] = ["const", node["ow_ops"]]
+    block["defines"]["c_%s_ow_ops_in" % (node_name)] = ["const", node["%s_in" % ow_ops]]
+    block["defines"]["c_%s_ow_ops" % (node_name)] = ["const", node["%s" % ow_ops]]
     block["defines"]["c_%s_old_in_ops" % node_name] = ["const", old_in_ops]
     block["defines"]["c_%s_in_ops" % node_name] = ["const", output_ops]
 
