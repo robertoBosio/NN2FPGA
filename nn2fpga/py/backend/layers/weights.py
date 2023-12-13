@@ -987,6 +987,11 @@ def parse_all(io_dict, prj_root="/tmp", board="KRIA", uram_storage = False):
         if not layer["is_bias"]:
             io_dict[layer["name"]]["uram_storage"] = layer["uram_storage"]
 
+    for name, node in io_dict.items():
+
+        if ('const' == node["type"]) and node["dynamic_init"]:
+            dynamic_init = True
+
     if dynamic_init:
         parsed_write.append(add_uram_layer())
 
