@@ -39,13 +39,18 @@ def find_divisors(layers_info):
         offset = offset + divisors
     return all_divisors, layers_divisors, layers_offset
 
-def generate_valid_combinations(och, ich):
-    """ Generate valid combinations of parallelization over ich and och """
-    combinations = []
-    divisors = lambda n: [i for i in range(1, n + 1) if n % i == 0]
-    for div_och in divisors(och):
-        for div_ich in divisors(ich):
-            combinations.append((div_och, div_ich))
+def generate_valid_parallelism(och, ich, iw, och_clip=2**10, ich_clip=2**10, iw_clip=2**10, op_clip=2**20):
+    """ Generate valid combinations of parallelization over ich, och and ow """
+    combinations = set()
+
+    def divisors(n, clip):
+        return [i for i in range(1, n + 1) if (n % i == 0 and i <= clip)]
+    
+    for div_och in divisors(och, och_clip):
+        for div_ich in divisors(ich, ich_clip):
+            for div_iw in divisors(iw, iw_clip):
+                if (div_och * div_ich * div_iw <= op_clip):
+                    combinations.add(div_och * div_ich * div_iw)
     return combinations 
 
 def generate_valid_combinations(och, ich, iw, och_clip=2**10, ich_clip=2**10, iw_clip=2**10, op_clip=2**20):
@@ -60,8 +65,6 @@ def generate_valid_combinations(och, ich, iw, och_clip=2**10, ich_clip=2**10, iw
             for div_iw in divisors(iw, iw_clip):
                 if (div_och * div_ich * div_iw <= op_clip):
                     combinations.append((div_och, div_ich, div_iw))
-                else:
-                    print(f"Removed combination: {div_och} {div_ich} {div_iw} {div_och * div_ich * div_iw} > {op_clip}")
     return combinations 
 
 def find_range(divisors, ilp_value):
