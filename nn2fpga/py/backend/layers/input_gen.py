@@ -163,7 +163,7 @@ def parse(name, node):
     declare["name"] = "s_%s" % output_name
     declare["type"] = "t_%s_struct" % output_name
     declare["is_array"] = True
-    declare["dim"] = node["ow_ops"]
+    declare["dim"] = node["ow_ops_out"]
     block["declare"].append(declare)
 
     block["pragma"] = []
