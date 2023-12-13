@@ -4,7 +4,7 @@
 #ifndef __SYNTHESIS__
 // #define DEBUG
 // #define DEBUG_CONV
-// #define DEBUG_RES
+#define DEBUG_RES
 // #define DEBUG_WEIGHTS
 // #define DEBUG_ACT
 // #define DEBUG_ACC
