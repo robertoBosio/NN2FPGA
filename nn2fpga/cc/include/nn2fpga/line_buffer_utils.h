@@ -254,6 +254,7 @@ void shift_op(hls::stream<din_t> &din, hls::stream<dcomp_t> &o_compute,
     std::cout << "shift_op " << ICH << " " << IW << " " << IH << " " << c_ops << " " << c_ops_out << " " << c_ow_ops << std::endl;
     std::cout << c_strh << " " << c_strw << " " << c_paddingh_shift << " " << c_paddingw_shift << " " << c_end_paddingh_shift << " " << c_end_paddingw_shift << std::endl;
     std::cout << c_starth << " " << c_startw << " " << c_strw_adj << " " << c_str_adj << std::endl;
+    std::cout << "din.size() " << din.size() << std::endl;
   #endif
 
   for (auto s_index_h = c_starth; s_index_h < IH; s_index_h++) {

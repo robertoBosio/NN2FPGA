@@ -119,6 +119,7 @@ def info(io_dict, node, node_name, init_info, tensors_info):
     io_dict[node_name]["in_ops"] = 1
     io_dict[node_name]["ich_ops"] = 1
     io_dict[node_name]["ow_ops"] = 1
+    io_dict[node_name]["ow_ops_out"] = 1
     io_dict[node_name]["weights_name"] = [weight_name]
     io_dict[node_name]["merge_1x1"] = False
     io_dict[node_name]["has_bias"] = False 
@@ -261,6 +262,7 @@ def parse_comp(name, node):
     else:
         block["template"].append("1")
     block["template"].append("c_%s_ow_ops" % name)
+    block["template"].append("c_%s_ow_ops_out" % name)
     block["template"].append("c_%s_relu" % name)
     block["template"].append("c_%s_reuse" % name)
     block["template"].append("c_%s_ow_pack" % name)
@@ -505,6 +507,7 @@ def parse_comp(name, node):
     block["defines"]["c_%s_index" % name]          = ["const", node["kernel"]]
     block["defines"]["c_%s_reuse" % name]          = ["const", node["reuse"]]
     block["defines"]["c_%s_ow_ops" % name]         = ["const", node["ow_ops"]]
+    block["defines"]["c_%s_ow_ops_out" % name]     = ["const", node["ow_ops_out"]]
     block["defines"]["c_%s_ow_pack" % name]        = ["const", node["ow_pack"]]
     block["defines"]["c_%s_och_pack" % name]       = ["const", node["och_pack"]]
     if (node["has_forward"]):

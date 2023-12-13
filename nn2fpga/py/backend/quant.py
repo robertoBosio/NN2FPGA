@@ -106,11 +106,6 @@ def hw_quant(model, io_dict):
                 #     ow_ops_partial = 1
                 ow_ops_partial = io_dict[layer_out_name]["ow_ops"]
                 
-                if io_dict[layer_in_name]["type"] == "produce":
-                    io_dict[layer_in_name]["ow_ops"] = ow_ops_partial
-                else:
-                    io_dict[layer_in_name]["ow_ops_out"] = ow_ops_partial
-                 
                 # Admitting packing on ow only if the number of ops is a multiple
                 # of the packing factor
                 bits_packing = 16 // bits0

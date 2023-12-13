@@ -99,6 +99,10 @@ def generate_architectures(layers_info, NUM_DSP):
         max_ich_par = layer["ich"]
         max_iw_par = layer["iw"]
         
+        # Clip max_iw_par to 8
+        if (max_iw_par > 2):
+            max_iw_par = 2
+
         # Depthwise convolutions cannot be parallelized on output channel.
         if (layer["depth"] or layer["type"] == "pool"):
             max_och_par = 1
@@ -528,10 +532,12 @@ def ilp(io_dict, off_chip_storage, model, board="ULTRA96v2", double_packing=True
             io_dict[node_name]["ops"] = ops[1]
             io_dict[node_name]["ich_ops"] = ops[0]
             io_dict[node_name]["ow_ops"] = ops[2]
+            io_dict[node_name]["ow_ops_out"] = ops[2]
         else:
             io_dict[node_name]["ops"] = ops[0]
             io_dict[node_name]["ich_ops"] = ops[1]
             io_dict[node_name]["ow_ops"] = ops[2]
+            io_dict[node_name]["ow_ops_out"] = ops[2]
             io_dict[node_name]["ops_1x1"] = ops[0]
             io_dict[node_name]["dp"] = False
 
@@ -581,6 +587,36 @@ def ilp(io_dict, off_chip_storage, model, board="ULTRA96v2", double_packing=True
                 io_dict[output_node_name]["in_ops"] = ops
                 io_dict[output_node_name]["ow_ops_in"] = ow_ops
 
+    print("#### Propagating ops and ow_ops to input nodes")
+    for name, node in io_dict.items():
+        if "ops" in node:
+            input_name = io_dict[name]["input"][0]
+            print(f"Propagating ops and ow_ops to {input_name}")
+
+            # Check if the input tensor is an input of the model
+            # If it is, skip it
+            is_model_input = False
+            for input_graph_name in model.graph.input:
+                input_graph_name = input_graph_name.name.replace(".", "_")
+                if input_graph_name == input_name:
+                    is_model_input = True
+            
+            if is_model_input:
+                continue
+
+            input_node_name = io_connect[input_name][0][0]
+            ops = node["ops"]
+            ow_ops = node["ow_ops"]
+            if "depth" in node:
+                if node["depth"]:
+                    ops = node["ich_ops"]
+            io_dict[input_node_name]["out_ops"] = ops
+            if ow_ops > io_dict[input_node_name]["ow_ops_out"]:
+                print(f"Updating for {input_node_name} ow_ops {ow_ops}")
+                io_dict[input_node_name]["ow_ops_out"] = ow_ops
+            print(f"Node {input_node_name} ow_ops_out {io_dict[input_node_name]['ow_ops_out']} ow_ops {ow_ops}")
+
+    print("##################################################")
     # for name, node in io_dict.items():
     #     if "in_ops" not in node:
     #         node["in_ops"] = 1

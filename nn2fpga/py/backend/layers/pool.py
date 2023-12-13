@@ -68,6 +68,7 @@ def info(io_dict, node, node_name, init_info, tensors_info):
     io_dict[node_name]["actbits"] = []
     io_dict[node_name]["actsigned"] = []
     io_dict[node_name]["ow_ops"] = 1
+    io_dict[node_name]["ow_ops_out"] = 1
     io_dict[node_name]["ops"] = 1
     io_dict[node_name]["in_ops"] = 1
     io_dict[node_name]["ich_ops"] = 1
