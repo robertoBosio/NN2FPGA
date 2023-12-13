@@ -160,35 +160,66 @@ void bandwidth_adjust(
   din_t s_read[c_ow_ops_in][c_ops_out];
 
   /* Loop on all the tensor with windows of dimension c_ow_ops_in*/
-  for (auto s_index = 0; s_index < IH * IW * ICH;
-      s_index += c_ops_out * c_ow_ops_in) {
+  for (auto s_index = 0; s_index < IH * IW;
+      s_index += c_ow_ops_in) {
   
-      /* Loop over the packets in the ICH dimension */
-    for (auto s_i = 0; s_i < c_ops_out; s_i += c_ops_in) {
-#pragma HLS pipeline style = stp II = 1
+    /* Loop over the streams in input*/
+    // The previous convolution writes the data in opposite order
+    // because of the line buffer so they must be reordered accordingly
+    // for (auto s_ow_ops_in = c_ow_ops_in-c_ow_ops_out; s_ow_ops_in > -1; s_ow_ops_in -= c_ow_ops_out) {
+    for (auto s_ow_ops_in = 0; s_ow_ops_in < c_ow_ops_in; s_ow_ops_in += c_ow_ops_out) {
 
-      /* Loop over the streams in input*/
-      for (auto s_ow_ops_in = 0; s_ow_ops_in < c_ow_ops_in; s_ow_ops_in += c_ow_ops_out) {
+      /* Loop over the ICH dimension */
+      for (auto s_ich = 0; s_ich < ICH; s_ich += c_ops_out) {
 
-        /* Loop over c_ow_ops_out stream in input in parallel */
-        for (auto s_ow_ops_out = 0; s_ow_ops_out < c_ow_ops_out; s_ow_ops_out++) {
+        /* Loop over the packets in the ICH dimension */
+        for (auto s_i = 0; s_i < c_ops_out; s_i += c_ops_in) {
+    #pragma HLS pipeline style = stp II = 1
 
-          s_read[s_ow_ops_in][s_i] = din[s_ow_ops_in + s_ow_ops_out].read();
-          /* Loop over the c_ops_in packet inside a c_ops_out one */
-          for (auto s_j = 0; s_j < c_ops_in; s_j++) {
+          /* Loop over c_ow_ops_out stream in input in parallel */
+          // for (auto s_ow_ops_out = c_ow_ops_out - 1; s_ow_ops_out > -1; s_ow_ops_out--) {
+          for (auto s_ow_ops_out = 0; s_ow_ops_out < c_ow_ops_out; s_ow_ops_out++) {
 
-            s_write[s_ow_ops_out].data[0][s_i+s_j] = s_read[s_ow_ops_in][s_i].data[0][s_j];
+            // Select the input stream to read from
+            auto s_i_read = s_ow_ops_in + s_ow_ops_out;
+            s_read[s_i_read][s_i] = din[s_i_read].read();
+            /* Loop over the c_ops_in packet inside a c_ops_out one */
+            for (auto s_j = 0; s_j < c_ops_in; s_j++) {
+
+              s_write[s_ow_ops_out].data[0][s_i+s_j] = s_read[s_i_read][s_i].data[0][s_j];
+            }
+
+            // If the packet is finished then write it
+            if (s_i == (c_ops_out - c_ops_in))
+              o_data[s_ow_ops_out].write(s_write[s_ow_ops_out]);
+
           }
 
-          // If the packet is finished then write it
-          if (s_i == (c_ops_out - c_ops_in))
-            o_data[s_ow_ops_out].write(s_write[s_ow_ops_out]);
-
         }
-
       }
     }
   }
+  #ifndef __SYNTHESIS__
+    // Check that all the input streams are empty
+    for (auto s_i = 0; s_i < c_ow_ops_in; s_i++) {
+      if (din[s_i].size() > 0) {
+        std::cout << "#### Not empty input stream" << std::endl;
+        std::cout << "din[" << s_i << "] = " << din[s_i].size() << std::endl;
+      }
+      assert (din[s_i].size() == 0);
+    }
+    // Check that all the output streams are not empty
+    for (auto s_i = 0; s_i < c_ow_ops_out; s_i++) {
+      if (o_data[s_i].size() == 0) {
+        std::cout << "#### Empty output stream" << std::endl;
+        std::cout << "o_data[" << s_i << "] = " << o_data[s_i].size() << std::endl;
+      }
+      assert (o_data[s_i].size() > 0);
+    }
+    std::cout << "end bandwidth_adjust " << ICH << " " << c_ops_in << " "
+              << c_ow_ops_in << " " << c_ops_out << " " << c_ow_ops_out
+              << std::endl;
+  #endif
 }
 
 template <typename din_t, typename dcomp_t, typename dout_t, int ICH, int OCH, int IH, int IW, int OH, int OW,

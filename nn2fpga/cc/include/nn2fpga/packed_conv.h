@@ -652,6 +652,15 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
             s_input = s_input_struct.data;
             /* Sending last only at the bottom right data */
             s_last = s_input_struct.last;
+            #ifndef __SYNTHESIS__
+              #ifdef DEBUG_INPUT
+                for (auto s_index = 0; s_index < c_fh*FW; s_index++) {
+                  for (auto s_log_ich = 0; s_log_ich < c_in_ops; s_log_ich++) {
+                    std::cout << "input[" << s_index << "][" << s_log_ich << "]" << " " << s_input[s_index][s_log_ich] << std::endl;
+                  }
+                }
+              #endif
+            #endif
           }
 
             /* Buffering to speed up computations */
