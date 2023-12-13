@@ -559,7 +559,7 @@ def parse_comp(name, node):
     declare["name"] = "s_%s" % output_name
     declare["type"] = "t_%s_struct" % output_name
     declare["is_array"] = True
-    declare["dim"] = node["ow_ops"]
+    declare["dim"] = node["ow_ops_out"]
     block["declare"].append(declare)
 
 
@@ -568,7 +568,7 @@ def parse_comp(name, node):
         declare["name"] = "s_%s" % output_1x1_name
         declare["type"] = "t_%s_struct" % output_1x1_name
         declare["is_array"] = True
-        declare["dim"] = node["ow_ops"]
+        declare["dim"] = node["ow_ops_out"]
         block["declare"].append(declare)
 
     if (node["has_forward"]):
