@@ -135,7 +135,7 @@ void bandwidth_adjust(
  * by reading enough c_ops_in packet to create a c_ops_out one */
 template <typename din_t, typename dout_t, int ICH, int IH, int IW,
           int c_ow_ops_in, int c_ow_ops_out, int c_ops_in, int c_ops_out> 
-void bandwidth_adjust(
+void bandwidth_adjust_down(
   hls::stream<din_t> din[c_ow_ops_in],
   hls::stream<dout_t> o_data[c_ow_ops_out]
 ) {
@@ -143,17 +143,6 @@ void bandwidth_adjust(
   static_assert(c_ow_ops_in >= c_ow_ops_out, "c_ow_ops_in is not bigger than c_ow_ops_out");
   static_assert(c_ops_out % c_ops_in == 0, "c_ops_out is not a multiple of c_ops_in");
   static_assert(c_ops_out >= c_ops_in, "c_ops_out is not bigger than c_ops_in");
-
-  
-#ifndef __SYNTHESIS__
-  // Printing stuff to debug
-  std::cout << "bandwidth_adjust " << ICH << " " << c_ops_in << " "
-            << c_ow_ops_in << " " << c_ops_out << " " << c_ow_ops_out
-            << std::endl;
-  for (auto s_i = 0; s_i < c_ow_ops_in; s_i++) {
-    std::cout << "din[" << s_i << "] = " << din[s_i].size() << std::endl;
-  }
-#endif
 
   constexpr int c_ich_iter = ICH / c_ops_in;
   dout_t s_write[c_ow_ops_out];
@@ -199,27 +188,109 @@ void bandwidth_adjust(
       }
     }
   }
-  #ifndef __SYNTHESIS__
-    // Check that all the input streams are empty
-    for (auto s_i = 0; s_i < c_ow_ops_in; s_i++) {
-      if (din[s_i].size() > 0) {
-        std::cout << "#### Not empty input stream" << std::endl;
-        std::cout << "din[" << s_i << "] = " << din[s_i].size() << std::endl;
+}
+
+template <typename din_t, typename dout_t, int ICH, int IH, int IW,
+          int c_ow_ops_in, int c_ow_ops_out, int c_ops_in, int c_ops_out> 
+void bandwidth_adjust_up(
+  hls::stream<din_t> din[c_ow_ops_in],
+  hls::stream<dout_t> o_data[c_ow_ops_out]
+) {
+  static_assert(c_ow_ops_out % c_ow_ops_in == 0, "c_ow_ops_out is not a multiple of c_ow_ops_in");
+  static_assert(c_ow_ops_out >= c_ow_ops_in, "c_ow_ops_out is not bigger than c_ow_ops_in");
+  static_assert(c_ops_out % c_ops_in == 0, "c_ops_out is not a multiple of c_ops_in");
+  static_assert(c_ops_out >= c_ops_in, "c_ops_out is not bigger than c_ops_in");
+
+  constexpr int c_ich_iter = ICH / c_ops_in;
+  dout_t s_write[c_ow_ops_out];
+  din_t s_read[c_ow_ops_in][c_ops_out];
+
+  /* Loop on all the tensor with windows of dimension c_ow_ops_in*/
+  for (auto s_index = 0; s_index < IH * IW;
+      s_index += c_ow_ops_out) {
+  
+    /* Loop over the streams in input*/
+    // The previous convolution writes the data in opposite order
+    // because of the line buffer so they must be reordered accordingly
+    /* Loop over the ICH dimension */
+    for (auto s_ich = 0; s_ich < ICH; s_ich += c_ops_out) {
+
+      for (auto s_ow_ops_out = 0; s_ow_ops_out < c_ow_ops_out; s_ow_ops_out += c_ow_ops_in) {
+
+        /* Loop over the packets in the ICH dimension */
+        for (auto s_i = 0; s_i < c_ops_out; s_i += c_ops_in) {
+    #pragma HLS pipeline style = stp II = 1
+
+          /* Loop over c_ow_ops_out stream in input in parallel */
+          for (auto s_ow_ops_in = 0; s_ow_ops_in < c_ow_ops_in; s_ow_ops_in++) {
+
+            auto s_i_write = s_ow_ops_out + s_ow_ops_in;
+            // Select the input stream to read from
+            s_read[s_ow_ops_in][s_i] = din[s_ow_ops_in].read();
+            /* Loop over the c_ops_in packet inside a c_ops_out one */
+            for (auto s_j = 0; s_j < c_ops_in; s_j++) {
+
+              s_write[s_i_write].data[0][s_i+s_j] = s_read[s_ow_ops_in][s_i].data[0][s_j];
+            }
+
+            // If the packet is finished then write it
+            if (s_i == (c_ops_out - c_ops_in))
+              o_data[s_i_write].write(s_write[s_i_write]);
+
+          }
+
+        }
       }
-      assert (din[s_i].size() == 0);
     }
-    // Check that all the output streams are not empty
-    for (auto s_i = 0; s_i < c_ow_ops_out; s_i++) {
-      if (o_data[s_i].size() == 0) {
-        std::cout << "#### Empty output stream" << std::endl;
-        std::cout << "o_data[" << s_i << "] = " << o_data[s_i].size() << std::endl;
-      }
-      assert (o_data[s_i].size() > 0);
+  }
+}
+template <typename din_t, typename dout_t, int ICH, int IH, int IW,
+          int c_ow_ops_in, int c_ow_ops_out, int c_ops_in, int c_ops_out> 
+void bandwidth_adjust(
+  hls::stream<din_t> din[c_ow_ops_in],
+  hls::stream<dout_t> o_data[c_ow_ops_out]
+) {
+  
+#ifndef __SYNTHESIS__
+  // Printing stuff to debug
+  std::cout << "bandwidth_adjust " << ICH << " " << c_ops_in << " "
+            << c_ow_ops_in << " " << c_ops_out << " " << c_ow_ops_out
+            << std::endl;
+  for (auto s_i = 0; s_i < c_ow_ops_in; s_i++) {
+    std::cout << "din[" << s_i << "] = " << din[s_i].size() << std::endl;
+  }
+#endif
+
+if constexpr(c_ow_ops_in == c_ow_ops_out) {
+  bandwidth_adjust_down<din_t, dout_t, ICH, IH, IW, c_ow_ops_in, c_ow_ops_out, c_ops_in, c_ops_out>(din, o_data);
+} else if constexpr(c_ow_ops_in > c_ow_ops_out) {
+  bandwidth_adjust_down<din_t, dout_t, ICH, IH, IW, c_ow_ops_in, c_ow_ops_out, c_ops_in, c_ops_out>(din, o_data);
+} else if constexpr(c_ow_ops_in < c_ow_ops_out) {
+  bandwidth_adjust_up<din_t, dout_t, ICH, IH, IW, c_ow_ops_in, c_ow_ops_out, c_ops_in, c_ops_out>(din, o_data);
+}
+
+
+#ifndef __SYNTHESIS__
+  // Check that all the input streams are empty
+  for (auto s_i = 0; s_i < c_ow_ops_in; s_i++) {
+    if (din[s_i].size() > 0) {
+      std::cout << "#### Not empty input stream" << std::endl;
+      std::cout << "din[" << s_i << "] = " << din[s_i].size() << std::endl;
     }
-    std::cout << "end bandwidth_adjust " << ICH << " " << c_ops_in << " "
-              << c_ow_ops_in << " " << c_ops_out << " " << c_ow_ops_out
-              << std::endl;
-  #endif
+    assert (din[s_i].size() == 0);
+  }
+  // Check that all the output streams are not empty
+  for (auto s_i = 0; s_i < c_ow_ops_out; s_i++) {
+    if (o_data[s_i].size() == 0) {
+      std::cout << "#### Empty output stream" << std::endl;
+      std::cout << "o_data[" << s_i << "] = " << o_data[s_i].size() << std::endl;
+    }
+    assert (o_data[s_i].size() > 0);
+  }
+  std::cout << "end bandwidth_adjust " << ICH << " " << c_ops_in << " "
+            << c_ow_ops_in << " " << c_ops_out << " " << c_ow_ops_out
+            << std::endl;
+#endif
 }
 
 template <typename din_t, typename dcomp_t, typename dout_t, int ICH, int OCH, int IH, int IW, int OH, int OW,
