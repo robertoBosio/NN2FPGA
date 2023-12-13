@@ -29,7 +29,7 @@ int main(int argc, char** argv) {
  
   /* Images per batch */
   // const unsigned int c_batch = stoi(parser.value("n_images"));
-  const unsigned int c_batch = 2;
+  const unsigned int c_batch = 1;
   /* Bytes per activation data stream */
   const unsigned int c_par = c_inp_1 / ACTIVATION_PARALLELISM;
   /* Bytes per image */

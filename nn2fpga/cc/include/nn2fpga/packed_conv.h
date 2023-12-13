@@ -701,6 +701,13 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
                     if (s_ich >= c_och)
                       continue;
                   s_add[s_ow_ops] = i_add[s_ow_ops].read();   
+                  #ifndef __SYNTHESIS__
+                    #ifdef DEBUG_ADD
+                    for (auto s_ich_idx_add = 0; s_ich_idx_add < c_add_ops; s_ich_idx_add++) {
+                      std::cout << "add[" << s_ow_ops << "][" << s_ich_idx_add << "] " << s_add[s_ow_ops].data[0][s_ich_idx_add] << std::endl;
+                    }
+                    #endif
+                  #endif
                 }
               }
             }
@@ -709,7 +716,8 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
           #pragma HLS array_partition variable = s_input_1x1 type = complete
             for (auto s_ow_ops = 0; s_ow_ops < c_ow_ops; s_ow_ops++) {
               // s_input_1x1[s_ow_ops] = s_input[MO + MO%c_str - s_ow_ops*c_str];
-              s_input_1x1[c_ow_ops - s_ow_ops - 1] = s_input[MO + MO%c_str - s_ow_ops*c_str];
+              auto forward_index = (c_fh/2 + 1)*FW - c_fw/2 - s_ow_ops*c_str;
+              s_input_1x1[c_ow_ops - s_ow_ops - 1] = s_input[forward_index];
             }
 
             COMPUTE:
@@ -840,7 +848,9 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
             for (auto s_ow_ops = 0; s_ow_ops < c_ow_ops; s_ow_ops++) {
               if (s_num_och == (c_num_och - 1)) {
                 t_forward_struct s_forward;
-                s_forward.data[0] = s_input[MO + MO%c_str - s_ow_ops*c_str];
+                // auto forward_index = MO + MO%c_str - s_ow_ops*c_str;
+                auto forward_index = (c_fh/2 + 1)*FW - c_fw/2 - s_ow_ops*c_str;
+                s_forward.data[0] = s_input[forward_index];
                 s_forward.last = false;
                 o_forward[s_ow_ops].write(s_forward);
               }

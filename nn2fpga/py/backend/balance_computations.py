@@ -99,9 +99,9 @@ def generate_architectures(layers_info, NUM_DSP):
         max_ich_par = layer["ich"]
         max_iw_par = layer["iw"]
         
-        # Clip max_iw_par to 8
-        if (max_iw_par > 2):
-            max_iw_par = 2
+        # # Clip max_iw_par to 8
+        if (max_iw_par > 8):
+            max_iw_par = 8
 
         # Depthwise convolutions cannot be parallelized on output channel.
         if (layer["depth"] or layer["type"] == "pool"):
