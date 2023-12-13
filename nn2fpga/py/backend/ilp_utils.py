@@ -60,6 +60,8 @@ def generate_valid_combinations(och, ich, iw, och_clip=2**10, ich_clip=2**10, iw
             for div_iw in divisors(iw, iw_clip):
                 if (div_och * div_ich * div_iw <= op_clip):
                     combinations.append((div_och, div_ich, div_iw))
+                else:
+                    print(f"Removed combination: {div_och} {div_ich} {div_iw} {div_och * div_ich * div_iw} > {op_clip}")
     return combinations 
 
 def find_range(divisors, ilp_value):
