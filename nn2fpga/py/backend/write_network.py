@@ -26,6 +26,7 @@ def write_network(
     uram_storage=False,
     object_detection=False,
     anchors=[],
+    packing=False,
     prj_root="/tmp",
     transform=False
 ):
@@ -65,7 +66,8 @@ def write_network(
         io_dict,
         off_chip_storage,
         inferred_model,
-        board, 
+        board,
+        packing,
         prj_root=prj_root
     )
 
