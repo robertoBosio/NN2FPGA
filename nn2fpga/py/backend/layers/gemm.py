@@ -70,6 +70,7 @@ def info(io_dict, node, node_name, init_info, tensors_info):
     # Reuse is generic
     io_dict[node_name]["reuse"]  = 1
     io_dict[node_name]["ow_ops"]     = 1
+    io_dict[node_name]["ow_ops_out"]     = 1
     io_dict[node_name]["relu"]   = relu
     io_dict[node_name]["add"]    = add
     io_dict[node_name]["scale_factor"] = 0
@@ -84,7 +85,7 @@ def info(io_dict, node, node_name, init_info, tensors_info):
     io_dict[node_name]["actbits"] = []
     io_dict[node_name]["wscale"]  = []
     io_dict[node_name]["actscale"] = []
-    io_dict[node_name]["actsigned"]  = []
+    io_dict[node_name]["actsigned"] = []
     io_dict[node_name]["ops"] = 1
     io_dict[node_name]["in_ops"] = 1
     io_dict[node_name]["ich_ops"] = 1

@@ -32,6 +32,7 @@ def info(io_dict, tensors_info, model, graph_input_name, transform=False):
     io_dict[node_name]["iw"]     = iw
     io_dict[node_name]["ops"]    = 1
     io_dict[node_name]["ow_ops"] = 1
+    io_dict[node_name]["ow_ops_out"] = 1
     io_dict[node_name]["transform"] = transform
 
     return io_dict
@@ -66,7 +67,7 @@ def parse(name, node):
     block["template"].append("c_%s_ich" % name)
     block["template"].append("c_%s_iw" % name)
     block["template"].append("c_%s_ih" % name)
-    block["template"].append("c_%s_ow_ops" % name)
+    block["template"].append("c_%s_ow_ops_out" % name)
     block["template"].append("c_%s" % input_name)
     block["template"].append("c_%s_ops" % name)
     block["template"].append(int(node["transform"]))
@@ -146,6 +147,10 @@ def parse(name, node):
         "const",
         node["ow_ops"]
     ]
+    block["defines"]["c_%s_ow_ops_out" % name] = [
+        "const",
+        node["ow_ops_out"]
+    ]
 
     block["defines"]["c_%s_ops" % name] = [
         "const",
@@ -158,7 +163,7 @@ def parse(name, node):
     declare["name"] = "s_%s" % output_name
     declare["type"] = "t_%s_struct" % output_name
     declare["is_array"] = True
-    declare["dim"] = node["ow_ops"]
+    declare["dim"] = node["ow_ops_out"]
     block["declare"].append(declare)
 
     block["pragma"] = []

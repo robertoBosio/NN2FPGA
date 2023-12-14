@@ -36,7 +36,9 @@ void pool_op(hls::stream<t_input_struct> i_data[c_ow_ops],
 
   #ifndef __SYNTHESIS__
     std::cout << "pool_op " << c_ich << " " << c_ops << " " << c_o_index << std::endl;
-    std::cout << "i_data.size() = " << i_data[0].size() << std::endl;
+    for (auto i = 0; i < c_ow_ops; i++) {
+      std::cout << "i_data[" << i << "].size() = " << i_data[i].size() << std::endl;
+    }
   #endif
   hls::stream<t_acc> s_acc_stream;
 #pragma HLS stream variable = s_acc_stream depth = 2 type = fifo

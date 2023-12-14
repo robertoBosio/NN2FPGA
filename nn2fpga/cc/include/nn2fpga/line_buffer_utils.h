@@ -135,15 +135,121 @@ void bandwidth_adjust(
  * by reading enough c_ops_in packet to create a c_ops_out one */
 template <typename din_t, typename dout_t, int ICH, int IH, int IW,
           int c_ow_ops_in, int c_ow_ops_out, int c_ops_in, int c_ops_out> 
-void bandwidth_adjust(
+void bandwidth_adjust_down(
   hls::stream<din_t> din[c_ow_ops_in],
   hls::stream<dout_t> o_data[c_ow_ops_out]
 ) {
   static_assert(c_ow_ops_in % c_ow_ops_out == 0, "c_ow_ops_in is not a multiple of c_ow_ops_out");
-  static_assert(c_ow_ops_in > c_ow_ops_out, "c_ow_ops_in is not bigger than c_ow_ops_out");
+  static_assert(c_ow_ops_in >= c_ow_ops_out, "c_ow_ops_in is not bigger than c_ow_ops_out");
   static_assert(c_ops_out % c_ops_in == 0, "c_ops_out is not a multiple of c_ops_in");
-  static_assert(c_ops_out > c_ops_in, "c_ops_out is not bigger than c_ops_in");
+  static_assert(c_ops_out >= c_ops_in, "c_ops_out is not bigger than c_ops_in");
 
+  constexpr int c_ich_iter = ICH / c_ops_in;
+  dout_t s_write[c_ow_ops_out];
+  din_t s_read[c_ow_ops_in][c_ops_out];
+
+  /* Loop on all the tensor with windows of dimension c_ow_ops_in*/
+  for (auto s_index = 0; s_index < IH * IW;
+      s_index += c_ow_ops_in) {
+  
+    /* Loop over the streams in input*/
+    // The previous convolution writes the data in opposite order
+    // because of the line buffer so they must be reordered accordingly
+    // for (auto s_ow_ops_in = c_ow_ops_in-c_ow_ops_out; s_ow_ops_in > -1; s_ow_ops_in -= c_ow_ops_out) {
+    for (auto s_ow_ops_in = 0; s_ow_ops_in < c_ow_ops_in; s_ow_ops_in += c_ow_ops_out) {
+
+      /* Loop over the ICH dimension */
+      for (auto s_ich = 0; s_ich < ICH; s_ich += c_ops_out) {
+
+        /* Loop over the packets in the ICH dimension */
+        for (auto s_i = 0; s_i < c_ops_out; s_i += c_ops_in) {
+    #pragma HLS pipeline style = stp II = 1
+
+          /* Loop over c_ow_ops_out stream in input in parallel */
+          // for (auto s_ow_ops_out = c_ow_ops_out - 1; s_ow_ops_out > -1; s_ow_ops_out--) {
+          for (auto s_ow_ops_out = 0; s_ow_ops_out < c_ow_ops_out; s_ow_ops_out++) {
+
+            // Select the input stream to read from
+            auto s_i_read = s_ow_ops_in + s_ow_ops_out;
+            s_read[s_i_read][s_i] = din[s_i_read].read();
+            /* Loop over the c_ops_in packet inside a c_ops_out one */
+            for (auto s_j = 0; s_j < c_ops_in; s_j++) {
+
+              s_write[s_ow_ops_out].data[0][s_i+s_j] = s_read[s_i_read][s_i].data[0][s_j];
+            }
+
+            // If the packet is finished then write it
+            if (s_i == (c_ops_out - c_ops_in))
+              o_data[s_ow_ops_out].write(s_write[s_ow_ops_out]);
+
+          }
+
+        }
+      }
+    }
+  }
+}
+
+template <typename din_t, typename dout_t, int ICH, int IH, int IW,
+          int c_ow_ops_in, int c_ow_ops_out, int c_ops_in, int c_ops_out> 
+void bandwidth_adjust_up(
+  hls::stream<din_t> din[c_ow_ops_in],
+  hls::stream<dout_t> o_data[c_ow_ops_out]
+) {
+  static_assert(c_ow_ops_out % c_ow_ops_in == 0, "c_ow_ops_out is not a multiple of c_ow_ops_in");
+  static_assert(c_ow_ops_out >= c_ow_ops_in, "c_ow_ops_out is not bigger than c_ow_ops_in");
+  static_assert(c_ops_out % c_ops_in == 0, "c_ops_out is not a multiple of c_ops_in");
+  static_assert(c_ops_out >= c_ops_in, "c_ops_out is not bigger than c_ops_in");
+
+  constexpr int c_ich_iter = ICH / c_ops_in;
+  dout_t s_write[c_ow_ops_out];
+  din_t s_read[c_ow_ops_in][c_ops_out];
+
+  /* Loop on all the tensor with windows of dimension c_ow_ops_in*/
+  for (auto s_index = 0; s_index < IH * IW;
+      s_index += c_ow_ops_out) {
+  
+    /* Loop over the streams in input*/
+    // The previous convolution writes the data in opposite order
+    // because of the line buffer so they must be reordered accordingly
+    /* Loop over the ICH dimension */
+    for (auto s_ich = 0; s_ich < ICH; s_ich += c_ops_out) {
+
+      for (auto s_ow_ops_out = 0; s_ow_ops_out < c_ow_ops_out; s_ow_ops_out += c_ow_ops_in) {
+
+        /* Loop over the packets in the ICH dimension */
+        for (auto s_i = 0; s_i < c_ops_out; s_i += c_ops_in) {
+    #pragma HLS pipeline style = stp II = 1
+
+          /* Loop over c_ow_ops_out stream in input in parallel */
+          for (auto s_ow_ops_in = 0; s_ow_ops_in < c_ow_ops_in; s_ow_ops_in++) {
+
+            auto s_i_write = s_ow_ops_out + s_ow_ops_in;
+            // Select the input stream to read from
+            s_read[s_ow_ops_in][s_i] = din[s_ow_ops_in].read();
+            /* Loop over the c_ops_in packet inside a c_ops_out one */
+            for (auto s_j = 0; s_j < c_ops_in; s_j++) {
+
+              s_write[s_i_write].data[0][s_i+s_j] = s_read[s_ow_ops_in][s_i].data[0][s_j];
+            }
+
+            // If the packet is finished then write it
+            if (s_i == (c_ops_out - c_ops_in))
+              o_data[s_i_write].write(s_write[s_i_write]);
+
+          }
+
+        }
+      }
+    }
+  }
+}
+template <typename din_t, typename dout_t, int ICH, int IH, int IW,
+          int c_ow_ops_in, int c_ow_ops_out, int c_ops_in, int c_ops_out> 
+void bandwidth_adjust(
+  hls::stream<din_t> din[c_ow_ops_in],
+  hls::stream<dout_t> o_data[c_ow_ops_out]
+) {
   
 #ifndef __SYNTHESIS__
   // Printing stuff to debug
@@ -155,35 +261,36 @@ void bandwidth_adjust(
   }
 #endif
 
-  dout_t s_write[c_ow_ops_in];
+if constexpr(c_ow_ops_in == c_ow_ops_out) {
+  bandwidth_adjust_down<din_t, dout_t, ICH, IH, IW, c_ow_ops_in, c_ow_ops_out, c_ops_in, c_ops_out>(din, o_data);
+} else if constexpr(c_ow_ops_in > c_ow_ops_out) {
+  bandwidth_adjust_down<din_t, dout_t, ICH, IH, IW, c_ow_ops_in, c_ow_ops_out, c_ops_in, c_ops_out>(din, o_data);
+} else if constexpr(c_ow_ops_in < c_ow_ops_out) {
+  bandwidth_adjust_up<din_t, dout_t, ICH, IH, IW, c_ow_ops_in, c_ow_ops_out, c_ops_in, c_ops_out>(din, o_data);
+}
 
-  /* Loop on all the tensor with windows of dimension c_ow_ops_in*/
-  for (auto s_index = 0; s_index < IH * IW * ICH;
-       s_index += c_ops_out * c_ow_ops_in) {
-    
-    /* Loop over the streams in input*/
-    for (auto s_ow_ops_in = 0; s_ow_ops_in < c_ow_ops_in; s_ow_ops_in += c_ow_ops_out) {
 
-      /* Loop over the packets in the ICH dimension */
-      for (auto s_i = 0; s_i < c_ops_out; s_i += c_ops_in) {
-#pragma HLS pipeline style = stp II = 1
-
-        /* Loop over the c_ops_in packet inside a c_ops_out one */
-        for (auto s_j = 0; s_j < c_ops_in; s_j++) {
-#pragma HLS unroll
-
-          /* Loop over c_ow_ops_out stream in input in parallel */
-          for (auto s_ow_ops_out = 0; s_ow_ops_out < c_ow_ops_out;
-               s_ow_ops_out++) {
-            din_t s_read = din[s_ow_ops_in + s_ow_ops_out].read();
-            s_write[s_ow_ops_out].data[0][s_i + s_j] = read_data;
-          }
-
-          o_data[s_ow_ops_out].write(s_write[s_i]);
-        }
-      }
+#ifndef __SYNTHESIS__
+  // Check that all the input streams are empty
+  for (auto s_i = 0; s_i < c_ow_ops_in; s_i++) {
+    if (din[s_i].size() > 0) {
+      std::cout << "#### Not empty input stream" << std::endl;
+      std::cout << "din[" << s_i << "] = " << din[s_i].size() << std::endl;
     }
+    assert (din[s_i].size() == 0);
   }
+  // Check that all the output streams are not empty
+  for (auto s_i = 0; s_i < c_ow_ops_out; s_i++) {
+    if (o_data[s_i].size() == 0) {
+      std::cout << "#### Empty output stream" << std::endl;
+      std::cout << "o_data[" << s_i << "] = " << o_data[s_i].size() << std::endl;
+    }
+    assert (o_data[s_i].size() > 0);
+  }
+  std::cout << "end bandwidth_adjust " << ICH << " " << c_ops_in << " "
+            << c_ow_ops_in << " " << c_ops_out << " " << c_ow_ops_out
+            << std::endl;
+#endif
 }
 
 template <typename din_t, typename dcomp_t, typename dout_t, int ICH, int OCH, int IH, int IW, int OH, int OW,
@@ -249,6 +356,7 @@ void shift_op(hls::stream<din_t> &din, hls::stream<dcomp_t> &o_compute,
     std::cout << "shift_op " << ICH << " " << IW << " " << IH << " " << c_ops << " " << c_ops_out << " " << c_ow_ops << std::endl;
     std::cout << c_strh << " " << c_strw << " " << c_paddingh_shift << " " << c_paddingw_shift << " " << c_end_paddingh_shift << " " << c_end_paddingw_shift << std::endl;
     std::cout << c_starth << " " << c_startw << " " << c_strw_adj << " " << c_str_adj << std::endl;
+    std::cout << "din.size() " << din.size() << std::endl;
   #endif
 
   for (auto s_index_h = c_starth; s_index_h < IH; s_index_h++) {
@@ -269,7 +377,14 @@ void shift_op(hls::stream<din_t> &din, hls::stream<dcomp_t> &o_compute,
           s_compute_write &= (s_index_h_str == (c_strh));
           s_compute_write &= (s_index_w_str == (c_strw));
 
-
+          #ifndef __SYNTHESIS__
+            if (c_ow_ops == IW) {
+              // print s_compute_write sub-conditions
+              std::cout << (s_index_h >= c_paddingh_shift) << " " << (s_index_h < (IH - c_end_paddingh_shift)) << " " << (s_index_w >= c_paddingw_shift) << " " << (s_index_w < (IW - c_end_paddingw_shift)) << " " << (s_index_h_str == (c_strh)) << " " << (s_index_w_str == (c_strw)) << std::endl;
+              std::cout << "s_index_h " << s_index_h << " s_index_w " << s_index_w << " s_index_ich " << s_index_ich << " s_index_read " << s_index_read << std::endl;
+              std::cout << "s_compute_write " << s_compute_write << std::endl;
+            }
+          #endif
           for (auto s_index_ops = 0; s_index_ops < c_ops_out; s_index_ops++) {
             s_output.data[0][s_index_ops] = s_input.data[0][s_index_read+s_index_ops];
           }
@@ -287,11 +402,20 @@ void shift_op(hls::stream<din_t> &din, hls::stream<dcomp_t> &o_compute,
         std::cout << "din.size() " << din.size() << std::endl;
       }
       assert (din.size() == 0);
-      if (o_compute.size() == 0) {
-        std::cout << "#### Empty compute stream" << std::endl;
-        std::cout << "o_compute.size() " << o_compute.size() << std::endl;
+      if constexpr(std::is_same<dout_t, std::nullptr_t>::value == false) {
+        if (o_data.size() == 0) {
+          std::cout << "#### Empty compute stream" << std::endl;
+          std::cout << "o_data.size() " << o_data.size() << std::endl;
+        }
+        assert (o_data.size() > 0);
+      } 
+      if ((IW != c_ow_ops)) {
+        if (o_compute.size() == 0) {
+          std::cout << "#### Empty compute stream" << std::endl;
+          std::cout << "o_compute.size() " << o_compute.size() << std::endl;
+        }
+        assert (o_compute.size() > 0);
       }
-      assert (o_compute.size() > 0);
       std::cout << "end shift_op " << ICH << " " << c_ops << " " << c_ops_out << std::endl;
   #endif
 }

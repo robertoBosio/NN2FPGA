@@ -4,6 +4,7 @@
 #include "ap_int.h"
 #include "hls_math.h"
 #include "hls_stream.h"
+#include "nn2fpga/debug.h"
 
 namespace nn2fpga {
 
@@ -13,22 +14,37 @@ void produce_stream(const din_t din[c_fh * c_fw][OCH * ICH / (c_ops*c_ich_ops)][
                     hls::stream<dout_t> o_data[c_fh * c_fw]) {
   constexpr unsigned FSZ = c_fh * c_fw;
   constexpr unsigned c_ch = ICH * OCH / (c_ops*c_ich_ops);
-  constexpr unsigned c_o_index = OH * OW * c_ch / c_reuse;
+  constexpr unsigned c_o_index = OH * OW / c_reuse;
+
+  #ifndef __SYNTHESIS__
+    std::cout << "produce_stream " << FSZ << " " << c_ch << " " << c_ich_ops << " " << c_ops << std::endl;
+  #endif
 
   for (auto s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
+    for (auto s_ch = 0; s_ch < c_ch; s_ch++) {
 #pragma HLS pipeline
-    auto s_ch = s_o_index % c_ch;
-    for (auto s_index = 0; s_index < FSZ; s_index++) {
-      dout_t s_output;
-      for (auto s_ich_ops = 0; s_ich_ops < c_ich_ops; s_ich_ops++) {
-        for (auto s_ops = 0; s_ops < c_ops; s_ops++) {
-          auto s_ops_index = s_ich_ops * c_ops + s_ops;
-          s_output[s_ich_ops][s_ops] = din[s_index][s_ch][s_ops_index];
+      for (auto s_index = 0; s_index < FSZ; s_index++) {
+        dout_t s_output;
+        for (auto s_ich_ops = 0; s_ich_ops < c_ich_ops; s_ich_ops++) {
+          for (auto s_ops = 0; s_ops < c_ops; s_ops++) {
+            auto s_ops_index = s_ich_ops * c_ops + s_ops;
+            s_output[s_ich_ops][s_ops] = din[s_index][s_ch][s_ops_index];
+            #ifndef __SYNTHESIS__
+              #ifdef DEBUG_WEIGHTS
+                if (s_o_index == 0) {
+                  std::cout << "s_weights[" << s_index << "][" << s_ch << "][" << s_ops_index << "] = " << s_output[s_ich_ops][s_ops] << std::endl;
+                }
+              #endif
+            #endif
+          }
         }
+        o_data[s_index].write(s_output);
       }
-      o_data[s_index].write(s_output);
     }
   }
+  #ifndef __SYNTHESIS__
+    std::cout << "end produce_stream" << std::endl;
+  #endif
 }
 
 template <typename din_t, typename din_stream_t, typename dout_t, int ICH, int OCH, int OW, int OH,
@@ -57,7 +73,9 @@ void produce_stream(din_t din[c_fh * c_fw][OCH * ICH / (c_ops*c_ich_ops)][c_ops*
   s_init = true;
 
   #ifndef __SYNTHESIS__
-    std::cout << "finished init" << std::endl;
+    #ifndef DEBUG_WEIGHTS
+      std::cout << "finished init" << std::endl;
+    #endif
   #endif
 
   for (auto s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
@@ -69,6 +87,13 @@ void produce_stream(din_t din[c_fh * c_fw][OCH * ICH / (c_ops*c_ich_ops)][c_ops*
           for (auto s_ops = 0; s_ops < c_ops; s_ops++) {
             auto s_ops_index = s_ich_ops * c_ops + s_ops;
             s_output[s_ich_ops][s_ops] = din[s_index][s_ch][s_ops_index];
+            #ifndef __SYNTHESIS__
+              #ifdef DEBUG_WEIGHTS
+                if (s_o_index == 0) {
+                  std::cout << "s_weights[" << s_index << "][" << s_ch << "][" << s_ops_index << "] = " << s_output[s_ich_ops][s_ops] << std::endl;
+                }
+              #endif
+            #endif
           }
         }
         o_data[s_index].write(s_output);
@@ -76,6 +101,9 @@ void produce_stream(din_t din[c_fh * c_fw][OCH * ICH / (c_ops*c_ich_ops)][c_ops*
     }
   }
   
+  #ifndef __SYNTHESIS__
+    std::cout << "end produce_stream" << std::endl;
+  #endif
 }
 
 template <typename din_t, typename din_stream_t, typename dout_t, int ICH, int OCH, int OW, int OH,

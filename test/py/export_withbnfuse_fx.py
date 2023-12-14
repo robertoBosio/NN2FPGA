@@ -8,6 +8,8 @@ from models.resnet_brevitas_fx import resnet20
 from models.resnet8 import resnet8
 from models.test_depthwise import QuantizedCifar10Net
 from tiny_torch.benchmark.training_torch.visual_wake_words.vww_torch import MobileNetV1
+from brevitas_examples.imagenet_classification.ptq.ptq_common import calibrate
+from brevitas_examples.imagenet_classification.ptq.ptq_common import apply_gptq
 from tiny_torch.benchmark.training_torch.anomaly_detection.torch_model import Autoencoder
 from utils.preprocess import *
 from brevitas.export import export_onnx_qcdq
@@ -94,7 +96,8 @@ def main():
     #     cudnn.benchmark = True
     #     #print("no cuda")
     
-    if pretrain:
+    # if pretrain:
+    if 0:
         print("#### Loading pretrain model..")
         if pretrain_file != '':
             ckpt = torch.load(pretrain_file, map_location=device)
@@ -120,6 +123,7 @@ def main():
     def train(epoch, criterion, optimizer, best_acc):
         train_loss, correct, total = 0, 0 ,0
 
+        model.train()
         with tqdm(train_loader, unit="batch") as tepoch:
             tepoch.set_description(f"Epoch {epoch}")
             for inputs, targets in tepoch:
@@ -149,6 +153,7 @@ def main():
         # pass
 
         test_loss, correct, total = 0, 0, 0
+        model.eval()
         with torch.no_grad():
             with tqdm(eval_loader, unit="batch") as tepoch:
                 for inputs, targets in tepoch:
@@ -171,7 +176,7 @@ def main():
 
                     postfix["Loss"] = f"{loss.item():.4f}"
 
-                    tepoch.set_postfix(postfix)
+                    tepoch.set_postfix({"Acc": f"{100.0 * correct / total:.2f}%", "Loss": f"{loss.item():.4f}"})
                     if log and tepoch.n == 1:
                         with open(os.path.join(log_dir, 'test_inference.txt'), 'a') as f:
                             # log input and output
@@ -242,6 +247,17 @@ def main():
     criterion = torch.nn.CrossEntropyLoss()
     test(0, criterion, 1, log=False)
 
+    if 1:
+        is_calibrate = True
+        if is_calibrate:
+            calib_dataset, _, _= get_dataset(dataset, sample_size=100)
+            calib_loader = torch.utils.data.DataLoader(calib_dataset, batch_size=1, shuffle=True,
+                                                    num_workers=4)
+            calibrate(calib_loader, model)
+            apply_gptq(calib_loader, model, act_order="")
+            # calibrate(calib_loader, model, True)
+            # test(0, criterion, 1, log=False)
+    
     if(not(pretrain)) :
         print('#### Start from scratch')
         # optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=wd)
@@ -300,19 +316,21 @@ def main():
     if(post_quant) :
         model = calibrate_model(train_loader,model)
     if(val) :
-        test(start_epoch, criterion, best_acc=0)
+        best_acc = test(start_epoch, criterion, best_acc=0)
         print("#### RETRAINING") 
         retrain = 1
         # optimizer = torch.optim.SGD(model.parameters(), lr=0.0001)
-        lr_schedu = optim.lr_scheduler.MultiStepLR(optimizer, [90, 150, 200], gamma=0.1)
+        # lr_schedu = optim.lr_scheduler.MultiStepLR(optimizer, [90, 150, 200], gamma=0.1)
         criterion = torch.nn.CrossEntropyLoss()
-        best_acc = 0
+        if is_calibrate:
+            # optimizer = torch.optim.SGD(model.parameters(), lr=0.0001, momentum=0.9, weight_decay=wd)
+            optimizer = torch.optim.SGD(model.parameters(), lr=0.00005, weight_decay=wd)
         for epoch in range(start_epoch, start_epoch+20): 
             if(not(post_quant)) :
                 best_acc = train(epoch, criterion, optimizer, best_acc)
             else:
                 best_acc = test(epoch, criterion, best_acc)
-            lr_schedu.step(epoch)
+            # lr_schedu.step(epoch)
     print('#### Finished Training.. with best_acc: %f' % (best_acc))
     print('#### Logging data from best checkpoint')
     ckpt = torch.load(os.path.join(ckpt_dir, f'checkpoint_quant_bnfuse_fx.t7'), map_location=device)

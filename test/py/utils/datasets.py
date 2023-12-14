@@ -3,6 +3,7 @@ import torchvision
 from torch.utils.data import Dataset
 from PIL import Image
 import os
+import numpy as np
 import glob
 import random
 from torch.utils.data import Dataset, DataLoader
@@ -33,7 +34,7 @@ class ToyADMOSDataset_test(Dataset):
         return self.data[index], self.labels[index / 196]
 
 class ImageNet(Dataset):
-    def __init__(self, root, train, transform=None):
+    def __init__(self, root, train, transform=None, sample_size=None):
         self.samples = []
         self.targets = []
         self.transform = transform
@@ -54,17 +55,23 @@ class ImageNet(Dataset):
                 sample_path = os.path.join(syn_folder, sample)
                 self.samples.append(sample_path)
                 self.targets.append(class_id)
+        
+        if sample_size is not None:
+            # Randomly sample a subset of the dataset and targets
+            assert len(self.samples) == len(self.targets)
+            indices = np.random.choice(len(self.samples), sample_size, replace=False)
+            self.samples = [self.samples[i] for i in indices]
+            self.targets = [self.targets[i] for i in indices]
 
     def __len__(self):
             return len(self.samples)
     
     def __getitem__(self, idx):
             x = Image.open(self.samples[idx]).convert("RGB")
-            if self.transform:
-                x = self.transform(x)
+            x = self.transform(x)
             return x, self.targets[idx]
 
-def get_dataset(dataset, cifar=10):
+def get_dataset(dataset, cifar=10, sample_size=None):
     print('#### Loading dataset..')
     if dataset == 'cifar10':
 
@@ -151,18 +158,20 @@ def get_dataset(dataset, cifar=10):
         train_dataset = []
     elif dataset == 'imagenet':
         print('#### Selected ImageNet !')
-        IMG_SIZE = 224
+        IMG_SIZE = 256
         BASE_DIR = "/home-ssd/datasets/Imagenet/"
         transforms_sel = imagenet_transform
         train_args = {
             'train': True,
             'transform': transforms_sel(is_training=True, IMAGE_SIZE=IMG_SIZE),
-            'root': BASE_DIR
+            'root': BASE_DIR,
+            'sample_size': sample_size
         }
         val_args = {
             'train': False,
             'transform': transforms_sel(is_training=False, IMAGE_SIZE=IMG_SIZE),
-            'root': BASE_DIR
+            'root': BASE_DIR,
+            'sample_size': None
         }
         dataset = ImageNet
         input_shape = (1, 3, IMG_SIZE, IMG_SIZE)

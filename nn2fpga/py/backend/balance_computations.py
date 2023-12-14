@@ -89,7 +89,7 @@ def generate_architectures(layers_info, NUM_DSP):
         max_och_par = layer["och"]
         max_ich_par = layer["ich"]
         max_iw_par = layer["iw"]
-        
+
         # Depthwise convolutions cannot be parallelized on output channel.
         if (layer["depth"] or layer["type"] == "pool"):
             max_och_par = 1
@@ -734,7 +734,7 @@ def parallel_ops_number(io_dict, packing=True, board="ULTRA96v2", prj_root="/tmp
 
 def ilp(io_dict, off_chip_storage, model, board="ULTRA96v2", packing=True, prj_root="/tmp"):
 
-    parallel_ops = parallel_ops_number(io_dict, packing, board, prj_root=prj_root)
+    parallel_ops = parallel_ops_number(io_dict, packing=True, board=board, prj_root=prj_root)
     io_connect = extract_connections(model, io_dict)
 
     for node_name, ops in parallel_ops.items():
@@ -743,11 +743,15 @@ def ilp(io_dict, off_chip_storage, model, board="ULTRA96v2", packing=True, prj_r
             io_dict[node_name]["ops"] = ops[1]
             io_dict[node_name]["ich_ops"] = ops[0]
             io_dict[node_name]["ow_ops"] = ops[2]
+            io_dict[node_name]["ow_ops_out"] = ops[2]
+            io_dict[node_name]["line_ops"] = ops[0]
         else:
             io_dict[node_name]["ops"] = ops[0]
             io_dict[node_name]["ich_ops"] = ops[1]
             io_dict[node_name]["ow_ops"] = ops[2]
+            io_dict[node_name]["ow_ops_out"] = ops[2]
             io_dict[node_name]["ops_1x1"] = ops[0]
+            io_dict[node_name]["line_ops"] = ops[1]
             io_dict[node_name]["dp"] = False
 
     # Avoid the line buffer to become a bottleneck when there is a mismatch
@@ -765,15 +769,16 @@ def ilp(io_dict, off_chip_storage, model, board="ULTRA96v2", packing=True, prj_r
                     och = 1
             input_dimension = (node["ich"] * node["iw"] * node["ih"] // (ich_ops * node["ow_ops"]))
             pipeline_iterations = (och / och_ops) * (ich / ich_ops) * (node["ow"] / node["ow_ops"]) * node["oh"]
-            line_ops = int(input_dimension // pipeline_iterations)
-            if line_ops == 0:
-                line_ops = 1
-            print(name, input_dimension, pipeline_iterations, node["ich"], node["ich_ops"])
-            if node["ich_ops"] < line_ops:
-                io_dict[name]["line_ops"] = line_ops
-                print(f"#### Changing line_ops for {name} to {line_ops} to avoid bottleneck")
-            else:
-                io_dict[name]["line_ops"] = ich_ops
+            # TODO: check that after initializing line_ops with ich_ops everything works
+            # line_ops = int(input_dimension // pipeline_iterations)
+            # if line_ops == 0:
+            #     line_ops = 1
+            # print(name, input_dimension, pipeline_iterations, node["ich"], node["ich_ops"])
+            # if node["ich_ops"] < line_ops:
+            #     io_dict[name]["line_ops"] = line_ops
+            #     print(f"#### Changing line_ops for {name} to {line_ops} to avoid bottleneck")
+            # else:
+            #     io_dict[name]["line_ops"] = ich_ops
     
     #TODO: Avoiding cycling twice because of pool layers
     # for node_name, ops in parallel_ops.items():
@@ -796,6 +801,36 @@ def ilp(io_dict, off_chip_storage, model, board="ULTRA96v2", packing=True, prj_r
                 io_dict[output_node_name]["in_ops"] = ops
                 io_dict[output_node_name]["ow_ops_in"] = ow_ops
 
+    print("#### Propagating ops and ow_ops to input nodes")
+    for name, node in io_dict.items():
+        if "ops" in node:
+            input_name = io_dict[name]["input"][0]
+            print(f"Propagating ops and ow_ops to {input_name}")
+
+            # Check if the input tensor is an input of the model
+            # If it is, skip it
+            is_model_input = False
+            for input_graph_name in model.graph.input:
+                input_graph_name = input_graph_name.name.replace(".", "_")
+                if input_graph_name == input_name:
+                    is_model_input = True
+            
+            if is_model_input:
+                continue
+
+            input_node_name = io_connect[input_name][0][0]
+            ops = node["ops"]
+            ow_ops = node["ow_ops"]
+            if "depth" in node:
+                if node["depth"]:
+                    ops = node["ich_ops"]
+            io_dict[input_node_name]["out_ops"] = ops
+            if ow_ops > io_dict[input_node_name]["ow_ops_out"]:
+                print(f"Updating for {input_node_name} ow_ops {ow_ops}")
+                io_dict[input_node_name]["ow_ops_out"] = ow_ops
+            print(f"Node {input_node_name} ow_ops_out {io_dict[input_node_name]['ow_ops_out']} ow_ops {ow_ops}")
+
+    print("##################################################")
     # for name, node in io_dict.items():
     #     if "in_ops" not in node:
     #         node["in_ops"] = 1
@@ -874,9 +909,11 @@ def ilp(io_dict, off_chip_storage, model, board="ULTRA96v2", packing=True, prj_r
                 print("#### Found line buffer read/write rate for", name, "read", node["in_ops"], "write", node["line_ops"], "to avoid bottleneck")
                 print("#### Balancing line buffer for", name, "from", node["in_ops"], "to", node["adjust_ops"], "to avoid bottleneck")
             else:
+                node["adjust_ops"] = node["in_ops"]
                 node["adjust_line_buffer"] = False
 
             if (node['ow_ops'] < node['ow_ops_in']):
+                node["adjust_line_buffer"] = True
                 print(f"Insert bandwidth_adjust from {node['ow_ops_in']} to {node['ow_ops']}")
     
     # Check for necessary bandwidth adjustements for the add stream
@@ -894,12 +931,14 @@ def ilp(io_dict, off_chip_storage, model, board="ULTRA96v2", packing=True, prj_r
                 add_node_name = io_connect[add_name][0][0]
                 if (io_dict[add_node_name]["merge_1x1"]):
                     add_ops = io_dict[add_node_name]["ops"]
+                    ow_ops = io_dict[add_node_name]["ow_ops_out"]
                 else:
                     add_ops = io_dict[add_node_name]["ich_ops"]
+                    ow_ops = io_dict[add_node_name]["ow_ops"]
                 node["add_ops"] = add_ops
 
                 print("#### Add tensor read/write rate for", name, "read", node["ich_ops"], "write", node["add_ops"])
-                if (node["ich_ops"] > node["add_ops"]):
+                if (node["ich_ops"] > node["add_ops"]) or (node["ow_ops"] != ow_ops):
                     node["adjust_add"] = True
                     node["adjust_add_ops"] = find_common_mult(node["ich_ops"],node["add_ops"])
                     print("#### Found add tensor read/write rate for", name, "read", node["ich_ops"], "write", node["add_ops"], "to avoid bottleneck")
