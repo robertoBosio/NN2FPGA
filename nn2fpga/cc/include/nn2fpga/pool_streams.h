@@ -69,7 +69,7 @@ void pool_op(hls::stream<t_input_struct> i_data[c_ow_ops],
 
                 if (s_init) s_acc_buff[s_acc_index] = c_quant;
 
-                if (((s_in_ops) == 0)) {
+                if (s_in_ops == 0) {
                   if constexpr(c_adaptive)
                     s_input_struct = i_data[s_ow_ops].read();
                   else{
