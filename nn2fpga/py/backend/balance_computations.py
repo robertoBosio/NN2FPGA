@@ -934,7 +934,7 @@ def ilp(io_dict, off_chip_storage, model, board="ULTRA96v2", packing=True, prj_r
                     ow_ops = io_dict[add_node_name]["ow_ops_out"]
                 else:
                     add_ops = io_dict[add_node_name]["ich_ops"]
-                    ow_ops = io_dict[add_node_name]["ow_ops"]
+                    ow_ops = io_dict[add_node_name]["ow_ops_out"]
                 node["add_ops"] = add_ops
 
                 print("#### Add tensor read/write rate for", name, "read", node["ich_ops"], "write", node["add_ops"])

@@ -251,46 +251,46 @@ void bandwidth_adjust(
   hls::stream<dout_t> o_data[c_ow_ops_out]
 ) {
   
-#ifndef __SYNTHESIS__
-  // Printing stuff to debug
-  std::cout << "bandwidth_adjust " << ICH << " " << c_ops_in << " "
-            << c_ow_ops_in << " " << c_ops_out << " " << c_ow_ops_out
-            << std::endl;
-  for (auto s_i = 0; s_i < c_ow_ops_in; s_i++) {
-    std::cout << "din[" << s_i << "] = " << din[s_i].size() << std::endl;
-  }
-#endif
-
-if constexpr(c_ow_ops_in == c_ow_ops_out) {
-  bandwidth_adjust_down<din_t, dout_t, ICH, IH, IW, c_ow_ops_in, c_ow_ops_out, c_ops_in, c_ops_out>(din, o_data);
-} else if constexpr(c_ow_ops_in > c_ow_ops_out) {
-  bandwidth_adjust_down<din_t, dout_t, ICH, IH, IW, c_ow_ops_in, c_ow_ops_out, c_ops_in, c_ops_out>(din, o_data);
-} else if constexpr(c_ow_ops_in < c_ow_ops_out) {
-  bandwidth_adjust_up<din_t, dout_t, ICH, IH, IW, c_ow_ops_in, c_ow_ops_out, c_ops_in, c_ops_out>(din, o_data);
-}
-
-
-#ifndef __SYNTHESIS__
-  // Check that all the input streams are empty
-  for (auto s_i = 0; s_i < c_ow_ops_in; s_i++) {
-    if (din[s_i].size() > 0) {
-      std::cout << "#### Not empty input stream" << std::endl;
+  #ifndef __SYNTHESIS__
+    // Printing stuff to debug
+    std::cout << "bandwidth_adjust " << ICH << " " << c_ops_in << " "
+              << c_ow_ops_in << " " << c_ops_out << " " << c_ow_ops_out
+              << std::endl;
+    for (auto s_i = 0; s_i < c_ow_ops_in; s_i++) {
       std::cout << "din[" << s_i << "] = " << din[s_i].size() << std::endl;
     }
-    assert (din[s_i].size() == 0);
+  #endif
+
+  if constexpr(c_ow_ops_in == c_ow_ops_out) {
+    bandwidth_adjust_down<din_t, dout_t, ICH, IH, IW, c_ow_ops_in, c_ow_ops_out, c_ops_in, c_ops_out>(din, o_data);
+  } else if constexpr(c_ow_ops_in > c_ow_ops_out) {
+    bandwidth_adjust_down<din_t, dout_t, ICH, IH, IW, c_ow_ops_in, c_ow_ops_out, c_ops_in, c_ops_out>(din, o_data);
+  } else if constexpr(c_ow_ops_in < c_ow_ops_out) {
+    bandwidth_adjust_up<din_t, dout_t, ICH, IH, IW, c_ow_ops_in, c_ow_ops_out, c_ops_in, c_ops_out>(din, o_data);
   }
-  // Check that all the output streams are not empty
-  for (auto s_i = 0; s_i < c_ow_ops_out; s_i++) {
-    if (o_data[s_i].size() == 0) {
-      std::cout << "#### Empty output stream" << std::endl;
-      std::cout << "o_data[" << s_i << "] = " << o_data[s_i].size() << std::endl;
+
+
+  #ifndef __SYNTHESIS__
+    // Check that all the input streams are empty
+    for (auto s_i = 0; s_i < c_ow_ops_in; s_i++) {
+      if (din[s_i].size() > 0) {
+        std::cout << "#### Not empty input stream" << std::endl;
+        std::cout << "din[" << s_i << "] = " << din[s_i].size() << std::endl;
+      }
+      assert (din[s_i].size() == 0);
     }
-    assert (o_data[s_i].size() > 0);
-  }
-  std::cout << "end bandwidth_adjust " << ICH << " " << c_ops_in << " "
-            << c_ow_ops_in << " " << c_ops_out << " " << c_ow_ops_out
-            << std::endl;
-#endif
+    // Check that all the output streams are not empty
+    for (auto s_i = 0; s_i < c_ow_ops_out; s_i++) {
+      if (o_data[s_i].size() == 0) {
+        std::cout << "#### Empty output stream" << std::endl;
+        std::cout << "o_data[" << s_i << "] = " << o_data[s_i].size() << std::endl;
+      }
+      assert (o_data[s_i].size() > 0);
+    }
+    std::cout << "end bandwidth_adjust " << ICH << " " << c_ops_in << " "
+              << c_ow_ops_in << " " << c_ops_out << " " << c_ow_ops_out
+              << std::endl;
+  #endif
 }
 
 template <typename din_t, typename dcomp_t, typename dout_t, int ICH, int OCH, int IH, int IW, int OH, int OW,

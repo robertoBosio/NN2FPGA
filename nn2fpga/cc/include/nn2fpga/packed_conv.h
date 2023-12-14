@@ -853,7 +853,7 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
                 auto forward_index = (c_fh/2 + 1)*FW - c_fw/2 - s_ow_ops*c_str;
                 s_forward.data[0] = s_input[forward_index];
                 s_forward.last = false;
-                o_forward[s_ow_ops].write(s_forward);
+                o_forward[s_ow_ops_out+s_ow_ops].write(s_forward);
               }
             }
           }
