@@ -631,9 +631,10 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
     if constexpr(std::is_same<t_add_struct, std::nullptr_t>::value == false)
       std::cout << "#### The convolution has add" << std::endl;
     std::cout << "parallelism " << c_ops << " " << c_in_ops << " " << c_ow_ops << std::endl;
+    std::cout << "output_stream " << c_ops << " " << c_ow_ops_out << std::endl;
     std::cout << "packing " << c_och_pack << " " << c_ow_pack << std::endl;
     std::cout << "padding " << c_pad_bits << " " << c_int_pad_bits << " " << c_simd_bits << " " << c_pad_acc_bits << " " << c_simd << std::endl;
-    std::cout << "input type " << std::is_same<typename t_input_st::Base::Base, _AP_ROOT_TYPE<c_w_bits, true>>::value << std::endl;
+    std::cout << "input type " << std::is_same<typename t_input_st::Base::Base, _AP_ROOT_TYPE<c_in_bits, true>>::value << std::endl;
     std::cout << "weight type " << std::is_same<typename t_weight_st::Base::Base, _AP_ROOT_TYPE<c_w_bits, true>>::value << std::endl;
     std::cout << "s_input.size() = " << i_input[0].size() << std::endl;
   #endif

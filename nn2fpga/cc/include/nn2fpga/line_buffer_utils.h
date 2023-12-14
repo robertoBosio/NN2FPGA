@@ -377,7 +377,14 @@ void shift_op(hls::stream<din_t> &din, hls::stream<dcomp_t> &o_compute,
           s_compute_write &= (s_index_h_str == (c_strh));
           s_compute_write &= (s_index_w_str == (c_strw));
 
-
+          #ifndef __SYNTHESIS__
+            if (c_ow_ops == IW) {
+              // print s_compute_write sub-conditions
+              std::cout << (s_index_h >= c_paddingh_shift) << " " << (s_index_h < (IH - c_end_paddingh_shift)) << " " << (s_index_w >= c_paddingw_shift) << " " << (s_index_w < (IW - c_end_paddingw_shift)) << " " << (s_index_h_str == (c_strh)) << " " << (s_index_w_str == (c_strw)) << std::endl;
+              std::cout << "s_index_h " << s_index_h << " s_index_w " << s_index_w << " s_index_ich " << s_index_ich << " s_index_read " << s_index_read << std::endl;
+              std::cout << "s_compute_write " << s_compute_write << std::endl;
+            }
+          #endif
           for (auto s_index_ops = 0; s_index_ops < c_ops_out; s_index_ops++) {
             s_output.data[0][s_index_ops] = s_input.data[0][s_index_read+s_index_ops];
           }
@@ -395,11 +402,20 @@ void shift_op(hls::stream<din_t> &din, hls::stream<dcomp_t> &o_compute,
         std::cout << "din.size() " << din.size() << std::endl;
       }
       assert (din.size() == 0);
-      if (o_compute.size() == 0) {
-        std::cout << "#### Empty compute stream" << std::endl;
-        std::cout << "o_compute.size() " << o_compute.size() << std::endl;
+      if constexpr(std::is_same<dout_t, std::nullptr_t>::value == false) {
+        if (o_data.size() == 0) {
+          std::cout << "#### Empty compute stream" << std::endl;
+          std::cout << "o_data.size() " << o_data.size() << std::endl;
+        }
+        assert (o_data.size() > 0);
+      } 
+      if ((IW != c_ow_ops)) {
+        if (o_compute.size() == 0) {
+          std::cout << "#### Empty compute stream" << std::endl;
+          std::cout << "o_compute.size() " << o_compute.size() << std::endl;
+        }
+        assert (o_compute.size() > 0);
       }
-      assert (o_compute.size() > 0);
       std::cout << "end shift_op " << ICH << " " << c_ops << " " << c_ops_out << std::endl;
   #endif
 }
