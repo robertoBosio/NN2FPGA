@@ -788,19 +788,6 @@ def ilp(io_dict, off_chip_storage, model, board="ULTRA96v2", packing=True, prj_r
     #         print(f"1 - I'm writing for {output_node_name} in_ops {ops}")
     #         io_dict[output_node_name]["in_ops"] = ops
 
-    for name, node in io_dict.items():
-        if "ops" in node:
-            output_name = io_dict[name]["output"][0]
-            output_node_name = io_connect[output_name][1][0]
-            ops = node["ops"]
-            ow_ops = node["ow_ops"]
-            if "depth" in node:
-                if node["depth"]:
-                    ops = node["ich_ops"]
-            if output_node_name != "consume_stream":
-                io_dict[output_node_name]["in_ops"] = ops
-                io_dict[output_node_name]["ow_ops_in"] = ow_ops
-
     print("#### Propagating ops and ow_ops to input nodes")
     for name, node in io_dict.items():
         if "ops" in node:
@@ -829,6 +816,19 @@ def ilp(io_dict, off_chip_storage, model, board="ULTRA96v2", packing=True, prj_r
                 print(f"Updating for {input_node_name} ow_ops {ow_ops}")
                 io_dict[input_node_name]["ow_ops_out"] = ow_ops
             print(f"Node {input_node_name} ow_ops_out {io_dict[input_node_name]['ow_ops_out']} ow_ops {ow_ops}")
+
+    for name, node in io_dict.items():
+        if "ops" in node:
+            output_name = io_dict[name]["output"][0]
+            output_node_name = io_connect[output_name][1][0]
+            ops = node["ops"]
+            ow_ops = node["ow_ops_out"]
+            if "depth" in node:
+                if node["depth"]:
+                    ops = node["ich_ops"]
+            if output_node_name != "consume_stream":
+                io_dict[output_node_name]["in_ops"] = ops
+                io_dict[output_node_name]["ow_ops_in"] = ow_ops
 
     print("##################################################")
     # for name, node in io_dict.items():
