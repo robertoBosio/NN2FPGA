@@ -108,7 +108,7 @@ def generate_architectures(layers_info, NUM_DSP):
         op_clip = (NUM_DSP / layer["kernel"]) * 2 
         
         valid_par_solutions.append(generate_valid_combinations(
-            och=max_och_par, ich=max_ich_par, iw=max_iw_par, iw_clip=8, op_clip=op_clip))
+            och=max_och_par, ich=max_ich_par, iw=max_iw_par, iw_clip=4, op_clip=op_clip))
         
     return valid_par_solutions
 

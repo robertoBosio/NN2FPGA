@@ -57,9 +57,9 @@ cv::Mat opencv_transform(cv::Mat image) {
     cv::Rect roi(j, i, 224, 224);
     image = image(roi);
 
-    cv::Scalar mean(0.485, 0.456, 0.406);
-    cv::Scalar std(0.229, 0.224, 0.225);
-    image = (image - mean) / std;
+    // cv::Scalar mean(0.485, 0.456, 0.406);
+    // cv::Scalar std(0.229, 0.224, 0.225);
+    // image = (image - mean) / std;
 
     // cv::split(transposed, image_channels);
 
