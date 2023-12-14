@@ -378,12 +378,14 @@ void shift_op(hls::stream<din_t> &din, hls::stream<dcomp_t> &o_compute,
           s_compute_write &= (s_index_w_str == (c_strw));
 
           #ifndef __SYNTHESIS__
-            if (c_ow_ops == IW) {
-              // print s_compute_write sub-conditions
-              std::cout << (s_index_h >= c_paddingh_shift) << " " << (s_index_h < (IH - c_end_paddingh_shift)) << " " << (s_index_w >= c_paddingw_shift) << " " << (s_index_w < (IW - c_end_paddingw_shift)) << " " << (s_index_h_str == (c_strh)) << " " << (s_index_w_str == (c_strw)) << std::endl;
-              std::cout << "s_index_h " << s_index_h << " s_index_w " << s_index_w << " s_index_ich " << s_index_ich << " s_index_read " << s_index_read << std::endl;
-              std::cout << "s_compute_write " << s_compute_write << std::endl;
-            }
+            #ifdef __DEBUG_LINE__
+              if (c_ow_ops == IW) {
+                // print s_compute_write sub-conditions
+                std::cout << (s_index_h >= c_paddingh_shift) << " " << (s_index_h < (IH - c_end_paddingh_shift)) << " " << (s_index_w >= c_paddingw_shift) << " " << (s_index_w < (IW - c_end_paddingw_shift)) << " " << (s_index_h_str == (c_strh)) << " " << (s_index_w_str == (c_strw)) << std::endl;
+                std::cout << "s_index_h " << s_index_h << " s_index_w " << s_index_w << " s_index_ich " << s_index_ich << " s_index_read " << s_index_read << std::endl;
+                std::cout << "s_compute_write " << s_compute_write << std::endl;
+              }
+            #endif
           #endif
           for (auto s_index_ops = 0; s_index_ops < c_ops_out; s_index_ops++) {
             s_output.data[0][s_index_ops] = s_input.data[0][s_index_read+s_index_ops];
