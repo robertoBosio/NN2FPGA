@@ -411,7 +411,7 @@ void shift_op(hls::stream<din_t> &din, hls::stream<dcomp_t> &o_compute,
         }
         assert (o_data.size() > 0);
       } 
-      if ((IW != c_ow_ops)) {
+      if ((IW != c_ow_ops*c_str)) {
         if (o_compute.size() == 0) {
           std::cout << "#### Empty compute stream" << std::endl;
           std::cout << "o_compute.size() " << o_compute.size() << std::endl;
