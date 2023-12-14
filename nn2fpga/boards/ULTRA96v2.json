@@ -5,7 +5,7 @@
             "upper_right" : "X0Y3",
             "uram": 0,
             "bram": 214,
-            "dsp": 360,
+            "dsp": 400,
             "lut": 71000,
             "ff": 141000
         }

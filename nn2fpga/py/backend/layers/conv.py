@@ -576,7 +576,7 @@ def parse_comp(name, node):
         declare["name"] = "s_%s" % forward_name
         declare["type"] = "t_%s_struct" % forward_name
         declare["is_array"] = True
-        declare["dim"] = node["ow_ops"]
+        declare["dim"] = node["ow_ops_out"]
         block["declare"].append(declare)
 
     block["pragma"] = []
@@ -597,7 +597,7 @@ def parse_comp(name, node):
         pragma["options"] = options
         block["pragma"].append(pragma)
 
-    depth = int(node["och"]/node["ops"])*node["ow_ops"] + 1
+    depth = int(node["och"]/node["ops"])*node["ow_ops_out"] + 1
     # TODO: Modified to reduce bram usage but slowing down arch
     # depth = 2
 
