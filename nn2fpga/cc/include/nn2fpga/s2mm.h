@@ -6,12 +6,19 @@ void
 s2mm(T_mem* mem, const unsigned int size, hls::stream<T_stream>& stream)
 {
 #pragma HLS INLINE
+  auto p = 0;
+  T_stream v;
 S2MM_LOOP:
-  for (int i = 0; i < size; i++) {
+  do {
 #pragma HLS pipeline II = 1
-    T_stream v = stream.read();
-    mem[i] = v.data;
-  }
+    v = stream.read();
+    mem[p] = v.data;
+    p++;
+#ifndef __SYNTHESIS__
+    if (p > size)
+      std::cout << "ERROR: s2mm: p > size\n";
+#endif
+  } while (!v.last);
 }
 
 } // namespace nn2fpga

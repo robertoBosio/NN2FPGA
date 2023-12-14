@@ -179,8 +179,10 @@ void bandwidth_adjust_down(
             }
 
             // If the packet is finished then write it
-            if (s_i == (c_ops_out - c_ops_in))
+            if (s_i == (c_ops_out - c_ops_in)){
+              s_write[s_ow_ops_out].last = s_read[s_i_read][s_i].last;
               o_data[s_ow_ops_out].write(s_write[s_ow_ops_out]);
+            }
 
           }
 
@@ -234,8 +236,10 @@ void bandwidth_adjust_up(
             }
 
             // If the packet is finished then write it
-            if (s_i == (c_ops_out - c_ops_in))
+            if (s_i == (c_ops_out - c_ops_in)) {
+              s_write[s_i_write].last = s_read[s_ow_ops_in][s_i].last;
               o_data[s_i_write].write(s_write[s_i_write]);
+            }
 
           }
 

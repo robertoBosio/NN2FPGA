@@ -1032,6 +1032,13 @@ def sorted_bind_storage(dict_layers, board_res, uram_storage=False):
             wpp = 72 / node["bits"]
             ports = math.ceil(w_par / wpp)
             lpm = node["n_weights"] / (wpp * ports)
+            if (ports == 1):
+                if w_par == 4:
+                    lpm // 2
+                elif w_par == 2:
+                    lpm // 4
+                elif w_par == 1:
+                    lpm // 8
             tot_bram = math.ceil(lpm / (SIZE_BRAM36 / 72)) * ports
             tot_uram = math.ceil(lpm / (SIZE_URAM / 72)) * ports
             
@@ -1039,8 +1046,6 @@ def sorted_bind_storage(dict_layers, board_res, uram_storage=False):
             # wasted_bram = n_bram * SIZE_BRAM - (node['n_weights'] * node["bits"])
             fit_uram = (used_uram + tot_uram) <= board_res["uram"] and uram_storage
             fit_bram = (used_bram + tot_bram) <= board_res["bram"]
-            # fit_uram = True
-            # fit_bram = True
             if (not fit_bram and not fit_uram):
                 print("There is not enough space.")
                 exit(-1)
@@ -1056,124 +1061,6 @@ def sorted_bind_storage(dict_layers, board_res, uram_storage=False):
             node["uram_storage"] = False
     
     print(f"Total: {used_bram}B {used_uram}U.")
-
-# def ILP_bind_storage(dict_layers, board_res, uram_storage=False):
-    
-#     ####### Problem formulated as ILP #######
-#     # Minimize wasted space
-#     prob = pulp.LpProblem("Parallel_ops", pulp.LpMinimize)
-    
-#     # Variables of the problem: for each layer each valid parallelization has a
-#     # binary variable associated that select the chosen parameters.
-#     ram_binary_variables = pulp.LpVariable.dicts(
-#             f"Choice_l{i}", range(len(dict_layers)), cat="Binary")
-
-#     # Objective function: maximize the parallelization of the heaviest layer.
-#     # The decision variable "layer_binary_variables[worst_index][i]" select only
-#     # one combination of ich and och for the worst layer. The multiplication
-#     # between the two parameters represent the level of parallelization
-#     wasted_uram = n_uram * SIZE_URAM - (node['n_weights'] * node["bits"])
-#     wasted_bram = n_bram * SIZE_BRAM - (node['n_weights'] * node["bits"])
-
-#     prob += (
-#         pulp.lpSum([ram_binary_variables[i] * 
-#                     for i, layer tuple in enumerate(dict_layers)]),
-#         "Bottleneck_layer_parallelization"
-#     )
-
-#     # Constraint: Only one binary variable per layer should be equal to 1
-#     for layer in range(num_layers):
-#         prob += (
-#             pulp.lpSum([layer_binary_variables[layer][i]
-#                        for i in range(len(valid_par_solutions[layer]))]) == 1,
-#             f"One_choice_constraint_layer_{layer}"
-#         )
-
-#     # Constraint: The total number of DSPs used to achieve the chosen
-#     # parallelization should be lower than the available ones. The number of
-#     # DSPs used for each layer is computed as filter_size * och_par * ich_par
-#     prob += (
-#         pulp.lpSum([layer["kernel"] * pulp.lpSum([layer_binary_variables[layer['index']][i] * tuple[0] * tuple[1] 
-#                for i, tuple in enumerate(valid_par_solutions[layer["index"]])]) for layer in layers_info_unmerged]) <= NUM_DSP,
-#         f"DSP_constraint"
-#     )
-
-    
-#     # Constraint: The total number of memory ports used to achieve the chosen
-#     # parallelization should be lower than the available ones. The number of
-#     # ports used for each layer is computed as (filter_size * och_par * ich_par
-#     # * bits) / bandwidth_mem.
-#     # We are not considering uram at this stage
-#     prob += (
-#         pulp.lpSum([layer["kernel"] * layer["bits"] / 64 *
-#                     pulp.lpSum([layer_binary_variables[layer["index"]][i] * tuple[0] * tuple[1]
-#                                 for i, tuple in enumerate(valid_par_solutions[layer["index"]])]
-#                                ) for layer in layers_info_unmerged]) <= NUM_PORTS,
-#         f"PORTS_constraint"
-#     )
-    
-#     # Constraints: The throughtput of each layer should be equal or bigger to
-#     # the heaviest one. The throughtput of each layer is computed as the parallelism
-#     # over the total number of iterations:
-#     #
-#     #    par worst         par layer  
-#     #  -------------- <= --------------
-#     #    iter worst        iter layer   
-#     for layer in range(num_layers):
-#         prob += (
-#             pulp.lpSum(
-#                 [layer_binary_variables[layer][i] * tuple[0] * tuple[1]
-#                  for i, tuple in enumerate(valid_par_solutions[layer])]
-#             ) * layers_info[layer]["value"] -
-#             pulp.lpSum(
-#                 [layer_binary_variables[worst_index][i] * tuple[0] * tuple[1]
-#                  for i, tuple in enumerate(valid_par_solutions[worst_index])]
-#             ) >= 0,
-#             f"Throughtput_constraint_layer_{layer}"
-#         )
-    
-#     # Constraints: To avoid bottlenecks the write/read bandwidth of consecutive
-#     # layers should be balanced. The write bandwidth is computed as (och_par *
-#     # ich_par) / (ich). The read bandwidth is computed as (och_par * ich_par) /
-#     # (och). For depthwise convolution the write bandwidth is ich_par
-#     for layer in range(1, num_layers):
-#         if layers_info[layer - 1]["depth"]:
-#             prob += (
-#                 pulp.lpSum(
-#                     [layer_binary_variables[layer - 1][i] * tuple[1]
-#                     for i, tuple in enumerate(valid_par_solutions[layer - 1])]
-#                 ) -
-#                 ( pulp.lpSum(
-#                     [layer_binary_variables[layer][i] * tuple[0] * tuple[1]
-#                     for i, tuple in enumerate(valid_par_solutions[layer])]
-#                 ) / layers_info[layer]["och"] ) >= 0,
-#                 f"ich_constraint_layer_{layer}"
-#             )
-#         else:
-#             prob += (
-#                 ( pulp.lpSum(
-#                     [layer_binary_variables[layer - 1][i] * tuple[0] * tuple[1]
-#                     for i, tuple in enumerate(valid_par_solutions[layer - 1])]
-#                 ) / layers_info[layer - 1]["ich"] ) -
-#                 ( pulp.lpSum(
-#                     [layer_binary_variables[layer][i] * tuple[0] * tuple[1]
-#                     for i, tuple in enumerate(valid_par_solutions[layer])]
-#                 ) / layers_info[layer]["och"] ) >= 0,
-#                 f"ich_constraint_layer_{layer}"
-#             )
-
-    
-#     prob.solve(PULP_CBC_CMD(msg=0))
-#     print("Status:", pulp.LpStatus[prob.status])
-#     ########################################
-
-#     # Recovering the values of the paralellism for each layer from the binary variables.
-#     parallel_op = {}
-#     for i, layer in enumerate(valid_par_solutions):
-#         for s in range(len(layer)):
-#             if int(layer_binary_variables[i][s].value()) == 1:
-#                 parallel_op[f"{layers_info[i]['name']}"] = layer[s]
-
 
 def init(file_name, network_name, parsed_write, uram_layer_include, prj_root="/tmp"):
 
