@@ -35,7 +35,16 @@ void pool_op(hls::stream<t_input_struct> i_data[c_ow_ops],
   #pragma HLS array_partition variable = s_acc_buff type=cyclic factor=c_ops 
 
   #ifndef __SYNTHESIS__
-    std::cout << "pool_op " << c_ich << " " << c_ops << " " << c_o_index << std::endl;
+    std::cout << "pool_op " << c_ich << std::endl;
+    std::cout << "c_ops = " << c_ops << std::endl;
+    std::cout << "c_in_ops = " << c_in_ops << std::endl;
+    std::cout << "c_adaptive = " << c_adaptive << std::endl;
+    std::cout << "c_acc_och = " << c_acc_och << std::endl;
+    std::cout << "c_o_index = " << c_o_index << std::endl;
+    std::cout << "c_fh_iter = " << c_fh_iter << std::endl;
+    std::cout << "c_fw_iter = " << c_fw_iter << std::endl;
+    std::cout << "c_ow_ops_iter = " << c_ow_ops_iter << std::endl;
+    std::cout << "c_str_iter = " << c_str_iter << std::endl;
     for (auto i = 0; i < c_ow_ops; i++) {
       std::cout << "i_data[" << i << "].size() = " << i_data[i].size() << std::endl;
     }
@@ -57,6 +66,17 @@ void pool_op(hls::stream<t_input_struct> i_data[c_ow_ops],
                 int s_acc_index;
                 bool s_init;
                 bool s_pool_write;
+                #ifndef __SYNTHESIS__
+                  #ifdef DEBUG_POOL
+                    std::cout << "s_o_index = " << s_o_index << std::endl;
+                    std::cout << "s_och = " << s_och << std::endl;
+                    std::cout << "s_in_ops = " << s_in_ops << std::endl;
+                    std::cout << "s_ow_ops = " << s_ow_ops << std::endl;
+                    std::cout << "s_ops = " << s_ops << std::endl;
+                    std::cout << "s_fh = " << s_fh << std::endl;
+                    std::cout << "s_fw = " << s_fw << std::endl;
+                  #endif
+                #endif
                 if constexpr(c_adaptive){
                   s_index = 0;
                   s_acc_index = s_och + s_in_ops + s_ops;
@@ -69,7 +89,7 @@ void pool_op(hls::stream<t_input_struct> i_data[c_ow_ops],
 
                 if (s_init) s_acc_buff[s_acc_index] = c_quant;
 
-                if (((s_in_ops) == 0)) {
+                if (((s_in_ops) == 0) && (s_ops == 0)) {
                   if constexpr(c_adaptive)
                     s_input_struct = i_data[s_ow_ops].read();
                   else{
