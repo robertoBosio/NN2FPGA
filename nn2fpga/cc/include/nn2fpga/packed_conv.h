@@ -94,7 +94,7 @@ void conv_pipe(
 
     if constexpr(std::is_same<t_add_struct, std::nullptr_t>::value == false) {
       for (auto s_och_pack = 0; s_och_pack < c_och_pack; s_och_pack++) {
-        if (ich == (och+s_och_pack)) {
+        if ((ich == 0) | (c_depth == 1)) {
         // TODO: Add support for multiple inputs (vector type)
           for (auto s_ow_pack = 0; s_ow_pack < c_ow_pack; s_ow_pack++) {
             s_acc[s_och_pack*c_ow_pack+s_ow_pack] += i_add[s_ow_pack+s_ow_ops].data[0][ich_idx_add];
@@ -281,7 +281,7 @@ void conv_pipe(
       }
 
       if constexpr(std::is_same<t_add_struct, std::nullptr_t>::value == false) {
-        if (ich == och) {
+        if ((ich == 0) | (c_depth == 1)) {
           // TODO: Add support for multiple inputs (vector type)
           for (auto s_ow_pack = 0; s_ow_pack < c_ow_pack; s_ow_pack++) {
             s_acc[s_ow_pack] += i_add[s_ow_pack+s_ow_ops].data[0][ich_idx_add];
@@ -425,7 +425,7 @@ void conv_pipe(
         // FIX: Seems that when there is the skip connection the binding of the
         // DSPs is not working, moving things before
         t_acc s_acc_add = 0;
-        if ((ich == och) | (c_depth == 1)) {
+        if ((ich == 0) | (c_depth == 1)) {
           s_acc_add = i_add[s_ow_ops].data[0][ich_idx_add];
           #ifndef __SYNTHESIS__
             // if (c_depth == 1)
@@ -564,6 +564,7 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
   const auto c_num_och_1x1 = c_och_1x1_depth / c_ops;
   const auto c_iter_1x1 = c_reuse_iter * c_num_och_1x1;
   const auto c_ops_1x1 = (c_och_1x1 < c_ops) ? c_och_1x1 : c_ops;
+  const auto c_add_read = c_add_ops / c_ops;
 
   // constexpr int FW = (c_fw);
   constexpr int FW = (c_fw+(c_ow_ops-1)*c_str);
@@ -685,34 +686,29 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
             }
           }
 
-          for (auto s_ich_idx = 0; s_ich_idx < c_in_ops; s_ich_idx++) {
-            auto s_ich = s_num_ich + s_ich_idx;
-            if constexpr(std::is_same<t_add_struct, std::nullptr_t>::value == false)
-              s_ich_idx_add = s_ich % c_add_ops;
-
-            // Done to avoid partitioning of the stream and resource wasting
-            // Theoretically with the add the input and output dimensions should
-            // be equal, so we could perform the addition in different iterations
-            if constexpr(std::is_same<t_add_struct, std::nullptr_t>::value == false){
-              for (auto s_ow_ops = 0; s_ow_ops < c_ow_ops; s_ow_ops++) {
-                // FIX FOR MOBILENETv2: Taking into account different output and
-                // input channels
-                if ((s_iter == 0) && (s_ich_idx_add == 0)){
-                  if constexpr(c_ich > c_och)
-                    if (s_ich >= c_och)
-                      continue;
-                  s_add[s_ow_ops] = i_add[s_ow_ops].read();   
-                  #ifndef __SYNTHESIS__
-                    #ifdef DEBUG_ADD
-                    for (auto s_ich_idx_add = 0; s_ich_idx_add < c_add_ops; s_ich_idx_add++) {
-                      std::cout << "add[" << s_ow_ops << "][" << s_ich_idx_add << "] " << s_add[s_ow_ops].data[0][s_ich_idx_add] << std::endl;
-                    }
-                    #endif
+          // Done to avoid partitioning of the stream and resource wasting
+          // Theoretically with the add the input and output dimensions should
+          // be equal, so we could perform the addition in different iterations
+          if constexpr(std::is_same<t_add_struct, std::nullptr_t>::value == false){
+            auto s_add_read = s_num_och % c_add_read;
+            for (auto s_ow_ops = 0; s_ow_ops < c_ow_ops; s_ow_ops++) {
+              // FIX FOR MOBILENETv2: Taking into account different output and
+              // input channels
+              if ((s_add_read == 0) && (s_num_ich == 0)){
+                s_add[s_ow_ops] = i_add[s_ow_ops].read();   
+                #ifndef __SYNTHESIS__
+                  #ifdef DEBUG_ADD
+                  for (auto s_ich_idx_add = 0; s_ich_idx_add < c_add_ops; s_ich_idx_add++) {
+                    std::cout << "add[" << s_ow_ops << "][" << s_ich_idx_add << "] " << s_add[s_ow_ops].data[0][s_ich_idx_add] << std::endl;
+                  }
                   #endif
-                }
+                #endif
               }
             }
+          }
 
+          for (auto s_ich_idx = 0; s_ich_idx < c_in_ops; s_ich_idx++) {
+            auto s_ich = s_num_ich + s_ich_idx;
             std::array<t_input_data, c_ow_ops> s_input_1x1;
           #pragma HLS array_partition variable = s_input_1x1 type = complete
             for (auto s_ow_ops = 0; s_ow_ops < c_ow_ops; s_ow_ops++) {
@@ -725,6 +721,9 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
             for (auto s_ow_ops = 0; s_ow_ops < c_ow_ops; s_ow_ops+=c_ow_pack) {
               for (auto s_ops = 0; s_ops < c_ops; s_ops+=c_och_pack) {
                 auto s_och = s_num_och * c_ops + s_ops;
+                if constexpr(std::is_same<t_add_struct, std::nullptr_t>::value == false)
+                  s_ich_idx_add = s_och % c_add_ops;
+
 
                 conv_pipe<
                   t_input,

@@ -152,21 +152,20 @@ void bandwidth_adjust_down(
   for (auto s_index = 0; s_index < IH * IW;
       s_index += c_ow_ops_in) {
   
-    /* Loop over the streams in input*/
-    // The previous convolution writes the data in opposite order
-    // because of the line buffer so they must be reordered accordingly
-    // for (auto s_ow_ops_in = c_ow_ops_in-c_ow_ops_out; s_ow_ops_in > -1; s_ow_ops_in -= c_ow_ops_out) {
-    for (auto s_ow_ops_in = 0; s_ow_ops_in < c_ow_ops_in; s_ow_ops_in += c_ow_ops_out) {
+    /* Loop over the ICH dimension */
+    for (auto s_ich = 0; s_ich < ICH; s_ich += c_ops_out) {
 
-      /* Loop over the ICH dimension */
-      for (auto s_ich = 0; s_ich < ICH; s_ich += c_ops_out) {
+      /* Loop over the streams in input*/
+      // The previous convolution writes the data in opposite order
+      // because of the line buffer so they must be reordered accordingly
+      // for (auto s_ow_ops_in = c_ow_ops_in-c_ow_ops_out; s_ow_ops_in > -1; s_ow_ops_in -= c_ow_ops_out) {
+      for (auto s_ow_ops_in = 0; s_ow_ops_in < c_ow_ops_in; s_ow_ops_in += c_ow_ops_out) {
 
         /* Loop over the packets in the ICH dimension */
         for (auto s_i = 0; s_i < c_ops_out; s_i += c_ops_in) {
     #pragma HLS pipeline style = stp II = 1
 
           /* Loop over c_ow_ops_out stream in input in parallel */
-          // for (auto s_ow_ops_out = c_ow_ops_out - 1; s_ow_ops_out > -1; s_ow_ops_out--) {
           for (auto s_ow_ops_out = 0; s_ow_ops_out < c_ow_ops_out; s_ow_ops_out++) {
 
             // Select the input stream to read from
@@ -259,6 +258,7 @@ void bandwidth_adjust(
     // Printing stuff to debug
     std::cout << "bandwidth_adjust " << ICH << " " << c_ops_in << " "
               << c_ow_ops_in << " " << c_ops_out << " " << c_ow_ops_out
+              << " " << IH << " " << IW
               << std::endl;
     for (auto s_i = 0; s_i < c_ow_ops_in; s_i++) {
       std::cout << "din[" << s_i << "] = " << din[s_i].size() << std::endl;
