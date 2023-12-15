@@ -123,7 +123,7 @@ def hw_quant(model, io_dict):
                 if och_pack_partial > 2:
                     och_pack_partial = 2
                 
-                if signed0:
+                if signed0 and ow_pack_partial > 1:
                     # print("##### Layer: %s, signed, reducing och_pack" % (layer_out_name))
                     # print(signed0)
                     # print(io_dict[layer_in_name])

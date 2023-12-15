@@ -142,11 +142,11 @@ void conv_pipe(
             #endif
           #endif
 
-          if constexpr(std::is_same<typename t_weight_st::Base::Base, _AP_ROOT_TYPE<t_weight_st::Base::width, true>>::value) {
+          // if constexpr(std::is_same<typename t_weight_st::Base::Base, _AP_ROOT_TYPE<t_weight_st::Base::width, true>>::value) {
             for (auto pos = c_pad_bits*s_och_pack+c_w_bits; pos < 27; pos++) {
               s_a_d_ext[s_och_pack].range(pos,pos) = s_a_d_ext[s_och_pack].range(c_pad_bits*s_och_pack+c_w_bits-1, c_pad_bits*s_och_pack+c_w_bits-1);
             }
-          }
+          // }
 
           s_data += s_a_d_ext[s_och_pack];
 

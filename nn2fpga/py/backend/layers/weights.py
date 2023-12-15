@@ -748,60 +748,59 @@ def on_chip_rom(
 
         block["pragma"].append(pragma)
 
-    if uram_storage:
-        interface_width = 72
-    else:
-        interface_width = 64
+    interface_width = 72
     
     # FIX: Reducing bias resource usage increasing the produce_stream II
+    dim_1_partition_factor = 1
+    dim_3_partition_factor = 1
+    dim_2_reshape_factor = 1
     if node["is_bias"]:
         parallelism = 1
         dim_1_reshape_factor = 1
-        dim_2_reshape_factor = 1
         dim_3_reshape_factor = 1
-        dim_1_partition_factor = 1
-        dim_3_partition_factor = 1
     else: 
         parallelism = node["ops"] * node["ich_ops"]
 
         # Compute the number of weights fitting a word.
         divider = interface_width // node["bits"]
 
-        if divider == 1:
-            dim_1_reshape_factor = 1
-        else:
-            # If the weights in a filter do not perfectly fit in a word of the
-            # memory, do not reshape on the first dimension
-            if ((node["ih"] * node["iw"]) % divider) != 0:
-                dim_1_reshape_factor = 1
-            else:
-                dim_1_reshape_factor = np.clip( node["ih"] * node["iw"], 1, divider)
-            divider = divider//dim_1_reshape_factor
+        # if divider == 1:
+        #     dim_1_reshape_factor = 1
+        # else:
+        #     # If the weights in a filter do not perfectly fit in a word of the
+        #     # memory, do not reshape on the first dimension
+        #     if ((node["ih"] * node["iw"]) % divider) != 0:
+        #         dim_1_reshape_factor = 1
+        #     else:
+        #         dim_1_reshape_factor = np.clip( node["ih"] * node["iw"], 1, divider)
+        #     divider = divider//dim_1_reshape_factor
 
-        if parallelism > divider:
-            dim_3_reshape_factor = divider
-            divider = 1
-        else: 
-            dim_3_reshape_factor = parallelism
-            divider = divider//parallelism
+        # if parallelism > divider:
+        #     dim_3_reshape_factor = divider
+        #     divider = 1
+        # else: 
+        #     dim_3_reshape_factor = parallelism
+        #     divider = divider//parallelism
 
-        if dim_3_reshape_factor >= parallelism:
-            dim_3_partition_factor = 1
-        else:
-            dim_3_partition_factor = math.ceil(parallelism/dim_3_reshape_factor)
+        # if dim_3_reshape_factor >= parallelism:
+        #     dim_3_partition_factor = 1
+        # else:
+        #     dim_3_partition_factor = math.ceil(parallelism/dim_3_reshape_factor)
 
-        if divider > 1:
-            dim_2_reshape_factor = divider
-            divider = 1
-        else:
-            dim_2_reshape_factor = 1
+        # if divider > 1:
+        #     dim_2_reshape_factor = divider
+        #     divider = 1
+        # else:
+        #     dim_2_reshape_factor = 1
 
-        if dim_1_reshape_factor == 1:
-            dim_1_partition_factor = node["ih"]*node["iw"]
-        elif dim_1_reshape_factor < (node["ih"]*node["iw"]):
-            dim_1_partition_factor = math.ceil(node["ih"]*node["iw"]/dim_1_reshape_factor)
-        else:
-            dim_1_partition_factor = 1
+        # if dim_1_reshape_factor == 1:
+        #     dim_1_partition_factor = node["ih"]*node["iw"]
+        # elif dim_1_reshape_factor < (node["ih"]*node["iw"]):
+        #     dim_1_partition_factor = math.ceil(node["ih"]*node["iw"]/dim_1_reshape_factor)
+        # else:
+        #     dim_1_partition_factor = 1
+        dim_3_reshape_factor = parallelism
+        dim_1_reshape_factor = node['ih']*node['iw'] 
 
     #######################################################################
 
@@ -849,7 +848,10 @@ def on_chip_rom(
     ]
 
     if dim_1_reshape_factor > 1:
-        options.append(["factor", dim_1_reshape_factor])
+        if dim_1_reshape_factor == (node["ih"]*node["iw"]):
+            options.append(["type", "complete"])
+        else:
+            options.append(["factor", dim_1_reshape_factor])
         options.append(["type", "cyclic"])
 
     pragma["options"] = options

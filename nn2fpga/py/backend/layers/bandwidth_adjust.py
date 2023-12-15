@@ -66,6 +66,9 @@ def parse(name, node, adjust_name, in_ops, adjust_ops, ow_ops, dim="i"):
     block["declare"].append(declare)
 
     depth = 3
+    # Depth of the streams in output of the bandwidth adjust
+    # depth = int((node['ich'] / node['in_ops'])) + 1
+
     block["pragma"] = []
     pragma = {}
     pragma["name"] = "stream"
