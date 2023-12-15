@@ -889,6 +889,24 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
     }
   }
   #ifndef __SYNTHESIS__
+    // Check if input stream is empty
+    for (auto s_ow_ops = 0; s_ow_ops < 1; s_ow_ops++) {
+      if (i_input[s_ow_ops].size() != 0) {
+        std::cout << "ERROR: The input stream is not empty" << std::endl;
+        std::cout << "i_input[" << s_ow_ops << "].size() = " << i_input[s_ow_ops].size() << std::endl;
+        assert (false);
+      }
+    }
+    // Check if input add is empty
+    for (auto s_ow_ops = 0; s_ow_ops < c_ow_ops; s_ow_ops++) {
+      if constexpr(std::is_same<t_add_struct, std::nullptr_t>::value == false) {
+        if (i_add[s_ow_ops].size() != 0) {
+          std::cout << "ERROR: The input add stream is not empty" << std::endl;
+          std::cout << "i_add[" << s_ow_ops << "].size() = " << i_add[s_ow_ops].size() << std::endl;
+          assert (false);
+        }
+      }
+    }
     for (auto s_ow_ops_out = 0; s_ow_ops_out < c_ow_ops_out; s_ow_ops_out++) {
       std::cout << "o_output[" << s_ow_ops_out << "].size() = " << o_output[s_ow_ops_out].size() << std::endl;
     }
