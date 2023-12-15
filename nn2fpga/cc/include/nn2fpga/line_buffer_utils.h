@@ -35,6 +35,7 @@ void pad_input(hls::stream<din_t> din[(c_fw+(c_ow_ops-1)*c_str) * c_fh],
       for (auto s_i = 0; s_i < FSZ; s_i++) {
         std::cout << "s_read[" << s_i << "] = " << din[s_i].size() << std::endl;
       }
+      std::cout << "IH_PAD " << IH_PAD << " IW_PAD " << IW_PAD << std::endl;
   #endif
 
   for (auto s_index_h = 0; s_index_h < IH_REM; s_index_h += c_str) {
@@ -80,6 +81,26 @@ void pad_input(hls::stream<din_t> din[(c_fw+(c_ow_ops-1)*c_str) * c_fh],
       }
     }
   }
+
+  #ifndef __SYNTHESIS__
+    // Check that all the input streams are empty
+    for (auto s_i = 0; s_i < FSZ; s_i++) {
+      if (din[s_i].size() > 0) {
+        std::cout << "#### Not empty input stream" << std::endl;
+        std::cout << "din[" << s_i << "] = " << din[s_i].size() << std::endl;
+      }
+      assert (din[s_i].size() == 0);
+    }
+    // Check that all the output streams are not empty
+    for (auto s_i = 0; s_i < 1; s_i++) {
+      if (o_data[s_i].size() == 0) {
+        std::cout << "#### Empty output stream" << std::endl;
+        std::cout << "o_data[" << s_i << "] = " << o_data[s_i].size() << std::endl;
+      }
+      assert (o_data[s_i].size() > 0);
+    }
+    std::cout << "end pad_input " << ICH << " " << c_pad << " " << c_ops << " " << c_ops_out << std::endl;
+  #endif
 }
 
 template <typename din_t, typename dout_t, int ICH, int IH, int IW,
@@ -166,7 +187,6 @@ void bandwidth_adjust_down(
     #pragma HLS pipeline style = stp II = 1
 
           /* Loop over c_ow_ops_out stream in input in parallel */
-          // for (auto s_ow_ops_out = c_ow_ops_out - 1; s_ow_ops_out > -1; s_ow_ops_out--) {
           for (auto s_ow_ops_out = 0; s_ow_ops_out < c_ow_ops_out; s_ow_ops_out++) {
 
             // Select the input stream to read from
@@ -259,6 +279,7 @@ void bandwidth_adjust(
     // Printing stuff to debug
     std::cout << "bandwidth_adjust " << ICH << " " << c_ops_in << " "
               << c_ow_ops_in << " " << c_ops_out << " " << c_ow_ops_out
+              << " " << IH << " " << IW
               << std::endl;
     for (auto s_i = 0; s_i < c_ow_ops_in; s_i++) {
       std::cout << "din[" << s_i << "] = " << din[s_i].size() << std::endl;

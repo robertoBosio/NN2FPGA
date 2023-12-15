@@ -88,14 +88,14 @@ def generate_architectures(layers_info, NUM_DSP):
     for layer in layers_info:
         max_och_par = layer["och"]
         max_ich_par = layer["ich"]
-        max_iw_par = layer["iw"]
+        max_ow_par = layer["ow"]
 
         # Depthwise convolutions cannot be parallelized on output channel.
         if (layer["depth"] or layer["type"] == "pool"):
             max_och_par = 1
 
         if (layer["type"] == "pool"):
-            max_iw_par = 1
+            max_ow_par = 1
 
         # In case of merged convolutions, take into account the gcd of the
         # maximum parallelization of och of the two. The transformation is
@@ -108,7 +108,7 @@ def generate_architectures(layers_info, NUM_DSP):
         op_clip = (NUM_DSP / layer["kernel"]) * 2 
         
         valid_par_solutions.append(generate_valid_combinations(
-            och=max_och_par, ich=max_ich_par, iw=max_iw_par, iw_clip=8, op_clip=op_clip))
+            och=max_och_par, ich=max_ich_par, iw=max_ow_par, iw_clip=4, op_clip=op_clip))
         
     return valid_par_solutions
 
@@ -937,11 +937,12 @@ def ilp(io_dict, off_chip_storage, model, board="ULTRA96v2", packing=True, prj_r
                     ow_ops = io_dict[add_node_name]["ow_ops_out"]
                 node["add_ops"] = add_ops
 
-                print("#### Add tensor read/write rate for", name, "read", node["ich_ops"], "write", node["add_ops"])
-                if (node["ich_ops"] > node["add_ops"]) or (node["ow_ops"] != ow_ops):
+                print("#### Add tensor read/write rate for", name, "read", node["ops"], "write", node["add_ops"])
+                if (node["add_ops"] % node["ops"] != 0) or (node["ow_ops"] != ow_ops):
                     node["adjust_add"] = True
-                    node["adjust_add_ops"] = find_common_mult(node["ich_ops"],node["add_ops"])
-                    print("#### Found add tensor read/write rate for", name, "read", node["ich_ops"], "write", node["add_ops"], "to avoid bottleneck")
+                    node["adjust_add_ops"] = find_common_mult(node["ops"],node["add_ops"])
+                    node["adjust_add_ow_ops_in"] = ow_ops
+                    print("#### Found add tensor read/write rate for", name, "read", node["ops"], "write", node["add_ops"], "to avoid bottleneck")
                     print("#### Balancing add tensor for", name, "from", node["add_ops"], "to", node["adjust_add_ops"], "to avoid bottleneck")
                 else:
                     node["adjust_add"] = False
