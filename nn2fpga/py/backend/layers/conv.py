@@ -174,7 +174,7 @@ def parse_comp(name, node):
 
     # Template parameters
     block["template"] = []
-    if (node["is_1x1"]):
+    if (node["pad"] == 0) and (node["ow_ops"] == 1):
         block["template"].append("t_%s_lb_struct" % input_type_name)
         block["template"].append("t_%s_lb" % input_type_name)
         # block["template"].append("t_%s_vector" % input_type_name)
@@ -515,7 +515,7 @@ def parse_comp(name, node):
 
     block["args"] = []
 
-    if node["pad"] == 0:
+    if (node["pad"] == 0) and (node["ow_ops"] == 1):
         block["args"].append("s_%s_pre_pad" % input_name)
     else:
         block["args"].append("s_%s_compute" % input_name)

@@ -57,9 +57,9 @@ cv::Mat opencv_transform(cv::Mat image) {
     cv::Rect roi(j, i, 224, 224);
     image = image(roi);
 
-    cv::Scalar mean(0.485, 0.456, 0.406);
-    cv::Scalar std(0.229, 0.224, 0.225);
-    image = (image - mean) / std;
+    // cv::Scalar mean(0.485, 0.456, 0.406);
+    // cv::Scalar std(0.229, 0.224, 0.225);
+    // image = (image - mean) / std;
 
     // cv::split(transposed, image_channels);
 
@@ -140,7 +140,7 @@ int main(int argc, char** argv) {
   DIR *dir;
   struct dirent *ent;
   std::cout << "OPENING DIRECTORY" << std::endl;
-  typedef ap_fixed<32,16> t_transform;
+  typedef ap_ufixed<8,0> t_transform;
   t_transform mean[3] = {0.485, 0.456, 0.406};
   t_transform std[3] = {0.229, 0.224, 0.225};
   if ((dir = opendir (path.c_str())) != NULL) {
@@ -179,9 +179,9 @@ int main(int argc, char** argv) {
                     // if (s_par == 0) {
                     //   std::cout << "Packet: ";
                     // }
-                    t_transform tmp = (float)pixel[c];
+                    // t_transform tmp = (float)pixel[c];
                     // std::cout << tmp << " ";
-                    t_net_produce_2 tmp2 = tmp;
+                    t_net_produce_2 tmp2 = (float)pixel[c];
                     s_data.range(8 * (s_par + 1) - 1, 8 * s_par) = tmp2.range(7,0);
 
                     // #ifdef DEBUG
