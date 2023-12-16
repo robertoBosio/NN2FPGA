@@ -19,6 +19,11 @@ S2MM_LOOP:
       std::cout << "ERROR: s2mm: p > size\n";
 #endif
   } while (!v.last);
+#ifndef __SYNTHESIS__
+  if (stream.size() > 0)
+    std::cout << "ERROR: s2mm: stream.size() > 0\n";
+  assert(stream.size() == 0);
+#endif
 }
 
 } // namespace nn2fpga

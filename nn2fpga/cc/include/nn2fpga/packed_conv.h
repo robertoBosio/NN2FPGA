@@ -67,7 +67,7 @@ void conv_pipe(
 
   const int FW = (c_fw+(c_ow_ops-1)*c_str);
 
-  if constexpr(c_och_pack > 1) {
+  if (c_och_pack > 1) {
 
     t_acc s_acc[c_ow_pack*c_och_pack];
     t_acc s_acc_base[c_ow_pack*c_och_pack];
@@ -126,7 +126,7 @@ void conv_pipe(
         ap_int<27> s_data = 0;
         ap_int<18> s_b_ext = 0;
 
-        ap_int<27> s_a_d_ext[c_ow_pack];
+        ap_int<27> s_a_d_ext[c_och_pack];
 
         for (auto s_och_pack = 0; s_och_pack < c_och_pack; s_och_pack++) {
 
@@ -218,16 +218,6 @@ void conv_pipe(
       }
     }
 
-    #ifndef __SYNTHESIS__
-      for (auto s_ow_pack = 0; s_ow_pack < c_ow_pack; s_ow_pack++) {
-        for (auto s_och_pack = 0; s_och_pack < c_och_pack; s_och_pack++) {
-          #ifdef DEBUG_ACC
-            std::cout <<  "ACC " << s_acc[s_och_pack*c_ow_pack+s_ow_pack] << std::endl;
-          #endif
-        }
-      }
-    #endif
-
     // If c_depth is 1 then there is no need to store the previous
     // results
     if constexpr(c_depth == 0) {
@@ -235,6 +225,11 @@ void conv_pipe(
         for (auto s_och_pack = 0; s_och_pack < c_och_pack; s_och_pack++) {
           auto s_r_index = s_och_pack*c_ow_pack+s_ow_pack;
           i_acc_buff[reuse][(och+s_och_pack)*c_ow_ops+s_ow_ops+s_ow_pack] = s_acc[s_r_index];
+          #ifndef __SYNTHESIS__
+            #ifdef DEBUG_ACC
+              std::cout <<  "ACC " << i_acc_buff[reuse][(och+s_och_pack)*c_ow_ops+s_ow_ops+s_ow_pack] << std::endl;
+            #endif
+          #endif
         }
       }
     }
@@ -249,6 +244,7 @@ void conv_pipe(
         }
       }
     }
+
   } else {
 
     if constexpr(c_ow_pack > 1) {
@@ -479,22 +475,28 @@ void conv_pipe(
         for (auto s_fw = 0; s_fw < c_fw; s_fw++) {
           auto s_index_act = s_fh*FW+s_fw+(c_ow_ops-s_ow_ops-1)*c_str;
           auto s_index = s_fh*c_fw+s_fw;
+          #ifndef __SYNTHESIS__
+            #ifdef DEBUG_CONV
+              std::cout << "W" << s_index << " " << i_weight[s_index][ich_idx][ops] << " ";
+              std::cout << "A" << s_index << " " << i_input[s_index][ich_idx] << " ";
+            #endif
+            #ifdef DEBUG_ACT
+              std::cout << "A" << s_index << " " << s_data << std::endl;
+            #endif
+          #endif
           auto s_data = i_input[s_index_act][ich_idx];
           if constexpr(std::is_same<t_input_mod, std::nullptr_t>::value == false)
             s_data = t_input_mod(s_data);
           s_acc += s_data * i_weight[s_index][ich_idx][ops];
-          #ifndef __SYNTHESIS__
-            // #ifdef DEBUG_CONV
-            //   std::cout << "W" << s_index << " " << i_weight[s_index][ich_idx][ops] << " ";
-            //   std::cout << "A" << s_index << " " << i_input[s_index][ich_idx] << " " << s_data << " ";
-            // #endif
-            #ifdef DEBUG_ACT
-              std::cout << "A" << s_index << " " << s_data << std::endl;
-            #endif
-            #ifdef DEBUG_WEIGHTS
-              std::cout << i_weight[c_index - 1 - s_index][ich_idx][ops] << std::endl;
-            #endif
-          #endif
+          // #ifndef __SYNTHESIS__
+          //   #ifdef DEBUG_CONV
+          //     std::cout << "W" << s_index << " " << i_weight[s_index][ich_idx][ops] << " ";
+          //     std::cout << "A" << s_index << " " << i_input[s_index][ich_idx] << " " << s_data << " ";
+          //   #endif
+          //   #ifdef DEBUG_ACT
+          //     std::cout << "A" << s_index << " " << s_data << std::endl;
+          //   #endif
+          // #endif
         }
       }
 
@@ -669,7 +671,21 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
             /* TODO: Adjust for generic bit quantizations */
           if (s_reuse == 0) {
             for (auto s_index = 0; s_index < c_index; s_index++) {
+              #ifndef __SYNTHESIS__
+                #ifdef DEBUG_WEIGHTS
+                  std::cout << "reading s_weight[" << c_index-1-s_index << "]" << std::endl;
+                #endif
+              #endif
               s_weight[s_index] = i_weights[s_index].read();
+              #ifndef __SYNTHESIS__
+                #ifdef DEBUG_WEIGHTS
+                for (auto s_log_ich = 0; s_log_ich < c_in_ops; s_log_ich++) {
+                  for (auto s_log_ops = 0; s_log_ops < c_ops; s_log_ops++) {
+                    std::cout << "s_weight[" << c_index-1-s_index << "][" << s_log_ich << "][" << s_log_ops << "] = " << s_weight[c_index - 1 - s_index][s_log_ich][s_log_ops] << std::endl;
+                  }
+                }
+                #endif
+              #endif
             }
 
             // If it is the first reuse iteration, read the 1x1 weights
@@ -710,13 +726,14 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
           for (auto s_ich_idx = 0; s_ich_idx < c_in_ops; s_ich_idx++) {
             auto s_ich = s_num_ich + s_ich_idx;
             std::array<t_input_data, c_ow_ops> s_input_1x1;
-          #pragma HLS array_partition variable = s_input_1x1 type = complete
-            for (auto s_ow_ops = 0; s_ow_ops < c_ow_ops; s_ow_ops++) {
-              // s_input_1x1[s_ow_ops] = s_input[MO + MO%c_str - s_ow_ops*c_str];
-              auto forward_index = (c_fh/2 + 1)*FW - c_fw/2 - s_ow_ops*c_str;
-              s_input_1x1[c_ow_ops - s_ow_ops - 1] = s_input[forward_index];
+            if constexpr(std::is_same<t_acc_1x1_struct, std::nullptr_t>::value == false) {
+              #pragma HLS array_partition variable = s_input_1x1 type = complete
+              for (auto s_ow_ops = 0; s_ow_ops < c_ow_ops; s_ow_ops++) {
+                auto forward_index = (c_fh/2 + 1)*FW - c_fw/2 - s_ow_ops*c_str;
+                // s_input_1x1[s_ow_ops] = s_input[MO + MO%c_str - s_ow_ops*c_str];
+                s_input_1x1[c_ow_ops - s_ow_ops - 1] = s_input[forward_index];
+              }
             }
-
             COMPUTE:
             for (auto s_ow_ops = 0; s_ow_ops < c_ow_ops; s_ow_ops+=c_ow_pack) {
               for (auto s_ops = 0; s_ops < c_ops; s_ops+=c_och_pack) {
@@ -870,6 +887,7 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
         #ifdef DEBUG_RES
           for (auto s_ow_ops = 0; s_ow_ops < c_ow_ops; s_ow_ops++) {
             for (auto s_och = 0; s_och < c_och_depth; s_och++) {
+              std::cout <<  "PRE RES " << s_acc_buff[0][s_och*c_ow_ops+s_ow_ops] << std::endl;
               auto s_acc_log = quant_stream<
                 t_output, t_output_clip, t_output_mask, t_acc, c_relu
               >(s_acc_buff[0][s_och*c_ow_ops+s_ow_ops]);
