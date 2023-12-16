@@ -626,7 +626,7 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
 
   #ifndef __SYNTHESIS__
     if (c_depth == 1)
-      std::cout << "depth_conv_op " << c_ich << " " << c_ops <<  " " << c_in_ops << std::endl;
+      std::cout << "depth_conv_op " << c_ich << " " << c_och <<  " " << c_reuse_iter << std::endl;
     else
       std::cout << "conv_op " << c_ich << " " << c_ops << " " << c_in_ops << std::endl;
     if constexpr(std::is_same<t_add_struct, std::nullptr_t>::value == false)
