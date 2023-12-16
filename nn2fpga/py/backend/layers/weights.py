@@ -852,7 +852,7 @@ def on_chip_rom(
             options.append(["type", "complete"])
         else:
             options.append(["factor", dim_1_reshape_factor])
-        options.append(["type", "cyclic"])
+            options.append(["type", "cyclic"])
 
     pragma["options"] = options
 
