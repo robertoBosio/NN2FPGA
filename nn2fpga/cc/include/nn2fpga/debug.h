@@ -2,7 +2,7 @@
 #define NN2FPGA_DEBUG_H_
 
 #ifndef __SYNTHESIS__
-// #define DEBUG
+#define DEBUG
 // #define DEBUG_CONV
 // #define DEBUG_RES
 // #define DEBUG_INPUT

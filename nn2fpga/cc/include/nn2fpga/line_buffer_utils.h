@@ -35,7 +35,7 @@ void pad_input(hls::stream<din_t> din[(c_fw+(c_ow_ops-1)*c_str) * c_fh],
       for (auto s_i = 0; s_i < FSZ; s_i++) {
         std::cout << "s_read[" << s_i << "] = " << din[s_i].size() << std::endl;
       }
-      std::cout << "IH_PAD " << IH_PAD << " IW_PAD " << IW_PAD << std::endl;
+      std::cout << "IH_REM " << IH_REM << " IW_REM " << IW_REM << std::endl;
   #endif
 
   for (auto s_index_h = 0; s_index_h < IH_REM; s_index_h += c_str) {
