@@ -98,7 +98,11 @@ void consume_stream(hls::stream<din_wrap_t> dinStream[ow_ops],
   // If synthesis pragma in not defined then print consume_stream
   // function name
   #ifndef __SYNTHESIS__
-      std::cout << "consume_stream " << OCH << std::endl;
+    std::cout << "consume_stream " << OCH << std::endl;
+    if (dinStream[0].size() == 0) {
+      std::cout << "ERROR: consume_stream: dinStream[0].size() " << dinStream[0].size() << " == 0\n";
+      assert (dinStream[0].size() > 0);
+    }
   #endif
   din_wrap_t wrap;
   for (auto i = 0; i < OSZ; i++) {
@@ -113,14 +117,26 @@ void consume_stream(hls::stream<din_wrap_t> dinStream[ow_ops],
           std::cout << dout.data << std::endl;
         #endif
       #endif
-      dout.last = wrap.last & (i == (OSZ - 1));
+      dout.last = wrap.last & (i == (OSZ - 1)) & (s_ops == (OPS - 1));
       dout.keep = -1;
       dout.strb = 1;
       doutStream << dout;
     }
   }
   #ifndef __SYNTHESIS__
-      std::cout << "end consume_stream " << std::endl;
+    if (doutStream.size() == 0) {
+      std::cout << "ERROR: consume_stream: doutStream.size() " << doutStream.size() << " == 0\n";
+      assert (doutStream.size() != 0);
+    }
+    if (dinStream[0].size() > 0) {
+      std::cout << "ERROR: consume_stream: dinStream[0].size() " << dinStream[0].size() << " > 0\n";
+      assert (dinStream[0].size() == 0);
+    }
+    if (doutStream.size() != (OCH * OH * OW)) {
+      std::cout << "ERROR: consume_stream: doutStream.size() " << doutStream.size() << " != " << (OCH * OH * OW) << "\n";
+      assert (doutStream.size() == (OCH * OH * OW));
+    }
+    std::cout << "end consume_stream " << std::endl;
   #endif
 }
 
