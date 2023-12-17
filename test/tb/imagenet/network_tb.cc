@@ -75,7 +75,8 @@ int main(int argc, char** argv) {
 	parser.parse(argc, argv);
  
   /* Images per batch */
-  const unsigned int c_batch = stoi(parser.value("n_images"));
+  // const unsigned int c_batch = stoi(parser.value("n_images"));
+  const unsigned int c_batch = 10;
   /* Bytes per activation data stream */
   const unsigned int c_par = c_inp_1 / ACTIVATION_PARALLELISM;
   /* Bytes per image */
@@ -166,7 +167,7 @@ int main(int argc, char** argv) {
         // Iterate over elements of result_ocv per channel
         unsigned int s_bytes = 0;
         ap_uint<64> s_data = 0;
-        std::cout << "STORING IMAGE" << std::endl;
+        std::cout << "sending image with rows: " << result_ocv.rows << " cols: " << result_ocv.cols << std::endl;
         for (int i = 0; i < result_ocv.rows; i++) {
             for (int j = 0; j < result_ocv.cols; j++) {
                 cv::Vec3f pixel = result_ocv.at<cv::Vec3f>(i, j);
@@ -181,7 +182,7 @@ int main(int argc, char** argv) {
                     // }
                     // t_transform tmp = (float)pixel[c];
                     // std::cout << tmp << " ";
-                    t_net_produce_2 tmp2 = (float)pixel[c];
+                    ap_ufixed<8,0> tmp2 = (float)pixel[c];
                     s_data.range(8 * (s_par + 1) - 1, 8 * s_par) = tmp2.range(7,0);
 
                     // #ifdef DEBUG
@@ -239,7 +240,7 @@ int main(int argc, char** argv) {
     std::cout << image << " image" << std::endl;
     for (int g = 0; g < CLASSES; g++) {
       ap_int<8> data = mem_outputs[g + image * CLASSES];
-      std::cout << data << std::endl;
+      std::cout << g << ": " << data << std::endl;
       if (data > max_value) {
         max_value = data;
         max_index = g;
