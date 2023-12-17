@@ -22,7 +22,7 @@ def get_quant_type(signed, bit_width, scale_factor, acc_reg=False, narrow=False)
         if narrow:
             type_name += ",AP_RND_ZERO,AP_SAT_SYM>"
         else:
-            type_name += ",AP_RND_ZERO,AP_SAT>"
+            type_name += ",AP_RND_CONV,AP_SAT>"
     # type_name += ",AP_TRN,AP_SAT>"
     return type_name
 

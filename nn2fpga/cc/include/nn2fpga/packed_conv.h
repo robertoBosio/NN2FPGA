@@ -711,7 +711,7 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
               // FIX FOR MOBILENETv2: Taking into account different output and
               // input channels
               if ((s_add_read == 0) && (s_num_ich == 0)){
-                s_add[s_ow_ops] = i_add[s_ow_ops].read();   
+                s_add[c_ow_ops-1-s_ow_ops] = i_add[s_ow_ops].read();   
                 #ifndef __SYNTHESIS__
                   #ifdef DEBUG_ADD
                   for (auto s_ich_idx_add = 0; s_ich_idx_add < c_add_ops; s_ich_idx_add++) {

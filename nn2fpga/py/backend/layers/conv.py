@@ -386,6 +386,7 @@ def parse_comp(name, node):
         acc_bits += 1
     if (node["add"]):
         acc_bits += 1
+    acc_bits += 1
 
     acc_type = get_quant_type(True, acc_bits, actscale+node["wscale"][0], acc_reg=True)
     block["defines"] = {}
