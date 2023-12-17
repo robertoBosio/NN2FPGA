@@ -30,8 +30,13 @@ if {${SIMD_DSP} == 1} {
   set simd_flag ""
 }
 
-add_files -cflags " -Icc/include -I${NN2FPGA_ROOT}/cc/include${simd_flag}" \
-  cc/src/${TOP_NAME}.cc
+if {${CSIM} == 1} {
+  add_files -cflags " -O3 -Icc/include -I${NN2FPGA_ROOT}/cc/include${simd_flag}" \
+    cc/src/${TOP_NAME}.cc
+} else {
+  add_files -cflags " -O3 -Icc/include -I${NN2FPGA_ROOT}/cc/include${simd_flag}" \
+    cc/src/${TOP_NAME}.cc
+}
 add_files -cflags " -I${TB_ROOT}/common/logger/ " ${TB_ROOT}/common/cmdparser/cmdlineparser.cpp
 add_files ${TB_ROOT}/common/logger/logger.cpp
 
@@ -43,10 +48,10 @@ if {${SIMD_DSP} == 1} {
 if {${DATASET} != "cifar10"} {
   puts ${PRJ_ROOT}/Vitis_Libraries/vision/L1/include/common/
 
-  add_files -cflags "-D_GLIBCXX_DEBUG -DCSIM -Icc/include -I${NN2FPGA_ROOT}/cc/include -I${TB_ROOT}/common/cmdparser -I${TB_ROOT}/common/logger  -I${OPENCV} -I${PRJ_ROOT}/Vitis_Libraries/vision/L1/include/ -lopencv_imgproc -lopencv_core -lopencv_imgcodecs" \
+  add_files -cflags " -DCSIM -Icc/include -I${NN2FPGA_ROOT}/cc/include -I${TB_ROOT}/common/cmdparser -I${TB_ROOT}/common/logger  -I${OPENCV} -I${PRJ_ROOT}/Vitis_Libraries/vision/L1/include/ -lopencv_imgproc -lopencv_core -lopencv_imgcodecs" \
     -tb ${TB_ROOT}/${DATASET}/network_tb.cc
 } else {
-  add_files -cflags "-D_GLIBCXX_DEBUG -DCSIM -Icc/include -I${NN2FPGA_ROOT}/cc/include -I${TB_ROOT}/common/cmdparser -I${TB_ROOT}/common/logger -I${TB_ROOT}/${DATASET}/include -I${PRJ_ROOT}/cc/include" \
+  add_files -cflags " -D_GLIBCXX_DEBUG -DCSIM -Icc/include -I${NN2FPGA_ROOT}/cc/include -I${TB_ROOT}/common/cmdparser -I${TB_ROOT}/common/logger -I${TB_ROOT}/${DATASET}/include -I${PRJ_ROOT}/cc/include" \
     -tb ${TB_ROOT}/${DATASET}/network_tb.cc
 }
 add_files -tb ${PRJ_ROOT}/npy
