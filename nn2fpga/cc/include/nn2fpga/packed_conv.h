@@ -730,7 +730,7 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
             if constexpr(std::is_same<t_acc_1x1_struct, std::nullptr_t>::value == false) {
               #pragma HLS array_partition variable = s_input_1x1 type = complete
               for (auto s_ow_ops = 0; s_ow_ops < c_ow_ops; s_ow_ops++) {
-                auto forward_index = (c_fh/2 + 1)*FW - c_fw/2 - s_ow_ops*c_str;
+                auto forward_index = (c_fh/2 + 1)*FW - c_fw/2 - s_ow_ops*c_str - 1;
                 // s_input_1x1[s_ow_ops] = s_input[MO + MO%c_str - s_ow_ops*c_str];
                 s_input_1x1[c_ow_ops - s_ow_ops - 1] = s_input[forward_index];
               }
