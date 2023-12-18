@@ -249,14 +249,16 @@ void conv_pipe(
 
     if constexpr(c_ow_pack > 1) {
       
+      auto s_index_ops = (c_depth == 1) ? ich_idx : (ops);
+
       t_acc s_acc[c_ow_pack];
       t_acc s_acc_base[c_ow_pack];
 
       ap_uint<48> s_acc_simd[c_simd];
 
       if constexpr(std::is_same<t_bias, std::nullptr_t>::value == false) {
-        if (ich == 0) {
-          auto s_bias = i_bias[0][ops];
+        if ((ich == 0) | (c_depth == 1))  {
+          auto s_bias = i_bias[0][s_index_ops];
           for (auto s_ow_pack = 0; s_ow_pack < c_ow_pack; s_ow_pack++) {
             #ifndef __SYNTHESIS__
               // #ifdef DEBUG_CONV
@@ -397,9 +399,9 @@ void conv_pipe(
         #endif
       }
 
-      if (ich == c_ich-1) {
+      if ((ich == c_ich-1) | (c_depth == 1)) {
         for (auto s_ow_pack = 0; s_ow_pack < c_ow_pack; s_ow_pack++) {
-          s_output_struct[s_ow_ops+s_ow_pack].data[0][ops] = quant_stream<
+          s_output_struct[s_ow_ops+s_ow_pack].data[0][s_index_ops] = quant_stream<
             t_output, t_output_clip, t_output_mask, t_acc, c_relu
           >(s_acc[s_ow_pack]);
           s_output_struct[s_ow_ops+s_ow_pack].last = last;
