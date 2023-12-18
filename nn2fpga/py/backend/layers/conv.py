@@ -386,7 +386,7 @@ def parse_comp(name, node):
         acc_bits += 1
     if (node["add"]):
         acc_bits += 1
-    acc_bits += 1
+    # acc_bits += 1
 
     acc_type = get_quant_type(True, acc_bits, actscale+node["wscale"][0], acc_reg=True)
     block["defines"] = {}
@@ -439,7 +439,7 @@ def parse_comp(name, node):
     block["defines"]["t_%s_mask" % output_name] = ["type", output_type_mask]
 
     if (node["merge_1x1"]):
-        output_type_1x1 = get_quant_type(True, node["bits"][1], node["scale_factor"][1])
+        output_type_1x1 = get_quant_type(node["signed"][1], node["bits"][1], node["scale_factor"][1])
         # TODO: implement array of signed values for multi-output conv
         block["defines"]["t_%s" % output_1x1_name] = ["type", output_type_1x1]
         output_vector_type = "std::array<t_%s, %0d>" % (output_1x1_name, node["ops"])
@@ -469,13 +469,15 @@ def parse_comp(name, node):
             if (node["depth"] == 1):
                 acc_bits = node["in_bits"][1] + node["wbits"][1]
             else:
-                acc_bits = node["actbits"][0] + node["wbits"][1] + math.ceil(math.log2(node["ich"]))
+                acc_bits = node["in_bits"][1] + node["wbits"][1] + math.ceil(math.log2(node["ich"]))
+            acc_bits += 1
             acc_type_1x1 = get_quant_type(True, acc_bits, node["in_scale_factor"][1]+node["wscale"][1])
         else:
             if (node["depth"] == 1):
-                acc_bits = node["in_bits"][1] + node["wbits"][1]
+                acc_bits = node["actbits"][0] + node["wbits"][1]
             else:
                 acc_bits = node["actbits"][0] + node["wbits"][1] + math.ceil(math.log2(node["ich"]))
+            acc_bits += 1
             acc_type_1x1 = get_quant_type(True, acc_bits, node["actscale"][0]+node["wscale"][1])
 
         block["defines"]["t_%s_acc" % output_1x1_name] = ["type", acc_type_1x1]
