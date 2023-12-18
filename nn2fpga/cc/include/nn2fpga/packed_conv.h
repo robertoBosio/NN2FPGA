@@ -97,7 +97,7 @@ void conv_pipe(
         if ((ich == 0) | (c_depth == 1)) {
         // TODO: Add support for multiple inputs (vector type)
           for (auto s_ow_pack = 0; s_ow_pack < c_ow_pack; s_ow_pack++) {
-            s_acc[s_och_pack*c_ow_pack+s_ow_pack] += i_add[s_ow_pack+s_ow_ops].data[0][ich_idx_add];
+            s_acc[s_och_pack*c_ow_pack+s_ow_pack] += i_add[s_ow_pack+s_ow_ops].data[0][ich_idx_add+s_och_pack];
           }
         }
       }

@@ -6,7 +6,7 @@
 // #define DEBUG_CONV
 // #define DEBUG_RES
 // #define DEBUG_INPUT
-#define DEBUG_ADD
+// #define DEBUG_ADD
 // #define DEBUG_BANDWIDTH
 // #define DEBUG_FORWARD
 // #define DEBUG_WEIGHTS

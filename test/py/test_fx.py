@@ -173,7 +173,11 @@ def main():
 
         for name, module in model.named_modules():
             print(name)
+            if isinstance(module, torch.nn.MaxPool2d):
+                module.register_forward_hook(get_activation(name))
             if isinstance(module, torch.nn.Conv2d):
+                module.register_forward_hook(get_activation(name))
+            if "add" in name:
                 module.register_forward_hook(get_activation(name))
             if name == "conv1.input_quant":
                 module.register_forward_hook(get_activation_quant(name))
