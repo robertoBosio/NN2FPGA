@@ -3,6 +3,7 @@
 
 #include "ap_int.h"
 #include "hls_stream.h"
+#include "debug.h"
 
 namespace nn2fpga {
 
@@ -201,6 +202,15 @@ void bandwidth_adjust_down(
             // If the packet is finished then write it
             if (s_i == (c_ops_out - c_ops_in)){
               s_write[s_ow_ops_out].last = s_read[s_i_read][s_i].last;
+              #ifndef __SYNTHESIS__
+                #ifdef DEBUG_BANDWIDTH
+                  for (auto s_i = 0; s_i < c_ow_ops_out; s_i++) {
+                    for (auto s_j = 0; s_j < c_ops_out; s_j++) {
+                      std::cout << "s_bandwidth[" << s_i << "][" << s_j << "] = " << s_write[s_i].data[0][s_j] << std::endl;
+                    }
+                  }
+                #endif
+              #endif
               o_data[s_ow_ops_out].write(s_write[s_ow_ops_out]);
             }
 
@@ -258,6 +268,15 @@ void bandwidth_adjust_up(
             // If the packet is finished then write it
             if (s_i == (c_ops_out - c_ops_in)) {
               s_write[s_i_write].last = s_read[s_ow_ops_in][s_i].last;
+              #ifndef __SYNTHESIS__
+                #ifdef DEBUG_BANDWIDTH
+                  for (auto s_i = 0; s_i < c_ow_ops_out; s_i++) {
+                    for (auto s_j = 0; s_j < c_ops_out; s_j++) {
+                      std::cout << "s_bandwidth[" << s_i << "][" << s_j << "] = " << s_write[s_i].data[0][s_j] << std::endl;
+                    }
+                  }
+                #endif
+              #endif
               o_data[s_i_write].write(s_write[s_i_write]);
             }
 
@@ -403,7 +422,7 @@ void shift_op(hls::stream<din_t> &din, hls::stream<dcomp_t> &o_compute,
           s_compute_write &= (s_index_w_str == (c_strw));
 
           #ifndef __SYNTHESIS__
-            #ifdef __DEBUG_LINE__
+            #ifdef DEBUG_LINE
               if (c_ow_ops == IW) {
                 // print s_compute_write sub-conditions
                 std::cout << (s_index_h >= c_paddingh_shift) << " " << (s_index_h < (IH - c_end_paddingh_shift)) << " " << (s_index_w >= c_paddingw_shift) << " " << (s_index_w < (IW - c_end_paddingw_shift)) << " " << (s_index_h_str == (c_strh)) << " " << (s_index_w_str == (c_strw)) << std::endl;

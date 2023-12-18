@@ -420,6 +420,7 @@ void conv_pipe(
 
         // FIX: Seems that when there is the skip connection the binding of the
         // DSPs is not working, moving things before
+        // CHECK: Check if this is working properly
         t_acc s_acc_add = 0;
         if ((ich == 0) | (c_depth == 1)) {
           s_acc_add = i_add[s_ow_ops].data[0][ich_idx_add];
@@ -711,7 +712,7 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
               // FIX FOR MOBILENETv2: Taking into account different output and
               // input channels
               if ((s_add_read == 0) && (s_num_ich == 0)){
-                s_add[c_ow_ops-1-s_ow_ops] = i_add[s_ow_ops].read();   
+                s_add[s_ow_ops] = i_add[s_ow_ops].read();   
                 #ifndef __SYNTHESIS__
                   #ifdef DEBUG_ADD
                   for (auto s_ich_idx_add = 0; s_ich_idx_add < c_add_ops; s_ich_idx_add++) {
@@ -866,10 +867,17 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
               if (s_num_och == (c_num_och - 1)) {
                 t_forward_struct s_forward;
                 // auto forward_index = MO + MO%c_str - s_ow_ops*c_str;
-                auto forward_index = (c_fh/2 + 1)*FW - c_fw/2 - s_ow_ops*c_str;
+                auto forward_index = (c_fh/2 + 1)*FW - c_fw/2 - s_ow_ops*c_str - 1;
                 s_forward.data[0] = s_input[forward_index];
                 s_forward.last = false;
                 o_forward[s_ow_ops_out+s_ow_ops].write(s_forward);
+                #ifndef __SYNTHESIS__
+                  #ifdef DEBUG_FORWARD
+                    for (auto s_log_ich = 0; s_log_ich < c_in_ops; s_log_ich++) {
+                      std::cout << "forward[" << s_ow_ops_out+s_ow_ops << "][" << s_log_ich << "] " << s_forward.data[0][s_log_ich] << std::endl;
+                    }
+                  #endif
+                #endif
               }
             }
           }
