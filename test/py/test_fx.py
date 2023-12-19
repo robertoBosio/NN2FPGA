@@ -183,6 +183,8 @@ def main():
                 module.register_forward_hook(get_activation_quant(name))
             if name == "conv1.weight_quant":
                 module.register_forward_hook(get_weight_quant(name))
+            if name == "layer1.0.conv1.weight_quant":
+                module.register_forward_hook(get_weight_quant(name))
             if name == "conv1.bias_quant":
                 module.register_forward_hook(get_bias_quant(name))
             
