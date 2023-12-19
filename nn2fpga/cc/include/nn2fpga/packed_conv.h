@@ -594,8 +594,8 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
   t_bias_1x1 s_bias_1x1;
 #pragma HLS array_partition variable = s_bias_1x1 type = complete dim = 1
   t_add_struct s_add[c_ow_ops];
+#pragma HLS aggregate variable = s_add
 #pragma HLS array_partition variable = s_add type = complete
-// #pragma HLS aggregate variable = s_add
 //   if (constexpr(std::is_same<t_add_struct, std::nullptr_t>::value == false)) {
 // #pragma HLS array_partition variable = s_add[0].data type = complete dim=0
 //   }
