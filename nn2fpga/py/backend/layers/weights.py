@@ -952,7 +952,7 @@ def parse_all(io_dict, prj_root="/tmp", board="KRIA", uram_storage = False):
 
     # Useful space in BRAM18. Each BRAM18 is 18kb with a maximum word width of
     # 36 bits, in which 4 bits are reserved to ECC code
-    SIZE_BRAM18 = ((18 * 1024) / 36) * 32
+    SIZE_BRAM18 = 18 * 1024
     
     # Useful space in BRAM36, composed by two BRAM18.
     SIZE_BRAM36 = SIZE_BRAM18 * 2
@@ -979,7 +979,15 @@ def parse_all(io_dict, prj_root="/tmp", board="KRIA", uram_storage = False):
                     "par": w_par,
                     "bits": node['bits'],
                     "is_bias": node["is_bias"],
-                    "uram_storage": False
+                    "uram_storage": False,
+                    "ow": node["ow"],
+                    "oh": node["oh"],
+                    "ich": node["ich"],
+                    "och": node["och"],
+                    "iw": node["iw"],
+                    "ih": node["ih"],
+                    "ops": node["ops"],
+                    "ich_ops": node["ich_ops"]
                 }
             )
     
@@ -1011,7 +1019,7 @@ def parse_all(io_dict, prj_root="/tmp", board="KRIA", uram_storage = False):
 def sorted_bind_storage(dict_layers, board_res, uram_storage=False):
     # Useful space in BRAM18. Each BRAM18 is 18kb with a maximum word width of
     # 36 bits, in which 4 bits are reserved to ECC code
-    SIZE_BRAM18 = ((18 * 1024) / 36) * 32
+    SIZE_BRAM18 = (18 * 1024)
     
     # Useful space in BRAM36, composed by two BRAM18.
     SIZE_BRAM36 = SIZE_BRAM18 * 2
@@ -1049,15 +1057,15 @@ def sorted_bind_storage(dict_layers, board_res, uram_storage=False):
             fit_uram = (used_uram + tot_uram) <= board_res["uram"] and uram_storage
             fit_bram = (used_bram + tot_bram) <= board_res["bram"]
             if (not fit_bram and not fit_uram):
-                print("There is not enough space.")
                 exit(-1)
+                print(f"XXX produce_stream_{node['ich']}_{node['och']}_{node['ow']}_{node['oh']}_{node['iw']}_{node['ih']} P:{w_par} of {node['bits']}b. {node['n_weights']}. {tot_uram}U {tot_bram}B. XXX")
             elif ((fit_bram and fit_uram and tot_uram < tot_bram) or not fit_bram):
                 used_uram += tot_uram
-                print(f"{node['name']} P:{w_par} of {node['bits']}b. {node['n_weights']}. {tot_uram}U {tot_bram}B.")
+                print(f"produce_stream_{node['ich']}_{node['och']}_{node['ow']}_{node['oh']}_{node['iw']}_{node['ih']} P:{w_par} of {node['bits']}b. {node['n_weights']}. {tot_uram}U {tot_bram}B.")
                 node["uram_storage"] = True
             else:
                 used_bram += tot_bram
-                print(f"{node['name']} P:{w_par} of {node['bits']}b. {node['n_weights']}. {tot_bram}B {tot_uram}U.")
+                print(f"produce_stream_{node['ich']}_{node['och']}_{node['ow']}_{node['oh']}_{node['iw']}_{node['ih']} P:{w_par} of {node['bits']}b. {node['n_weights']}. {tot_bram}B {tot_uram}U.")
                 node["uram_storage"] = False
         else:
             node["uram_storage"] = False

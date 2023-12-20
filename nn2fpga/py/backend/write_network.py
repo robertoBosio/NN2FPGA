@@ -66,6 +66,7 @@ def write_network(
         io_dict,
         off_chip_storage,
         inferred_model,
+        file_name,
         board,
         packing,
         prj_root=prj_root
