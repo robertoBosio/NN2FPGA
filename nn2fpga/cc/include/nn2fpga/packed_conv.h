@@ -579,6 +579,7 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
   t_input s_input;
 // #pragma HLS array_partition variable = s_input type = complete dim = 0
 #pragma HLS array_partition variable = s_input type = complete
+#pragma HLS aggregate variable = s_input
 // #pragma HLS array_partition variable = s_input type = complete dim=1
 // #pragma HLS array_partition variable = s_input type = complete dim=2
   bool s_last = false;
@@ -865,9 +866,12 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
             for (auto s_ow_ops = 0; s_ow_ops < c_ow_ops; s_ow_ops++) {
               if (s_num_och == (c_num_och - 1)) {
                 t_forward_struct s_forward;
+// #pragma HLS aggregate variable = s_forward
+// #pragma HLS array_partition variable=s_forward.data type=complete
                 // auto forward_index = MO + MO%c_str - s_ow_ops*c_str;
                 auto forward_index = (c_fh/2 + 1)*FW - c_fw/2 - s_ow_ops*c_str;
                 s_forward.data[0] = s_input[forward_index];
+                // s_forward.data[0] = s_input[0];
                 s_forward.last = false;
                 o_forward[s_ow_ops_out+s_ow_ops].write(s_forward);
               }

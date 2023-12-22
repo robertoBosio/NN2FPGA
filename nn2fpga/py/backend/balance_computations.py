@@ -37,6 +37,8 @@ def layers_extractions(io_dict):
     """ Extracts the information about the layers from the io_dict and stores it in a dictionary.""" 
     
     # Find the highest number of computations done by a single convolution.
+    with open(f"temp_dict.rpt", "w") as f:
+        print(io_dict, file=f)
 
     total_computations = 0
     index = 0
@@ -44,18 +46,18 @@ def layers_extractions(io_dict):
     par_layers = ["conv", "pool"]
     for node_name, node_info in io_dict.items():
         if node_info["type"] in par_layers:
-            
+             
             kernel = node_info["fw"] * node_info["fh"]
             total_computations += node_info["total_log"]
             depth = False
             merge_1x1 = False
             bits = [0]
             och_1x1 = node_info["och"]
-
+            
             if node_info["type"] == "conv":
                 depth = node_info["depth"]
                 merge_1x1 = node_info["merge_1x1"]
-                bits = node_info["bits"]
+                bits = node_info["wbits"]
                 if (node_info["merge_1x1"]):
                     och_1x1 = node_info["och_1x1"]
 
@@ -162,7 +164,7 @@ def throughputILP(layers_info, worst_index, NUM_DSP, NUM_PORTS, packing=True, pr
                     "kernel": 1,
                     "merge_1x1": layer["merge_1x1"],
                     "value": layer["value"],
-                    "bits": layer["bits"][1],
+                    "bits": layer["bits"][0],
                     "ich" : layer["ich"],
                     "och" : layer["och"],
                     "depth": layer["depth"],
@@ -307,7 +309,7 @@ def parallelismILP(layers_info, valid_par_solutions, NUM_DSP, NUM_PORTS, packing
                     "total": layer["total"],
                     "kernel": 1,
                     "merge_1x1": layer["merge_1x1"],
-                    "bits": layer["bits"][1],
+                    "bits": layer["bits"][0],
                     "ich" : layer["ich"],
                     "och" : layer["och"],
                     "depth": layer["depth"],
@@ -477,14 +479,13 @@ def resourceILP(layers_info, worst_layer_iter, valid_par_solutions, parallel_op,
                     "total": layer["total"],
                     "kernel": 1,
                     "merge_1x1": layer["merge_1x1"],
-                    "bits": layer["bits"][1],
+                    "bits": layer["bits"][0],
                     "ich" : layer["ich"],
                     "och" : layer["och"],
                     "depth": layer["depth"],
                     "index": layer["index"]
                 }
             )
-    print(worst_layer_iter)
 
     # Retriving only the parallelism combinations for lower throughput to save
     # resources in fast layers. The parallelization over ow is fixed
@@ -682,6 +683,7 @@ def print_report(layers_info, layer_par, n_variables, n_constraints, time_spent,
             dsp = layer["kernel"] * och_ops * ich_ops * ow_ops
 
             if packing:
+                print(f"{bits} {och_ops} {ich_ops} {ow_ops}")
                 if bits == 8:
                     if (och_ops % 2 == 0 or ow_ops % 2 == 0):
                         pack = "P"
@@ -723,7 +725,7 @@ def print_report(layers_info, layer_par, n_variables, n_constraints, time_spent,
             table_data.append(row_data)
 
             if layer["merge_1x1"]:
-                bits = layer["bits"][1]
+                bits = layer["bits"][0]
                 dsp = och_ops * ich_ops * ow_ops
                 iter = int(layer["total"] / (ich_ops * och_ops * ow_ops))
                 port = math.ceil(bits * och_ops * ich_ops / 72)
@@ -768,7 +770,6 @@ def print_report(layers_info, layer_par, n_variables, n_constraints, time_spent,
 
         # Print the tabulated data to the file
         f.write(tabulate(table_data, headers="firstrow", tablefmt="grid"))
-
 
 def ilp(io_dict, off_chip_storage, model, file_name, board="ULTRA96v2", packing=True, prj_root="/tmp"):
 
