@@ -15,6 +15,7 @@
 // #define DEBUG_LINE
 // #define DEBUG_POOL
 // #define DEBUG_WEIGHTS
+// #define DEBUG_LAST
 #endif  // __SYNTHESIS__
 
 #include "hls_stream.h"

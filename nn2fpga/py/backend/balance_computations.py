@@ -899,7 +899,7 @@ def ilp(io_dict, off_chip_storage, model, board="ULTRA96v2", packing=True, prj_r
     #             print("#### Balancing line buffer for", name, "from", node["in_ops"], "to", node["adjust_ops"], "to avoid bottleneck")
     #         else:
     #             node["adjust_line_buffer"] = False
-    line_buffer_layers = ["conv", "pool"]
+    line_buffer_layers = ["conv", "pool", "gemm"]
     for name, node in io_dict.items():
         if node["type"] in line_buffer_layers:
             print(name, node["in_ops"], node["line_ops"])
@@ -915,6 +915,22 @@ def ilp(io_dict, off_chip_storage, model, board="ULTRA96v2", packing=True, prj_r
             if (node['ow_ops'] < node['ow_ops_in']):
                 node["adjust_line_buffer"] = True
                 print(f"Insert bandwidth_adjust from {node['ow_ops_in']} to {node['ow_ops']}")
+
+    for name, node in io_dict.items():
+        if node["type"] in line_buffer_layers:
+            # check if the input tensor is produced by a produce_stream node
+            input_name = node["input"][0]
+            input_node_name = io_connect[input_name][0][0]
+            if io_dict[input_node_name]["type"] != "produce":
+                if "adjust_line_buffer" in node.keys():
+                    io_dict[input_node_name]["adjust_out"] = node["adjust_line_buffer"]
+                else:
+                    io_dict[input_node_name]["adjust_out"] = False
+
+            output_name = node["output"][0]
+            output_node_name = io_connect[output_name][1][0]
+            if output_node_name == "consume_stream":
+                io_dict[name]["adjust_out"] = False
     
     # Check for necessary bandwidth adjustements for the add stream
     for name, node in io_dict.items():

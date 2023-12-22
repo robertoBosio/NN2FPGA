@@ -105,7 +105,7 @@ void produce_stream(din_t din[c_fh * c_fw][OCH * ICH / (c_ops*c_ich_ops)][c_ops*
               auto s_och_iter = och / c_ops;
               auto s_och_ops = och % c_ops;
               auto s_ch = s_ich_iter * OCH/c_ops + s_och_iter;
-              std::cout << std::setprecision(10) << "s_weights[" << s_index << "][" << och << "][" << ich << "][" << s_ops << "] = " << (float)(din[s_index][s_ch][s_ops]) << std::endl;
+              std::cout << "s_weights[" << s_index << "][" << och << "][" << ich << "][" << s_ops << "] = " << (float)(din[s_index][s_ch][s_ops]) << std::endl;
             }
           }
         }
@@ -190,6 +190,9 @@ void produce_stream(hls::stream<din_t> &din,
   const auto ITER = DIM/(INDEX*OPS*PACK);
   dout_tmp_t tmp = 0;
   din_t tmp_din;
+#ifndef __SYNTHESIS__
+  std::cout << "load_weights produce_stream " << ITER << " " << INDEX << " " << BYTES << " " << BITS << " " << PACK << " " << OPS << std::endl;
+#endif
   if (!init) {
     for (auto i = 0; i < ITER; i++) {
       for (auto k = 0; k < INDEX; k++) {
@@ -200,7 +203,7 @@ void produce_stream(hls::stream<din_t> &din,
               if (j==0)
                   tmp = 0;
               if (m==0) {
-                tmp_din = din.read();
+                  tmp_din = din.read();
               }
               tmp <<= BITS;
               tmp.range(BITS-1, 0) = tmp_din.data.range(BITS*(m+1)-1, BITS*m);
@@ -218,6 +221,9 @@ void produce_stream(hls::stream<din_t> &din,
       }
     }
   }
+#ifndef __SYNTHESIS__
+  std::cout << "end load_weights produce_stream" << std::endl;
+#endif
 }
 
 template<typename din_t,
