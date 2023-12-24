@@ -142,11 +142,11 @@ void conv_pipe(
             #endif
           #endif
 
-          if constexpr(std::is_same<typename t_weight_st::Base::Base, _AP_ROOT_TYPE<t_weight_st::Base::width, true>>::value) {
+          // if constexpr(std::is_same<typename t_weight_st::Base::Base, _AP_ROOT_TYPE<t_weight_st::Base::width, true>>::value) {
             for (auto pos = c_pad_bits*s_och_pack+c_w_bits; pos < 27; pos++) {
               s_a_d_ext[s_och_pack].range(pos,pos) = s_a_d_ext[s_och_pack].range(c_pad_bits*s_och_pack+c_w_bits-1, c_pad_bits*s_och_pack+c_w_bits-1);
             }
-          }
+          // }
 
           s_data += s_a_d_ext[s_och_pack];
 
@@ -582,6 +582,7 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
   t_input s_input;
 // #pragma HLS array_partition variable = s_input type = complete dim = 0
 #pragma HLS array_partition variable = s_input type = complete
+#pragma HLS aggregate variable = s_input
 // #pragma HLS array_partition variable = s_input type = complete dim=1
 // #pragma HLS array_partition variable = s_input type = complete dim=2
   bool s_last = false;
@@ -868,9 +869,12 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
             for (auto s_ow_ops = 0; s_ow_ops < c_ow_ops; s_ow_ops++) {
               if (s_num_och == (c_num_och - 1)) {
                 t_forward_struct s_forward;
+// #pragma HLS aggregate variable = s_forward
+// #pragma HLS array_partition variable=s_forward.data type=complete
                 // auto forward_index = MO + MO%c_str - s_ow_ops*c_str;
                 auto forward_index = (c_fh/2 + 1)*FW - c_fw/2 - s_ow_ops*c_str - 1;
                 s_forward.data[0] = s_input[forward_index];
+                // s_forward.data[0] = s_input[0];
                 s_forward.last = false;
                 o_forward[s_ow_ops_out+s_ow_ops].write(s_forward);
                 #ifndef __SYNTHESIS__

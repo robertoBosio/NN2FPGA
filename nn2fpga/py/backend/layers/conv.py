@@ -600,10 +600,12 @@ def parse_comp(name, node):
         pragma["options"] = options
         block["pragma"].append(pragma)
 
+    # Dimension of the stream in output of the conv, covers a burst over och, ow_ops_out may be wrong
     # if node["adjust_out"]:
     #     depth = 3
     # else:
     depth = int(node["och"]/node["ops"])*node["ow_ops_out"] + 1
+
     # TODO: Modified to reduce bram usage but slowing down arch
     # depth = 2
 

@@ -248,12 +248,12 @@ void bandwidth_adjust_up(
   for (auto s_index = 0; s_index < IH * IW;
       s_index += c_ow_ops_out) {
   
-    /* Loop over the streams in input*/
-    // The previous convolution writes the data in opposite order
-    // because of the line buffer so they must be reordered accordingly
     /* Loop over the ICH dimension */
     for (auto s_ich = 0; s_ich < ICH; s_ich += c_ops_out) {
 
+      /* Loop over the streams in input*/
+      // The previous convolution writes the data in opposite order
+      // because of the line buffer so they must be reordered accordingly
       for (auto s_ow_ops_out = 0; s_ow_ops_out < c_ow_ops_out; s_ow_ops_out += c_ow_ops_in) {
 
         /* Loop over the packets in the ICH dimension */
