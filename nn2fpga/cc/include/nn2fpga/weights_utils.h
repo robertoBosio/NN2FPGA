@@ -20,6 +20,27 @@ void produce_stream(const din_t din[c_fh * c_fw][OCH * ICH / (c_ops*c_ich_ops)][
     std::cout << "produce_stream " << FSZ << " " << c_ch << " " << c_ich_ops << " " << c_ops << std::endl;
   #endif
 
+  #ifndef __SYNTHESIS__
+    #ifdef DEBUG_WEIGHTS
+      for (auto och = 0; och < OCH; och++) {
+        for (auto ich = 0; ich < ICH; ich++) {
+          for (auto s_fh = 0; s_fh < c_fh; s_fh++) {
+            for (auto s_fw = 0; s_fw < c_fw; s_fw++) {
+              auto s_index = c_fh*c_fw - 1 - s_fh * c_fw - s_fw;
+              auto s_ich_iter = ich / c_ich_ops;
+              auto s_ich_ops = ich % c_ich_ops;
+              auto s_ops = s_ich_ops * c_ops + och % c_ops;
+              auto s_och_iter = och / c_ops;
+              auto s_och_ops = och % c_ops;
+              auto s_ch = s_ich_iter * OCH/c_ops + s_och_iter;
+              std::cout << std::setprecision(10) << "s_weights[" << s_index << "][" << och << "][" << ich << "][" << s_ops << "] = " << (float)(din[s_index][s_ch][s_ops]) << std::endl;
+            }
+          }
+        }
+      }
+    #endif
+  #endif
+
   for (auto s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
     for (auto s_ch = 0; s_ch < c_ch; s_ch++) {
 #pragma HLS pipeline
@@ -29,13 +50,6 @@ void produce_stream(const din_t din[c_fh * c_fw][OCH * ICH / (c_ops*c_ich_ops)][
           for (auto s_ops = 0; s_ops < c_ops; s_ops++) {
             auto s_ops_index = s_ich_ops * c_ops + s_ops;
             s_output[s_ich_ops][s_ops] = din[s_index][s_ch][s_ops_index];
-            #ifndef __SYNTHESIS__
-              #ifdef DEBUG_WEIGHTS
-                if (s_o_index == 0) {
-                  std::cout << "s_weights[" << s_index << "][" << s_ch << "][" << s_ops_index << "] = " << s_output[s_ich_ops][s_ops] << std::endl;
-                }
-              #endif
-            #endif
           }
         }
         o_data[s_index].write(s_output);
@@ -78,6 +92,27 @@ void produce_stream(din_t din[c_fh * c_fw][OCH * ICH / (c_ops*c_ich_ops)][c_ops*
     #endif
   #endif
 
+  #ifndef __SYNTHESIS__
+    #ifdef DEBUG_WEIGHTS
+      for (auto och = 0; och < OCH; och++) {
+        for (auto ich = 0; ich < ICH; ich++) {
+          for (auto s_fh = 0; s_fh < c_fh; s_fh++) {
+            for (auto s_fw = 0; s_fw < c_fw; s_fw++) {
+              auto s_index = c_fh*c_fw - 1 - s_fh * c_fw - s_fw;
+              auto s_ich_iter = ich / c_ich_ops;
+              auto s_ich_ops = ich % c_ich_ops;
+              auto s_ops = s_ich_ops * c_ops + och % c_ops;
+              auto s_och_iter = och / c_ops;
+              auto s_och_ops = och % c_ops;
+              auto s_ch = s_ich_iter * OCH/c_ops + s_och_iter;
+              std::cout << "s_weights[" << s_index << "][" << och << "][" << ich << "][" << s_ops << "] = " << (float)(din[s_index][s_ch][s_ops]) << std::endl;
+            }
+          }
+        }
+      }
+    #endif
+  #endif
+
   for (auto s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
     for (auto s_ch = 0; s_ch < c_ch; s_ch++) {
 #pragma HLS pipeline II=1
@@ -87,13 +122,6 @@ void produce_stream(din_t din[c_fh * c_fw][OCH * ICH / (c_ops*c_ich_ops)][c_ops*
           for (auto s_ops = 0; s_ops < c_ops; s_ops++) {
             auto s_ops_index = s_ich_ops * c_ops + s_ops;
             s_output[s_ich_ops][s_ops] = din[s_index][s_ch][s_ops_index];
-            #ifndef __SYNTHESIS__
-              #ifdef DEBUG_WEIGHTS
-                if (s_o_index == 0) {
-                  std::cout << "s_weights[" << s_index << "][" << s_ch << "][" << s_ops_index << "] = " << s_output[s_ich_ops][s_ops] << std::endl;
-                }
-              #endif
-            #endif
           }
         }
         o_data[s_index].write(s_output);
@@ -162,6 +190,9 @@ void produce_stream(hls::stream<din_t> &din,
   const auto ITER = DIM/(INDEX*OPS*PACK);
   dout_tmp_t tmp = 0;
   din_t tmp_din;
+#ifndef __SYNTHESIS__
+  std::cout << "load_weights produce_stream " << ITER << " " << INDEX << " " << BYTES << " " << BITS << " " << PACK << " " << OPS << std::endl;
+#endif
   if (!init) {
     for (auto i = 0; i < ITER; i++) {
       for (auto k = 0; k < INDEX; k++) {
@@ -169,15 +200,20 @@ void produce_stream(hls::stream<din_t> &din,
           for (auto j = 0; j < BYTES; j++) {
             for (auto m = 0; m < PACK; m++) {
 #pragma HLS pipeline II=1
-              if ((j==0) && (m==0))
+              if (j==0)
                   tmp = 0;
               if (m==0) {
-                tmp_din = din.read();
+                  tmp_din = din.read();
               }
               tmp <<= BITS;
               tmp.range(BITS-1, 0) = tmp_din.data.range(BITS*(m+1)-1, BITS*m);
               if (j==(BYTES-1)) {
                 dout[k] << dout_tmp_t(tmp);
+                #ifndef __SYNTHESIS__
+                  #ifdef DEBUG_WEIGHTS
+                    std::cout << "produce_stream[" << k << "] = " << tmp << std::endl;
+                  #endif
+                #endif
               }
             }
           }
@@ -185,6 +221,9 @@ void produce_stream(hls::stream<din_t> &din,
       }
     }
   }
+#ifndef __SYNTHESIS__
+  std::cout << "end load_weights produce_stream" << std::endl;
+#endif
 }
 
 template<typename din_t,

@@ -3,6 +3,7 @@
 
 #include "ap_int.h"
 #include "hls_stream.h"
+#include "debug.h"
 
 namespace nn2fpga {
 
@@ -26,7 +27,7 @@ void pad_input(hls::stream<din_t> din[(c_fw+(c_ow_ops-1)*c_str) * c_fh],
   constexpr int FW = (c_fw+(c_ow_ops-1)*c_str);
   constexpr int LAST_IDX = FSZ - 1 - (c_fw+(c_ow_ops-1)*c_str-c_pad_index_w)%c_ow_ops;
 
-  bool s_last;
+  bool s_last = false;
   
   din_t s_read[FSZ];
   #ifndef __SYNTHESIS__
@@ -189,18 +190,33 @@ void bandwidth_adjust_down(
           /* Loop over c_ow_ops_out stream in input in parallel */
           for (auto s_ow_ops_out = 0; s_ow_ops_out < c_ow_ops_out; s_ow_ops_out++) {
 
+            if (s_i == 0 && s_ow_ops_in == 0) {
+              s_write[s_ow_ops_out].last = false;
+            }
+
             // Select the input stream to read from
             auto s_i_read = s_ow_ops_in + s_ow_ops_out;
             s_read[s_i_read][s_i] = din[s_i_read].read();
             /* Loop over the c_ops_in packet inside a c_ops_out one */
             for (auto s_j = 0; s_j < c_ops_in; s_j++) {
-
               s_write[s_ow_ops_out].data[0][s_i+s_j] = s_read[s_i_read][s_i].data[0][s_j];
             }
 
+            s_write[s_ow_ops_out].last = s_read[s_i_read][s_i].last ? true : s_write[s_ow_ops_out].last;
             // If the packet is finished then write it
             if (s_i == (c_ops_out - c_ops_in)){
-              s_write[s_ow_ops_out].last = s_read[s_i_read][s_i].last;
+              #ifndef __SYNTHESIS__
+                #ifdef DEBUG_BANDWIDTH
+                  for (auto s_i = 0; s_i < c_ow_ops_out; s_i++) {
+                    for (auto s_j = 0; s_j < c_ops_out; s_j++) {
+                      std::cout << "s_bandwidth[" << s_i << "][" << s_j << "] = " << s_write[s_i].data[0][s_j] << std::endl;
+                    }
+                  }
+                #endif
+                #ifdef DEBUG_LAST
+                  std::cout << "s_write[" << s_ow_ops_out << "].last = " << s_write[s_ow_ops_out].last << std::endl;
+                #endif
+              #endif
               o_data[s_ow_ops_out].write(s_write[s_ow_ops_out]);
             }
 
@@ -226,6 +242,7 @@ void bandwidth_adjust_up(
   constexpr int c_ich_iter = ICH / c_ops_in;
   dout_t s_write[c_ow_ops_out];
   din_t s_read[c_ow_ops_in][c_ops_out];
+  bool last = false;
 
   /* Loop on all the tensor with windows of dimension c_ow_ops_in*/
   for (auto s_index = 0; s_index < IH * IW;
@@ -256,8 +273,21 @@ void bandwidth_adjust_up(
             }
 
             // If the packet is finished then write it
+            last = last || s_read[s_ow_ops_in][s_i].last;
+            s_write[s_i_write].last = last;
             if (s_i == (c_ops_out - c_ops_in)) {
-              s_write[s_i_write].last = s_read[s_ow_ops_in][s_i].last;
+              #ifndef __SYNTHESIS__
+                #ifdef DEBUG_BANDWIDTH
+                  for (auto s_i = 0; s_i < c_ow_ops_out; s_i++) {
+                    for (auto s_j = 0; s_j < c_ops_out; s_j++) {
+                      std::cout << "s_bandwidth[" << s_i << "][" << s_j << "] = " << s_write[s_i].data[0][s_j] << std::endl;
+                    }
+                  }
+                #endif
+                #ifdef DEBUG_LAST
+                  std::cout << "s_write[" << s_ow_ops_out << "].last = " << s_write[s_ow_ops_out].last << std::endl;
+                #endif
+              #endif
               o_data[s_i_write].write(s_write[s_i_write]);
             }
 
@@ -403,7 +433,7 @@ void shift_op(hls::stream<din_t> &din, hls::stream<dcomp_t> &o_compute,
           s_compute_write &= (s_index_w_str == (c_strw));
 
           #ifndef __SYNTHESIS__
-            #ifdef __DEBUG_LINE__
+            #ifdef DEBUG_LINE
               if (c_ow_ops == IW) {
                 // print s_compute_write sub-conditions
                 std::cout << (s_index_h >= c_paddingh_shift) << " " << (s_index_h < (IH - c_end_paddingh_shift)) << " " << (s_index_w >= c_paddingw_shift) << " " << (s_index_w < (IW - c_end_paddingw_shift)) << " " << (s_index_h_str == (c_strh)) << " " << (s_index_w_str == (c_strw)) << std::endl;

@@ -2,17 +2,20 @@
 #define NN2FPGA_DEBUG_H_
 
 #ifndef __SYNTHESIS__
-#define DEBUG
+// #define DEBUG
 // #define DEBUG_CONV
 // #define DEBUG_RES
 // #define DEBUG_INPUT
 // #define DEBUG_ADD
+// #define DEBUG_BANDWIDTH
+// #define DEBUG_FORWARD
 // #define DEBUG_WEIGHTS
 // #define DEBUG_ACT
 // #define DEBUG_ACC
 // #define DEBUG_LINE
 // #define DEBUG_POOL
 // #define DEBUG_WEIGHTS
+// #define DEBUG_LAST
 #endif  // __SYNTHESIS__
 
 #include "hls_stream.h"

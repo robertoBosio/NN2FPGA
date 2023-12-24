@@ -4,6 +4,7 @@ import sys
 import qonnx
 from onnx import numpy_helper
 import numpy as np
+import math
 
 def parse(name, node, adjust_name, in_ops, adjust_ops, ow_ops, ow_ops_in, dim="i"):
     
@@ -65,9 +66,7 @@ def parse(name, node, adjust_name, in_ops, adjust_ops, ow_ops, ow_ops_in, dim="i
     declare["dim"] = node["ow_ops"]
     block["declare"].append(declare)
 
-    depth = 3
-    # Depth of the streams in output of the bandwidth adjust
-    # depth = int((node['ich'] / node['in_ops'])) + 1
+    depth = math.ceil(node["%sch" % dim] / output_ops) + 1
 
     block["pragma"] = []
     pragma = {}

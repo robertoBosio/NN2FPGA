@@ -69,13 +69,13 @@ def main():
     #     model = torch.nn.DataParallel(model)
     #     cudnn.benchmark = True
     #     #print("no cuda")
-    exit(-1)
+    # exit(-1)
     print('#### Building model..')
     device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
-    # model = resnet8(weight_bits=Wbits,act_bits=Abits).to('cuda:0')
+    model = resnet8(weight_bits=Wbits,act_bits=Abits).to('cuda:0')
     # model = MobileNetV1(num_filters=8, num_classes=2).to(device)
     # model = QuantizedCifar10Net().to(device)
-    model = Autoencoder(input_shape[1], weight_bits=Wbits, act_bits=Abits).to('cuda:0')
+    # model = Autoencoder(input_shape[1], weight_bits=Wbits, act_bits=Abits).to('cuda:0')
 
     model.to(device)
 
@@ -95,8 +95,8 @@ def main():
                     f.write(str(name) + " " + str(input[0].shape) + " " + str(output[0].shape) + "\n")
                     f.write("input" + "\n")
                     try:
-                        for hh in range(input[0].shape[3]):
-                            for ww in range(input[0].shape[2]):
+                        for hh in range(input[0].shape[2]):
+                            for ww in range(input[0].shape[3]):
                                 for cc in range(input[0].shape[1]):
                                     f.write(str(input[0][0][cc][hh][ww].detach().cpu().numpy()) + " ")
                                 f.write("\n")
@@ -106,8 +106,8 @@ def main():
 
                     try:
                         f.write("output" + "\n")
-                        for hh in range(output[0].shape[2]):
-                            for ww in range(output[0].shape[1]):
+                        for hh in range(output[0].shape[1]):
+                            for ww in range(output[0].shape[2]):
                                 for cc in range(output[0].shape[0]):
                                     f.write(str(output[0][cc][hh][ww].detach().cpu().numpy()) + " ")
                                 f.write("\n")
@@ -121,15 +121,15 @@ def main():
                 with open("tmp/logs/%s/feature.txt" % (log_name), "a+") as f:
                     f.write(str(name) + " " + str(input[0].shape) + " " + str(output[0].shape) + "\n")
                     f.write("input" + "\n")
-                    for hh in range(input[0].shape[3]):
-                        for ww in range(input[0].shape[2]):
+                    for hh in range(input[0].shape[2]):
+                        for ww in range(input[0].shape[3]):
                             for cc in range(input[0].shape[1]):
                                 f.write(str(input[0].value[0][cc][hh][ww].detach().cpu().numpy()) + " ")
                             f.write("\n")
 
                     f.write("output" + "\n")
-                    for hh in range(output[0].shape[3]):
-                        for ww in range(output[0].shape[2]):
+                    for hh in range(output[0].shape[2]):
+                        for ww in range(output[0].shape[3]):
                             for cc in range(output[0].shape[1]):
                                 f.write(str(output[0][0][cc][hh][ww].detach().cpu().numpy()) + " ")
                             f.write("\n")
@@ -156,14 +156,37 @@ def main():
                             f.write("\n")
             return hook
 
+        def get_bias_quant(name):
+            def hook(module, input, output):
+                with open("tmp/logs/%s/feature.txt" % (log_name), "a+") as f:
+                    f.write(str(name) + " " + str(input[0].shape) + " " + str(output[0].shape) + "\n")
+                    f.write("input" + "\n")
+                    for occ in range(output[0].shape[0]):
+                        f.write(str(input[0][occ].detach().cpu().numpy()) + " ")
+                        f.write("\n")
+
+                    f.write("output" + "\n")
+                    for occ in range(output[0].shape[0]):
+                        f.write(str(output[0][occ].detach().cpu().numpy()) + " ")
+                        f.write("\n")
+            return hook
+
         for name, module in model.named_modules():
             print(name)
+            if isinstance(module, torch.nn.MaxPool2d):
+                module.register_forward_hook(get_activation(name))
             if isinstance(module, torch.nn.Conv2d):
+                module.register_forward_hook(get_activation(name))
+            if "add" in name:
                 module.register_forward_hook(get_activation(name))
             if name == "conv1.input_quant":
                 module.register_forward_hook(get_activation_quant(name))
             if name == "conv1.weight_quant":
                 module.register_forward_hook(get_weight_quant(name))
+            if name == "layer1.0.conv1.weight_quant":
+                module.register_forward_hook(get_weight_quant(name))
+            if name == "conv1.bias_quant":
+                module.register_forward_hook(get_bias_quant(name))
             
 
         model.eval()
@@ -187,6 +210,12 @@ def main():
         # model.to('cpu')
         if acc > best_acc:
             best_acc = acc
+        print('#### Exporting..')
+        # model.to('cpu')
+        dummy_input = torch.randn(input_shape, device=device)
+        accuracy_str = f'{acc:.2f}'.replace('.', '_')
+        exported_model = export_onnx_qcdq(model, args=dummy_input, export_path=onnx_dir + "/%s_bnfuse.onnx" % (log_name), opset_version=13)
+        best_acc = acc
         return best_acc
         # model.to(device)
 

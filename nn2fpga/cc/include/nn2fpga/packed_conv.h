@@ -97,7 +97,7 @@ void conv_pipe(
         if ((ich == 0) | (c_depth == 1)) {
         // TODO: Add support for multiple inputs (vector type)
           for (auto s_ow_pack = 0; s_ow_pack < c_ow_pack; s_ow_pack++) {
-            s_acc[s_och_pack*c_ow_pack+s_ow_pack] += i_add[s_ow_pack+s_ow_ops].data[0][ich_idx_add];
+            s_acc[s_och_pack*c_ow_pack+s_ow_pack] += i_add[s_ow_pack+s_ow_ops].data[0][ich_idx_add+s_och_pack];
           }
         }
       }
@@ -249,14 +249,16 @@ void conv_pipe(
 
     if constexpr(c_ow_pack > 1) {
       
+      auto s_index_ops = (c_depth == 1) ? ich_idx : (ops);
+
       t_acc s_acc[c_ow_pack];
       t_acc s_acc_base[c_ow_pack];
 
       ap_uint<48> s_acc_simd[c_simd];
 
       if constexpr(std::is_same<t_bias, std::nullptr_t>::value == false) {
-        if (ich == 0) {
-          auto s_bias = i_bias[0][ops];
+        if ((ich == 0) | (c_depth == 1))  {
+          auto s_bias = i_bias[0][s_index_ops];
           for (auto s_ow_pack = 0; s_ow_pack < c_ow_pack; s_ow_pack++) {
             #ifndef __SYNTHESIS__
               // #ifdef DEBUG_CONV
@@ -397,9 +399,9 @@ void conv_pipe(
         #endif
       }
 
-      if (ich == c_ich-1) {
+      if ((ich == c_ich-1) | (c_depth == 1)) {
         for (auto s_ow_pack = 0; s_ow_pack < c_ow_pack; s_ow_pack++) {
-          s_output_struct[s_ow_ops+s_ow_pack].data[0][ops] = quant_stream<
+          s_output_struct[s_ow_ops+s_ow_pack].data[0][s_index_ops] = quant_stream<
             t_output, t_output_clip, t_output_mask, t_acc, c_relu
           >(s_acc[s_ow_pack]);
           s_output_struct[s_ow_ops+s_ow_pack].last = last;
@@ -420,6 +422,7 @@ void conv_pipe(
 
         // FIX: Seems that when there is the skip connection the binding of the
         // DSPs is not working, moving things before
+        // CHECK: Check if this is working properly
         t_acc s_acc_add = 0;
         if ((ich == 0) | (c_depth == 1)) {
           s_acc_add = i_add[s_ow_ops].data[0][ich_idx_add];
@@ -592,8 +595,8 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
   t_bias_1x1 s_bias_1x1;
 #pragma HLS array_partition variable = s_bias_1x1 type = complete dim = 1
   t_add_struct s_add[c_ow_ops];
+#pragma HLS aggregate variable = s_add
 #pragma HLS array_partition variable = s_add type = complete
-// #pragma HLS aggregate variable = s_add
 //   if (constexpr(std::is_same<t_add_struct, std::nullptr_t>::value == false)) {
 // #pragma HLS array_partition variable = s_add[0].data type = complete dim=0
 //   }
@@ -730,7 +733,7 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
             if constexpr(std::is_same<t_acc_1x1_struct, std::nullptr_t>::value == false) {
               #pragma HLS array_partition variable = s_input_1x1 type = complete
               for (auto s_ow_ops = 0; s_ow_ops < c_ow_ops; s_ow_ops++) {
-                auto forward_index = (c_fh/2 + 1)*FW - c_fw/2 - s_ow_ops*c_str;
+                auto forward_index = (c_fh/2 + 1)*FW - c_fw/2 - s_ow_ops*c_str - 1;
                 // s_input_1x1[s_ow_ops] = s_input[MO + MO%c_str - s_ow_ops*c_str];
                 s_input_1x1[c_ow_ops - s_ow_ops - 1] = s_input[forward_index];
               }
@@ -869,11 +872,18 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
 // #pragma HLS aggregate variable = s_forward
 // #pragma HLS array_partition variable=s_forward.data type=complete
                 // auto forward_index = MO + MO%c_str - s_ow_ops*c_str;
-                auto forward_index = (c_fh/2 + 1)*FW - c_fw/2 - s_ow_ops*c_str;
+                auto forward_index = (c_fh/2 + 1)*FW - c_fw/2 - s_ow_ops*c_str - 1;
                 s_forward.data[0] = s_input[forward_index];
                 // s_forward.data[0] = s_input[0];
                 s_forward.last = false;
                 o_forward[s_ow_ops_out+s_ow_ops].write(s_forward);
+                #ifndef __SYNTHESIS__
+                  #ifdef DEBUG_FORWARD
+                    for (auto s_log_ich = 0; s_log_ich < c_in_ops; s_log_ich++) {
+                      std::cout << "forward[" << s_ow_ops_out+s_ow_ops << "][" << s_log_ich << "] " << s_forward.data[0][s_log_ich] << std::endl;
+                    }
+                  #endif
+                #endif
               }
             }
           }

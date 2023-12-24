@@ -29,7 +29,7 @@ int main(int argc, char** argv) {
  
   /* Images per batch */
   // const unsigned int c_batch = stoi(parser.value("n_images"));
-  const unsigned int c_batch = 1;
+  const unsigned int c_batch = 2;
   /* Bytes per activation data stream */
   const unsigned int c_par = c_inp_1 / ACTIVATION_PARALLELISM;
   /* Bytes per image */
@@ -112,6 +112,7 @@ int main(int argc, char** argv) {
     // TODO: Change arguments to -w 0 after first run in CSIM, to remove the
     // warning of not empty stream at the end of the simulation
 #ifdef CSIM
+  std::cout << "Starting inference" << std::endl;
   inference_time = networkSim(argc,
                               argv,
                               cifarPath,
