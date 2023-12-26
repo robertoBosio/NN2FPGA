@@ -1,5 +1,6 @@
 import os
 import sys
+import time
 #import onnx
 import qonnx
 from qonnx.transformation import infer_shapes
@@ -26,9 +27,9 @@ def write_network(
     uram_storage=False,
     object_detection=False,
     anchors=[],
-    packing=False,
     prj_root="/tmp",
-    transform=False
+    transform=False,
+    generate_report_file="tmp.rpt"
 ):
 
 
@@ -45,6 +46,9 @@ def write_network(
         info_name = info.name.replace(".", "_")
         init_info[info_name] = info
 
+    time_list = []
+    time_list.append((time.time(), "Start"))
+
     io_dict = graph_info(
         inferred_model,
         init_info,
@@ -53,16 +57,22 @@ def write_network(
         transform=transform
     )
 
+    time_list.append((time.time(), "Graph info"))
+
     io_dict = opt_steps(
         inferred_model,
         io_dict,
         init_info
     )
-    
+
+    time_list.append((time.time(), "Opt steps"))
+
     io_dict = weights_quant(
         model,
         io_dict
     )
+
+    time_list.append((time.time(), "Weights quant"))
 
     io_dict = balance_computations.ilp(
         io_dict,
@@ -70,19 +80,25 @@ def write_network(
         inferred_model,
         file_name,
         board,
-        packing,
+        generate_report_file,
         prj_root=prj_root
     )
+
+    time_list.append((time.time(), "Balance computations"))
 
     io_dict = compute_buffers(
         inferred_model,
         io_dict
     )
 
+    time_list.append((time.time(), "Compute buffers"))
+
     io_dict = hw_quant(
         model,
         io_dict
     )
+
+    time_list.append((time.time(), "HW quant"))
 
     io_dict = weights.weights_info(
         inferred_model,
@@ -92,6 +108,8 @@ def write_network(
         dynamic_init,
         uram_storage
     )
+
+    time_list.append((time.time(), "Weights info"))
 
     if off_chip_storage:
         io_dict = balance_reuse.ilp(
@@ -104,19 +122,27 @@ def write_network(
         io_dict
     )
 
+    time_list.append((time.time(), "Share reuse 1"))
+
     io_dict = share_reuse(
         inferred_model,
         io_dict
     )
 
+    time_list.append((time.time(), "Share reuse 2"))
+
     io_dict = rename_nodes(
         io_dict
     )
+
+    time_list.append((time.time(), "Rename nodes"))
 
     io_dict = rename_edges(
         model,
         io_dict
     )
+    
+    time_list.append((time.time(), "Rename edges"))
 
     main.write(
         io_dict,
@@ -127,13 +153,18 @@ def write_network(
         prj_root=prj_root,
     )
 
+    time_list.append((time.time(), "Main"))
+
     weights.write(
         io_dict,
         file_name,
         board,
         uram_storage,
+        generate_report_file,
         prj_root=prj_root
     )
+    
+    time_list.append((time.time(), "Weights"))
 
     sim.write(
         io_dict,
@@ -141,4 +172,9 @@ def write_network(
         dynamic_init=dynamic_init,
         prj_root=prj_root
     )
+
+    time_list.append((time.time(), "Sim"))
+
+    for i in range(1, len(time_list)):
+        print(f"{time_list[i][1]}: {(time_list[i][0] - time_list[i-1][0]):.2f}s")
 

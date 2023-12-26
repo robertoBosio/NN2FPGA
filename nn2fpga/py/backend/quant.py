@@ -207,10 +207,10 @@ def weights_quant(model, io_dict):
                 io_dict[layer_out_name]["wsigned"].append(signed)
 
     return io_dict
-def merge_quant(model, io_dict, init_info, inherit_quant=False):
 
-    # Merging consecutive quantizations
-    new_quant_info = {}
+def merge_quant(model, io_dict, init_info, flag_mod, inherit_quant=False):
+    """Merging consecutive quantizations"""
+    
     quant_info = extract_quant_info(
         model,
         io_dict,
@@ -423,11 +423,10 @@ def merge_quant(model, io_dict, init_info, inherit_quant=False):
                 io_dict[name]["mask_signed"] = new_mask_signed
                 io_dict[name]["mask_bits"] = new_mask_bits
 
-    # print(remove_node)
     for name in remove_node:
         del io_dict[name]
 
-    return io_dict
+    return io_dict, (flag_mod or len(remove_node) > 0)
 
 def extract_quant_info(model, io_dict, init_info):
 

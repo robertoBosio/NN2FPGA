@@ -29,8 +29,9 @@ def sanity_check(model, io_dict, log="", debug=False):
                             print("Error in", name, "signed is a list", log)
                             raise Exception
 
-def opt_pad(model, io_dict):
+def opt_pad(model, io_dict, flag_modified=False):
     
+    local_flag_modified = False
     io_connect = extract_connections(model, io_dict)
 
     for net_name, layers in io_connect.items():
@@ -47,12 +48,14 @@ def opt_pad(model, io_dict):
                 in_name = io_dict[layer_in_name]["input"][0]
                 io_dict[layer_out_name]["pad"] = io_dict[layer_in_name]["pad"]
                 io_dict[layer_out_name]["input"][0] = in_name
+                local_flag_modified = True
                 del io_dict[layer_in_name]
 
-    return io_dict
+    return io_dict, (flag_modified or local_flag_modified)
 
-def opt_relu(model, io_dict):
+def opt_relu(model, io_dict, flag_modified=False):
     
+    local_flag_modified = False
     io_connect = extract_connections(model, io_dict)
 
     for net_name, layers in io_connect.items():
@@ -67,13 +70,15 @@ def opt_relu(model, io_dict):
             out_name = io_dict[layer_out_name]["output"][0]
             io_dict[layer_in_name]["relu"] = True
             io_dict[layer_in_name]["output"][0] = out_name
+            local_flag_modified = True
             del io_dict[layer_out_name]
 
-    return io_dict
+    return io_dict, (flag_modified or local_flag_modified)
 
-def opt_add(model, io_dict):
+def opt_add(model, io_dict, flag_modified=False):
     
     no_break = False
+    local_flag_modified = False
     # Compute for each tensor the distance between producer and consumer
     while not no_break:
 
@@ -130,17 +135,18 @@ def opt_add(model, io_dict):
 
                 # Removing layer
                 del io_dict[layer_out_name]
+                local_flag_modified = True
                 no_break = False
                 break
 
-    return io_dict
+    return io_dict, (flag_modified or local_flag_modified)
 
-def opt_skip(model, io_dict):
+def opt_skip(model, io_dict, flag_modified=False):
 
     # If the hop for the skip connection is greater than 1 then it means that
     # the skip connection buffering size can be optimized reusing the buffering
     # already provided by the first consumer
-
+    local_flag_modified = False
     io_connect = extract_connections(model, io_dict)
 
     net_levels = net_distance(io_dict, io_connect)
@@ -201,6 +207,7 @@ def opt_skip(model, io_dict):
                 io_dict[layer_base_name]["has_forward"] = True
                 for i, layer_info in enumerate(ordered_layers):
                     if i != 0:
+                        local_flag_modified = True
                         layer_name = layer_info[0]
                         skip_name = net_name + "_skip"
                         io_dict[layer_base_name]["output"].append(
@@ -233,12 +240,13 @@ def opt_skip(model, io_dict):
                         io_dict[layer_name]["input"][skip_index] = skip_name 
                 print("##################### in_signed ", io_dict[layer_base_name]["signed"])
 
-    return io_dict
+    return io_dict, (flag_modified or local_flag_modified)
 
-def opt_merge_conv(model, io_dict):
-
-    # Merging 3x3 and pointwise convolutions acting on the same data
+def opt_merge_conv(model, io_dict, flag_modified=False):
+    """Merge convolutions that are acting on the same data"""
     
+    # Merging 3x3 and pointwise convolutions acting on the same data
+    local_flag_modified = False    
     no_break = False
 
     while not no_break:
@@ -385,6 +393,7 @@ def opt_merge_conv(model, io_dict):
 
                     # Removing merged layer
                     for rem_name in rem_layer:
+                        local_flag_modified = True
                         del io_dict[rem_name]
 
                     # Removing output stream going to merged layer
@@ -395,7 +404,7 @@ def opt_merge_conv(model, io_dict):
 
                     break
 
-    return io_dict
+    return io_dict, (flag_modified or local_flag_modified)
 
 # Creating quantization layers if add/conv layers are without it
 def assign_quant(model, io_dict):
@@ -449,8 +458,9 @@ def assign_quant(model, io_dict):
 
     return io_dict
 
-def opt_quant(model, io_dict, init_info, debug=False):
-    
+def opt_quant(model, io_dict, init_info, flag_modified, debug=False):
+    """Optimize quantization layers by removing them and connecting the input and output layers"""
+
     io_connect = extract_connections(model, io_dict)
 
     removed_layers = []
@@ -601,16 +611,17 @@ def opt_quant(model, io_dict, init_info, debug=False):
 
                 del io_dict[layer_out_name]
                 change = True
-                return opt_quant(model, io_dict, init_info)
+                io_dict, change = opt_quant(model, io_dict, init_info, change)
+                return io_dict, True
 
-    return io_dict
+    return io_dict, (flag_modified or change)
 
-def opt_skip_quant(model, io_dict, init_info):
+def opt_skip_quant(model, io_dict, init_info, flag_modified=False):
     
     # If there is a quant node that is blocking a skip connection opitmization
     # It must be absorbed by the convolution layer that is consuming its
     # output instead of merging with the one producing its input
-
+    local_flag_modified = False
     change = True
 
     while change:
@@ -711,6 +722,7 @@ def opt_skip_quant(model, io_dict, init_info):
                         io_dict[layer_out_name]["in_signed"] = [signed]
                     io_dict[layer_out_name]["input"][0] = quant_input
                     change = True
+                    local_flag_modified = True
                     del io_dict[layer_in_name]
                     break
 
@@ -733,11 +745,12 @@ def opt_skip_quant(model, io_dict, init_info):
 
                     for i, rem_name in enumerate(parallel_quant_layers):
                         if i > 0:
+                            local_flag_modified = True
                             del io_dict[rem_name]
                     change = True
                     break
 
-    return io_dict
+    return io_dict, (flag_modified or local_flag_modified)
 
 def share_reuse(model, io_dict):
     
@@ -759,8 +772,10 @@ def share_reuse(model, io_dict):
 
     return io_dict
 
-def opt_flatten(io_dict, model):
+def opt_flatten(io_dict, model, flag_modified):
+    """Optimize flatten layers by removing them and connecting the input and output layers"""
 
+    local_flag_modified = False
     io_connect = extract_connections(model, io_dict)
 
     # cycling on io_dict to find flatten layers
@@ -779,24 +794,34 @@ def opt_flatten(io_dict, model):
             io_dict[input_layer]["output"][0] = output
 
             # removing flatten layer
+            local_flag_modified = True
             del io_dict[layer_name]
             break
 
-    return io_dict
+    return io_dict, (flag_modified or local_flag_modified)
 
 def opt_steps(
     inferred_model,
     io_dict,
     init_info
 ):
-    for i in range(3):
+    flag_modified0 = False
+    flag_modified1 = False
+    flag_modified2 = False
+    while True:
+        flag_modified0 = False
 
-        for i in range(10):
-            for i in range(10):
-                io_dict = merge_quant(
+        while True:
+            flag_modified1 = False
+
+            while True:
+                flag_modified2 = False
+
+                io_dict, flag_modified2 = merge_quant(
                     inferred_model,
                     io_dict,
-                    init_info
+                    init_info,
+                    flag_modified2
                 )
                 
                 sanity_check(inferred_model, io_dict, "after merge_quant")
@@ -806,36 +831,46 @@ def opt_steps(
                 #     io_dict
                 # )
 
-                io_dict = opt_flatten(
+                io_dict, flag_modified2 = opt_flatten(
                     io_dict,
-                    inferred_model
+                    inferred_model,
+                    flag_modified2
                 )
 
                 sanity_check(inferred_model, io_dict, "after flatten")
 
-                io_dict = opt_quant(
+                io_dict, flag_modified2 = opt_quant(
                     inferred_model,
                     io_dict,
-                    init_info
+                    init_info,
+                    flag_modified2
                 )
 
                 sanity_check(inferred_model, io_dict, "after opt_quant")
 
-                io_dict = opt_relu(
+                io_dict, flag_modified2 = opt_relu(
                     inferred_model,
                     io_dict,
+                    flag_modified2
                 )
 
-                io_dict = opt_pad(
+                io_dict, flag_modified2 = opt_pad(
                     inferred_model,
                     io_dict,
+                    flag_modified2
                 )
                 
                 sanity_check(inferred_model, io_dict, "after opt_pad")
 
-            io_dict = opt_relu(
+                if (not flag_modified2):
+                    break
+            
+            flag_modified1 = flag_modified1 or flag_modified2
+
+            io_dict, flag_modified1 = opt_relu(
                 inferred_model,
                 io_dict,
+                flag_modified1
             )
 
             quant_info = extract_quant_info(
@@ -844,26 +879,38 @@ def opt_steps(
                 init_info
             )
 
-            io_dict = opt_skip_quant(
+            io_dict, flag_modified1 = opt_skip_quant(
                 inferred_model,
                 io_dict,
-                init_info
+                init_info,
+                flag_modified1
             )
 
-            io_dict = opt_add(
+            io_dict, flag_modified1 = opt_add(
                 inferred_model,
                 io_dict,
+                flag_modified1
             )
 
-        io_dict = opt_merge_conv(
+            if (not flag_modified1):
+                break
+                
+        flag_modified0 = flag_modified0 or flag_modified1
+
+        io_dict, flag_modified0 = opt_merge_conv(
             inferred_model,
             io_dict,
+            flag_modified0
         )
 
-        io_dict = opt_skip(
+        io_dict, flag_modified0 = opt_skip(
             inferred_model,
             io_dict,
+            flag_modified0
         )
+
+        if (not flag_modified0):
+            break
 
     return io_dict
 

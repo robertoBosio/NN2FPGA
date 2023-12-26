@@ -4,8 +4,7 @@ import sys
 import qonnx
 from onnx import numpy_helper
 import numpy as np
-import pulp
-from pulp.apis import PULP_CBC_CMD
+from tabulate import tabulate
 import math
 import json
 from backend.graph import extract_connections
@@ -931,7 +930,7 @@ def parse(name, node):
       
     return blocks
 
-def parse_all(io_dict, prj_root="/tmp", board="KRIA", uram_storage = False):
+def parse_all(io_dict, prj_root="/tmp", board="KRIA", uram_storage = False, generate_report_file="tmp.rpt"):
     
     parsed_write = []
     
@@ -949,22 +948,7 @@ def parse_all(io_dict, prj_root="/tmp", board="KRIA", uram_storage = False):
     
     # Check if there is URAM storage
     dynamic_init = False
-
-    # Useful space in BRAM18. Each BRAM18 is 18kb with a maximum word width of
-    # 36 bits, in which 4 bits are reserved to ECC code
-    SIZE_BRAM18 = 18 * 1024
-    
-    # Useful space in BRAM36, composed by two BRAM18.
-    SIZE_BRAM36 = SIZE_BRAM18 * 2
-    
-    # Useful space in URAM. Each URAM is 288kb with a maximum word width of 72
-    # bits.
-    SIZE_URAM = (288 * 1024)
-    
-    # On-chip memory BANDWIDTH
-    BANDWIDTH = 72
-    print(board_res)
-    
+    BANDWIDTH = 72 
     n_weights = []
     for name, node in io_dict.items():
         if ('const' == node["type"]):
@@ -991,7 +975,7 @@ def parse_all(io_dict, prj_root="/tmp", board="KRIA", uram_storage = False):
                 }
             )
     
-    sorted_bind_storage(n_weights, board_res, uram_storage)
+    fit = sorted_bind_storage(n_weights, board_res, uram_storage)
 
     for layer in n_weights:
         if not layer["is_bias"]:
@@ -1014,6 +998,7 @@ def parse_all(io_dict, prj_root="/tmp", board="KRIA", uram_storage = False):
     if dynamic_init:
         parsed_write[0] = fill_uram_layer(parsed_write)
 
+    print_report(n_weights, fit, generate_report_file)
     return parsed_write
 
 def sorted_bind_storage(dict_layers, board_res, uram_storage=False):
@@ -1030,6 +1015,7 @@ def sorted_bind_storage(dict_layers, board_res, uram_storage=False):
 
     used_uram = 0 
     used_bram = 0 
+    fit = True
     # Sort in descending order
     n_weights = sorted(dict_layers, key=lambda item: item["value"], reverse=True).copy()
     for node in n_weights:
@@ -1057,20 +1043,65 @@ def sorted_bind_storage(dict_layers, board_res, uram_storage=False):
             fit_uram = (used_uram + tot_uram) <= board_res["uram"] and uram_storage
             fit_bram = (used_bram + tot_bram) <= board_res["bram"]
             if (not fit_bram and not fit_uram):
-                exit(-1)
+                fit = False
+                node["mems"] = 0
                 print(f"XXX produce_stream_{node['ich']}_{node['och']}_{node['ow']}_{node['oh']}_{node['iw']}_{node['ih']} P:{w_par} of {node['bits']}b. {node['n_weights']}. {tot_uram}U {tot_bram}B. XXX")
             elif ((fit_bram and fit_uram and tot_uram < tot_bram) or not fit_bram):
                 used_uram += tot_uram
-                print(f"produce_stream_{node['ich']}_{node['och']}_{node['ow']}_{node['oh']}_{node['iw']}_{node['ih']} P:{w_par} of {node['bits']}b. {node['n_weights']}. {tot_uram}U {tot_bram}B.")
+                # print(f"produce_stream_{node['ich']}_{node['och']}_{node['ow']}_{node['oh']}_{node['iw']}_{node['ih']} P:{w_par} of {node['bits']}b. {node['n_weights']}. {tot_uram}U {tot_bram}B.")
                 node["uram_storage"] = True
+                node["mems"] = tot_uram
             else:
                 used_bram += tot_bram
-                print(f"produce_stream_{node['ich']}_{node['och']}_{node['ow']}_{node['oh']}_{node['iw']}_{node['ih']} P:{w_par} of {node['bits']}b. {node['n_weights']}. {tot_bram}B {tot_uram}U.")
+                # print(f"produce_stream_{node['ich']}_{node['och']}_{node['ow']}_{node['oh']}_{node['iw']}_{node['ih']} P:{w_par} of {node['bits']}b. {node['n_weights']}. {tot_bram}B {tot_uram}U.")
+                node["mems"] = tot_bram
                 node["uram_storage"] = False
         else:
             node["uram_storage"] = False
-    
-    print(f"Total: {used_bram}B {used_uram}U.")
+            node["mems"] = 0
+
+    return fit    
+
+def print_report(weights_layer_dict, fit, generate_report_file="tmp.rpt"):
+    with open(generate_report_file, "a+") as f:
+        print("="*40, file=f)
+        print("== Memory report", file=f)
+        print("="*40, file=f)
+        if (fit):
+            print("The network fits in the available resources\n", file=f)
+        else:
+            print("The network does NOT fit in the available resources\n", file=f)
+        table_data = []
+
+        #header row
+        header = ["Layer name", "Bias", "Parallelism", "Weight bits", "N. of weights", "BRAM", "URAM"]
+        table_data.append(header)
+        tot_bram = 0
+        tot_uram = 0
+        for layer in weights_layer_dict:
+            row = []
+            name = f"produce_stream_{layer['ich']}_{layer['och']}_{layer['ow']}_{layer['oh']}_{layer['iw']}_{layer['ih']}"
+            row.append(name)
+            row.append(layer["is_bias"])
+            row.append(layer["par"])
+            row.append(layer["bits"])
+            row.append(layer["n_weights"])
+            if layer["uram_storage"]:
+                row.append("0")
+                row.append(layer["mems"])
+                tot_uram += layer["mems"]
+            else:
+                row.append(layer["mems"])
+                row.append("0")
+                tot_bram += layer["mems"]
+            table_data.append(row)
+        
+        footer = ["Totals", "", "", "", "", tot_bram, tot_uram]
+        table_data.append(footer)
+
+        # Print the tabulated data to the file
+        f.write(tabulate(table_data, headers="firstrow", tablefmt="grid"))
+        print("\n", file=f)
 
 def init(file_name, network_name, parsed_write, uram_layer_include, prj_root="/tmp"):
 
@@ -1129,9 +1160,9 @@ def footer(file_name, parsed_write, prj_root="/tmp"):
         fd.write("\n")
         fd.write("#endif")
 
-def write(io_dict, network_name, board="KRIA", uram_storage = False, prj_root="/tmp"):
+def write(io_dict, network_name, board="KRIA", uram_storage = False, generate_report_file="tmp.rpt", prj_root="/tmp"):
 
-    parsed_write = parse_all(io_dict, prj_root, board, uram_storage)
+    parsed_write = parse_all(io_dict, prj_root, board, uram_storage, generate_report_file)
 
     uram_layer_include = False
     for layer in parsed_write:

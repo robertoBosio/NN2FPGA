@@ -62,11 +62,11 @@ def main():
         if int(os.environ.get("OBJECT_DETECTION")) == 1:
             object_detection = True
 
-    if "PACKING" in os.environ:
-        if int(os.environ.get("PACKING")) == 1:
-            packing = True
-        else:
-            packing = False
+    # if "PACKING" in os.environ:
+    #     if int(os.environ.get("PACKING")) == 1:
+    #         packing = True
+    #     else:
+    #         packing = False
 
     # onnx_path = "./onnx/Brevonnx_resnet_final_fx.onnx"
     # onnx_path = "./onnx/Brevonnx_resnet8_final_fx.onnx"
@@ -105,6 +105,11 @@ def main():
         dataset = 'cifar10'
     
     transform = bool(int(os.environ['TRANSFORM']))
+    generate_report_file = f"{PRJ_ROOT}/generate_{top_name}_{board}.rpt"
+    
+    # If the file generate_report_file exists, delete it
+    if os.path.exists(generate_report_file):
+        os.remove(generate_report_file)
 
     write_network(
         inferred_model,
@@ -114,9 +119,9 @@ def main():
         dynamic_init=dynamic_init,
         uram_storage=uram_storage,
         object_detection=object_detection,
-        packing=packing,
         anchors=anchors,
         prj_root=PRJ_ROOT,
+        generate_report_file=generate_report_file,
         transform=transform
     )
 
