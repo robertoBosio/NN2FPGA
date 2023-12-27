@@ -82,12 +82,11 @@ void conv_pipe(
         if constexpr(std::is_same<t_bias, std::nullptr_t>::value == false) {
           if (ich == 0) {
             #ifndef __SYNTHESIS__
-            auto s_bias = i_bias[0][ops+s_och_pack];
               #ifdef DEBUG_CONV
-                std::cout << "B" << " " << s_bias << std::endl;
+                std::cout << "B" << " " << i_bias[0][ops+s_och_pack] << std::endl;
               #endif
             #endif
-            s_acc[s_w_index] = s_bias;
+            s_acc[s_w_index] = i_bias[0][ops+s_och_pack];
           }
         }
       }
@@ -259,14 +258,13 @@ void conv_pipe(
 
       if constexpr(std::is_same<t_bias, std::nullptr_t>::value == false) {
         if ((ich == 0) | (c_depth == 1))  {
-          auto s_bias = i_bias[0][s_index_ops];
           for (auto s_ow_pack = 0; s_ow_pack < c_ow_pack; s_ow_pack++) {
             #ifndef __SYNTHESIS__
               // #ifdef DEBUG_CONV
               //   std::cout << "B" << s_bias << " ";
               // #endif
             #endif
-            s_acc[s_ow_pack] = s_bias;
+            s_acc[s_ow_pack] = i_bias[0][s_index_ops];
           }
         } else {
           for (auto s_ow_pack = 0; s_ow_pack < c_ow_pack; s_ow_pack++) {
@@ -577,9 +575,9 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
   constexpr int MO = (c_fh*FW)/2;
 
   t_acc s_acc_buff[c_reuse_iter][c_och_depth*c_ow_ops];
-#pragma HLS array_partition variable = s_acc_buff type = cyclic factor = c_ops*c_ow_ops dim = 2
+#pragma HLS array_partition variable = s_acc_buff type = cyclic factor = c_ops_out*c_ow_ops dim = 2
   t_acc_1x1 s_acc_1x1_buff[c_reuse_iter][c_och_depth*c_ow_ops];
-#pragma HLS array_partition variable = s_acc_1x1_buff type = cyclic factor = c_ops*c_ow_ops dim = 2
+#pragma HLS array_partition variable = s_acc_1x1_buff type = cyclic factor = c_ops_out*c_ow_ops dim = 2
   t_input s_input;
 // #pragma HLS array_partition variable = s_input type = complete dim = 0
 #pragma HLS array_partition variable = s_input type = complete
@@ -601,8 +599,10 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
 // #pragma HLS array_partition variable = s_add[0].data type = complete dim=0
 //   }
   t_output_struct s_output_struct[c_ow_ops];
+#pragma HLS aggregate variable = s_output_struct
 #pragma HLS array_partition variable = s_output_struct type = complete
   t_output_struct_1x1 s_output_1x1_struct[c_ow_ops];
+#pragma HLS aggregate variable = s_output_1x1_struct
 #pragma HLS array_partition variable = s_output_1x1_struct type = complete
 
   ////////////////////////////////////////////////////////////////////////////
@@ -650,6 +650,8 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
     for (auto s_ow_ops_out = 0; s_ow_ops_out < c_ow_ops_out; s_ow_ops_out+=c_reuse) {
       for (auto s_num_ich = 0; s_num_ich < c_ich; s_num_ich+=c_in_ops) {
         for (auto s_num_och = 0; s_num_och < c_och_depth; s_num_och+=c_ops) {
+#pragma HLS dependence variable = s_acc_buff inter false
+#pragma HLS dependence variable = s_acc_1x1_buff inter false
           for (auto s_iter = 0; s_iter < c_iter; s_iter++) {
     #pragma HLS pipeline style = stp II=1
             auto s_reuse = s_iter;
@@ -745,7 +747,6 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
                   auto s_och = s_num_och + s_ops;
                   if constexpr(std::is_same<t_add_struct, std::nullptr_t>::value == false)
                     s_ich_idx_add = s_och % c_add_ops;
-
 
                   conv_pipe<
                     t_input,

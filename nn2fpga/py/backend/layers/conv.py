@@ -428,7 +428,7 @@ def parse_comp(name, node):
     if node["depth"]:
         output_ops = node["ich_ops"]
     else:
-        output_ops = node["ops"]
+        output_ops = node["ops_out"]
     block["defines"]["t_%s" % output_name] = ["type", output_type]
     output_vector_type = "std::array<%s, %0d>" % (output_type, output_ops)
     block["defines"]["t_%s_vector" % output_name] = ["type", output_vector_type]
@@ -443,7 +443,7 @@ def parse_comp(name, node):
         output_type_1x1 = get_quant_type(node["signed"][1], node["bits"][1], node["scale_factor"][1])
         # TODO: implement array of signed values for multi-output conv
         block["defines"]["t_%s" % output_1x1_name] = ["type", output_type_1x1]
-        output_vector_type = "std::array<t_%s, %0d>" % (output_1x1_name, node["ops"])
+        output_vector_type = "std::array<t_%s, %0d>" % (output_1x1_name, node["ops_out"])
         block["defines"]["t_%s_vector" % output_1x1_name] = ["type", output_vector_type]
         block["defines"]["t_%s_struct" % output_1x1_name] = [
             "struct",
@@ -487,7 +487,7 @@ def parse_comp(name, node):
             [["data", "t_%s_acc" % output_1x1_name], ["last", "bool"]]
         ]
 
-        block["defines"]["c_%s_add_ops" % output_1x1_name]         = ["const", node["ops"]]
+        block["defines"]["c_%s_add_ops" % output_1x1_name]         = ["const", node["ops_out"]]
 
     block["defines"]["c_%s_ich" % name]            = ["const", node["ich"]]
     block["defines"]["c_%s_och" % name]            = ["const", node["och"]]
@@ -505,7 +505,7 @@ def parse_comp(name, node):
     block["defines"]["c_%s_stride" % name]         = ["const", node["stride"]]
     block["defines"]["c_%s_pad" % name]            = ["const", node["pad"]]
     block["defines"]["c_%s_ops" % name]            = ["const", node["ops"]]
-    block["defines"]["c_%s_ops_out" % name]        = ["const", node["ops"]]
+    block["defines"]["c_%s_ops_out" % name]        = ["const", node["ops_out"]]
     # block["defines"]["c_%s_ops_1x1" % name]        = ["const", node["ops_1x1"]]
     block["defines"]["c_%s_in_ops" % name]         = ["const", node["in_ops"]]
     block["defines"]["c_%s_ich_ops" % name]        = ["const", node["ich_ops"]]
@@ -605,7 +605,7 @@ def parse_comp(name, node):
     # if node["adjust_out"]:
     #     depth = 3
     # else:
-    depth = int(node["och"]/node["ops"])*node["ow_ops_out"] + 1
+    depth = int(node["och"]/node["ops_out"])*node["ow_ops_out"] + 1
     # TODO: Modified to reduce bram usage but slowing down arch
     # depth = 2
 
