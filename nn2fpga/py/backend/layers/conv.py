@@ -252,6 +252,7 @@ def parse_comp(name, node):
     block["template"].append("c_%s_index" % name)
     block["template"].append("c_%s_stride" % name)
     block["template"].append("c_%s_ops" % name)
+    block["template"].append("c_%s_ops_out" % name)
     # block["template"].append("c_%s_ops_1x1" % name)
     block["template"].append("c_%s_ich_ops" % name)
     if (node["add"]):
@@ -504,6 +505,7 @@ def parse_comp(name, node):
     block["defines"]["c_%s_stride" % name]         = ["const", node["stride"]]
     block["defines"]["c_%s_pad" % name]            = ["const", node["pad"]]
     block["defines"]["c_%s_ops" % name]            = ["const", node["ops"]]
+    block["defines"]["c_%s_ops_out" % name]        = ["const", node["ops"]]
     # block["defines"]["c_%s_ops_1x1" % name]        = ["const", node["ops_1x1"]]
     block["defines"]["c_%s_in_ops" % name]         = ["const", node["in_ops"]]
     block["defines"]["c_%s_ich_ops" % name]        = ["const", node["ich_ops"]]
