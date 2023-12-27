@@ -218,11 +218,9 @@ def merge_quant(model, io_dict, init_info, flag_mod, inherit_quant=False):
     )
 
     while True:
-
         remove_node = []
 
         for name, node in quant_info.items():
-
             keep_elem = []
 
             # Creating new node for the quantization info
@@ -348,7 +346,7 @@ def merge_quant(model, io_dict, init_info, flag_mod, inherit_quant=False):
             quant_info[name] = new_node
 
             # Every time there is a change the dependencies must be evaluated
-            # from sratch
+            # from scratch
 
             if len(remove_node) > 0:
                 break

@@ -97,9 +97,6 @@ def generate_architectures(layers_info, NUM_DSP):
         if (layer["depth"] or layer["type"] == "pool"):
             max_och_par = 1
 
-        if (layer["type"] == "pool"):
-            max_ow_par = 1
-
         # In case of merged convolutions, take into account the gcd of the
         # maximum parallelization of och of the two. The transformation is
         # described in the graph optimization section of the paper. 
@@ -109,6 +106,11 @@ def generate_architectures(layers_info, NUM_DSP):
         # Clipping the maximum parallelization to the available DSPs, since it is not
         # possible that one layer uses all the DSPs, considering the packing
         op_clip = (NUM_DSP / layer["kernel"]) * 2 
+        
+        # Do not clip the parallelization for pool layers since they do not use DSPs
+        if (layer["type"] == "pool"):
+            max_ow_par = 1
+            op_clip = max_ich_par * max_och_par * max_ow_par
         
         valid_par_solutions.append(generate_valid_combinations(
             och=max_och_par, ich=max_ich_par, iw=max_ow_par, iw_clip=4, op_clip=op_clip))
@@ -128,7 +130,7 @@ def parallelismILP(layers_info, valid_par_solutions, NUM_DSP, NUM_PORTS, prj_roo
         valid_tot_par_solutions.append([])
         for single_par in par_sol:
             valid_tot_par_solutions[i].append(np.prod(single_par))
-    
+
     # valid_iter_linebuffer stores the line buffer number of iteration for each valid
     # solution and it is useful to linearize the constraint of the line buffer
     valid_iter_linebuffer = []
@@ -294,7 +296,7 @@ def parallelismILP(layers_info, valid_par_solutions, NUM_DSP, NUM_PORTS, prj_roo
     prob.solve(PULP_CBC_CMD(timeLimit=10, msg=0))
     # prob.solve(PULP_CBC_CMD(timeLimit=600, gapRel=0.1))
     end_time = time.time()
-    # prob.writeLP(prj_root + "/parallel_ops1.lp")
+    prob.writeLP(prj_root + "/parallel_ops1.lp")
     if (prob.status == pulp.LpStatusInfeasible):
         print("Throughput problem unfeasible")
         exit(0)

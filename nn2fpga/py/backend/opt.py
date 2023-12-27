@@ -459,7 +459,6 @@ def assign_quant(model, io_dict):
     return io_dict
 
 def opt_quant(model, io_dict, init_info, flag_modified, debug=False):
-    """Optimize quantization layers by removing them and connecting the input and output layers"""
 
     io_connect = extract_connections(model, io_dict)
 

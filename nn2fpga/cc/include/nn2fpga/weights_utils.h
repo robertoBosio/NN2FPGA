@@ -187,7 +187,7 @@ void produce_stream(hls::stream<din_t> &din,
                     bool init,
                     hls::stream<dout_tmp_t> dout[INDEX]) {
 #pragma HLS inline
-  const auto ITER = DIM/(INDEX*OPS*PACK);
+  const auto ITER = DIM / (INDEX * OPS * PACK);
   dout_tmp_t tmp = 0;
   din_t tmp_din;
 #ifndef __SYNTHESIS__

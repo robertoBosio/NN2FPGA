@@ -1068,7 +1068,7 @@ def print_report(weights_layer_dict, fit, generate_report_file="tmp.rpt"):
         print("== Memory report", file=f)
         print("="*40, file=f)
         if (fit):
-            print("The network fits in the available resources\n", file=f)
+            print("The network should fit in the available resources\n", file=f)
         else:
             print("The network does NOT fit in the available resources\n", file=f)
         table_data = []
