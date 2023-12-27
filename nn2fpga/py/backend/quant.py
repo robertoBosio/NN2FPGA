@@ -123,7 +123,7 @@ def hw_quant(model, io_dict):
                 if och_pack_partial > 2:
                     och_pack_partial = 2
                 
-                if signed0:
+                if signed0 and ow_pack_partial > 1:
                     # print("##### Layer: %s, signed, reducing och_pack" % (layer_out_name))
                     # print(signed0)
                     # print(io_dict[layer_in_name])
@@ -152,7 +152,51 @@ def hw_quant(model, io_dict):
                 io_dict[layer_out_name]["ow_ops"] = ow_ops_partial
                 io_dict[layer_out_name]["reuse"] = ow_ops_partial
 
-            elif is_weight:
+            # elif is_weight:
+            #     scale_factor = io_dict[layer_in_name]["scale_factor"]
+            #     io_dict[layer_out_name]["wscale"].append(scale_factor)
+
+            #     bits = io_dict[layer_in_name]["bits"]
+            #     io_dict[layer_out_name]["wbits"].append(bits)
+
+            #     signed = io_dict[layer_in_name]["signed"]
+            #     io_dict[layer_out_name]["wsigned"].append(signed)
+
+    return io_dict
+
+def weights_quant(model, io_dict):
+    
+    io_connect = extract_connections(model, io_dict)
+
+    for net_name, layers in io_connect.items():
+        layer_in_name = layers[0][0]
+        layer_out_name = layers[1][0]
+
+        # Recognize bias through convolution layer field
+        is_weight = False
+        is_not_skip = True
+
+        if not (layer_out_name in io_dict.keys()):
+            continue
+
+        if io_dict[layer_out_name]["type"] == "conv":
+            if io_dict[layer_out_name]["add"]:
+                is_not_skip = net_name != get_add_name(io_dict[layer_out_name])
+
+        if layer_out_name != "consume_stream" and is_not_skip:
+            is_out_conv = 'conv' in io_dict[layer_out_name]['type']
+            # is_not_bias = 'bias' not in io_dict[layer_in_name]["input"][0].lower()
+            if is_out_conv:
+                is_weight = any(
+                    [
+                        net_name == weight_name.replace(".", "_") 
+                        for weight_name in io_dict[layer_out_name]["weights_name"]
+                    ]    
+                )
+                # if "bias_name" in io_dict[layer_out_name].keys():
+                #     is_not_bias = net_name in io_dict[layer_out_name]["bias_name"]
+
+            if is_weight:
                 scale_factor = io_dict[layer_in_name]["scale_factor"]
                 io_dict[layer_out_name]["wscale"].append(scale_factor)
 
@@ -163,7 +207,6 @@ def hw_quant(model, io_dict):
                 io_dict[layer_out_name]["wsigned"].append(signed)
 
     return io_dict
-
 def merge_quant(model, io_dict, init_info, inherit_quant=False):
 
     # Merging consecutive quantizations

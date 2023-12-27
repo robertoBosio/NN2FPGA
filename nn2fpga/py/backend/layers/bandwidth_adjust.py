@@ -67,6 +67,7 @@ def parse(name, node, adjust_name, in_ops, adjust_ops, ow_ops, ow_ops_in, dim="i
     block["declare"].append(declare)
 
     depth = math.ceil(node["%sch" % dim] / output_ops) + 1
+
     block["pragma"] = []
     pragma = {}
     pragma["name"] = "stream"

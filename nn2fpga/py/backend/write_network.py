@@ -58,14 +58,17 @@ def write_network(
         io_dict,
         init_info
     )
-
-    # for node_name, node in io_dict.items():
-    #     print(node_name, node)
+    
+    io_dict = weights_quant(
+        model,
+        io_dict
+    )
 
     io_dict = balance_computations.ilp(
         io_dict,
         off_chip_storage,
         inferred_model,
+        file_name,
         board,
         packing,
         prj_root=prj_root
