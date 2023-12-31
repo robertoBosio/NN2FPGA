@@ -766,11 +766,16 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
               // Theoretically with the add the input and output dimensions should
               // be equal, so we could perform the addition in different iterations
               if constexpr(std::is_same<t_add_struct, std::nullptr_t>::value == false){
-                auto s_add_read = s_num_och % c_add_ops;
+                auto s_add_read = (s_num_och+s_num_ops_out) % c_add_ops;
                 for (auto s_ow_ops = 0; s_ow_ops < c_ow_ops; s_ow_ops++) {
                   // FIX FOR MOBILENETv2: Taking into account different output and
                   // input channels
                   if ((s_add_read == 0) && (s_num_ich == 0)){
+                    #ifndef __SYNTHESIS__
+                      #ifdef DEBUG_ADD
+                        std::cout << "reading s_add[" << s_ow_ops << "]" << std::endl;
+                      #endif
+                    #endif
                     s_add[s_ow_ops] = i_add[s_ow_ops].read();   
                     #ifndef __SYNTHESIS__
                       #ifdef DEBUG_ADD
