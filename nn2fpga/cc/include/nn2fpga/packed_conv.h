@@ -44,7 +44,7 @@ template <class t_input, class t_input_st, class t_weight, class t_weight_st, cl
           class t_add_struct, class t_input_mod, class t_acc_struct, class t_acc, 
           class t_acc_simd, class t_output_struct, class t_output, class t_output_clip, 
           class t_output_mask, int c_reuse, int c_fh, int c_fw, int c_index, int c_str,
-          int c_ops, int c_in_ops, int c_ow_ops, int c_ow_pack, int c_och_pack, 
+          int c_ops, int c_in_ops, int c_add_ops, int c_ow_ops, int c_ow_pack, int c_och_pack, 
           int c_relu, int c_ich, int c_och, int c_bits, int c_simd_bits,
           int c_simd, int c_pad_bits, int c_int_pad_bits, int c_pad_acc_bits, int c_mask, 
           int c_w_bits, int c_depth>
@@ -54,9 +54,7 @@ void conv_pipe(
     t_bias i_bias,
     uint32_t ops,
     uint32_t och,
-    uint32_t ich,
-    uint32_t ich_idx,
-    uint32_t ich_idx_add,
+    uint32_t num_ich,
     uint32_t reuse,
     uint32_t s_ow_ops,
     uint32_t s_num_ops_out,
@@ -67,6 +65,10 @@ void conv_pipe(
 #pragma HLS inline
 
   const int FW = (c_fw+(c_ow_ops-1)*c_str);
+  auto ich_idx_add = 0;
+
+  if constexpr(std::is_same<t_add_struct, std::nullptr_t>::value == false)
+    ich_idx_add = och % c_add_ops;
 
   if (c_och_pack > 1) {
 
@@ -80,7 +82,7 @@ void conv_pipe(
         auto s_w_index = s_och_pack*c_ow_pack+s_ow_pack;
         s_acc[s_w_index] = 0;
         if constexpr(std::is_same<t_bias, std::nullptr_t>::value == false) {
-          if (ich == 0) {
+          if (num_ich == 0) {
             #ifndef __SYNTHESIS__
               #ifdef DEBUG_CONV
                 std::cout << "B" << " " << i_bias[0][ops+s_och_pack] << std::endl;
@@ -94,7 +96,7 @@ void conv_pipe(
 
     if constexpr(std::is_same<t_add_struct, std::nullptr_t>::value == false) {
       for (auto s_och_pack = 0; s_och_pack < c_och_pack; s_och_pack++) {
-        if ((ich == 0) | (c_depth == 1)) {
+        if ((num_ich == 0) || (c_depth == 1)) {
         // TODO: Add support for multiple inputs (vector type)
           for (auto s_ow_pack = 0; s_ow_pack < c_ow_pack; s_ow_pack++) {
             s_acc[s_och_pack*c_ow_pack+s_ow_pack] += i_add[s_ow_pack+s_ow_ops].data[0][ich_idx_add+s_och_pack];
@@ -117,99 +119,102 @@ void conv_pipe(
       }
     }
 
-    for (auto s_simd = 0; s_simd < c_simd; s_simd++) {
-      s_acc_simd[s_simd] = 0;
-    }
+    for (auto ich_idx = 0; ich_idx < c_in_ops; ich_idx++) {
 
-    for (auto s_fh = 0; s_fh < c_fh; s_fh++) {
-      for (auto s_fw = 0; s_fw < c_fw; s_fw++) {
-        ap_int<27> s_data = 0;
-        ap_int<18> s_b_ext = 0;
+      for (auto s_simd = 0; s_simd < c_simd; s_simd++) {
+        s_acc_simd[s_simd] = 0;
+      }
 
-        ap_int<27> s_a_d_ext[c_och_pack];
+      for (auto s_fh = 0; s_fh < c_fh; s_fh++) {
+        for (auto s_fw = 0; s_fw < c_fw; s_fw++) {
+          ap_int<27> s_data = 0;
+          ap_int<18> s_b_ext = 0;
 
-        for (auto s_och_pack = 0; s_och_pack < c_och_pack; s_och_pack++) {
+          ap_int<27> s_a_d_ext[c_och_pack];
+
+          for (auto s_och_pack = 0; s_och_pack < c_och_pack; s_och_pack++) {
+
+            auto s_index = s_fh*c_fw+s_fw;
+
+            s_a_d_ext[s_och_pack] = 0;
+
+            s_a_d_ext[s_och_pack].range(c_pad_bits*s_och_pack+c_w_bits-1, c_pad_bits*s_och_pack) = i_weight[s_index][ich_idx][ops+s_och_pack].range(c_w_bits - 1, 0);
+
+            #ifndef __SYNTHESIS__
+              #ifdef DEBUG_CONV
+                std::cout << "W" << s_index << " " << i_weight[s_index][ich_idx][ops+s_och_pack] << std::endl;
+              #endif
+            #endif
+
+            // if constexpr(std::is_same<typename t_weight_st::Base::Base, _AP_ROOT_TYPE<t_weight_st::Base::width, true>>::value) {
+              for (auto pos = c_pad_bits*s_och_pack+c_w_bits; pos < 27; pos++) {
+                s_a_d_ext[s_och_pack].range(pos,pos) = s_a_d_ext[s_och_pack].range(c_pad_bits*s_och_pack+c_w_bits-1, c_pad_bits*s_och_pack+c_w_bits-1);
+              }
+            // }
+
+            s_data += s_a_d_ext[s_och_pack];
+
+          }
+
+          for (auto s_ow_pack = 0; s_ow_pack < c_ow_pack; s_ow_pack++) {
+
+            auto s_index = s_fh*FW+s_fw+(c_ow_ops-(s_ow_pack+s_ow_ops)-1)*c_str;
+
+            auto s_w_index = s_ow_pack*(c_pad_acc_bits);
+
+            if constexpr(std::is_same<t_input_mod, std::nullptr_t>::value == false) {
+              s_b_ext.range(s_w_index + c_bits - 1, s_w_index) = t_input_mod(i_input[s_index][ich_idx]).range(c_bits-1, 0);
+              if constexpr(std::is_same<typename t_input_mod::Base::Base, _AP_ROOT_TYPE<t_input_mod::Base::width, true>>::value) {
+                for (auto pos = s_w_index+c_bits; pos < 18; pos++) {
+                  s_b_ext.range(pos,pos) = s_b_ext.range(s_w_index + c_bits - 1, s_w_index + c_bits - 1);
+                }
+              }
+            }
+            else {
+              s_b_ext.range(s_w_index + c_bits - 1, s_w_index) = i_input[s_index][ich_idx].range(c_bits-1, 0);
+              if constexpr(std::is_same<typename t_input_st::Base::Base, _AP_ROOT_TYPE<t_input_st::Base::width, true>>::value) {
+                for (auto pos = s_w_index+c_bits; pos < 18; pos++) {
+                  s_b_ext.range(pos,pos) = s_b_ext.range(s_w_index + c_bits - 1, s_w_index + c_bits - 1);
+                }
+              }
+            }
+
+            #ifndef __SYNTHESIS__
+              #ifdef DEBUG_CONV
+                std::cout << "A" << s_index << " " << i_input[s_index][ich_idx] << std::endl;
+              #endif
+            #endif
+
+          }
 
           auto s_index = s_fh*c_fw+s_fw;
-
-          s_a_d_ext[s_och_pack] = 0;
-
-          s_a_d_ext[s_och_pack].range(c_pad_bits*s_och_pack+c_w_bits-1, c_pad_bits*s_och_pack) = i_weight[s_index][ich_idx][ops+s_och_pack].range(c_w_bits - 1, 0);
-
-          #ifndef __SYNTHESIS__
-            #ifdef DEBUG_CONV
-              std::cout << "W" << s_index << " " << i_weight[s_index][ich_idx][ops+s_och_pack] << std::endl;
-            #endif
-          #endif
-
-          // if constexpr(std::is_same<typename t_weight_st::Base::Base, _AP_ROOT_TYPE<t_weight_st::Base::width, true>>::value) {
-            for (auto pos = c_pad_bits*s_och_pack+c_w_bits; pos < 27; pos++) {
-              s_a_d_ext[s_och_pack].range(pos,pos) = s_a_d_ext[s_och_pack].range(c_pad_bits*s_och_pack+c_w_bits-1, c_pad_bits*s_och_pack+c_w_bits-1);
-            }
-          // }
-
-          s_data += s_a_d_ext[s_och_pack];
+          s_acc_simd[s_index & c_mask] += s_data * s_b_ext;
 
         }
+      }
 
-        for (auto s_ow_pack = 0; s_ow_pack < c_ow_pack; s_ow_pack++) {
-
-          auto s_index = s_fh*FW+s_fw+(c_ow_ops-(s_ow_pack+s_ow_ops)-1)*c_str;
-
-          auto s_w_index = s_ow_pack*(c_pad_acc_bits);
-
-          if constexpr(std::is_same<t_input_mod, std::nullptr_t>::value == false) {
-            s_b_ext.range(s_w_index + c_bits - 1, s_w_index) = t_input_mod(i_input[s_index][ich_idx]).range(c_bits-1, 0);
-            if constexpr(std::is_same<typename t_input_mod::Base::Base, _AP_ROOT_TYPE<t_input_mod::Base::width, true>>::value) {
-              for (auto pos = s_w_index+c_bits; pos < 18; pos++) {
-                s_b_ext.range(pos,pos) = s_b_ext.range(s_w_index + c_bits - 1, s_w_index + c_bits - 1);
-              }
-            }
+      for (auto s_ow_pack = 0; s_ow_pack < c_ow_pack; s_ow_pack++) {
+        for (auto s_och_pack = 0; s_och_pack < c_och_pack; s_och_pack++) {
+          auto s_index_r = s_och_pack*c_ow_pack+s_ow_pack;
+          for (auto s_simd = 0; s_simd < c_simd; s_simd++) {
+            t_acc_simd s_acc_simd_value = 0;
+            t_acc_simd s_acc_adj = 0;
+            if ((s_index_r > 0))
+              s_acc_adj.range(0,0) = s_acc_simd[s_simd].range(c_pad_acc_bits*(s_index_r)-1, c_pad_acc_bits*(s_index_r)-1);
+            s_acc_simd_value.range(c_pad_acc_bits-1, 0) = s_acc_simd[s_simd].range(c_pad_acc_bits*(s_index_r+1)-1, c_pad_acc_bits*(s_index_r));
+            s_acc[s_index_r] += s_acc_simd_value + s_acc_adj;
           }
-          else {
-            s_b_ext.range(s_w_index + c_bits - 1, s_w_index) = i_input[s_index][ich_idx].range(c_bits-1, 0);
-            if constexpr(std::is_same<typename t_input_st::Base::Base, _AP_ROOT_TYPE<t_input_st::Base::width, true>>::value) {
-              for (auto pos = s_w_index+c_bits; pos < 18; pos++) {
-                s_b_ext.range(pos,pos) = s_b_ext.range(s_w_index + c_bits - 1, s_w_index + c_bits - 1);
-              }
-            }
-          }
-
           #ifndef __SYNTHESIS__
             #ifdef DEBUG_CONV
-              std::cout << "A" << s_index << " " << i_input[s_index][ich_idx] << std::endl;
+              if (och == 0)
+                std::cout << "RES " << s_acc[s_index_r] << std::endl;
             #endif
           #endif
-
         }
-
-        auto s_index = s_fh*c_fw+s_fw;
-        s_acc_simd[s_index & c_mask] += s_data * s_b_ext;
-
       }
     }
 
-    for (auto s_ow_pack = 0; s_ow_pack < c_ow_pack; s_ow_pack++) {
-      for (auto s_och_pack = 0; s_och_pack < c_och_pack; s_och_pack++) {
-        auto s_index_r = s_och_pack*c_ow_pack+s_ow_pack;
-        for (auto s_simd = 0; s_simd < c_simd; s_simd++) {
-          t_acc_simd s_acc_simd_value = 0;
-          t_acc_simd s_acc_adj = 0;
-          if ((s_index_r > 0))
-            s_acc_adj.range(0,0) = s_acc_simd[s_simd].range(c_pad_acc_bits*(s_index_r)-1, c_pad_acc_bits*(s_index_r)-1);
-          s_acc_simd_value.range(c_pad_acc_bits-1, 0) = s_acc_simd[s_simd].range(c_pad_acc_bits*(s_index_r+1)-1, c_pad_acc_bits*(s_index_r));
-          s_acc[s_index_r] += s_acc_simd_value + s_acc_adj;
-        }
-        #ifndef __SYNTHESIS__
-          #ifdef DEBUG_CONV
-            if (och == 0)
-              std::cout << "RES " << s_acc[s_index_r] << std::endl;
-          #endif
-        #endif
-      }
-    }
-
-    if (ich != 0) {
+    if (num_ich != 0) {
       for (auto s_ow_pack = 0; s_ow_pack < c_ow_pack; s_ow_pack++) {
         for (auto s_och_pack = 0; s_och_pack < c_och_pack; s_och_pack++) {
           auto s_w_index = s_och_pack*c_ow_pack+s_ow_pack;
@@ -224,17 +229,18 @@ void conv_pipe(
       for (auto s_ow_pack = 0; s_ow_pack < c_ow_pack; s_ow_pack++) {
         for (auto s_och_pack = 0; s_och_pack < c_och_pack; s_och_pack++) {
           auto s_r_index = s_och_pack*c_ow_pack+s_ow_pack;
-          i_acc_buff[reuse][(och+s_och_pack)*c_ow_ops+s_ow_ops+s_ow_pack] = s_acc[s_r_index];
+          auto s_w_index = (och+s_och_pack)*c_ow_ops+s_ow_ops+s_ow_pack;
+          i_acc_buff[reuse][s_w_index] = s_acc[s_r_index];
           #ifndef __SYNTHESIS__
             #ifdef DEBUG_ACC
-              std::cout <<  "ACC " << i_acc_buff[reuse][(och+s_och_pack)*c_ow_ops+s_ow_ops+s_ow_pack] << std::endl;
+              std::cout <<  "ACC " << i_acc_buff[reuse][s_w_index] << std::endl;
             #endif
           #endif
         }
       }
     }
 
-    if (ich == c_ich-1) {
+    if (num_ich == c_ich-c_in_ops) {
       for (auto s_ow_pack = 0; s_ow_pack < c_ow_pack; s_ow_pack++) {
         for (auto s_och_pack = 0; s_och_pack < c_och_pack; s_och_pack++) {
           s_output_struct[s_ow_ops+s_ow_pack].data[0][s_num_ops_out+ops+s_och_pack] = quant_stream<
@@ -249,45 +255,17 @@ void conv_pipe(
 
     if constexpr(c_ow_pack > 1) {
       
-      auto s_index_ops = (c_depth == 1) ? ich_idx : (ops);
-
       t_acc s_acc[c_ow_pack];
       t_acc s_acc_base[c_ow_pack];
 
       ap_uint<48> s_acc_simd[c_simd];
 
-      if constexpr(std::is_same<t_bias, std::nullptr_t>::value == false) {
-        if ((ich == 0) | (c_depth == 1))  {
-          for (auto s_ow_pack = 0; s_ow_pack < c_ow_pack; s_ow_pack++) {
-            #ifndef __SYNTHESIS__
-              // #ifdef DEBUG_CONV
-              //   std::cout << "B" << s_bias << " ";
-              // #endif
-            #endif
-            s_acc[s_ow_pack] = i_bias[0][s_index_ops];
-          }
-        } else {
-          for (auto s_ow_pack = 0; s_ow_pack < c_ow_pack; s_ow_pack++) {
-            s_acc[s_ow_pack] = 0;
-          }
-        }
-      } else {
+      if constexpr(c_depth == 0) {
         for (auto s_ow_pack = 0; s_ow_pack < c_ow_pack; s_ow_pack++) {
           s_acc[s_ow_pack] = 0;
         }
       }
 
-      if constexpr(std::is_same<t_add_struct, std::nullptr_t>::value == false) {
-        if ((ich == 0) | (c_depth == 1)) {
-          // TODO: Add support for multiple inputs (vector type)
-          for (auto s_ow_pack = 0; s_ow_pack < c_ow_pack; s_ow_pack++) {
-            s_acc[s_ow_pack] += i_add[s_ow_pack+s_ow_ops].data[0][ich_idx_add];
-          }
-        }
-      }
-
-      // If c_depth is 1 then there is no need to accumulate the previous
-      // results
       if constexpr(c_depth == 1) {
         for (auto s_ow_pack = 0; s_ow_pack < c_ow_pack; s_ow_pack++) {
           s_acc_base[s_ow_pack] = 0;
@@ -298,87 +276,146 @@ void conv_pipe(
         }
       }
 
-      for (auto s_simd = 0; s_simd < c_simd; s_simd++) {
-        s_acc_simd[s_simd] = 0;
+      if constexpr(std::is_same<t_add_struct, std::nullptr_t>::value == false) {
+        if ((num_ich == 0) | (c_depth == 1)) {
+          // TODO: Add support for multiple inputs (vector type)
+          for (auto s_ow_pack = 0; s_ow_pack < c_ow_pack; s_ow_pack++) {
+            s_acc[s_ow_pack] += i_add[s_ow_pack+s_ow_ops].data[0][ich_idx_add];
+          }
+        }
       }
 
-      for (auto s_fh = 0; s_fh < c_fh; s_fh++) {
-        for (auto s_fw = 0; s_fw < c_fw; s_fw++) {
-          ap_int<27> s_data = 0;
-          ap_int<18> s_weight = 0;
+      if constexpr(std::is_same<t_bias, std::nullptr_t>::value == false) {
+        if constexpr(c_depth == 0) {
+          if (num_ich == 0) {
+            for (auto s_ow_pack = 0; s_ow_pack < c_ow_pack; s_ow_pack++) {
+              #ifndef __SYNTHESIS__
+                // #ifdef DEBUG_CONV
+                //   std::cout << "B" << s_bias << " ";
+                // #endif
+              #endif
+              s_acc[s_ow_pack] += i_bias[0][ops];
+            }
+          }
+        }
+      }
 
-          ap_int<27> s_input_ext[c_ow_pack];
+      for (auto ich_idx = 0; ich_idx < c_in_ops; ich_idx++) {
+        if constexpr(c_depth == 1) {
+          for (auto s_ow_pack = 0; s_ow_pack < c_ow_pack; s_ow_pack++) {
+            s_acc[s_ow_pack] = 0;
+          }
+        }
 
+        if constexpr(std::is_same<t_bias, std::nullptr_t>::value == false) {
+          if constexpr(c_depth == 1) {
+            for (auto s_ow_pack = 0; s_ow_pack < c_ow_pack; s_ow_pack++) {
+              #ifndef __SYNTHESIS__
+                // #ifdef DEBUG_CONV
+                //   std::cout << "B" << s_bias << " ";
+                // #endif
+              #endif
+              s_acc[s_ow_pack] += i_bias[0][ich_idx];
+            }
+          }
+        }
+
+        // If c_depth is 1 then there is no need to accumulate the previous
+        // results
+
+        for (auto s_simd = 0; s_simd < c_simd; s_simd++) {
+          s_acc_simd[s_simd] = 0;
+        }
+
+        for (auto s_fh = 0; s_fh < c_fh; s_fh++) {
+          for (auto s_fw = 0; s_fw < c_fw; s_fw++) {
+            ap_int<27> s_data = 0;
+            ap_int<18> s_weight = 0;
+
+            ap_int<27> s_input_ext[c_ow_pack];
+
+            for (auto s_ow_pack = 0; s_ow_pack < c_ow_pack; s_ow_pack++) {
+
+              auto s_index = s_fh*FW+s_fw+(c_ow_ops-(s_ow_pack+s_ow_ops)-1)*c_str;
+
+              s_input_ext[s_ow_pack] = 0;
+
+              if constexpr(std::is_same<t_input_mod, std::nullptr_t>::value == false) {
+                s_input_ext[s_ow_pack].range(c_pad_bits*s_ow_pack+c_bits-1, c_pad_bits*s_ow_pack) = t_input_mod(i_input[s_index][ich_idx]).range(c_bits-1, 0);
+                if constexpr(std::is_same<typename t_input_mod::Base::Base, _AP_ROOT_TYPE<t_input_mod::Base::width, true>>::value) {
+                  for (auto pos = c_pad_bits*s_ow_pack+c_bits; pos < 27; pos++) {
+                    s_input_ext[s_ow_pack].range(pos,pos) = s_input_ext[s_ow_pack].range(c_pad_bits*s_ow_pack+c_bits-1, c_pad_bits*s_ow_pack+c_bits-1);
+                  }
+                }
+              }
+              else {
+                s_input_ext[s_ow_pack].range(c_pad_bits*s_ow_pack+c_bits-1, c_pad_bits*s_ow_pack) = i_input[s_index][ich_idx].range(c_bits-1, 0);
+                if constexpr(std::is_same<typename t_input_st::Base::Base, _AP_ROOT_TYPE<t_input_st::Base::width, true>>::value) {
+                  for (auto pos = c_pad_bits*s_ow_pack+c_bits; pos < 27; pos++) {
+                    s_input_ext[s_ow_pack].range(pos,pos) = s_input_ext[s_ow_pack].range(c_pad_bits*s_ow_pack+c_bits-1, c_pad_bits*s_ow_pack+c_bits-1);
+                  }
+                }
+              }
+
+              #ifdef DEBUG_ACT
+                std::cout << "A" << s_index << " " << i_input[s_index][ich_idx] << std::endl;
+              #endif
+
+              #ifndef SIMD_DSP
+                s_data += s_input_ext[s_ow_pack];
+              #endif
+
+            }
+            auto s_index = s_fh*c_fw+s_fw;
+
+            s_weight.range(c_w_bits - 1, 0) = i_weight[s_index][ich_idx][ops].range(c_w_bits - 1, 0);
+            // Check if the type is signed and then perform extension
+            if constexpr(std::is_same<typename t_weight_st::Base::Base, _AP_ROOT_TYPE<t_weight_st::Base::width, true>>::value) {
+              for (auto pos = c_w_bits; pos < 18; pos++) {
+                s_weight.range(pos,pos) = s_weight.range(c_w_bits - 1, c_w_bits - 1);
+              }
+            }
+
+            #ifdef SIMD_DSP
+              auto s_simd_in1 = s_input_ext[0];
+              auto s_simd_in2 = s_input_ext[1];
+
+              s_acc_simd[s_index & c_mask] = mac_simd(s_simd_in1, s_weight, s_acc_simd[s_index & c_mask], s_simd_in2);
+            #else
+              s_acc_simd[s_index & c_mask] += s_data * s_weight;
+            #endif
+
+          }
+        }
+
+        for (auto s_simd = 0; s_simd < c_simd; s_simd++) {
           for (auto s_ow_pack = 0; s_ow_pack < c_ow_pack; s_ow_pack++) {
 
-            auto s_index = s_fh*FW+s_fw+(c_ow_ops-(s_ow_pack+s_ow_ops)-1)*c_str;
+            t_acc_simd s_acc_simd_value = 0;
+            t_acc_simd s_acc_adj = 0;
 
-            s_input_ext[s_ow_pack] = 0;
-
-            if constexpr(std::is_same<t_input_mod, std::nullptr_t>::value == false) {
-              s_input_ext[s_ow_pack].range(c_pad_bits*s_ow_pack+c_bits-1, c_pad_bits*s_ow_pack) = t_input_mod(i_input[s_index][ich_idx]).range(c_bits-1, 0);
-              if constexpr(std::is_same<typename t_input_mod::Base::Base, _AP_ROOT_TYPE<t_input_mod::Base::width, true>>::value) {
-                for (auto pos = c_pad_bits*s_ow_pack+c_bits; pos < 27; pos++) {
-                  s_input_ext[s_ow_pack].range(pos,pos) = s_input_ext[s_ow_pack].range(c_pad_bits*s_ow_pack+c_bits-1, c_pad_bits*s_ow_pack+c_bits-1);
-                }
-              }
-            }
-            else {
-              s_input_ext[s_ow_pack].range(c_pad_bits*s_ow_pack+c_bits-1, c_pad_bits*s_ow_pack) = i_input[s_index][ich_idx].range(c_bits-1, 0);
-              if constexpr(std::is_same<typename t_input_st::Base::Base, _AP_ROOT_TYPE<t_input_st::Base::width, true>>::value) {
-                for (auto pos = c_pad_bits*s_ow_pack+c_bits; pos < 27; pos++) {
-                  s_input_ext[s_ow_pack].range(pos,pos) = s_input_ext[s_ow_pack].range(c_pad_bits*s_ow_pack+c_bits-1, c_pad_bits*s_ow_pack+c_bits-1);
-                }
-              }
-            }
-
-            #ifdef DEBUG_ACT
-              std::cout << "A" << s_index << " " << i_input[s_index][ich_idx] << std::endl;
-            #endif
-
-            #ifndef SIMD_DSP
-              s_data += s_input_ext[s_ow_pack];
-            #endif
-
+            if (s_ow_pack > 0)
+              s_acc_adj.range(0,0) = s_acc_simd[s_simd].range(c_pad_acc_bits*(s_ow_pack)-1, c_pad_acc_bits*(s_ow_pack)-1);
+            s_acc_simd_value.range(c_pad_acc_bits-1, 0) = s_acc_simd[s_simd].range(c_pad_acc_bits*(s_ow_pack+1)-1, c_pad_acc_bits*s_ow_pack);
+            s_acc[s_ow_pack] += s_acc_simd_value + s_acc_adj;
           }
-          auto s_index = s_fh*c_fw+s_fw;
+        }
 
-          s_weight.range(c_w_bits - 1, 0) = i_weight[s_index][ich_idx][ops].range(c_w_bits - 1, 0);
-          // Check if the type is signed and then perform extension
-          if constexpr(std::is_same<typename t_weight_st::Base::Base, _AP_ROOT_TYPE<t_weight_st::Base::width, true>>::value) {
-            for (auto pos = c_w_bits; pos < 18; pos++) {
-              s_weight.range(pos,pos) = s_weight.range(c_w_bits - 1, c_w_bits - 1);
-            }
+        if constexpr(c_depth == 1) {
+          for (auto s_ow_pack = 0; s_ow_pack < c_ow_pack; s_ow_pack++) {
+            s_output_struct[s_ow_ops+s_ow_pack].data[0][s_num_ops_out+ich_idx] = quant_stream<
+              t_output, t_output_clip, t_output_mask, t_acc, c_relu
+            >(s_acc[s_ow_pack]);
+            s_output_struct[s_ow_ops+s_ow_pack].last = last;
           }
-
-          #ifdef SIMD_DSP
-            auto s_simd_in1 = s_input_ext[0];
-            auto s_simd_in2 = s_input_ext[1];
-
-            s_acc_simd[s_index & c_mask] = mac_simd(s_simd_in1, s_weight, s_acc_simd[s_index & c_mask], s_simd_in2);
-          #else
-            s_acc_simd[s_index & c_mask] += s_data * s_weight;
-          #endif
-
         }
       }
 
-      for (auto s_simd = 0; s_simd < c_simd; s_simd++) {
-        for (auto s_ow_pack = 0; s_ow_pack < c_ow_pack; s_ow_pack++) {
-
-          t_acc_simd s_acc_simd_value = 0;
-          t_acc_simd s_acc_adj = 0;
-
-          if (s_ow_pack > 0)
-            s_acc_adj.range(0,0) = s_acc_simd[s_simd].range(c_pad_acc_bits*(s_ow_pack)-1, c_pad_acc_bits*(s_ow_pack)-1);
-          s_acc_simd_value.range(c_pad_acc_bits-1, 0) = s_acc_simd[s_simd].range(c_pad_acc_bits*(s_ow_pack+1)-1, c_pad_acc_bits*s_ow_pack);
-          s_acc[s_ow_pack] += s_acc_simd_value + s_acc_adj;
-        }
-      }
-
-      if (ich != 0) {
-        for (auto s_ow_pack = 0; s_ow_pack < c_ow_pack; s_ow_pack++) {
-          s_acc[s_ow_pack] += s_acc_base[s_ow_pack];
+      if constexpr(c_depth == 0) {
+        if (num_ich != 0) {
+          for (auto s_ow_pack = 0; s_ow_pack < c_ow_pack; s_ow_pack++) {
+            s_acc[s_ow_pack] += s_acc_base[s_ow_pack];
+          }
         }
       }
 
@@ -398,12 +435,14 @@ void conv_pipe(
         #endif
       }
 
-      if ((ich == c_ich-1) | (c_depth == 1)) {
-        for (auto s_ow_pack = 0; s_ow_pack < c_ow_pack; s_ow_pack++) {
-          s_output_struct[s_ow_ops+s_ow_pack].data[0][s_num_ops_out+s_index_ops] = quant_stream<
-            t_output, t_output_clip, t_output_mask, t_acc, c_relu
-          >(s_acc[s_ow_pack]);
-          s_output_struct[s_ow_ops+s_ow_pack].last = last;
+      if constexpr(c_depth == 0) {
+        if (num_ich == c_ich-c_in_ops) {
+          for (auto s_ow_pack = 0; s_ow_pack < c_ow_pack; s_ow_pack++) {
+            s_output_struct[s_ow_ops+s_ow_pack].data[0][s_num_ops_out+ops] = quant_stream<
+              t_output, t_output_clip, t_output_mask, t_acc, c_relu
+            >(s_acc[s_ow_pack]);
+            s_output_struct[s_ow_ops+s_ow_pack].last = last;
+          }
         }
       }
 
@@ -415,15 +454,15 @@ void conv_pipe(
 
       t_acc s_acc = 0;
       t_acc s_acc_base = 0;
+      s_acc = 0;
 
-      auto s_index_ops = (c_depth == 1) ? ich_idx : (ops);
       if constexpr(std::is_same<t_add_struct, std::nullptr_t>::value == false) {
 
         // FIX: Seems that when there is the skip connection the binding of the
         // DSPs is not working, moving things before
         // CHECK: Check if this is working properly
         t_acc s_acc_add = 0;
-        if ((ich == 0) | (c_depth == 1)) {
+        if ((num_ich == 0) | (c_depth == 1)) {
           s_acc_add = i_add[s_ow_ops].data[0][ich_idx_add];
           #ifndef __SYNTHESIS__
             // if (c_depth == 1)
@@ -433,36 +472,8 @@ void conv_pipe(
           #endif
         }
 
-        if constexpr(std::is_same<t_bias, std::nullptr_t>::value == false) {
-          if ((ich == 0) | (c_depth == 1)) {
-            s_acc = i_bias[0][s_index_ops] + s_acc_add;
-            #ifndef __SYNTHESIS__
-              // #ifdef DEBUG_CONV
-              //   std::cout << "B " << i_bias[0][s_index_ops] << " ";
-              // #endif
-            #endif
-          }
-          else
-            s_acc = s_acc_add;
-        } else {
-          s_acc = s_acc_add;
-        }
+        s_acc += s_acc_add;
 
-      } else {
-        if constexpr(std::is_same<t_bias, std::nullptr_t>::value == false) {
-          if ((ich == 0) | (c_depth == 1)) {
-            s_acc = i_bias[0][s_index_ops];
-            #ifndef __SYNTHESIS__
-              #ifdef DEBUG_CONV
-                std::cout << "B " << i_bias[0][s_index_ops] << std::endl;
-              #endif
-            #endif
-          }
-          else
-            s_acc = 0;
-        } else {
-          s_acc = 0;
-        }
       }
 
       // If c_depth is 1 then there is no need to accumulate the previous
@@ -473,36 +484,72 @@ void conv_pipe(
         s_acc_base = i_acc_buff[reuse][och*c_ow_ops+s_ow_ops];
       }
 
-      for (auto s_fh = 0; s_fh < c_fh; s_fh++) {
-        for (auto s_fw = 0; s_fw < c_fw; s_fw++) {
-          auto s_index_act = s_fh*FW+s_fw+(c_ow_ops-s_ow_ops-1)*c_str;
-          auto s_index = s_fh*c_fw+s_fw;
-          #ifndef __SYNTHESIS__
-            #ifdef DEBUG_CONV
-              std::cout << "W" << s_index << " " << i_weight[s_index][ich_idx][ops] << " ";
-              std::cout << "A" << s_index << " " << i_input[s_index][ich_idx] << " ";
+      if constexpr(std::is_same<t_bias, std::nullptr_t>::value == false) {
+        if constexpr(c_depth == 0) {
+          if (num_ich == 0) {
+            s_acc += i_bias[0][ops];
+            #ifndef __SYNTHESIS__
+              #ifdef DEBUG_CONV
+                std::cout << "B " << i_bias[0][ops] << std::endl;
+              #endif
             #endif
-            #ifdef DEBUG_ACT
-              std::cout << "A" << s_index << " " << s_data << std::endl;
-            #endif
-          #endif
-          auto s_data = i_input[s_index_act][ich_idx];
-          if constexpr(std::is_same<t_input_mod, std::nullptr_t>::value == false)
-            s_data = t_input_mod(s_data);
-          s_acc += s_data * i_weight[s_index][ich_idx][ops];
-          // #ifndef __SYNTHESIS__
-          //   #ifdef DEBUG_CONV
-          //     std::cout << "W" << s_index << " " << i_weight[s_index][ich_idx][ops] << " ";
-          //     std::cout << "A" << s_index << " " << i_input[s_index][ich_idx] << " " << s_data << " ";
-          //   #endif
-          //   #ifdef DEBUG_ACT
-          //     std::cout << "A" << s_index << " " << s_data << std::endl;
-          //   #endif
-          // #endif
+          }
         }
       }
+      for (auto ich_idx = 0; ich_idx < c_in_ops; ich_idx++) {
 
-      if (ich != 0) s_acc += s_acc_base;
+        if constexpr(std::is_same<t_bias, std::nullptr_t>::value == false) {
+          if constexpr(c_depth == 1) {
+            s_acc += i_bias[0][ich_idx];
+            #ifndef __SYNTHESIS__
+              #ifdef DEBUG_CONV
+                std::cout << "B " << i_bias[0][ich_idx] << std::endl;
+              #endif
+            #endif
+          }
+        }
+
+        for (auto s_fh = 0; s_fh < c_fh; s_fh++) {
+          for (auto s_fw = 0; s_fw < c_fw; s_fw++) {
+            auto s_index_act = s_fh*FW+s_fw+(c_ow_ops-s_ow_ops-1)*c_str;
+            auto s_index = s_fh*c_fw+s_fw;
+            #ifndef __SYNTHESIS__
+              #ifdef DEBUG_CONV
+                std::cout << "W" << s_index << " " << i_weight[s_index][ich_idx][ops] << " ";
+                std::cout << "A" << s_index << " " << i_input[s_index][ich_idx] << " ";
+              #endif
+              #ifdef DEBUG_ACT
+                std::cout << "A" << s_index << " " << s_data << std::endl;
+              #endif
+            #endif
+            auto s_data = i_input[s_index_act][ich_idx];
+            if constexpr(std::is_same<t_input_mod, std::nullptr_t>::value == false)
+              s_data = t_input_mod(s_data);
+            s_acc += s_data * i_weight[s_index][ich_idx][ops];
+            // #ifndef __SYNTHESIS__
+            //   #ifdef DEBUG_CONV
+            //     std::cout << "W" << s_index << " " << i_weight[s_index][ich_idx][ops] << " ";
+            //     std::cout << "A" << s_index << " " << i_input[s_index][ich_idx] << " " << s_data << " ";
+            //   #endif
+            //   #ifdef DEBUG_ACT
+            //     std::cout << "A" << s_index << " " << s_data << std::endl;
+            //   #endif
+            // #endif
+          }
+        }
+
+        if constexpr(c_depth == 1) {
+          s_output_struct[s_ow_ops].data[0][s_num_ops_out+ich_idx] = quant_stream<
+            t_output, t_output_clip, t_output_mask, t_acc, c_relu
+          >(s_acc);
+          s_output_struct[s_ow_ops].last = last;
+        }
+
+      }
+
+      if constexpr(c_depth == 0) {
+        if (num_ich != 0) s_acc += s_acc_base;
+      }
 
       #ifndef __SYNTHESIS__
         #ifdef DEBUG_ACC
@@ -515,11 +562,13 @@ void conv_pipe(
       if constexpr(c_depth == 0)
         i_acc_buff[reuse][och*c_ow_ops+s_ow_ops] = s_acc;
 
-      if ((ich == c_ich-1) | (c_depth == 1)) {
-        s_output_struct[s_ow_ops].data[0][s_num_ops_out+s_index_ops] = quant_stream<
-          t_output, t_output_clip, t_output_mask, t_acc, c_relu
-        >(s_acc);
-        s_output_struct[s_ow_ops].last = last;
+      if constexpr(c_depth == 0) {
+        if (num_ich == c_ich-c_in_ops) {
+          s_output_struct[s_ow_ops].data[0][s_num_ops_out+ops] = quant_stream<
+            t_output, t_output_clip, t_output_mask, t_acc, c_relu
+          >(s_acc);
+          s_output_struct[s_ow_ops].last = last;
+        }
       }
       // return s_acc_struct;
 
@@ -558,17 +607,17 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
   // The output ow_ops must be greater or equal and a mutliples of ow_ops
   static_assert(c_ow_ops_out >= c_ow_ops, "c_ow_ops_out >= c_ow_ops");
   static_assert(c_ow_ops_out % c_ow_ops == 0, "c_ow_ops_out % c_ow_ops == 0");
+  static_assert(c_ops_out >= c_ops, "c_ops_out >= c_ops");
+  static_assert(c_ops_out % c_ops == 0, "c_ops_out % c_ops == 0");
 
   const auto c_och_depth = (c_depth == 1) ? 1 : c_och;
   const auto c_o_index = c_oh * c_ow / c_ow_ops_out;
   const auto c_reuse_iter = c_reuse / c_ow_ops;
-  const auto c_num_och = c_och_depth / c_ops;
   const auto c_iter = c_reuse_iter;
   const auto c_och_1x1_depth = (c_depth == 1) ? 1 : c_och_1x1;
   const auto c_num_och_1x1 = c_och_1x1_depth / c_ops;
   const auto c_iter_1x1 = c_reuse_iter * c_num_och_1x1;
   const auto c_ops_1x1 = (c_och_1x1 < c_ops) ? c_och_1x1 : c_ops;
-  const auto c_num_ops_out = (c_depth == 1) ? c_ops_out / c_in_ops : c_ops_out / c_ops;
   const auto c_iter_ich = (c_depth == 1) ? c_ops_out : c_in_ops;
   const auto c_iter_och = (c_depth == 1) ? c_ops : c_ops_out;
   const auto c_iter_ops_out = (c_depth == 1) ? c_in_ops : c_ops;
@@ -578,9 +627,13 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
   constexpr int MO = (c_fh*FW)/2;
 
   t_acc s_acc_buff[c_reuse_iter][c_och_depth*c_ow_ops];
-#pragma HLS array_partition variable = s_acc_buff type = cyclic factor = c_ops_out*c_ow_ops dim = 2
+// #pragma HLS array_partition variable = s_acc_buff type = cyclic factor = c_ops_out*c_ow_ops dim = 2
+#pragma HLS array_partition variable = s_acc_buff type = complete dim = 2
+// #pragma HLS bind_storage variable=s_acc_buff type=RAM_2P impl=bram latency=1
   t_acc_1x1 s_acc_1x1_buff[c_reuse_iter][c_och_depth*c_ow_ops];
-#pragma HLS array_partition variable = s_acc_1x1_buff type = cyclic factor = c_ops_out*c_ow_ops dim = 2
+// #pragma HLS array_partition variable = s_acc_1x1_buff type = cyclic factor = c_ops_out*c_ow_ops dim = 2
+#pragma HLS array_partition variable = s_acc_1x1_buff type = complete dim = 2
+// #pragma HLS bind_storage variable=s_acc_1x1_buff type=RAM_2P impl=bram latency=1
   t_input s_input;
 // #pragma HLS array_partition variable = s_input type = complete dim = 0
 #pragma HLS array_partition variable = s_input type = complete
@@ -632,8 +685,6 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
   typedef ap_fixed<c_pad_acc_bits, c_int_pad_bits, AP_RND_ZERO, AP_WRAP> t_acc_simd;
   typedef ap_fixed<c_pad_acc_bits_1x1, c_int_pad_bits_1x1, AP_RND_ZERO, AP_WRAP> t_acc_simd_1x1;
 
-  auto s_ich_idx_add = 0;
-
   #ifndef __SYNTHESIS__
     if (c_depth == 1)
       std::cout << "depth_conv_op " << c_ich << " " << c_och <<  " " << c_reuse_iter << std::endl;
@@ -654,8 +705,6 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
     for (auto s_ow_ops_out = 0; s_ow_ops_out < c_ow_ops_out; s_ow_ops_out+=c_reuse) {
       for (auto s_num_ich = 0; s_num_ich < c_ich; s_num_ich+=c_iter_ich) {
         for (auto s_num_och = 0; s_num_och < c_och_depth; s_num_och+=c_iter_och) {
-// #pragma HLS dependence variable = s_acc_buff inter false
-// #pragma HLS dependence variable = s_acc_1x1_buff inter false
           for (auto s_num_ops_out = 0; s_num_ops_out < c_ops_out; s_num_ops_out+=c_iter_ops_out) {
             for (auto s_iter = 0; s_iter < c_iter; s_iter++) {
       #pragma HLS pipeline style = stp II=1
@@ -701,7 +750,7 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
 
                 // If it is the first reuse iteration, read the 1x1 weights
                 if constexpr(std::is_same<t_weight_1x1, std::nullptr_t>::value == false) {
-                  if (s_iter < c_iter_1x1) s_weight_1x1[0] = i_weights_1x1[0].read();
+                  s_weight_1x1[0] = i_weights_1x1[0].read();
                 }
 
                 if constexpr(std::is_same<t_bias, std::nullptr_t>::value == false) {
@@ -709,7 +758,7 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
                 }
 
                 if constexpr(std::is_same<t_bias_1x1, std::nullptr_t>::value == false) {
-                  if (((s_num_ich == 0) | (c_depth == 1)) && (s_iter < c_iter_1x1)) s_bias_1x1 = i_bias_1x1[0].read();
+                  if ((s_num_ich == 0) | (c_depth == 1)) s_bias_1x1 = i_bias_1x1[0].read();
                 }
               }
 
@@ -734,148 +783,139 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
                 }
               }
 
-              for (auto s_ich_idx = 0; s_ich_idx < c_in_ops; s_ich_idx++) {
-                auto s_ich = s_num_ich + s_ich_idx;
-                std::array<t_input_data, c_ow_ops> s_input_1x1;
-                if constexpr(std::is_same<t_acc_1x1_struct, std::nullptr_t>::value == false) {
-                  #pragma HLS array_partition variable = s_input_1x1 type = complete
-                  for (auto s_ow_ops = 0; s_ow_ops < c_ow_ops; s_ow_ops++) {
-                    auto forward_index = (c_fh/2 + 1)*FW - c_fw/2 - s_ow_ops*c_str - 1;
-                    // s_input_1x1[s_ow_ops] = s_input[MO + MO%c_str - s_ow_ops*c_str];
-                    s_input_1x1[c_ow_ops - s_ow_ops - 1] = s_input[forward_index];
-                  }
+              std::array<t_input_data, c_ow_ops> s_input_1x1;
+              if constexpr(std::is_same<t_acc_1x1_struct, std::nullptr_t>::value == false) {
+                #pragma HLS array_partition variable = s_input_1x1 type = complete
+                for (auto s_ow_ops = 0; s_ow_ops < c_ow_ops; s_ow_ops++) {
+                  auto forward_index = (c_fh/2 + 1)*FW - c_fw/2 - s_ow_ops*c_str - 1;
+                  // s_input_1x1[s_ow_ops] = s_input[MO + MO%c_str - s_ow_ops*c_str];
+                  s_input_1x1[c_ow_ops - s_ow_ops - 1] = s_input[forward_index];
                 }
-                COMPUTE:
-                for (auto s_ow_ops = 0; s_ow_ops < c_ow_ops; s_ow_ops+=c_ow_pack) {
-                  for (auto s_ops = 0; s_ops < c_ops; s_ops+=c_och_pack) {
-                    auto s_och = s_num_och + s_num_ops_out + s_ops;
-                    if constexpr(std::is_same<t_add_struct, std::nullptr_t>::value == false)
-                      s_ich_idx_add = s_och % c_add_ops;
+              }
+              COMPUTE:
+              for (auto s_ow_ops = 0; s_ow_ops < c_ow_ops; s_ow_ops+=c_ow_pack) {
+                for (auto s_ops = 0; s_ops < c_ops; s_ops+=c_och_pack) {
+                  auto s_och = s_num_och + s_num_ops_out + s_ops;
 
+                  conv_pipe<
+                    t_input,
+                    t_input_st,
+                    t_weight,
+                    t_weight_st,
+                    t_bias,
+                    t_add_struct,
+                    t_input_mod,
+                    t_acc_struct,
+                    t_acc,
+                    t_acc_simd,
+                    t_output_struct,
+                    t_output,
+                    t_output_clip,
+                    t_output_mask,
+                    c_reuse_iter,
+                    c_fh,
+                    c_fw,
+                    c_index,
+                    c_str,
+                    c_ops,
+                    c_in_ops,
+                    c_add_ops,
+                    c_ow_ops,
+                    c_ow_pack,
+                    c_och_pack,
+                    c_relu,
+                    c_ich,
+                    c_och_depth,
+                    c_in_bits,
+                    c_simd_bits,
+                    c_simd,
+                    c_pad_bits,
+                    c_int_pad_bits,
+                    c_pad_acc_bits,
+                    c_mask,
+                    c_w_bits,
+                    c_depth
+                  > (
+                    s_input,
+                    s_weight,
+                    s_bias,
+                    s_ops,
+                    s_och,
+                    s_num_ich,
+                    s_reuse,
+                    s_ow_ops,
+                    s_num_ops_out,
+                    s_last,
+                    s_add,
+                    s_acc_buff,
+                    s_output_struct
+                  );
+
+                  // TODO: split the loop in two parts controlled by different ops options
+
+                  if constexpr(std::is_same<t_acc_1x1_struct, std::nullptr_t>::value == false) {
+                    if constexpr(c_ops_1x1 != c_ops){
+                      if ((s_och > 0) | (s_ops > c_ops_1x1))  continue;
+                    }
                     conv_pipe<
-                      t_input,
+                      std::array<t_input_data, c_ow_ops>,
                       t_input_st,
-                      t_weight,
-                      t_weight_st,
-                      t_bias,
-                      t_add_struct,
-                      t_input_mod,
-                      t_acc_struct,
-                      t_acc,
-                      t_acc_simd,
-                      t_output_struct,
-                      t_output,
-                      t_output_clip,
-                      t_output_mask,
+                      t_weight_1x1,
+                      t_weight_1x1_st,
+                      t_bias_1x1,
+                      std::nullptr_t,
+                      t_input_1x1,
+                      t_acc_1x1_struct,
+                      t_acc_1x1,
+                      t_acc_simd_1x1,
+                      t_output_struct_1x1,
+                      t_output_1x1,
+                      std::nullptr_t,
+                      std::nullptr_t,
                       c_reuse_iter,
-                      c_fh,
-                      c_fw,
-                      c_index,
-                      c_str,
+                      1,
+                      1,
+                      1,
+                      1,
                       c_ops,
                       c_in_ops,
+                      c_add_ops,
                       c_ow_ops,
                       c_ow_pack,
                       c_och_pack,
-                      c_relu,
+                      0,
                       c_ich,
                       c_och_depth,
-                      c_in_bits,
-                      c_simd_bits,
-                      c_simd,
-                      c_pad_bits,
-                      c_int_pad_bits,
-                      c_pad_acc_bits,
-                      c_mask,
-                      c_w_bits,
+                      c_in_bits_1x1,
+                      c_simd_bits_1x1,
+                      c_simd_1x1,
+                      c_pad_bits_1x1,
+                      c_int_pad_bits_1x1,
+                      c_pad_acc_bits_1x1,
+                      c_mask_1x1,
+                      c_w_bits_1x1,
                       c_depth
                     > (
-                      s_input,
-                      s_weight,
-                      s_bias,
+                      s_input_1x1,
+                      s_weight_1x1,
+                      s_bias_1x1,
                       s_ops,
                       s_och,
-                      s_ich,
-                      s_ich_idx,
-                      s_ich_idx_add,
+                      s_num_ich,
                       s_reuse,
                       s_ow_ops,
                       s_num_ops_out,
                       s_last,
-                      s_add,
-                      s_acc_buff,
-                      s_output_struct
+                      nullptr,
+                      s_acc_1x1_buff,
+                      s_output_1x1_struct
                     );
-
-                    // TODO: split the loop in two parts controlled by different ops options
-
-                    if constexpr(std::is_same<t_acc_1x1_struct, std::nullptr_t>::value == false) {
-                      if (s_iter < c_iter_1x1) {
-                        if constexpr(c_ops_1x1 != c_ops){
-                          if ((s_och > 0) | (s_ops > c_ops_1x1))  continue;
-                        }
-                        conv_pipe<
-                          std::array<t_input_data, c_ow_ops>,
-                          t_input_st,
-                          t_weight_1x1,
-                          t_weight_1x1_st,
-                          t_bias_1x1,
-                          std::nullptr_t,
-                          t_input_1x1,
-                          t_acc_1x1_struct,
-                          t_acc_1x1,
-                          t_acc_simd_1x1,
-                          t_output_struct_1x1,
-                          t_output_1x1,
-                          std::nullptr_t,
-                          std::nullptr_t,
-                          c_reuse_iter,
-                          1,
-                          1,
-                          1,
-                          1,
-                          c_ops,
-                          c_in_ops,
-                          c_ow_ops,
-                          c_ow_pack,
-                          c_och_pack,
-                          0,
-                          c_ich,
-                          c_och_depth,
-                          c_in_bits_1x1,
-                          c_simd_bits_1x1,
-                          c_simd_1x1,
-                          c_pad_bits_1x1,
-                          c_int_pad_bits_1x1,
-                          c_pad_acc_bits_1x1,
-                          c_mask_1x1,
-                          c_w_bits_1x1,
-                          c_depth
-                        > (
-                          s_input_1x1,
-                          s_weight_1x1,
-                          s_bias_1x1,
-                          s_ops,
-                          s_och,
-                          s_ich,
-                          s_ich_idx,
-                          s_ich_idx_add,
-                          s_reuse,
-                          s_ow_ops,
-                          s_num_ops_out,
-                          s_last,
-                          nullptr,
-                          s_acc_1x1_buff,
-                          s_output_1x1_struct
-                        );
-                      }
-                    }
                   }
                 }
               }
               if constexpr(std::is_same<t_forward_struct, std::nullptr_t>::value == false) {
                 for (auto s_ow_ops = 0; s_ow_ops < c_ow_ops; s_ow_ops++) {
-                  if (s_num_och == (c_och_depth - c_iter_och)) {
+                  if ((s_num_ops_out == (c_ops_out - c_iter_ops_out)) && (s_num_och == (c_och_depth - c_iter_och))) {
                     t_forward_struct s_forward;
                     // auto forward_index = MO + MO%c_str - s_ow_ops*c_str;
                     auto forward_index = (c_fh/2 + 1)*FW - c_fw/2 - s_ow_ops*c_str - 1;

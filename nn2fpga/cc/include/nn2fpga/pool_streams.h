@@ -15,6 +15,10 @@ template <class t_input_struct, class t_input, class t_output_struct,
           int c_pool, int c_ow_ops, int c_ow_ops_out, int c_ops, int c_in_ops>
 void pool_op(hls::stream<t_input_struct> i_data[c_ow_ops],
              hls::stream<t_output_struct> o_data[1]) {
+  
+  static_assert(c_ow_ops_out <= c_ow_ops, "c_ow_ops_out <= c_ow_ops");
+  static_assert(c_ops <= c_in_ops, "c_ops <= c_in_ops");
+
   const int c_index = c_fh * c_fw;
   const int c_f_map = (c_ih * c_iw);
   const uint8_t c_average_scale = (uint8_t)(log2(c_fh * c_fw));
@@ -32,7 +36,7 @@ void pool_op(hls::stream<t_input_struct> i_data[c_ow_ops],
 
   bool s_last;
   t_acc s_acc_buff[c_acc_och];
-  #pragma HLS array_partition variable = s_acc_buff type=cyclic factor=c_ops 
+  #pragma HLS array_partition variable = s_acc_buff type=cyclic factor=c_ops*c_ow_ops_out 
 
   #ifndef __SYNTHESIS__
     std::cout << "pool_op " << c_ich << std::endl;

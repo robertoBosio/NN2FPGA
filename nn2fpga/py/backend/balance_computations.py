@@ -851,6 +851,9 @@ def ilp(io_dict, off_chip_storage, model, file_name, board="ULTRA96v2", packing=
                 if node["depth"]:
                     line_ops = node["line_ops"]
             
+            if "pool" == node["type"]:
+                line_ops = node["ops"]
+            
             if "depth" in io_dict[input_node_name]:
                 if io_dict[input_node_name]["depth"]:
                     ops_out = io_dict[input_node_name]["ich_ops"]
