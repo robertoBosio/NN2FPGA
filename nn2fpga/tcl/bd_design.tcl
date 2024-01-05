@@ -733,17 +733,10 @@ Port;FD4A0000;FD4AFFFF;1|FPD;DPDMA;FD4C0000;FD4CFFFF;1|FPD;DDR_XMPU5_CFG;FD05000
     ] $zynq_ultra_ps_e_0
   }
     
-  if {${uramStorage} == 1} {
-    set_property -dict [list \
-      CONFIG.PSU__CRL_APB__PL0_REF_CTRL__ACT_FREQMHZ {214.285721} \
-      CONFIG.PSU__CRL_APB__PL0_REF_CTRL__DIVISOR0 {7} \
-    ] $zynq_ultra_ps_e_0
-  } else {
-    set_property -dict [list \
-      CONFIG.PSU__CRL_APB__PL0_REF_CTRL__ACT_FREQMHZ {214.285721} \
-      CONFIG.PSU__CRL_APB__PL0_REF_CTRL__DIVISOR0 {7} \
-    ] $zynq_ultra_ps_e_0
-  }
+   set_property -dict [list \
+   CONFIG.PSU__CRL_APB__PL0_REF_CTRL__ACT_FREQMHZ {187.5} \
+   CONFIG.PSU__CRL_APB__PL0_REF_CTRL__DIVISOR0 {8} \
+   ] $zynq_ultra_ps_e_0
 
   # Create interface connections
   connect_bd_intf_net -intf_net ${topName}_0_o_outp1 [get_bd_intf_pins ${topName}_0/o_outp1] [get_bd_intf_pins axi_dma_0/S_AXIS_S2MM]
@@ -801,6 +794,6 @@ Port;FD4A0000;FD4AFFFF;1|FPD;DPDMA;FD4C0000;FD4CFFFF;1|FPD;DDR_XMPU5_CFG;FD05000
 # MAIN FLOW
 ##################################################################
 
-create_root_design "" ${TOP_NAME} ${URAM_STORAGE} ${OBJECT_DETECTION} ${MPSOC_VERSION}
+create_root_design "" ${TOP_NAME} ${DYNAMIC_INIT} ${OBJECT_DETECTION} ${MPSOC_VERSION}
 
 

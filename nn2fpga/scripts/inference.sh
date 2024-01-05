@@ -42,7 +42,7 @@ cp ${NN2FPGA_ROOT}/scripts/datasets.py ${PRJ_ROOT}/overlay/datasets.py
 cp ${NN2FPGA_ROOT}/scripts/coco.py ${PRJ_ROOT}/overlay/coco.py
 cp ${NN2FPGA_ROOT}/scripts/cifar10.py ${PRJ_ROOT}/overlay/cifar10.py
 cp ${NN2FPGA_ROOT}/scripts/vw.py ${PRJ_ROOT}/overlay/vw.py
-if [ ${URAM_STORAGE} = 1 ]; then
+if [ ${DYNAMIC_INIT} = 1 ]; then
     cp ${PRJ_ROOT}/npy/uram_${TOP_NAME}.npy ${PRJ_ROOT}/overlay/uram.npy
 fi
 
@@ -52,7 +52,7 @@ scp -r ${PRJ_ROOT}/overlay ${device}:${path}
 
 # execute kernel
 #cat ./host.py | ssh root@192.168.3.1 'python3 -'
-ssh ${device} "cd ${path} && source /etc/profile && python3 ${path}overlay/inference.py $1 $2 ${URAM_STORAGE}"
+ssh ${device} "cd ${path} && source /etc/profile && python3 ${path}overlay/inference.py $1 $2 ${DYNAMIC_INIT}"
 
 # cleanup
 scp ${device}:${path}overlay/results.txt ${PRJ_ROOT}/${res_file}
