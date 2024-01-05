@@ -4,9 +4,9 @@ import time
 import pulp
 from pulp.apis import PULP_CBC_CMD
 from tabulate import tabulate
-import json
 import math
 import numpy as np
+from backend.utils import extract_board_info
 from backend.ilp_utils import find_divisors
 from backend.ilp_utils import find_range
 from backend.ilp_utils import generate_valid_combinations
@@ -16,30 +16,10 @@ from backend.ilp_utils import find_lower_mult
 from backend.ilp_utils import find_common_mult
 from backend.graph import extract_connections
 
-def extract_board_info(board="ULTRA96v2", prj_root="/tmp"):
-    """ Read the board json file and returns a dictionary with the available resources"""
-    
-    # Opening JSON file with board resources
-    file_path = f"{prj_root}/../nn2fpga/boards/{board}.json"
-    with open(file_path) as f:
-        board_dict = json.load(f)
-
-    # Right now consider the board as a monolithic block 
-    board_res = {"uram" : 0, "bram" : 0, "dsp" : 0, "lut" : 0, "ff" : 0}
-    for block in board_dict['resource']:
-        for res in block.keys():
-            if res in board_res:
-                board_res[res] += block[res]
-    
-    return board_res
 
 def layers_extractions(io_dict):
     """ Extracts the information about the layers from the io_dict and stores it in a dictionary.""" 
     
-    # Find the highest number of computations done by a single convolution.
-    with open(f"temp_dict.rpt", "w") as f:
-        print(io_dict, file=f)
-
     total_computations = 0
     index = 0
     layers_info = []
@@ -296,7 +276,7 @@ def parallelismILP(layers_info, valid_par_solutions, NUM_DSP, NUM_PORTS, prj_roo
     prob.solve(PULP_CBC_CMD(timeLimit=10, msg=0))
     # prob.solve(PULP_CBC_CMD(timeLimit=600, gapRel=0.1))
     end_time = time.time()
-    prob.writeLP(prj_root + "/parallel_ops1.lp")
+    # prob.writeLP(prj_root + "/parallel_ops1.lp")
     if (prob.status == pulp.LpStatusInfeasible):
         print("Throughput problem unfeasible")
         exit(0)

@@ -1,6 +1,14 @@
 # Including the settings.
 include settings.mk
 
+#export PRJ_ROOT := $(shell cd .. && pwd)/work/project_${TOP_NAME}_${BOARD}
+export WORK_ROOT := $(shell cd .. && pwd)/work
+export PRJ_ROOT := $(WORK_ROOT)/project_${TOP_NAME}_${BOARD}_$(shell date +%Y%m%d)
+
+# Create the project directory
+generate-dir:
+	$(shell mkdir -p $(PRJ_ROOT))
+
 check-board:
 ifndef BOARD
 	$(error ERROR! Please, provide the target board via BOARD)
@@ -19,6 +27,8 @@ endif
 check-onnx:
 ifndef ONNX_PATH
 	$(error ERROR! Please, provide the ONNX file path via ONNX_PATH)
+else
+export ONNX_FULL_PATH := $(shell readlink -f $(ONNX_PATH))
 endif
 
 check-top:
@@ -73,6 +83,7 @@ endif
 ifndef UPLOAD_WEIGHTS
 UPLOAD_WEIGHTS := 1
 endif
+
 CMD_ARGS = -x $(BUILD_DIR)/$(TOP_NAME).xclbin
 CMD_ARGS += -n $(IMAGES)
 CMD_ARGS += -w $(UPLOAD_WEIGHTS)
@@ -188,7 +199,7 @@ vivado_flow:
 		$(NN2FPGA_ROOT)/tcl/vivado_flow.tcl -tclargs $(NN2FPGA_ROOT)
 
 .PHONY: generate
-generate: check_prj_root check-top check-board check-onnx
+generate: check_prj_root check-top check-board check-onnx generate-dir
 	cd $(PRJ_ROOT) && ${PYTHON} $(NN2FPGA_ROOT)/py/code_gen_qonnx.py
 
 host: check-xrt check-top $(HOST_SRCS) $(PRJ_ROOT)/cc/include/$(TOP_NAME)_sim.h
@@ -232,24 +243,8 @@ clean:
 clean-hlscode:
 	rm -rf $(PRJ_ROOT)/cc/*
 
-cleanall: clean clean-hlscode
-	rm -f $(PRJ_ROOT)/parallel_ops.lp
-	rm -f $(PRJ_ROOT)/*_cfg
-	rm -f $(PRJ_ROOT)/*.log
-	rm -rf $(PRJ_ROOT)/*_ip
-	rm -rf $(PRJ_ROOT)/npy
-	rm -rf $(PRJ_ROOT)/build_dir*
-	rm -rf $(PRJ_ROOT)/package.*
-	rm -rf $(PRJ_ROOT)/_x* 
-	rm -f $(PRJ_ROOT)/*xclbin.run_summary 
-	rm -f $(PRJ_ROOT)/qemu-memory-_* 
-	rm -f $(PRJ_ROOT)/emulation 
-	rm -f $(PRJ_ROOT)/_vimage 
-	rm -f $(PRJ_ROOT)/pl* 
-	rm -f $(PRJ_ROOT)/start_simulation.sh 
-	rm -f $(PRJ_ROOT)/*.xclbin
-	rm -f $(PRJ_ROOT)/*.cfg
-	rm -f $(PRJ_ROOT)/*.rpt
+cleanall: clean
+	rm -rf $(WORK_ROOT)/project*
 	rm -rf _x
 	rm -rf .ipcache
 	rm -rf .Xil

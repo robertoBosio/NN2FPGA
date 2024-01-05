@@ -34,7 +34,7 @@ def main():
         print("PATH TO ONNX NOT DEFINED")
         sys.exit(1)
 
-    onnx_path = str(os.environ.get("ONNX_PATH"))
+    onnx_path = str(os.environ.get("ONNX_FULL_PATH"))
 
     if "PRJ_ROOT" not in os.environ:
         print("PROJECT ROOT NOT DEFINED")

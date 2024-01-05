@@ -1,5 +1,26 @@
 import os
 import sys
+import json
+
+def extract_board_info(board="ULTRA96v2", prj_root="/tmp"):
+    """ Read the board json file and returns a dictionary with the available resources"""
+    
+    # Remove the part before NN2FPGA from the path
+    file_path = prj_root.split("NN2FPGA")[0]
+    file_path = f"{file_path}/NN2FPGA/nn2fpga/boards/{board}.json"
+
+    # Opening JSON file with board resources
+    with open(file_path) as f:
+        board_dict = json.load(f)
+
+    # Right now consider the board as a monolithic block 
+    board_res = {"uram" : 0, "bram" : 0, "dsp" : 0, "lut" : 0, "ff" : 0}
+    for block in board_dict['resource']:
+        for res in block.keys():
+            if res in board_res:
+                board_res[res] += block[res]
+    
+    return board_res
 
 def write_func(fd, info):
 

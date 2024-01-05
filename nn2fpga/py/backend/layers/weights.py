@@ -933,18 +933,7 @@ def parse(name, node):
 def parse_all(io_dict, prj_root="/tmp", board="KRIA", uram_storage = False, generate_report_file="tmp.rpt"):
     
     parsed_write = []
-    
-    # Opening JSON file
-    file_path = f"{prj_root}/../nn2fpga/boards/{board}.json"
-    with open(file_path) as f:
-        board_dict = json.load(f)
-
-    # Right now consider the board as a monolithic block 
-    board_res = {"uram" : 0, "bram" : 0, "dsp" : 0, "lut" : 0, "ff" : 0}
-    for block in board_dict['resource']:
-        for res in block.keys():
-            if res in board_res:
-                board_res[res] += block[res]
+    board_res = extract_board_info(board, prj_root)
     
     # Check if there is URAM storage
     dynamic_init = False
