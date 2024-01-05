@@ -669,29 +669,44 @@ def ilp(io_dict, off_chip_storage, model, file_name, board="ULTRA96v2", generate
                 continue
 
             input_node_name = io_connect[input_name][0][0]
-            ops = node["ops"]
+            line_ops = node["line_ops"]
             ow_ops = node["ow_ops"]
             if "depth" in node:
                 if node["depth"]:
-                    ops = node["ich_ops"]
-            io_dict[input_node_name]["out_ops"] = ops
+                    line_ops = node["line_ops"]
+            
+            if "pool" == node["type"]:
+                line_ops = node["ops"]
+            
+            if "depth" in io_dict[input_node_name]:
+                if io_dict[input_node_name]["depth"]:
+                    ops_out = io_dict[input_node_name]["ich_ops"]
+                else:
+                    ops_out = io_dict[input_node_name]["ops"]
+            else:
+                ops_out = io_dict[input_node_name]["ops"]
+
+            io_dict[input_node_name]["ops_out"] = find_common_mult(ops_out, line_ops)
+
             if ow_ops > io_dict[input_node_name]["ow_ops_out"]:
                 print(f"Updating for {input_node_name} ow_ops {ow_ops}")
                 io_dict[input_node_name]["ow_ops_out"] = ow_ops
             print(f"Node {input_node_name} ow_ops_out {io_dict[input_node_name]['ow_ops_out']} ow_ops {ow_ops}")
 
+
     for name, node in io_dict.items():
         if "ops" in node:
             output_name = io_dict[name]["output"][0]
             output_node_name = io_connect[output_name][1][0]
-            ops = node["ops"]
-            ow_ops = node["ow_ops_out"]
-            if "depth" in node:
-                if node["depth"]:
-                    ops = node["ich_ops"]
+            print(name)
             if output_node_name != "consume_stream":
-                io_dict[output_node_name]["in_ops"] = ops
+                ops_out = node["ops_out"]
+                ow_ops = node["ow_ops_out"]
+                io_dict[output_node_name]["in_ops"] = ops_out
                 io_dict[output_node_name]["ow_ops_in"] = ow_ops
+            else:
+                io_dict[name]["ow_ops_out"] = node["ow_ops"]
+                io_dict[name]["ops_out"] = node["ops"]
 
     print("##################################################")
     # for name, node in io_dict.items():
@@ -809,7 +824,7 @@ def ilp(io_dict, off_chip_storage, model, file_name, board="ULTRA96v2", generate
 
                 add_node_name = io_connect[add_name][0][0]
                 if (io_dict[add_node_name]["merge_1x1"]):
-                    add_ops = io_dict[add_node_name]["ops"]
+                    add_ops = io_dict[add_node_name]["ops_out"]
                     ow_ops = io_dict[add_node_name]["ow_ops_out"]
                 else:
                     add_ops = io_dict[add_node_name]["ich_ops"]
