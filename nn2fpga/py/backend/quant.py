@@ -253,6 +253,7 @@ def merge_quant(model, io_dict, init_info, flag_mod, inherit_quant=False):
                     single_quant = len(quant_info[output]["seq_out"]) < 2
                     if (len(quant_info[output]["others"]) == 0) and single_quant:
                         for j, new_output in enumerate(quant_info[output]["seq_out"]):
+                            print(f"##### Merging {output} into {name}")
                             new_node_name = quant_info[output][new_output]
                             new_scale = quant_info[output]["seq_scale"][j]
                             new_bits = quant_info[output]["seq_bits"][j]

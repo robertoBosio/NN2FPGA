@@ -3,7 +3,9 @@ include settings.mk
 
 #export PRJ_ROOT := $(shell cd .. && pwd)/work/project_${TOP_NAME}_${BOARD}
 export WORK_ROOT := $(shell cd .. && pwd)/work
+ifndef PRJ_ROOT
 export PRJ_ROOT := $(WORK_ROOT)/project_${TOP_NAME}_${BOARD}_$(shell date +%Y%m%d)
+endif
 
 # Create the project directory
 generate-dir:
@@ -100,7 +102,7 @@ CXXFLAGS += -I$(XILINX_VIVADO)/include
 CXXFLAGS += -I$(XILINX_HLS)/include
 CXXFLAGS += -Wno-attributes
 CXXFLAGS += -Wno-unknown-pragmas
-CXXFLAGS += -I/usr/local/include/opencv4/
+CXXFLAGS += -I$(OPENCV)
 CXXFLAGS += -I${PRJ_ROOT}/Vitis_Libraries/vision/L1/include/
 CXXFLAGS += -O0
 CXXFLAGS += -g
@@ -220,7 +222,7 @@ else
 	make syn COSIM=1
 endif
 
-csim: check-top check-hls check-board generate
+csim: check-top check-hls check-board
 	cp $(PRJ_ROOT)/cc/include/$(TOP_NAME)_sim.h $(PRJ_ROOT)/cc/include/network_sim.h
 	make syn CSIM=1
 

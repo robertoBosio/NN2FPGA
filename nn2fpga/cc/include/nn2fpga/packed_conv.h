@@ -24,22 +24,30 @@ t_output quant_stream(t_acc i_acc) {
 #pragma HLS inline
 
   t_acc s_acc = i_acc;
+  std::cout << "From " << i_acc << " (" << i_acc.to_string(2) << ") to ";
 
   if (c_relu == 1) {
     s_acc = relu_op<t_acc>(s_acc);
   }
   if constexpr(std::is_same<t_output_clip, std::nullptr_t>::value == false) {
     s_acc = t_output_clip(s_acc);
+    std::cout << s_acc << " (" << s_acc.to_string(2) << ") ["
+              << t_output_clip::iwidth << "."
+              << t_output_clip::width - t_output_clip::iwidth << "] to ";
   }
   if constexpr(std::is_same<t_output_mask, std::nullptr_t>::value == false) {
     s_acc = t_output_mask(s_acc);
+    std::cout << s_acc << " (" << s_acc.to_string(2) << ") ["
+              << t_output_mask::iwidth << "."
+              << t_output_mask::width - t_output_mask::iwidth << "] to ";
   }
 
+    std::cout << t_output(s_acc) << " (" << t_output(s_acc).to_string(2) << ")" << std::endl;
   return t_output(s_acc);
 
 }
 
-// Write template for the conv_pipe function.
+// Template for the conv_pipe function.
 template <class t_input, class t_input_st, class t_weight, class t_weight_st, class t_bias,
           class t_add_struct, class t_input_mod, class t_acc_struct, class t_acc, 
           class t_acc_simd, class t_output_struct, class t_output, class t_output_clip, 
@@ -727,8 +735,8 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
                 #endif
               }
 
-                /* Buffering to speed up computations */
-                /* TODO: Adjust for generic bit quantizations */
+              /* Buffering to speed up computations */
+              /* TODO: Adjust for generic bit quantizations */
               if (s_reuse == 0) {
                 for (auto s_index = 0; s_index < c_index; s_index++) {
                   #ifndef __SYNTHESIS__

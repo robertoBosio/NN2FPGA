@@ -3,6 +3,8 @@
 
 #include "nn2fpga/debug.h"
 #include "nn2fpga/quantisation.h"
+#include <iostream>
+#include <fstream>
 
 namespace nn2fpga {
 
@@ -17,13 +19,18 @@ void produce_stream(hls::stream<din_wrap_t>& dinStream,
   const ap_ufixed<32,0> c_mean[3] = {0.485, 0.456, 0.406};
   const ap_ufixed<32,0> c_std[3] = {0.229, 0.224, 0.225};
 
-  #ifndef __SYNTHESIS__
-      std::cout << "produce_stream act " << ICH << " " << c_ow_ops_out << std::endl;
-      for (auto i = 0; i < 3; i++) {
-        std::cout << c_mean[i] << " ";
-        std::cout << c_std[i] << std::endl;
-      }
-  #endif
+#ifndef __SYNTHESIS__
+  // std::ofstream output;
+  // output.open("/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/conv1_act_tensor_csim.txt");
+  // Writing in output the template of the function
+  std::cout << "produce_stream act. ICH:" << ICH
+            << " c_ow_ops_out:" << c_ow_ops_out << " BITS:" << BITS
+            << " OPS:" << OPS << " PREPROC:" << PREPROC << std::endl;
+  for (auto i = 0; i < 3; i++) {
+    std::cout << c_mean[i] << " ";
+    std::cout << c_std[i] << std::endl;
+  }
+#endif
   din_wrap_t dinWrap;
 	ap_uint<BITS> din_par;
 PRODSTR:
@@ -46,10 +53,11 @@ PRODSTR:
       doutWrap.data[0][ops] = dout_t((din-c_mean[ich])/c_std[ich]);
     else
       doutWrap.data[0][ops] = (dout_t(din));
+
     #ifndef __SYNTHESIS__
       #ifdef DEBUG
         std::cout << ap_uint<8>(din_par & 0xff) << " ";
-        std::cout << din << " ";
+        std::cout << std::setprecision(8) << din << " ";
         std::cout << (din-c_mean[ich])/c_std[ich] << " ";
         std::cout << doutWrap.data[0][ops] << " ";
       #endif
@@ -77,6 +85,7 @@ PRODSTR:
   }
   #ifndef __SYNTHESIS__
       std::cout << "end produce_stream act " << std::endl;
+      // output.close();
   #endif
 }
 
@@ -98,7 +107,8 @@ void consume_stream(hls::stream<din_wrap_t> dinStream[ow_ops],
   // If synthesis pragma in not defined then print consume_stream
   // function name
   #ifndef __SYNTHESIS__
-    std::cout << "consume_stream " << OCH << std::endl;
+    std::cout << "consume_stream OCH:" << OCH << std::endl;
+    
     if (dinStream[0].size() == 0) {
       std::cout << "ERROR: consume_stream: dinStream[0].size() " << dinStream[0].size() << " == 0\n";
       assert (dinStream[0].size() > 0);
@@ -138,6 +148,122 @@ void consume_stream(hls::stream<din_wrap_t> dinStream[ow_ops],
     }
     std::cout << "end consume_stream " << std::endl;
   #endif
+}
+
+template<typename data_t, int CH, int W, int H, int ch_step, int w_step>
+void
+act_tensor_hook(hls::stream<data_t> dinStream[w_step],
+            hls::stream<data_t> doutStream[w_step],
+            std::string name)
+{
+  /* This function is used to hook activation tensors. It is used to debug the
+  layer. ch_step is the och_ops_out parameter of the convolution. w_step is the
+  ow_ops_out parameter of the convolution. */
+
+  std::ofstream file_stream;
+  file_stream.open(
+    "/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/tmp/logs/" +
+    name + "_acts.txt");
+  for (auto h = 0; h < H; h++) {
+    for (auto w = 0; w < W; w += w_step) {
+      for (auto ch = 0; ch < CH; ch += ch_step) {
+        for (auto ow = 0; ow < w_step; ow++) {
+          data_t data = dinStream[ow].read();
+          for (auto op = 0; op < ch_step; op++) {
+            file_stream << std::setprecision(8) << "[" << ch + op << "," << h
+                        << "," << w + ow << "] " << data.data[0][op]
+                        << std::endl;
+          }
+          doutStream[ow] << data;
+        }
+      }
+    }
+  }
+  file_stream.close();
+}
+
+template<typename data_t, int OCH, int ICH, int FH, int FW, int och_step, int ich_step>
+void
+weight_tensor_hook(hls::stream<data_t> dinStream[FH * FW],
+                   hls::stream<data_t> doutStream[FH * FW],
+                   std::string name)
+{
+  /* This function is used to hook weight tensors. It is used to debug the
+  layer. ich_step is the ich_ops parameter of the convolution. och_step is the
+  och_ops parameter of the convolution. */
+
+  /* The order in which the filters are printed is based on och_ops and ich_ops
+   * of the convolution, it is not a flatten of the tensor */
+  std::cout << "weight_tensor_hook" << " OCH:" << OCH << " ICH:" << ICH << " FH:" << FH << " FW:" << FW << " och_step:" << och_step << " ich_step:" << ich_step << std::endl;
+  std::ofstream file_stream;
+  file_stream.open(
+    "/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/tmp/logs/" +
+    name + "_weights.txt");
+  for (auto ich = 0; ich < ICH; ich += ich_step) {
+    for (auto och = 0; och < OCH; och += och_step) {
+      for (auto fh = 0; fh < FH; fh++) {
+        for (auto fw = 0; fw < FW; fw++) {
+          data_t data = dinStream[fw + (fh * FW)].read();
+          for (auto och_op = 0; och_op < och_step; och_op++) {
+            for (auto ich_op = 0; ich_op < ich_step; ich_op++) {
+              file_stream << std::setprecision(8) << "[" << och + och_op << ","
+                          << ich + ich_op << "," << FH - fh - 1 << ","
+                          << FW - fw - 1 << "] " << data[ich_op][och_op]
+                          << std::endl;
+            }
+          }
+          doutStream[fw + (fh * FW)].write(data);
+        }
+      }
+    }
+  }
+
+  while (!dinStream[0].empty()) {
+    for (auto fw = 0; fw < FW; fw++) {
+      for (auto fh = 0; fh < FH; fh++) {
+        data_t data = dinStream[fw + (fh * FW)].read();
+        doutStream[fw + (fh * FW)].write(data);
+      }
+    }
+  }
+  file_stream.close();
+}
+
+template<typename data_t, int OCH, int ICH, int FH, int FW, int och_step, int ich_step>
+void
+bias_tensor_hook(hls::stream<data_t> dinStream[1],
+                   hls::stream<data_t> doutStream[1],
+                   std::string name)
+{
+  /* This function is used to hook weight tensors. It is used to debug the
+  layer. ich_step is the ich_ops parameter of the convolution. och_step is the
+  och_ops parameter of the convolution. */
+
+  /* The order in which the filters are printed is based on och_ops and ich_ops
+   * of the convolution, it is not a flatten of the tensor */
+  std::cout << "weight_tensor_hook" << " OCH:" << OCH << " ICH:" << ICH << " FH:" << FH << " FW:" << FW << " och_step:" << och_step << " ich_step:" << ich_step << std::endl;
+  std::ofstream file_stream;
+  file_stream.open(
+    "/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/tmp/logs/" +
+    name + "_bias.txt");
+  for (auto ich = 0; ich < ICH; ich += ich_step) {
+    for (auto och = 0; och < OCH; och += och_step) {
+      data_t data = dinStream[0].read();
+      for (auto och_op = 0; och_op < och_step; och_op++) {
+        for (auto ich_op = 0; ich_op < ich_step; ich_op++) {
+          file_stream << std::setprecision(16) << "[" << och + och_op << "] "
+                      << data[0][och_op] << std::endl;
+        }
+      }
+      doutStream[0].write(data);
+    }
+  }
+
+  while (!dinStream[0].empty()) {
+    data_t data = dinStream[0].read();
+    doutStream[0].write(data);
+  }
+  file_stream.close();
 }
 
 }  // namespace nn2fpga

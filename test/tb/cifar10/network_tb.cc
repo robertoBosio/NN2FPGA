@@ -45,12 +45,25 @@ int main(int argc, char** argv) {
   char currentDirBuffer[FILENAME_MAX];
   bool foundCifar = false;
   std::string cifarPath = "";
+  std::string projPath = "";
   if (getcwd(currentDirBuffer, FILENAME_MAX) != nullptr) {
     std::string currentDirStr(currentDirBuffer);
     std::cout << "Current working directory: " << currentDirStr << std::endl;
 
     // Find the position of "NN2FPGA" in the path
     size_t topPos = currentDirStr.find("NN2FPGA");
+    
+    // find the position of "project_" in the path
+    size_t projPos = currentDirStr.find("project_");
+    // Search the "/" after projPos
+    size_t projEndPos = currentDirStr.find("/", projPos);
+    if (projEndPos != std::string::npos){
+      currentDirStr = currentDirStr.substr(0, projEndPos + 1);
+      // Check if the new path exists
+      if (directoryExists(currentDirStr)) {
+        projPath = currentDirStr;
+      }
+    }
 
     if (topPos != std::string::npos) {
       // Remove everything after NN2FPGA
@@ -64,13 +77,10 @@ int main(int argc, char** argv) {
     }
   }
   
-  if (cifarPath == "")
+  if (cifarPath == "" || projPath == "")
     return -1;
-
+  
   std::cout << "Sending " << c_batch << " images." << std::endl;
-  // t_in_mem mem_activations [c_index * c_batch] __attribute__((aligned(4096)));
-  // t_out_mem mem_output [CLASSES * c_batch] __attribute__((aligned(4096)));
-
   t_in_mem *mem_activations;
   posix_memalign((void**)&mem_activations, 4096, c_index * c_batch * sizeof(t_in_mem));
   t_out_mem *mem_outputs;
@@ -97,8 +107,17 @@ int main(int argc, char** argv) {
 
       int s_par = (s_bytes % c_par);
       unsigned int data = (ap_uint<8>)(*itt);
-      send_data.range(8 * (s_par + 1) - 1, 8 * s_par) = (ap_uint<8>)(data);
-      std::cout << (ap_uint<8>)data << " ";
+
+      // To be consistent with training, we need to use a float to normalize
+      // data and then convert it to ap_uint<8>, to remove the small error given
+      // by directly transform an unsigned int into a 8 bit fixed point value.
+      float data_f = (float)data / 255.0;
+      ap_ufixed<8, 0, AP_RND_ZERO, AP_SAT> data_uf = data_f;
+      ap_uint<8> data_u;
+      data_u.range(7, 0) = data_uf.range(7, 0);
+      send_data.range(8 * (s_par + 1) - 1, 8 * s_par) = data_u;
+      
+      std::cout << data_u << " ";
       if (s_par == c_par - 1)
         std::cout << std::endl;
 
@@ -108,14 +127,14 @@ int main(int argc, char** argv) {
       if (s_bytes == n_bytes)
         break;
     }
-
+    
     // TODO: Change arguments to -w 0 after first run in CSIM, to remove the
     // warning of not empty stream at the end of the simulation
 #ifdef CSIM
   std::cout << "Starting inference" << std::endl;
   inference_time = networkSim(argc,
                               argv,
-                              cifarPath,
+                              projPath,
                               c_index,
                               CLASSES,
                               &mem_activations[c_index * s_batch],
@@ -130,7 +149,7 @@ int main(int argc, char** argv) {
 #ifndef CSIM
   inference_time = networkSim(argc,
                               argv,
-                              cifarPath,
+                              projPath,
                               c_index * c_batch,
                               CLASSES * c_batch,
                               mem_activations,
