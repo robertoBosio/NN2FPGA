@@ -24,25 +24,25 @@ t_output quant_stream(t_acc i_acc) {
 #pragma HLS inline
 
   t_acc s_acc = i_acc;
-  std::cout << "From " << i_acc << " (" << i_acc.to_string(2) << ") to ";
+  // std::cout << "From " << i_acc << " (" << i_acc.to_string(2) << ") to ";
 
   if (c_relu == 1) {
     s_acc = relu_op<t_acc>(s_acc);
   }
   if constexpr(std::is_same<t_output_clip, std::nullptr_t>::value == false) {
     s_acc = t_output_clip(s_acc);
-    std::cout << s_acc << " (" << s_acc.to_string(2) << ") ["
-              << t_output_clip::iwidth << "."
-              << t_output_clip::width - t_output_clip::iwidth << "] to ";
+    // std::cout << s_acc << " (" << s_acc.to_string(2) << ") ["
+    //           << t_output_clip::iwidth << "."
+    //           << t_output_clip::width - t_output_clip::iwidth << "] to ";
   }
   if constexpr(std::is_same<t_output_mask, std::nullptr_t>::value == false) {
     s_acc = t_output_mask(s_acc);
-    std::cout << s_acc << " (" << s_acc.to_string(2) << ") ["
-              << t_output_mask::iwidth << "."
-              << t_output_mask::width - t_output_mask::iwidth << "] to ";
+    // std::cout << s_acc << " (" << s_acc.to_string(2) << ") ["
+    //           << t_output_mask::iwidth << "."
+    //           << t_output_mask::width - t_output_mask::iwidth << "] to ";
   }
 
-    std::cout << t_output(s_acc) << " (" << t_output(s_acc).to_string(2) << ")" << std::endl;
+  // std::cout << t_output(s_acc) << " (" << t_output(s_acc).to_string(2) << ")" << std::endl;
   return t_output(s_acc);
 
 }
@@ -627,7 +627,7 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
   const auto c_iter_1x1 = c_reuse_iter * c_num_och_1x1;
   const auto c_ops_1x1 = (c_och_1x1 < c_ops) ? c_och_1x1 : c_ops;
   const auto c_iter_ich = (c_depth == 1) ? c_ops_out : c_in_ops;
-  const auto c_iter_och = (c_depth == 1) ? c_ops : c_ops_out;
+  const auto c_iter_och = (c_depth == 1) ? 1 : c_ops_out;
   const auto c_iter_ops_out = (c_depth == 1) ? c_in_ops : c_ops;
 
   // constexpr int FW = (c_fw);
@@ -710,7 +710,7 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
   #endif
 
   for (auto s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
-    for (auto s_ow_ops_out = 0; s_ow_ops_out < c_ow_ops_out; s_ow_ops_out+=c_reuse) {
+    for (auto s_ow_ops_out = 0; s_ow_ops_out < c_ow_ops_out; s_ow_ops_out += c_reuse) {
       for (auto s_num_ich = 0; s_num_ich < c_ich; s_num_ich+=c_iter_ich) {
         for (auto s_num_och = 0; s_num_och < c_och_depth; s_num_och+=c_iter_och) {
           for (auto s_num_ops_out = 0; s_num_ops_out < c_ops_out; s_num_ops_out+=c_iter_ops_out) {
@@ -718,7 +718,7 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
       #pragma HLS pipeline style = stp II=1
               auto s_reuse = s_iter;
 
-              if ((s_num_och == 0) && (s_num_ops_out == 0)) {
+              if (((s_num_och == 0) && (s_num_ops_out == 0)) || (c_depth == 1)) {
                 t_input_struct s_input_struct = i_input[0].read();
                 #pragma HLS array_partition variable=s_input_struct.data type=complete
                 s_input = s_input_struct.data;
@@ -945,7 +945,7 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
                   }
                 }
               }
-              if (((s_num_ich == (c_ich-c_in_ops)) | (c_depth == 1)) && (s_num_ops_out == (c_ops_out - c_ops))) {
+              if (((s_num_ich == (c_ich-c_in_ops)) | (c_depth == 1)) && (s_num_ops_out == (c_ops_out - c_iter_ops_out))) {
                 for (auto s_ow_ops = 0; s_ow_ops < c_ow_ops; s_ow_ops++) {
                   o_output[s_ow_ops_out+s_ow_ops].write(s_output_struct[s_ow_ops]);
                   if constexpr(std::is_same<t_output_struct_1x1, std::nullptr_t>::value == false) {
