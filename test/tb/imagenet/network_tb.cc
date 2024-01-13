@@ -75,8 +75,8 @@ int main(int argc, char** argv) {
 	parser.parse(argc, argv);
  
   /* Images per batch */
-  // const unsigned int c_batch = stoi(parser.value("n_images"));
-  const unsigned int c_batch = 10;
+  const unsigned int c_batch = stoi(parser.value("n_images"));
+  // const unsigned int c_batch = 10;
   /* Bytes per activation data stream */
   const unsigned int c_par = c_inp_1 / ACTIVATION_PARALLELISM;
   /* Bytes per image */
@@ -92,6 +92,7 @@ int main(int argc, char** argv) {
   char currentDirBuffer[FILENAME_MAX];
   bool foundImagenet = false;
   std::string imagenetPath = "";
+  std::string projPath = "";
   if (getcwd(currentDirBuffer, FILENAME_MAX) != nullptr) {
     std::string currentDirStr(currentDirBuffer);
     std::cout << "Current working directory: " << currentDirStr << std::endl;
@@ -99,6 +100,18 @@ int main(int argc, char** argv) {
     // Find the position of "NN2FPGA" in the path
     size_t topPos = currentDirStr.find("NN2FPGA");
 
+    // find the position of "project_" in the path
+    size_t projPos = currentDirStr.find("project_");
+    // Search the "/" after projPos
+    size_t projEndPos = currentDirStr.find("/", projPos);
+    if (projEndPos != std::string::npos){
+      currentDirStr = currentDirStr.substr(0, projEndPos + 1);
+      // Check if the new path exists
+      if (directoryExists(currentDirStr)) {
+        projPath = currentDirStr;
+      }
+    }
+    
     if (topPos != std::string::npos) {
       // Remove everything after NN2FPGA
       currentDirStr = currentDirStr.substr(0, topPos);
@@ -111,7 +124,7 @@ int main(int argc, char** argv) {
     }
   }
   
-  if (imagenetPath == "")
+  if (imagenetPath == "" || projPath == "")
     return -1;
 
   std::cout << "Sending " << c_batch << " images." << std::endl;
@@ -205,7 +218,7 @@ int main(int argc, char** argv) {
   std::cout << "STARTING CSIM" << std::endl;
   inference_time = networkSim(argc,
                               argv,
-                              imagenetPath,
+                              projPath,
                               c_index,
                               CLASSES,
                               &mem_activations[c_index * s_batch],
@@ -226,7 +239,7 @@ int main(int argc, char** argv) {
 #ifndef CSIM
   inference_time = networkSim(argc,
                               argv,
-                              imagenetPath,
+                              projPath,
                               c_index * c_batch,
                               CLASSES * c_batch,
                               mem_activations,
