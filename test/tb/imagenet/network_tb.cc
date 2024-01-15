@@ -21,6 +21,41 @@ bool directoryExists(const std::string &path) {
     return stat(path.c_str(), &info) == 0 && S_ISDIR(info.st_mode);
 }
 
+void
+printFlattenedMatToFile(const cv::Mat& mat, const std::string& outputFilePath)
+{
+  if (mat.empty()) {
+    std::cerr << "Input matrix is empty!" << std::endl;
+    return;
+  }
+
+  // Open the file for writing
+  std::ofstream outputFile(outputFilePath);
+
+  if (!outputFile.is_open()) {
+    std::cerr << "Unable to open the output file!" << std::endl;
+    return;
+  }
+  
+  int rows = mat.rows;
+  int cols = mat.cols;
+  int channels = mat.channels();
+  std::cout << channels << "x" << rows << "x" << cols << std::endl;
+
+  // Write matrix values to the file using nested loops
+  for (int k = 0; k < channels; ++k) {
+    for (int i = 0; i < rows; ++i) {
+      for (int j = 0; j < cols; ++j) {
+        outputFile << std::setprecision(32) << mat.at<cv::Vec3f>(i, j)[k]
+                   << '\n';
+      }
+    }
+  }
+
+  // Close the file
+  outputFile.close();
+}
+
 cv::Mat opencv_transform(cv::Mat image) {
     // Resize the shorter side to 256 pixels while maintaining the aspect ratio
 
@@ -28,8 +63,8 @@ cv::Mat opencv_transform(cv::Mat image) {
     cv::cvtColor(image, image, cv::COLOR_BGR2RGB);  // Convert BGR to RGB
 
     // Convert to NumPy array and normalize
-    image.convertTo(image, CV_32F);
-    image /= 255.0;  // Assuming the original image values are in the range [0, 255]
+    image.convertTo(image, CV_32FC3, 1.0 / 255.0);
+    // image /= 255.0;  // Assuming the original image values are in the range [0, 255]
 
     int h = image.rows;
     int w = image.cols;
@@ -46,7 +81,8 @@ cv::Mat opencv_transform(cv::Mat image) {
     }
     std::cout << "#### New Size: " << new_h << "x" << new_w << std::endl;
 
-    cv::resize(image, image, cv::Size(new_w, new_h), 0, 0, cv::INTER_AREA);
+    // cv::resize(image, image, cv::Size(new_w, new_h), 0, 0, cv::INTER_AREA);
+    cv::resize(image, image, cv::Size(new_w, new_h), cv::INTER_LINEAR);
 
     // Center crop to (224, 224)
     h = image.rows;
@@ -56,13 +92,8 @@ cv::Mat opencv_transform(cv::Mat image) {
     std::cout << "#### Extracting region of interest" << std::endl;
     cv::Rect roi(j, i, 224, 224);
     image = image(roi);
-
-    // cv::Scalar mean(0.485, 0.456, 0.406);
-    // cv::Scalar std(0.229, 0.224, 0.225);
-    // image = (image - mean) / std;
-
-    // cv::split(transposed, image_channels);
-
+    
+    // printFlattenedMatToFile(image, "/home/roberto/Documents/NN2FPGA/nn2fpga/tmp/logs/image_preprocessed_opencv.txt");
     return image;
 }
 
@@ -139,6 +170,7 @@ int main(int argc, char** argv) {
   std::cout << "Allocated " << c_index * c_batch << " ap_uint<64> for activations." << std::endl;
   std::cout << "Allocated " << CLASSES * c_batch << " ap_uint<8> for output results." << std::endl;
   std::string path = "/tools/datasets/Imagenet/train/n01440764/";
+  // std::string path = "/tools/datasets/Imagenet/train/n01440764/";
   // std::string path = "/tools/datasets/Imagenet/train/n01530575/";
   // std::string path = "/home/filippo/workspace/NN2FPGA/test/tb/imagenet/images/n15075141/";
   std::cout << "Taking images from " << path << std::endl;
@@ -195,7 +227,7 @@ int main(int argc, char** argv) {
                     // }
                     // t_transform tmp = (float)pixel[c];
                     // std::cout << tmp << " ";
-                    ap_ufixed<8,0> tmp2 = (float)pixel[c];
+                    ap_ufixed<8,0,AP_RND_CONV,AP_SAT> tmp2 = pixel[c];
                     s_data.range(8 * (s_par + 1) - 1, 8 * s_par) = tmp2.range(7,0);
 
                     // #ifdef DEBUG
