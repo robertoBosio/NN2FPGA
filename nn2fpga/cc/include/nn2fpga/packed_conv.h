@@ -430,7 +430,7 @@ void conv_pipe(
       for (auto s_ow_pack = 0; s_ow_pack < c_ow_pack; s_ow_pack++) {
         #ifndef __SYNTHESIS__
           #ifdef DEBUG_ACC
-            std::cout <<  "ACC " << s_acc[s_ow_ops+s_ow_pack] << std::endl;
+            std::cout <<  "ACC " << s_acc[s_ow_pack] << std::endl;
           #endif
         #endif
       }
@@ -710,7 +710,7 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
       #pragma HLS pipeline style = stp II=1
               auto s_reuse = s_iter;
 
-              if ((s_num_och == 0) && (s_num_ops_out == 0)) {
+              if (((s_num_och == 0) && (s_num_ops_out == 0)) || (c_depth == 1)) {
                 t_input_struct s_input_struct = i_input[0].read();
                 #pragma HLS array_partition variable=s_input_struct.data type=complete
                 s_input = s_input_struct.data;
@@ -937,7 +937,7 @@ void conv_comp(hls::stream<t_input_struct> i_input[1],
                   }
                 }
               }
-              if (((s_num_ich == (c_ich-c_in_ops)) | (c_depth == 1)) && (s_num_ops_out == (c_ops_out - c_ops))) {
+              if (((s_num_ich == (c_ich-c_in_ops)) | (c_depth == 1)) && (s_num_ops_out == (c_ops_out - c_iter_ops_out))) {
                 for (auto s_ow_ops = 0; s_ow_ops < c_ow_ops; s_ow_ops++) {
                   o_output[s_ow_ops_out+s_ow_ops].write(s_output_struct[s_ow_ops]);
                   if constexpr(std::is_same<t_output_struct_1x1, std::nullptr_t>::value == false) {

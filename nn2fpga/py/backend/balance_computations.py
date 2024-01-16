@@ -863,6 +863,8 @@ def ilp(io_dict, off_chip_storage, model, file_name, board="ULTRA96v2", packing=
                 ops_out = io_dict[input_node_name]["ops"]
 
             io_dict[input_node_name]["ops_out"] = find_common_mult(ops_out, line_ops)
+            if (io_dict[input_node_name]["type"] == "pool"):
+                io_dict[input_node_name]["ops"] = find_common_mult(ops_out, line_ops)
 
             if ow_ops > io_dict[input_node_name]["ow_ops_out"]:
                 print(f"Updating for {input_node_name} ow_ops {ow_ops}")
