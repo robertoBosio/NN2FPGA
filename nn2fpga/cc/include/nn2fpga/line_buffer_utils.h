@@ -7,10 +7,22 @@
 
 namespace nn2fpga {
 
-template <typename din_t, typename dout_t, int ICH, int IH, int IW, int c_fw, int c_fh,
-          int c_str, int c_pad, int c_ow_ops, int c_ops, int c_ops_out>
-void pad_input(hls::stream<din_t> din[(c_fw+(c_ow_ops-1)*c_str) * c_fh],
-               hls::stream<dout_t> o_data[1]) {
+template<typename din_t,
+         typename dout_t,
+         int ICH,
+         int IH,
+         int IW,
+         int c_fh,
+         int c_fw,
+         int c_str,
+         int c_pad,
+         int c_ow_ops,
+         int c_ops,
+         int c_ops_out>
+void
+pad_input(hls::stream<din_t> din[(c_fw + (c_ow_ops - 1) * c_str) * c_fh],
+          hls::stream<dout_t> o_data[1])
+{
   /* #pragma HLS inline */
   static_assert(c_ops % c_ops_out == 0, "c_ops must be a multiple of c_ops_out");
 
@@ -19,13 +31,14 @@ void pad_input(hls::stream<din_t> din[(c_fw+(c_ow_ops-1)*c_str) * c_fh],
   constexpr int c_pad_index_h = c_pad * (c_fh - 1) / 2;
   constexpr int c_pad_index_w = c_pad * (c_fw - 1) / 2;
 
-  constexpr int IH_REM = IH - (IH % c_str)*(1-c_pad);
-  constexpr int IW_REM = IW - (IW % c_str)*(1-c_pad);
-  constexpr int IH_PAD = IH + c_pad_index_h * 2 - IH_REM*(1-c_pad);
-  constexpr int IW_PAD = IW + c_pad_index_w * 2 - IW_REM*(1-c_pad);
-  constexpr int FSZ = c_fh * (c_fw+(c_ow_ops-1)*c_str);
-  constexpr int FW = (c_fw+(c_ow_ops-1)*c_str);
-  constexpr int LAST_IDX = FSZ - 1 - (c_fw+(c_ow_ops-1)*c_str-c_pad_index_w)%c_ow_ops;
+  constexpr int IH_REM = IH - (IH % c_str) * (1 - c_pad);
+  constexpr int IW_REM = IW - (IW % c_str) * (1 - c_pad);
+  constexpr int IH_PAD = IH + c_pad_index_h * 2 - IH_REM * (1 - c_pad);
+  constexpr int IW_PAD = IW + c_pad_index_w * 2 - IW_REM * (1 - c_pad);
+  constexpr int FSZ = c_fh * (c_fw + (c_ow_ops - 1) * c_str);
+  constexpr int FW = (c_fw + (c_ow_ops - 1) * c_str);
+  constexpr int LAST_IDX =
+    FSZ - 1 - (c_fw + (c_ow_ops - 1) * c_str - c_pad_index_w) % c_ow_ops;
 
   bool s_last = false;
   
