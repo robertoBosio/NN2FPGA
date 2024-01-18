@@ -160,9 +160,10 @@ act_tensor_hook(hls::stream<data_t> dinStream[w_step],
   layer. ch_step is the och_ops_out parameter of the convolution. w_step is the
   ow_ops_out parameter of the convolution. */
 
+  std::cout << "HOOK FUNCTION ACTIVATION TENSOR" << std::endl;
   std::ofstream file_stream;
   file_stream.open(
-    "/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/tmp/logs/" +
+    "/home/roberto/Documents/NN2FPGA/nn2fpga/tmp/logs/" +
     name + "_acts.txt");
   for (auto h = 0; h < H; h++) {
     for (auto w = 0; w < W; w += w_step) {
@@ -170,16 +171,27 @@ act_tensor_hook(hls::stream<data_t> dinStream[w_step],
         for (auto ow = 0; ow < w_step; ow++) {
           data_t data = dinStream[ow].read();
           for (auto op = 0; op < ch_step; op++) {
-            file_stream << std::setprecision(8) << "[" << ch + op << "," << h
-                        << "," << w + ow << "] " << data.data[0][op]
-                        << std::endl;
+
+            // Conversion done to print 0 even when the value is -0
+            float value = data.data[0][op];
+            if (value == -0) {
+              file_stream << std::setprecision(8) << "[" << ch + op << "," << h
+                          << "," << w + ow << "] 0"
+                          << std::endl;
+            } else {
+              file_stream << std::setprecision(8) << "[" << ch + op << "," << h
+                          << "," << w + ow << "] " << data.data[0][op]
+                          << std::endl;
+            }
           }
+          // file_stream.flush();
           doutStream[ow] << data;
         }
       }
     }
   }
   file_stream.close();
+  std::cout << "END HOOK FUNCTION ACTIVATION TENSOR" << std::endl;
 }
 
 template<typename data_t, int OCH, int ICH, int FH, int FW, int och_step, int ich_step>
