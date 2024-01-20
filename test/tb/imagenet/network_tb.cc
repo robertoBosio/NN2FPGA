@@ -16,6 +16,39 @@
 #define ACTIVATION_PARALLELISM 8
 #define CLASSES 1000
 
+// Cross-platform function to get directory names in a given path
+std::vector<std::string> getDirectories(const std::string& path) {
+    std::vector<std::string> directories;
+    
+    DIR* dir = opendir(path.c_str());
+    if (dir != nullptr) {
+        struct dirent* entry;
+        while ((entry = readdir(dir)) != nullptr) {
+            if (entry->d_type == DT_DIR) {
+                std::string dirName = entry->d_name;
+                if (dirName != "." && dirName != "..") {
+                    directories.push_back(dirName);
+                }
+            }
+        }
+        closedir(dir);
+    }
+    return directories;
+}
+
+// Sort and fill hash table function
+void sortAndFillHashTable(const std::string& path, std::unordered_map<std::string, int>& hashTable) {
+    std::vector<std::string> directories = getDirectories(path);
+
+    // Sort the directories by name
+    std::sort(directories.begin(), directories.end());
+
+    // Fill the hash table with directory names and their positions
+    for (int i = 0; i < directories.size(); ++i) {
+        hashTable[directories[i]] = i;
+    }
+}
+
 bool directoryExists(const std::string &path) {
     struct stat info;
     return stat(path.c_str(), &info) == 0 && S_ISDIR(info.st_mode);
@@ -98,13 +131,13 @@ cv::Mat opencv_transform(cv::Mat image) {
 }
 
 int main(int argc, char** argv) {
-	sda::utils::CmdLineParser parser;
-	parser.addSwitch("--n_images", "-n", "input number of images", "1");
-	parser.addSwitch("--upload_weights", "-w", "input upload weights flag", "1");
-    parser.addSwitch("--xclbin_file", "-x", "input binary file string", "");
-    parser.addSwitch("--device_id", "-d", "device index", "0");
-	parser.parse(argc, argv);
- 
+  sda::utils::CmdLineParser parser;
+  parser.addSwitch("--n_images", "-n", "input number of images", "1");
+  parser.addSwitch("--upload_weights", "-w", "input upload weights flag", "1");
+  parser.addSwitch("--xclbin_file", "-x", "input binary file string", "");
+  parser.addSwitch("--device_id", "-d", "device index", "0");
+  parser.parse(argc, argv);
+
   /* Images per batch */
   const unsigned int c_batch = stoi(parser.value("n_images"));
   // const unsigned int c_batch = 10;
@@ -118,6 +151,8 @@ int main(int argc, char** argv) {
   
   std::chrono::duration<double> inference_time;
   unsigned int results[c_batch];
+  unsigned int correct_labels[c_batch];
+  std::unordered_map<std::string, int> pathToLabelHashTable;
 
   // Get the current working directory
   char currentDirBuffer[FILENAME_MAX];
@@ -174,12 +209,14 @@ int main(int argc, char** argv) {
   // std::string path = "/tools/datasets/Imagenet/train/n01530575/";
   // std::string path = "/home/filippo/workspace/NN2FPGA/test/tb/imagenet/images/n15075141/";
   std::cout << "Taking images from " << path << std::endl;
+  sortAndFillHashTable("/tools/datasets/Imagenet/train/", pathToLabelHashTable);
 
 #ifndef CSIM
 	if (argc < 3) {
 		return EXIT_FAILURE;
 	}
 #endif /* CSIM */
+
 
   int mem_activations_p = 0;
   int s_batch = 0;
@@ -198,16 +235,21 @@ int main(int argc, char** argv) {
             printf("Image not found\n");
             continue;
         }
+
+        // Retrieving the correct label for the image.
+        size_t lastSlashPos = path.find_last_of("/\\");
+        if (lastSlashPos != std::string::npos) {
+          auto it = pathToLabelHashTable.find(path.substr(lastSlashPos + 1));
+          if (it != pathToLabelHashTable.end()) {
+            correct_labels[s_batch] = it->second;
+          }
+        }
+
         std::string file_path = path + ent->d_name;
         std::cout << "path: " << file_path << std::endl;
-
         cv::Mat img;
-    
         img = cv::imread(file_path);
-
         auto result_ocv = opencv_transform(img);
-        
-        // cv::resize(img,result_ocv,cv::Size(c_produce_stream_iw,c_produce_stream_ih),0,0,cv::INTER_AREA);
 
         // Iterate over elements of result_ocv per channel
         unsigned int s_bytes = 0;
@@ -279,12 +321,13 @@ int main(int argc, char** argv) {
 
 #endif
   
+  float correct = 0;
   for (int image = 0; image < c_batch; image++) {
     t_out_mem max_value = INT32_MIN;
     int max_index = 0;
     std::cout << image << " image" << std::endl;
     for (int g = 0; g < CLASSES; g++) {
-      ap_int<8> data = mem_outputs[g + image * CLASSES];
+      t_out_mem data = mem_outputs[g + image * CLASSES];
       std::cout << g << ": " << data << std::endl;
       if (data > max_value) {
         max_value = data;
@@ -292,23 +335,12 @@ int main(int argc, char** argv) {
       }
     }
     std::cout << "COMPUTED LABEL " << max_index << " -------- ";
-    // std::cout << "EXPECTED LABEL " << (ap_int<8>)(dataset.test_labels[image])
-            //   << std::endl;
+    std::cout << "EXPECTED LABEL " << (correct_labels[image])
+              << std::endl;
+    if (max_index == correct_labels[image])
+      correct++;
     results[image] = max_index;
   }
-
-  int s_labels = 0;
-  float correct = 0;
-//   for (auto it = dataset.test_labels.begin(); it != dataset.test_labels.end();
-//        ++it) {
-//     if ((int)(*it) == results[s_labels])
-//       correct++;
-
-//     s_labels++;
-
-//     if (s_labels == (c_batch))
-//       break;
-//   }
 
   std::cout << "ACCURACY " << correct / (float)(c_batch) << std::endl;
   std::cout << "FPS: " << (c_batch) / (inference_time.count())<< std::endl;
