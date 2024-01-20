@@ -46,7 +46,7 @@ def print_acts_tensor(tensor_name, model, ow_ops=1, och_ops=1):
     # Translate this with numpy
 
     if tensor.ndim == 2:
-        tensor = tensor[np.newaxis, np.newaxis, :, :]
+        tensor = tensor[:, :, np.newaxis, np.newaxis]
         ow_ops = 1
         och_ops = 1
     
@@ -81,7 +81,7 @@ def print_weights_tensor(tensor_name, model, ich_ops=1, och_ops=1):
     
     # Transform each "/" in the tensor name into "_" to avoid creating subdirectories
     tensor_name = tensor_name.replace("/", "_")
-    with open(f"tmp/logs/{tensor_name}_weights.txt", 'w') as f:
+    with open(f"tmp/logs/{tensor_name}_qonnx_weights.txt", 'w') as f:
         for channels in range(0, tensor.shape[1], ich_ops):
             for och in range(0, tensor.shape[0], och_ops):
                 for rows in range(tensor.shape[2] - 1, -1, -1):
@@ -108,7 +108,7 @@ def print_bias_tensor(tensor_name, model):
     
     # Transform each "/" in the tensor name into "_" to avoid creating subdirectories
     tensor_name = tensor_name.replace("/", "_")
-    with open(f"tmp/logs/{tensor_name}_bias.txt", 'w') as f:
+    with open(f"tmp/logs/{tensor_name}_qonnx_bias.txt", 'w') as f:
         for channels in range(tensor.shape[0]):
             value = tensor[channels].item()
             
@@ -272,34 +272,9 @@ if __name__ == '__main__':
     #     print("\nNode Attributes:")
     #     for attr in node.attribute:
     #         print(f"  {attr.name}: {attr}")
-
-    # Get initializer of the first convolutional layer
-    # print_tensor('/relu/act_quant/export_handler/Quant_output_0', inferred_model, ow_ops=4, och_ops=4) 
-    # print_tensor('/layer1/layer1.0/conv1/input_quant/export_handler/Quant_output_0', inferred_model, 2, 4) 
-    # print_tensor('/conv1/Conv_output_0', inferred_model, 2, 4) 
-    # print_tensor('/conv1/output_quant/export_handler/Quant_output_0', inferred_model, 2, 4) 
-    # print_tensor('/layer1/layer1.0/relu/act_quant/export_handler/Quant_output_0', inferred_model, ow_ops=4, och_ops=8) 
-    # print_acts_tensor('/layer1/layer1.0/conv1/input_quant/export_handler/Quant_output_0', inferred_model, ow_ops=4, och_ops=4) 
-    # print_weights_tensor('/layer1/layer1.0/conv1/weight_quant/export_handler/Quant_output_0', inferred_model, ich_ops=4, och_ops=2) 
-    # print_bias_tensor('/layer1/layer1.0/conv1/bias_quant/export_handler/Quant_output_0', inferred_model) 
-    # print_acts_tensor('/layer1/layer1.0/relu/act_quant/export_handler/Quant_output_0', inferred_model, ow_ops=4, och_ops=8) 
-    # print_acts_tensor('DequantizeLinear_106_out0', inferred_model, ow_ops=4, och_ops=1) 
-    # print_acts_tensor('global_in', inferred_model, ow_ops=4, och_ops=1) 
-    # print_acts_tensor('DequantizeLinear_107_out0', inferred_model, ow_ops=4, och_ops=4) 
-    # print_acts_tensor('Relu_0_out0', inferred_model, ow_ops=4, och_ops=4) 
-    # print_acts_tensor('Conv_1_out0', inferred_model, ow_ops=4, och_ops=32) 
-    # print_acts_tensor('DequantizeLinear_108_out0', inferred_model, ow_ops=4, och_ops=8) 
-    # print_acts_tensor('DequantizeLinear_109_out0', inferred_model, ow_ops=4, och_ops=16) 
-    # print_acts_tensor('DequantizeLinear_112_out0', inferred_model, ow_ops=4, och_ops=12) 
-    # print_acts_tensor('DequantizeLinear_113_out0', inferred_model, ow_ops=2, och_ops=12) 
-    # print_acts_tensor('DequantizeLinear_114_out0', inferred_model, ow_ops=2, och_ops=24) 
-    # print_acts_tensor('DequantizeLinear_115_out0', inferred_model, ow_ops=2, och_ops=24) 
-    # print_acts_tensor('Add_0_out0', inferred_model, ow_ops=2, och_ops=24) 
-    # print_acts_tensor('DequantizeLinear_116_out0', inferred_model, ow_ops=2, och_ops=24) 
-    # print_acts_tensor('DequantizeLinear_123_out0', inferred_model, ow_ops=4, och_ops=32) 
-    # print_acts_tensor('DequantizeLinear_125_out0', inferred_model, ow_ops=4, och_ops=1) 
-    print_acts_tensor('DequantizeLinear_127_out0', inferred_model, ow_ops=4, och_ops=16) 
+    
+    # print_weights_tensor('DequantizeLinear_71_out0', inferred_model, ich_ops=8, och_ops=2) 
+    # print_bias_tensor('DequantizeLinear_18_out0', inferred_model) 
     # print_acts_tensor('DequantizeLinear_128_out0', inferred_model, ow_ops=4, och_ops=2) 
-    # print_acts_tensor('DequantizeLinear_130_out0', inferred_model, ow_ops=2, och_ops=32) 
     # print_acts_tensor('global_out', inferred_model, ow_ops=1, och_ops=1) 
     # BFS(inferred_model)

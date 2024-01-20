@@ -484,7 +484,7 @@ def opt_quant(model, io_dict, init_info, flag_modified, debug=False):
             'conv',
             'pool',
             'produce',
-            'add',
+            # 'add',
         ]
 
         if layer_in_name in removed_layers:
@@ -509,7 +509,8 @@ def opt_quant(model, io_dict, init_info, flag_modified, debug=False):
             # print(f"others_quant: {others_quant}")
 
             if not others_quant:
-                print(f"Merging {layer_in_name} -> {layer_out_name} for opt_quant")
+                print(
+                    f"Merging {layer_in_name} [{io_dict[layer_in_name]['type']}] -> {layer_out_name} [{io_dict[layer_out_name]['type']}]for opt_quant")
                 out_names = io_dict[layer_out_name]["output"]
 
                 # Scale factor is equal to the one of the quantization in 
@@ -587,7 +588,7 @@ def opt_quant(model, io_dict, init_info, flag_modified, debug=False):
                     io_dict[layer_in_name]["clip_bits"] = [clip_bits]
 
                 if "quant" in io_dict[layer_in_name].keys():
-                    print("Already have quant in ", layer_in_name)
+                    print("Already have quant in {layer_name}")
                     # The old mask must be saved to have coherent behavior
                     # If a merged quantization has higher scaling factor then
                     # quantization is masking the LSBs

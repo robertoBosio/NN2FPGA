@@ -340,7 +340,7 @@ bias_tensor_hook(hls::stream<data_t> dinStream[1],
 
   /* The order in which the filters are printed is based on och_ops and ich_ops
    * of the convolution, it is not a flatten of the tensor */
-  std::cout << "weight_tensor_hook" << " OCH:" << OCH << " ICH:" << ICH << " FH:" << FH << " FW:" << FW << " och_step:" << och_step << " ich_step:" << ich_step << std::endl;
+  std::cout << "bias_tensor_hook" << " OCH:" << OCH << " ICH:" << ICH << " FH:" << FH << " FW:" << FW << " och_step:" << och_step << " ich_step:" << ich_step << std::endl;
   std::ofstream file_stream;
   file_stream.open(
     "/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/tmp/logs/" +
