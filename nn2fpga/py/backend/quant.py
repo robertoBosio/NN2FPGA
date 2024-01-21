@@ -248,11 +248,13 @@ def merge_quant(model, io_dict, init_info, flag_mod, inherit_quant=False):
             # Looking for node with in input the previous output
             for i, output in enumerate(node["seq_out"]):
                 if output in quant_info.keys():
+
                     # Avoid splits with unbalanced quantizations, i.e
                     # not merging in case of branches
                     single_quant = len(quant_info[output]["seq_out"]) < 2
                     if (len(quant_info[output]["others"]) == 0) and single_quant:
                         for j, new_output in enumerate(quant_info[output]["seq_out"]):
+                            
                             print(f"##### Merging {output} into {name}")
                             new_node_name = quant_info[output][new_output]
                             new_scale = quant_info[output]["seq_scale"][j]
@@ -439,31 +441,41 @@ def extract_quant_info(model, io_dict, init_info):
         if 'quant' == node["type"]:
 
             # Saving connections and scale factors for all the quantizations
+            # From the node input array retrieve the scale factor
             scale_name   = io_dict[node_name]["input"][1]
             scale_info   = init_info[scale_name]
             scale_factor = numpy_helper.to_array(scale_info)
             scale_factor = np.log2(scale_factor)
+
+            # From the node input array retrieve the bits
             bits_name   = io_dict[node_name]["input"][3]
             bits_info   = init_info[bits_name]
             bits        = int(numpy_helper.to_array(bits_info))
+            
             signed = node["signed"]
             if node["signed"] is list:
                 signed = signed[0]
+            
             clip = node["clip"]
             if clip is list:
                 clip = clip[0]
+            
             mask = node["mask"]
             if mask is list:
                 mask = mask[0]
+            
             clip_signed = node["clip_signed"]
             if clip_signed is list:
                 clip_signed = clip_signed[0]
+            
             mask_signed = node["mask_signed"]
             if mask_signed is list:
                 mask_signed = mask_signed[0]
+            
             clip_bits = node["clip_bits"]
             if clip_bits is list:
                 clip_bits = clip_bits[0]
+            
             mask_bits = node["mask_bits"]
             if mask_bits is list:
                 mask_bits = mask_bits[0]

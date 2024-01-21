@@ -16,9 +16,77 @@
 #define ACTIVATION_PARALLELISM 8
 #define CLASSES 1000
 
+// Cross-platform function to get directory names in a given path
+std::vector<std::string> getDirectories(const std::string& path) {
+    std::vector<std::string> directories;
+    
+    DIR* dir = opendir(path.c_str());
+    if (dir != nullptr) {
+        struct dirent* entry;
+        while ((entry = readdir(dir)) != nullptr) {
+            if (entry->d_type == DT_DIR) {
+                std::string dirName = entry->d_name;
+                if (dirName != "." && dirName != "..") {
+                    directories.push_back(dirName);
+                }
+            }
+        }
+        closedir(dir);
+    }
+    return directories;
+}
+
+// Sort and fill hash table function
+void sortAndFillHashTable(const std::string& path, std::unordered_map<std::string, int>& hashTable) {
+    std::vector<std::string> directories = getDirectories(path);
+
+    // Sort the directories by name
+    std::sort(directories.begin(), directories.end());
+
+    // Fill the hash table with directory names and their positions
+    for (int i = 0; i < directories.size(); ++i) {
+        hashTable[directories[i]] = i;
+    }
+}
+
 bool directoryExists(const std::string &path) {
     struct stat info;
     return stat(path.c_str(), &info) == 0 && S_ISDIR(info.st_mode);
+}
+
+void
+printFlattenedMatToFile(const cv::Mat& mat, const std::string& outputFilePath)
+{
+  if (mat.empty()) {
+    std::cerr << "Input matrix is empty!" << std::endl;
+    return;
+  }
+
+  // Open the file for writing
+  std::ofstream outputFile(outputFilePath);
+
+  if (!outputFile.is_open()) {
+    std::cerr << "Unable to open the output file!" << std::endl;
+    return;
+  }
+  
+  int rows = mat.rows;
+  int cols = mat.cols;
+  int channels = mat.channels();
+  std::cout << channels << "x" << rows << "x" << cols << std::endl;
+
+  // Write matrix values to the file using nested loops
+  for (int k = 0; k < channels; ++k) {
+    for (int i = 0; i < rows; ++i) {
+      for (int j = 0; j < cols; ++j) {
+        outputFile << std::setprecision(32) << mat.at<cv::Vec3f>(i, j)[k]
+                   << '\n';
+      }
+    }
+  }
+
+  // Close the file
+  outputFile.close();
 }
 
 cv::Mat opencv_transform(cv::Mat image) {
@@ -28,8 +96,8 @@ cv::Mat opencv_transform(cv::Mat image) {
     cv::cvtColor(image, image, cv::COLOR_BGR2RGB);  // Convert BGR to RGB
 
     // Convert to NumPy array and normalize
-    image.convertTo(image, CV_32F);
-    image /= 255.0;  // Assuming the original image values are in the range [0, 255]
+    image.convertTo(image, CV_32FC3, 1.0 / 255.0);
+    // image /= 255.0;  // Assuming the original image values are in the range [0, 255]
 
     int h = image.rows;
     int w = image.cols;
@@ -46,7 +114,8 @@ cv::Mat opencv_transform(cv::Mat image) {
     }
     std::cout << "#### New Size: " << new_h << "x" << new_w << std::endl;
 
-    cv::resize(image, image, cv::Size(new_w, new_h), 0, 0, cv::INTER_AREA);
+    // cv::resize(image, image, cv::Size(new_w, new_h), 0, 0, cv::INTER_AREA);
+    cv::resize(image, image, cv::Size(new_w, new_h), cv::INTER_LINEAR);
 
     // Center crop to (224, 224)
     h = image.rows;
@@ -56,27 +125,22 @@ cv::Mat opencv_transform(cv::Mat image) {
     std::cout << "#### Extracting region of interest" << std::endl;
     cv::Rect roi(j, i, 224, 224);
     image = image(roi);
-
-    // cv::Scalar mean(0.485, 0.456, 0.406);
-    // cv::Scalar std(0.229, 0.224, 0.225);
-    // image = (image - mean) / std;
-
-    // cv::split(transposed, image_channels);
-
+    
+    // printFlattenedMatToFile(image, "/home/roberto/Documents/NN2FPGA/nn2fpga/tmp/logs/image_preprocessed_opencv.txt");
     return image;
 }
 
 int main(int argc, char** argv) {
-	sda::utils::CmdLineParser parser;
-	parser.addSwitch("--n_images", "-n", "input number of images", "1");
-	parser.addSwitch("--upload_weights", "-w", "input upload weights flag", "1");
-    parser.addSwitch("--xclbin_file", "-x", "input binary file string", "");
-    parser.addSwitch("--device_id", "-d", "device index", "0");
-	parser.parse(argc, argv);
- 
+  sda::utils::CmdLineParser parser;
+  parser.addSwitch("--n_images", "-n", "input number of images", "1");
+  parser.addSwitch("--upload_weights", "-w", "input upload weights flag", "1");
+  parser.addSwitch("--xclbin_file", "-x", "input binary file string", "");
+  parser.addSwitch("--device_id", "-d", "device index", "0");
+  parser.parse(argc, argv);
+
   /* Images per batch */
-  // const unsigned int c_batch = stoi(parser.value("n_images"));
-  const unsigned int c_batch = 10;
+  const unsigned int c_batch = stoi(parser.value("n_images"));
+  // const unsigned int c_batch = 10;
   /* Bytes per activation data stream */
   const unsigned int c_par = c_inp_1 / ACTIVATION_PARALLELISM;
   /* Bytes per image */
@@ -87,11 +151,14 @@ int main(int argc, char** argv) {
   
   std::chrono::duration<double> inference_time;
   unsigned int results[c_batch];
+  unsigned int correct_labels[c_batch];
+  std::unordered_map<std::string, int> pathToLabelHashTable;
 
   // Get the current working directory
   char currentDirBuffer[FILENAME_MAX];
   bool foundImagenet = false;
   std::string imagenetPath = "";
+  std::string projPath = "";
   if (getcwd(currentDirBuffer, FILENAME_MAX) != nullptr) {
     std::string currentDirStr(currentDirBuffer);
     std::cout << "Current working directory: " << currentDirStr << std::endl;
@@ -99,6 +166,18 @@ int main(int argc, char** argv) {
     // Find the position of "NN2FPGA" in the path
     size_t topPos = currentDirStr.find("NN2FPGA");
 
+    // find the position of "project_" in the path
+    size_t projPos = currentDirStr.find("project_");
+    // Search the "/" after projPos
+    size_t projEndPos = currentDirStr.find("/", projPos);
+    if (projEndPos != std::string::npos){
+      currentDirStr = currentDirStr.substr(0, projEndPos + 1);
+      // Check if the new path exists
+      if (directoryExists(currentDirStr)) {
+        projPath = currentDirStr;
+      }
+    }
+    
     if (topPos != std::string::npos) {
       // Remove everything after NN2FPGA
       currentDirStr = currentDirStr.substr(0, topPos);
@@ -111,7 +190,7 @@ int main(int argc, char** argv) {
     }
   }
   
-  if (imagenetPath == "")
+  if (imagenetPath == "" || projPath == "")
     return -1;
 
   std::cout << "Sending " << c_batch << " images." << std::endl;
@@ -126,15 +205,18 @@ int main(int argc, char** argv) {
   std::cout << "Allocated " << c_index * c_batch << " ap_uint<64> for activations." << std::endl;
   std::cout << "Allocated " << CLASSES * c_batch << " ap_uint<8> for output results." << std::endl;
   std::string path = "/tools/datasets/Imagenet/train/n01440764/";
+  // std::string path = "/tools/datasets/Imagenet/train/n01440764/";
   // std::string path = "/tools/datasets/Imagenet/train/n01530575/";
   // std::string path = "/home/filippo/workspace/NN2FPGA/test/tb/imagenet/images/n15075141/";
   std::cout << "Taking images from " << path << std::endl;
+  sortAndFillHashTable("/tools/datasets/Imagenet/train/", pathToLabelHashTable);
 
 #ifndef CSIM
 	if (argc < 3) {
 		return EXIT_FAILURE;
 	}
 #endif /* CSIM */
+
 
   int mem_activations_p = 0;
   int s_batch = 0;
@@ -153,16 +235,21 @@ int main(int argc, char** argv) {
             printf("Image not found\n");
             continue;
         }
+
+        // Retrieving the correct label for the image.
+        size_t lastSlashPos = path.find_last_of("/\\");
+        if (lastSlashPos != std::string::npos) {
+          auto it = pathToLabelHashTable.find(path.substr(lastSlashPos + 1));
+          if (it != pathToLabelHashTable.end()) {
+            correct_labels[s_batch] = it->second;
+          }
+        }
+
         std::string file_path = path + ent->d_name;
         std::cout << "path: " << file_path << std::endl;
-
         cv::Mat img;
-    
         img = cv::imread(file_path);
-
         auto result_ocv = opencv_transform(img);
-        
-        // cv::resize(img,result_ocv,cv::Size(c_produce_stream_iw,c_produce_stream_ih),0,0,cv::INTER_AREA);
 
         // Iterate over elements of result_ocv per channel
         unsigned int s_bytes = 0;
@@ -182,7 +269,7 @@ int main(int argc, char** argv) {
                     // }
                     // t_transform tmp = (float)pixel[c];
                     // std::cout << tmp << " ";
-                    ap_ufixed<8,0> tmp2 = (float)pixel[c];
+                    ap_ufixed<8,0,AP_RND_CONV,AP_SAT> tmp2 = pixel[c];
                     s_data.range(8 * (s_par + 1) - 1, 8 * s_par) = tmp2.range(7,0);
 
                     // #ifdef DEBUG
@@ -205,7 +292,7 @@ int main(int argc, char** argv) {
   std::cout << "STARTING CSIM" << std::endl;
   inference_time = networkSim(argc,
                               argv,
-                              imagenetPath,
+                              projPath,
                               c_index,
                               CLASSES,
                               &mem_activations[c_index * s_batch],
@@ -226,7 +313,7 @@ int main(int argc, char** argv) {
 #ifndef CSIM
   inference_time = networkSim(argc,
                               argv,
-                              imagenetPath,
+                              projPath,
                               c_index * c_batch,
                               CLASSES * c_batch,
                               mem_activations,
@@ -234,12 +321,13 @@ int main(int argc, char** argv) {
 
 #endif
   
+  float correct = 0;
   for (int image = 0; image < c_batch; image++) {
     t_out_mem max_value = INT32_MIN;
     int max_index = 0;
     std::cout << image << " image" << std::endl;
     for (int g = 0; g < CLASSES; g++) {
-      ap_int<8> data = mem_outputs[g + image * CLASSES];
+      t_out_mem data = mem_outputs[g + image * CLASSES];
       std::cout << g << ": " << data << std::endl;
       if (data > max_value) {
         max_value = data;
@@ -247,23 +335,12 @@ int main(int argc, char** argv) {
       }
     }
     std::cout << "COMPUTED LABEL " << max_index << " -------- ";
-    // std::cout << "EXPECTED LABEL " << (ap_int<8>)(dataset.test_labels[image])
-            //   << std::endl;
+    std::cout << "EXPECTED LABEL " << (correct_labels[image])
+              << std::endl;
+    if (max_index == correct_labels[image])
+      correct++;
     results[image] = max_index;
   }
-
-  int s_labels = 0;
-  float correct = 0;
-//   for (auto it = dataset.test_labels.begin(); it != dataset.test_labels.end();
-//        ++it) {
-//     if ((int)(*it) == results[s_labels])
-//       correct++;
-
-//     s_labels++;
-
-//     if (s_labels == (c_batch))
-//       break;
-//   }
 
   std::cout << "ACCURACY " << correct / (float)(c_batch) << std::endl;
   std::cout << "FPS: " << (c_batch) / (inference_time.count())<< std::endl;

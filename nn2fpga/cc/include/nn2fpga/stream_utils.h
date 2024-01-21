@@ -150,6 +150,7 @@ void consume_stream(hls::stream<din_wrap_t> dinStream[ow_ops],
   #endif
 }
 
+#ifndef __SYNTHESIS__
 template<typename data_t, int CH, int W, int H, int ch_step, int w_step>
 void
 act_tensor_hook(hls::stream<data_t> dinStream[w_step],
@@ -160,9 +161,10 @@ act_tensor_hook(hls::stream<data_t> dinStream[w_step],
   layer. ch_step is the och_ops_out parameter of the convolution. w_step is the
   ow_ops_out parameter of the convolution. */
 
+  std::cout << "HOOK FUNCTION ACTIVATION TENSOR" << std::endl;
   std::ofstream file_stream;
   file_stream.open(
-    "/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/tmp/logs/" +
+    "/home/roberto/Documents/NN2FPGA/nn2fpga/tmp/logs/" +
     name + "_acts.txt");
   for (auto h = 0; h < H; h++) {
     for (auto w = 0; w < W; w += w_step) {
@@ -170,16 +172,114 @@ act_tensor_hook(hls::stream<data_t> dinStream[w_step],
         for (auto ow = 0; ow < w_step; ow++) {
           data_t data = dinStream[ow].read();
           for (auto op = 0; op < ch_step; op++) {
-            file_stream << std::setprecision(8) << "[" << ch + op << "," << h
-                        << "," << w + ow << "] " << data.data[0][op]
-                        << std::endl;
+
+            // Conversion done to print 0 even when the value is -0
+            float value = data.data[0][op];
+            if (value == -0) {
+              file_stream << std::setprecision(8) << "[" << ch + op << "," << h
+                          << "," << w + ow << "] 0"
+                          << std::endl;
+            } else {
+              file_stream << std::setprecision(8) << "[" << ch + op << "," << h
+                          << "," << w + ow << "] " << data.data[0][op]
+                          << std::endl;
+            }
           }
+          // file_stream.flush();
           doutStream[ow] << data;
         }
       }
     }
   }
   file_stream.close();
+  std::cout << "END HOOK FUNCTION ACTIVATION TENSOR" << std::endl;
+}
+
+template<typename data_t, int CH, int W, int H, int ch_step, int w_step>
+void
+act_windowbuffer_hook(hls::stream<data_t> dinStream[1],
+            hls::stream<data_t> doutStream[1],
+            std::string name)
+{
+  /* This function is used to hook activation tensors. It is used to debug the
+  layer. ch_step is the och_ops_out parameter of the convolution. w_step is the
+  ow_ops_out parameter of the convolution. */
+
+  std::cout << "HOOK FUNCTION ACTIVATION WINDOW BUFFER" << std::endl;
+  std::ofstream file_stream;
+  file_stream.open(
+    "/home/roberto/Documents/NN2FPGA/nn2fpga/tmp/logs/" +
+    name + "_acts.txt");
+  for (auto h = 0; h < H; h++) {
+    for (auto w = 0; w < W; w += w_step) {
+      for (auto ch = 0; ch < CH; ch += ch_step) {
+        data_t data = dinStream[0].read();
+        for (auto ow = w_step - 1; ow >= 0; ow--) {
+          for (auto op = 0; op < ch_step; op++) {
+
+            // Conversion done to print 0 even when the value is -0
+            float value = data.data[ow][op];
+            if (value == -0) {
+              file_stream << std::setprecision(8) << "[" << ch + op << "," << h
+                          << "," << w + ow << "] 0"
+                          << std::endl;
+            } else {
+              file_stream << std::setprecision(8) << "[" << ch + op << "," << h
+                          << "," << w + ow << "] " << data.data[ow][op]
+                          << std::endl;
+            }
+          }
+          // file_stream.flush();
+        }
+        doutStream[0] << data;
+      }
+    }
+  }
+  file_stream.close();
+  std::cout << "END HOOK FUNCTION ACTIVATION WINDOW BUFFER" << std::endl;
+}
+
+template<typename data_t, int CH, int W, int H, int ch_step, int w_step>
+void
+act_shiftop_hook(hls::stream<data_t> &dinStream,
+            hls::stream<data_t> &doutStream,
+            size_t w_pos,
+            std::string name)
+{
+  /* This function is used to hook activation tensors. It is used to debug the
+  layer. ch_step is the och_ops_out parameter of the convolution. w_step is the
+  ow_ops_out parameter of the convolution. */
+
+  std::cout << "HOOK FUNCTION ACTIVATION SHIFT_OP" << std::endl;
+  std::ofstream file_stream;
+  file_stream.open(
+    "/home/roberto/Documents/NN2FPGA/nn2fpga/tmp/logs/" +
+    name + "_acts.txt");
+  for (auto h = 0; h < H; h++) {
+    for (auto w = w_pos; w < W; w += w_step) {
+      for (auto ch = 0; ch < CH; ch += ch_step) {
+        data_t data = dinStream.read();
+        for (auto op = 0; op < ch_step; op++) {
+
+          // Conversion done to print 0 even when the value is -0
+          float value = data.data[0][op];
+          if (value == -0) {
+            file_stream << std::setprecision(8) << "[" << ch + op << "," << h
+                        << "," << w << "] 0" << std::endl;
+          } else {
+            file_stream << std::setprecision(8) << "[" << ch + op << "," << h
+                        << "," << w << "] " << data.data[0][op]
+                        << std::endl;
+          }
+        }
+        // file_stream.flush();
+        doutStream << data;
+      }
+    }
+  }
+
+  file_stream.close();
+  std::cout << "END HOOK FUNCTION ACTIVATION SHIFT_OP" << std::endl;
 }
 
 template<typename data_t, int OCH, int ICH, int FH, int FW, int och_step, int ich_step>
@@ -241,7 +341,7 @@ bias_tensor_hook(hls::stream<data_t> dinStream[1],
 
   /* The order in which the filters are printed is based on och_ops and ich_ops
    * of the convolution, it is not a flatten of the tensor */
-  std::cout << "weight_tensor_hook" << " OCH:" << OCH << " ICH:" << ICH << " FH:" << FH << " FW:" << FW << " och_step:" << och_step << " ich_step:" << ich_step << std::endl;
+  std::cout << "bias_tensor_hook" << " OCH:" << OCH << " ICH:" << ICH << " FH:" << FH << " FW:" << FW << " och_step:" << och_step << " ich_step:" << ich_step << std::endl;
   std::ofstream file_stream;
   file_stream.open(
     "/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/tmp/logs/" +
@@ -266,6 +366,7 @@ bias_tensor_hook(hls::stream<data_t> dinStream[1],
   file_stream.close();
 }
 
+#endif /* __SYNTHESIS__ */
 }  // namespace nn2fpga
 
 #endif  // NN2FPGA_STREAM_UTILS_H_

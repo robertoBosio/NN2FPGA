@@ -105,6 +105,7 @@ def parse(name, node):
     block["template"].append("t_%s_struct" % output_type_name)
     block["template"].append("t_%s" % output_type_name)
     block["template"].append("t_%s_acc" % name)
+    block["template"].append("t_%s_div" % name)
     block["template"].append("c_%s_ich" % name)
     block["template"].append("c_%s_och" % name)
     block["template"].append("c_%s_iw" % name)
@@ -159,9 +160,20 @@ def parse(name, node):
     if node["pool"] == 1:
         block["defines"]["t_%s_acc" % name]            = ["type", output_type]
     else:
-        acc_bits = node["actbits"][0] + math.ceil(math.log2(node["fh"]*node["fw"]))
-        acc_type = get_quant_type(True, acc_bits, node["actscale"][0], acc_reg=True)
+        # acc_bits = node["actbits"][0] + math.ceil(math.log2(node["fh"]*node["fw"]))
+        # acc_type = get_quant_type(True, acc_bits, node["actscale"][0], acc_reg=True)
+        acc_ibits = (2 ** (node["actbits"][0] + node["actscale"][0]) - 1)
+        acc_ibits = math.ceil(math.log2(acc_ibits * node["fh"] * node["fw"]))
+        if (node["actsigned"][0][0] == 1):
+            acc_ibits += 1
+            div_type = get_quant_type(True, 32, -(32 - acc_ibits))
+            acc_type = get_quant_type(True, acc_ibits - node["actscale"][0], node["actscale"][0], acc_reg=True)
+        else:
+            div_type = get_quant_type(False, 32, -(32 - acc_ibits))
+            acc_type = get_quant_type(False, acc_ibits - node["actscale"][0], node["actscale"][0], acc_reg=True)
         block["defines"]["t_%s_acc" % name]        = ["type", acc_type]
+        block["defines"]["t_%s_div" % name]        = ["type", div_type]
+
     block["defines"]["c_%s_ich" % name]            = ["const", node["ich"]]
     block["defines"]["c_%s_och" % name]            = ["const", node["och"]]
     block["defines"]["c_%s_iw" % name]             = ["const", node["iw"]]

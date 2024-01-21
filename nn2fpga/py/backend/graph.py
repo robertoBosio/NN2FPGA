@@ -68,7 +68,7 @@ def compute_branch_length(io_dict, io_connect, layer_name, forward=False):
     branch_found = False
     analyze_layer = layer_name
     if forward:
-        print("////////////////////// FORWARD PROPAGATION //////////////////////")
+        print("////////////////////// FORWARD PROPAGATION  //////////////////////")
     else:
         print("////////////////////// BACKWARD PROPAGATION //////////////////////")
     print("Checking conv layers", layer_name)

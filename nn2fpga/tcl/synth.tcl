@@ -33,7 +33,7 @@ if {${SIMD_DSP} == 1} {
 if {${CSIM} == 1} {
   # add_files -cflags "  -g -D_GLIBCXX_DEBUG -Wall -Wextra -O2 -Icc/include -I${NN2FPGA_ROOT}/cc/include${simd_flag}" \
   #   cc/src/${TOP_NAME}.cc
-  add_files -cflags " -Icc/include -I${NN2FPGA_ROOT}/cc/include${simd_flag}" \
+  add_files -cflags "-O3 -Icc/include -I${NN2FPGA_ROOT}/cc/include${simd_flag}" \
     cc/src/${TOP_NAME}.cc
 } else {
   add_files -cflags " -Icc/include -I${NN2FPGA_ROOT}/cc/include${simd_flag}" \

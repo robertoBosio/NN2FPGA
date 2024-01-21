@@ -43,14 +43,16 @@ class ImageNet(Dataset):
         sorted_items = sorted(items)
         for class_id, syn_id in enumerate(sorted_items):
             self.syn_to_class[syn_id] = class_id
+
         if train:
             image_path = root + "/train/"
         else:
             image_path = root + "/val/"
         items = os.listdir(image_path)
         sorted_items = sorted(items)
-        for class_id, syn_id in enumerate(sorted_items):
+        for syn_id in sorted_items:
             syn_folder = os.path.join(image_path, syn_id)
+            class_id = self.syn_to_class[syn_id]
             for sample in os.listdir(syn_folder):
                 sample_path = os.path.join(syn_folder, sample)
                 self.samples.append(sample_path)

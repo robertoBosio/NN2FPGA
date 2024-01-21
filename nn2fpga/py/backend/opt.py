@@ -484,7 +484,7 @@ def opt_quant(model, io_dict, init_info, flag_modified, debug=False):
             'conv',
             'pool',
             'produce',
-            'add',
+            # 'add',
         ]
 
         if layer_in_name in removed_layers:
@@ -500,16 +500,17 @@ def opt_quant(model, io_dict, init_info, flag_modified, debug=False):
 
         end_quant = 'quant' == io_dict[layer_out_name]["type"]
         single_quant = len(layers[1]) < 2
-        print(f"Considering {layer_in_name} -> {layer_out_name} for opt_quant, start_merge: {start_merge}, end_quant: {end_quant}, single_quant: {single_quant}")
+        # print(f"Considering {layer_in_name} -> {layer_out_name} for opt_quant, start_merge: {start_merge}, end_quant: {end_quant}, single_quant: {single_quant}")
 
         # If true the relu can be absorbed into convolution
         if start_merge and end_quant and single_quant:
 
             others_quant = len(quant_info[net_name]["others"]) > 0
-            print(f"others_quant: {others_quant}")
+            # print(f"others_quant: {others_quant}")
 
             if not others_quant:
-                print(f"Merging {layer_in_name} -> {layer_out_name} for opt_quant")
+                print(
+                    f"Merging {layer_in_name} [{io_dict[layer_in_name]['type']}] -> {layer_out_name} [{io_dict[layer_out_name]['type']}]for opt_quant")
                 out_names = io_dict[layer_out_name]["output"]
 
                 # Scale factor is equal to the one of the quantization in 
@@ -565,6 +566,7 @@ def opt_quant(model, io_dict, init_info, flag_modified, debug=False):
                 in_index = io_dict[layer_in_name]["output"].index(net_name)
 
                 if "quant" in io_dict[layer_in_name].keys():
+
                     # The old clip must be saved to have coherent behavior
                     # If a merged quantization has lower scaling factor then
                     # quantization is clipping to a lower max value
@@ -572,11 +574,6 @@ def opt_quant(model, io_dict, init_info, flag_modified, debug=False):
                     old_clip_signed = io_dict[layer_in_name]["clip_signed"][in_index]
                     old_clip_bits = io_dict[layer_in_name]["clip_bits"][in_index]
                     
-                    # print(f"Already have quant in {layer_in_name}. {old_clip} {old_clip_signed} {old_clip_bits} vs {clip_factor} {clip_signed} {clip_bits}")
-                    # old_clip_usable = (old_clip_bits + old_clip) - old_clip_signed
-                    # clip_usable = (clip_bits + clip_factor) - clip_signed
-                    # print(f"Already have quant in {layer_in_name}. old clip usable bits {old_clip_usable} vs clip usable bits {clip_usable}")
-
                     if (old_clip < clip_factor):
                         io_dict[layer_in_name]["clip_factor"][in_index] = old_clip
                         io_dict[layer_in_name]["clip_signed"][in_index] = old_clip_signed
@@ -585,14 +582,13 @@ def opt_quant(model, io_dict, init_info, flag_modified, debug=False):
                         io_dict[layer_in_name]["clip_factor"][in_index] = clip_factor
                         io_dict[layer_in_name]["clip_signed"][in_index] = clip_signed
                         io_dict[layer_in_name]["clip_bits"][in_index] = clip_bits
-                    print(f"Keep {io_dict[layer_in_name]['clip_factor'][in_index]} {io_dict[layer_in_name]['clip_signed'][in_index]} {io_dict[layer_in_name]['clip_bits'][in_index]}")
                 else:
                     io_dict[layer_in_name]["clip_factor"] = [clip_factor]
                     io_dict[layer_in_name]["clip_signed"] = [clip_signed]
                     io_dict[layer_in_name]["clip_bits"] = [clip_bits]
 
                 if "quant" in io_dict[layer_in_name].keys():
-                    print("Already have quant in ", layer_in_name)
+                    print("Already have quant in {layer_name}")
                     # The old mask must be saved to have coherent behavior
                     # If a merged quantization has higher scaling factor then
                     # quantization is masking the LSBs
@@ -607,7 +603,6 @@ def opt_quant(model, io_dict, init_info, flag_modified, debug=False):
                         io_dict[layer_in_name]["mask_factor"][in_index] = mask_factor
                         io_dict[layer_in_name]["mask_signed"][in_index] = mask_signed
                         io_dict[layer_in_name]["mask_bits"][in_index] = mask_bits
-                    print(f"Keep {io_dict[layer_in_name]['mask_factor'][in_index]} {io_dict[layer_in_name]['mask_signed'][in_index]} {io_dict[layer_in_name]['mask_bits'][in_index]}")
                 else:
                     io_dict[layer_in_name]["mask_factor"] = [mask_factor]
                     io_dict[layer_in_name]["mask_signed"] = [mask_signed]
