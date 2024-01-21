@@ -150,6 +150,7 @@ void consume_stream(hls::stream<din_wrap_t> dinStream[ow_ops],
   #endif
 }
 
+#ifndef __SYNTHESIS__
 template<typename data_t, int CH, int W, int H, int ch_step, int w_step>
 void
 act_tensor_hook(hls::stream<data_t> dinStream[w_step],
@@ -365,6 +366,7 @@ bias_tensor_hook(hls::stream<data_t> dinStream[1],
   file_stream.close();
 }
 
+#endif /* __SYNTHESIS__ */
 }  // namespace nn2fpga
 
 #endif  // NN2FPGA_STREAM_UTILS_H_
