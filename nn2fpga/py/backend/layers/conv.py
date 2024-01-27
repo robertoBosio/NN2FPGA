@@ -232,6 +232,7 @@ def parse_comp(name, node):
         block["template"].append("std::nullptr_t")
 
     block["template"].append("t_%s_struct" % output_type_name)
+    block["template"].append("t_%s_vector" % output_type_name)
     block["template"].append("t_%s" % output_type_name)
     block["template"].append("t_%s_clip" % output_type_name)
     block["template"].append("t_%s_mask" % output_type_name)

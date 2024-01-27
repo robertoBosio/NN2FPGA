@@ -16,7 +16,7 @@
 #define ACTIVATION_PARALLELISM 8
 #define CLASSES 1000
 
-// Cross-platform function to get directory names in a given path
+// Get directory names in a given path
 std::vector<std::string> getDirectories(const std::string& path) {
     std::vector<std::string> directories;
     
@@ -126,7 +126,7 @@ cv::Mat opencv_transform(cv::Mat image) {
     cv::Rect roi(j, i, 224, 224);
     image = image(roi);
     
-    // printFlattenedMatToFile(image, "/home/roberto/Documents/NN2FPGA/nn2fpga/tmp/logs/image_preprocessed_opencv.txt");
+    // printFlattenedMatToFile(image, "/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/tmp/logs/image_preprocessed_opencv.txt");
     return image;
 }
 
