@@ -74,6 +74,130 @@ quant_and_add_stream(t_acc i_acc, t_output_clip i_add)
   return t_output(s_acc);
 }
 
+template<int pad_bits>
+ap_uint<48>
+DSP48E2_ADDMULADD_PREADD(ap_int<27> A, ap_int<18> B, ap_int<27> D, ap_uint<48> C)
+{
+#pragma HLS inline 
+
+  return ((A + D) * B) + C;
+}
+
+template<typename t_act,
+         typename t_act_ext,
+         typename t_act_pad_ext,
+         typename t_weight,
+         typename t_weight_ext,
+         typename t_res,
+         int pad_bits>
+ap_uint<48>
+double_packing(t_act input0, t_act input1, t_weight weight, t_res res)
+{
+#pragma HLS inline
+  static_assert(t_act::width <= 8, "width of the inputs <= 8");
+  static_assert(t_weight::width <= 8, "width of the weights <= 8");
+
+  /* The activations must be extened with the proper sign */
+  t_act_ext input0_ext = 0;
+  t_act_pad_ext input1_ext = 0;
+
+  /* The weight must be extened with the proper sign */
+  t_weight_ext weight_ext = 0;
+
+  // std::cout << "input0 " << input0 << " input1 " << input1 << " weight " <<
+  // weight << std::endl;
+  input0_ext.range(t_act::width - 1, 0) = input0.range(t_act::width - 1, 0);
+
+  input1_ext.range(t_act::width + pad_bits - 1, pad_bits) =
+    input1.range(t_act::width - 1, 0);
+
+  weight_ext.range(t_weight::width - 1, 0) =
+    weight.range(t_weight::width - 1, 0);
+
+  // std::cout << "A " << input0_ext << " B " << input1_ext << " C " <<
+  // weight_ext << " D " << res << std::endl;
+  return DSP48E2_ADDMULADD_PREADD<pad_bits>(
+    input0_ext, weight_ext, input1_ext, res);
+}
+
+template<typename t_act,
+         typename t_weight,
+         typename t_res,
+         int pad_bits>
+ap_uint<48>
+double_packing_wrap(t_act input0, t_act input1, t_weight weight, t_res res)
+{
+  #pragma HLS inline
+  if constexpr (std::is_same<typename t_act::Base::Base,
+                             _AP_ROOT_TYPE<t_act::Base::width, true>>::value) {
+    if constexpr (std::is_same<
+                    typename t_weight::Base::Base,
+                    _AP_ROOT_TYPE<t_weight::Base::width, true>>::value) {
+      /* Activations and weight are signed*/
+      return double_packing<t_act,
+                            ap_int<t_act::width>,
+                            ap_int<t_act::width + pad_bits>,
+                            t_weight,
+                            ap_int<t_weight::width>,
+                            t_res,
+                            pad_bits>(input0, input1, weight, res);
+    } else {
+      /* Activations are signed, the weight is unsigned*/
+      return double_packing<t_act,
+                            ap_int<t_act::width>,
+                            ap_int<t_act::width + pad_bits>,
+                            t_weight,
+                            ap_uint<t_weight::width>,
+                            t_res,
+                            pad_bits>(input0, input1, weight, res);
+    }
+  } else {
+    if constexpr (std::is_same<
+                    typename t_weight::Base::Base,
+                    _AP_ROOT_TYPE<t_weight::Base::width, true>>::value) {
+      /* Activations are unsigned, the weight is signed*/
+      return double_packing<t_act,
+                            ap_uint<t_act::width>,
+                            ap_uint<t_act::width + pad_bits>,
+                            t_weight,
+                            ap_int<t_weight::width>,
+                            t_res,
+                            pad_bits>(input0, input1, weight, res);
+    } else {
+      /* Activations and weight are unsigned*/
+      return double_packing<t_act,
+                            ap_uint<t_act::width>,
+                            ap_uint<t_act::width + pad_bits>,
+                            t_weight,
+                            ap_uint<t_weight::width>,
+                            t_res,
+                            pad_bits>(input0, input1, weight, res);
+    }
+  }
+}
+
+template<typename t_act, typename t_weight, typename t_res, int pad_bits>
+void
+double_packing_debug(t_act input0, t_act input1, t_weight weight, t_res res)
+{
+#pragma HLS inline
+  static_assert(t_act::width <= 8, "width of the inputs <= 8");
+  static_assert(t_weight::width <= 8, "width of the weights <= 8");
+
+  std::cout << "input0 " << input0 << " input1 " << input1 << " weight " << weight << std::endl;
+  ap_int<t_act::width> input0_ext = 0;
+  input0_ext.range(t_act::width - 1, 0) = input0.range(t_act::width - 1, 0);
+
+  ap_int<t_act::width + pad_bits> input1_ext = 0;
+  input1_ext.range(t_act::width + pad_bits - 1, pad_bits) =
+    input1.range(t_act::width - 1, 0);
+
+  ap_int<t_weight::width> weight_ext = 0;
+  weight_ext.range(t_weight::width - 1, 0) = weight.range(t_weight::width - 1, 0);
+
+  std::cout << "A " << input0_ext << " B " << input1_ext << " C " << weight_ext << " D " << res << std::endl;
+}
+
 // Template for the conv_pipe function.
 template<class t_input,
          class t_input_st,
@@ -190,11 +314,11 @@ conv_pipe(const t_input i_input,
               #endif
             #endif
 
-            // if constexpr(std::is_same<typename t_weight_st::Base::Base, _AP_ROOT_TYPE<t_weight_st::Base::width, true>>::value) {
+            if constexpr(std::is_same<typename t_weight_st::Base::Base, _AP_ROOT_TYPE<t_weight_st::Base::width, true>>::value) {
               for (auto pos = c_pad_bits*s_och_pack+c_w_bits; pos < 27; pos++) {
                 s_a_d_ext[s_och_pack].range(pos,pos) = s_a_d_ext[s_och_pack].range(c_pad_bits*s_och_pack+c_w_bits-1, c_pad_bits*s_och_pack+c_w_bits-1);
               }
-            // }
+            }
 
             s_data += s_a_d_ext[s_och_pack];
 
@@ -348,7 +472,7 @@ conv_pipe(const t_input i_input,
           }
         }
 
-        // Depthwise convolutions have a bias for each channel.
+        /* Depthwise convolutions have a bias for each channel. */
         if constexpr(std::is_same<t_bias, std::nullptr_t>::value == false) {
           if constexpr(c_depth == 1) {
             for (auto s_ow_pack = 0; s_ow_pack < c_ow_pack; s_ow_pack++) {
@@ -360,78 +484,43 @@ conv_pipe(const t_input i_input,
           }
         }
 
-        // If c_depth is 1 then there is no need to accumulate the previous
-        // results
-
-        for (auto s_simd = 0; s_simd < c_simd; s_simd++) {
-          s_acc_simd[s_simd] = 0;
-        }
+        /* If depthwise there is no need to accumulate the previous
+         results */
+        // for (auto s_simd = 0; s_simd < c_simd; s_simd++) {
+        //   s_acc_simd[s_simd] = 0;
+        // }
 
         for (auto s_fh = 0; s_fh < c_fh; s_fh++) {
           for (auto s_fw = 0; s_fw < c_fw; s_fw++) {
-            ap_int<27> s_data = 0;
-            ap_int<18> s_weight = 0;
+            t_input_st s_input_ext[c_ow_pack];
 
-            ap_int<27> s_input_ext[c_ow_pack];
-
+            /* Packing the activation as described in the white paper from
+             * Xilinx */
             for (auto s_ow_pack = 0; s_ow_pack < c_ow_pack; s_ow_pack++) {
-
               auto s_index = s_fh * FW + s_fw +
                              (c_ow_ops - (s_ow_pack + s_ow_ops) - 1) * c_str;
-
-              s_input_ext[s_ow_pack] = 0;
-
-              if constexpr(std::is_same<t_input_mod, std::nullptr_t>::value == false) {
-                s_input_ext[s_ow_pack].range(c_pad_bits*s_ow_pack+c_bits-1, c_pad_bits*s_ow_pack) = t_input_mod(i_input[s_index][ich_idx]).range(c_bits-1, 0);
-                if constexpr(std::is_same<typename t_input_mod::Base::Base, _AP_ROOT_TYPE<t_input_mod::Base::width, true>>::value) {
-                  for (auto pos = c_pad_bits*s_ow_pack+c_bits; pos < 27; pos++) {
-                    s_input_ext[s_ow_pack].range(pos,pos) = s_input_ext[s_ow_pack].range(c_pad_bits*s_ow_pack+c_bits-1, c_pad_bits*s_ow_pack+c_bits-1);
-                  }
-                }
-              }
-              else {
-                s_input_ext[s_ow_pack].range(
-                  c_pad_bits * s_ow_pack + c_bits - 1, c_pad_bits * s_ow_pack) =
-                  i_input[s_index][ich_idx].range(c_bits - 1, 0);
-                if constexpr(std::is_same<typename t_input_st::Base::Base, _AP_ROOT_TYPE<t_input_st::Base::width, true>>::value) {
-                  for (auto pos = c_pad_bits*s_ow_pack+c_bits; pos < 27; pos++) {
-                    s_input_ext[s_ow_pack].range(pos,pos) = s_input_ext[s_ow_pack].range(c_pad_bits*s_ow_pack+c_bits-1, c_pad_bits*s_ow_pack+c_bits-1);
-                  }
-                }
-              }
-
-              #ifdef DEBUG_ACT
-                std::cout << "A" << s_index << " " << i_input[s_index][ich_idx] << std::endl;
-              #endif
-
-              #ifndef SIMD_DSP
-                s_data += s_input_ext[s_ow_pack];
-              #endif
-
+              s_input_ext[s_ow_pack] = i_input[s_index][ich_idx];
             }
 
-            // Weight index in the window filter
+            /* Weight index in the window filter */
             auto s_index = s_fh * c_fw + s_fw;
 
-            s_weight.range(c_w_bits - 1, 0) = i_weight[s_index][ich_idx][ops].range(c_w_bits - 1, 0);
-            
-            // Check if the type is signed and then perform extension
-            if constexpr(std::is_same<typename t_weight_st::Base::Base, _AP_ROOT_TYPE<t_weight_st::Base::width, true>>::value) {
-              for (auto pos = c_w_bits; pos < 18; pos++) {
-                s_weight.range(pos,pos) = s_weight.range(c_w_bits - 1, c_w_bits - 1);
-              }
-            }
-            
+#ifdef SIMD_DSP
+            auto s_simd_in1 = s_input_ext[0];
+            auto s_simd_in2 = s_input_ext[1];
 
-            #ifdef SIMD_DSP
-              auto s_simd_in1 = s_input_ext[0];
-              auto s_simd_in2 = s_input_ext[1];
-
-              s_acc_simd[s_index & c_mask] = mac_simd(s_simd_in1, s_weight, s_acc_simd[s_index & c_mask], s_simd_in2);
-            #else
-              s_acc_simd[s_index & c_mask] += s_data * s_weight;
-            #endif
-
+            s_acc_simd[s_index & c_mask] = mac_simd(
+              s_simd_in1, s_weight, s_acc_simd[s_index & c_mask], s_simd_in2);
+#else
+            s_acc_simd[s_index & c_mask] =
+              double_packing_wrap<t_input_st,
+                                  t_weight_st,
+                                  ap_uint<48>,
+                                  c_pad_bits>(s_input_ext[0],
+                                              s_input_ext[1],
+                                              i_weight[s_index][ich_idx][ops],
+                                              s_acc_simd[s_index & c_mask]);
+#endif
           }
         }
 
@@ -441,9 +530,10 @@ conv_pipe(const t_input i_input,
             t_acc_simd s_acc_simd_value = 0;
             t_acc_simd s_acc_adj = 0;
 
-            if (s_ow_pack > 0)
+            if (s_ow_pack > 0) {
               s_acc_adj.range(0, 0) = s_acc_simd[s_simd].range(
-                c_pad_acc_bits * (s_ow_pack)-1, c_pad_acc_bits * (s_ow_pack)-1);
+                c_pad_acc_bits * (s_ow_pack) - 1, c_pad_acc_bits * (s_ow_pack)-1);
+            }
             s_acc_simd_value.range(c_pad_acc_bits - 1, 0) =
               s_acc_simd[s_simd].range(c_pad_acc_bits * (s_ow_pack + 1) - 1,
                                        c_pad_acc_bits * s_ow_pack);
@@ -693,6 +783,7 @@ conv_comp(hls::stream<t_input_struct> i_input[1],
   /* #pragma HLS inline */
   // Generic Convolution Computation
 
+#pragma HLS expression_balance off
   // The output ow_ops must be greater or equal and a mutliples of ow_ops
   static_assert(c_ow_ops_out >= c_ow_ops, "c_ow_ops_out >= c_ow_ops");
   static_assert(c_ow_ops_out % c_ow_ops == 0, "c_ow_ops_out % c_ow_ops == 0");
@@ -709,7 +800,6 @@ conv_comp(hls::stream<t_input_struct> i_input[1],
     static_assert(c_add_ops % c_ops == 0, "c_add_ops % c_ops != 0");
     static_assert(c_depth == 0, "Depthwise convolutions with add are not supported");
   }
-  static_assert(c_och_pack == 1 || c_depth == 0, "Depthwise convolutions cannot be packed over the output channels");
   
   const auto c_och_depth = (c_depth == 1) ? 1 : c_och;
   const auto c_o_index = c_oh * c_ow / c_ow_ops_out;
@@ -836,7 +926,7 @@ conv_comp(hls::stream<t_input_struct> i_input[1],
           for (auto s_num_ops_out = 0; s_num_ops_out < c_ops_out;
                s_num_ops_out += c_iter_ops_out, ich_idx_packets++, acc_group++) {
             for (auto s_iter = 0; s_iter < c_iter; s_iter++) {
-      #pragma HLS pipeline style = stp II=1
+#pragma HLS pipeline style = stp II = 1
 
               auto s_reuse = s_iter;
 
