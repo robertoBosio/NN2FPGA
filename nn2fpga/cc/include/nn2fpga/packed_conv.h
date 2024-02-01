@@ -486,9 +486,9 @@ conv_pipe(const t_input i_input,
 
         /* If depthwise there is no need to accumulate the previous
          results */
-        // for (auto s_simd = 0; s_simd < c_simd; s_simd++) {
-        //   s_acc_simd[s_simd] = 0;
-        // }
+        for (auto s_simd = 0; s_simd < c_simd; s_simd++) {
+          s_acc_simd[s_simd] = 0;
+        }
 
         for (auto s_fh = 0; s_fh < c_fh; s_fh++) {
           for (auto s_fw = 0; s_fw < c_fw; s_fw++) {
@@ -531,8 +531,7 @@ conv_pipe(const t_input i_input,
             t_acc_simd s_acc_adj = 0;
 
             if (s_ow_pack > 0) {
-              s_acc_adj.range(0, 0) = s_acc_simd[s_simd].range(
-                c_pad_acc_bits * (s_ow_pack) - 1, c_pad_acc_bits * (s_ow_pack)-1);
+              s_acc_adj[0] = s_acc_simd[s_simd][c_pad_acc_bits * (s_ow_pack)-1];
             }
             s_acc_simd_value.range(c_pad_acc_bits - 1, 0) =
               s_acc_simd[s_simd].range(c_pad_acc_bits * (s_ow_pack + 1) - 1,
