@@ -297,31 +297,46 @@ def parse_comp(name, node):
         b_bits = node["wbits"][0]
 
     end_simd_bit = 27 - 1 - a_d_bits
+
     # number of partial results which must be padded in the 27-bits word
-    n_partial = node["och_pack"]*node["ow_pack"]//2
+    n_partial = node["och_pack"] * node["ow_pack"] // 2
+    
     if (n_partial == 0):
         n_partial = 1
-    simd_bits = (end_simd_bit - (a_d_bits + b_bits)*n_partial)//n_partial
+    guard_bits = (end_simd_bit - (a_d_bits + b_bits) * n_partial) // n_partial
 
-    simd = int(np.log2(node["kernel"])/simd_bits) + (0 != (np.log2(node["kernel"]) - int(np.log2(node["kernel"]))))
-    if (simd == 0):
-        simd = 1
-    mask = (1 << (simd-1)) - 1;
+    # simd = int(np.log2(node["kernel"])/guard_bits) + (0 != (np.log2(node["kernel"]) - int(np.log2(node["kernel"]))))
+    op_group = 1 if (node["depth"] == 1) else node["ich_ops"]
+
+    # Computing the number of DSP chains needed for the accumulation process. 
+    # We must ensure that the accumulator will not overflow. As example, with
+    # 2 guard bits, the maximum number of sums without requiring an additional
+    # bit is 7.
+    max_acc = (2 ** (guard_bits + 1)) - 1
+    dsp_chains = int(np.ceil(node["kernel"] * op_group / max_acc))
+    log2_dsp_chains = int(math.ceil(np.log2(dsp_chains)))
+
+    # Mask selects where the partial results needs to be accumulated. It is used
+    # to avoid using a modulo operation inside the convolution.
+    mask = (1 << log2_dsp_chains) - 1
+    n_acc = 2 ** log2_dsp_chains 
+    print(f"simd: {n_acc}, max_acc {max_acc}, guard_bits {guard_bits}, mask: {mask} for {name} with {node['kernel'] * op_group} adds.")
     block["template"].append("%0d" % abits)
     block["template"].append("%0d" % aibits)
     abits, aibits = get_quant_constant(node["wsigned"][0], node["wbits"][0], node["wscale"][0])
     block["template"].append("%0d" % abits)
     block["template"].append("%0d" % aibits)
-    block["template"].append("%0d" % simd_bits)
-    block["template"].append("%0d" % simd)
+    block["template"].append("%0d" % guard_bits)
+    block["template"].append("%0d" % n_acc)
     block["template"].append("%0d" % mask)
 
     #############################################################################
     # PACKING: providing info on quantization from template because
     # ap_fixed methods are not available at compile time and the
-    # synthesizer gives an error, for 1x1 conv the dimension of the simd
-    # partial results array is fixed at 1
+    # synthesizer gives an error.
 
+    n_acc = 1
+    mask = 0
     if (node["merge_1x1"]):
         # Computing Packing guard bits for accumulation process
         if (node["in_scale_factor"][1] is not None):
@@ -347,16 +362,25 @@ def parse_comp(name, node):
 
         end_simd_bit = 27 - 1 - a_d_bits
         # number of partial results which must be padded in the 27-bits word
-        n_partial = node["och_pack"]*node["ow_pack"]//2
+        n_partial = node["och_pack"] * node["ow_pack"] // 2
         if (n_partial == 0):
             n_partial = 1
-        simd_bits = (end_simd_bit - (a_d_bits + b_bits)*n_partial)//n_partial
+        guard_bits = (end_simd_bit - (a_d_bits + b_bits)*n_partial)//n_partial
+        op_group = 1 if (node["depth"] == 1) else node["ich_ops"]
+        max_acc = (2 ** (guard_bits + 1)) - 1
+        dsp_chains = int(np.ceil(node["kernel"] * op_group / max_acc))
+        log2_dsp_chains = int(math.ceil(np.log2(dsp_chains)))
+
+        # Mask selects where the partial results needs to be accumulated. It is used
+        # to avoid using a modulo operation inside the convolution.
+        mask = (1 << log2_dsp_chains) - 1
+        n_acc = 2 ** log2_dsp_chains 
+    
     else:
         abits = 0
         aibits = 0
-        simd_bits = 2
-    simd = 1
-    mask = (1 << (simd-1)) - 1;
+        guard_bits = 2
+
     block["template"].append("%0d" % abits)
     block["template"].append("%0d" % aibits)
 
@@ -367,8 +391,8 @@ def parse_comp(name, node):
         aibits = 0
     block["template"].append("%0d" % abits)
     block["template"].append("%0d" % aibits)
-    block["template"].append("%0d" % simd_bits)
-    block["template"].append("%0d" % simd)
+    block["template"].append("%0d" % guard_bits)
+    block["template"].append("%0d" % n_acc)
     block["template"].append("%0d" % mask)
     ####################################################################################
     block["template"].append("%0d" % node["depth"])

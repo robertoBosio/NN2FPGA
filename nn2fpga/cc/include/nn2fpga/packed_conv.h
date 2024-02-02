@@ -241,7 +241,6 @@ conv_pipe(const t_input i_input,
           const t_weight i_weight[c_index],
           const t_bias i_bias,
           const uint32_t ops,
-          const uint32_t och,
           const uint32_t num_ich,
           const uint32_t s_ow_ops,
           const uint32_t s_num_ops_out,
@@ -287,12 +286,11 @@ conv_pipe(const t_input i_input,
       }
     }
 
+    for (auto s_simd = 0; s_simd < c_simd; s_simd++) {
+      s_acc_simd[s_simd] = 0;
+    }
+
     for (auto ich_idx = 0; ich_idx < c_in_ops; ich_idx++) {
-
-      for (auto s_simd = 0; s_simd < c_simd; s_simd++) {
-        s_acc_simd[s_simd] = 0;
-      }
-
       for (auto s_fh = 0; s_fh < c_fh; s_fh++) {
         for (auto s_fw = 0; s_fw < c_fw; s_fw++) {
           ap_int<27> s_data = 0;
@@ -355,29 +353,25 @@ conv_pipe(const t_input i_input,
 
           }
 
-          auto s_index = s_fh*c_fw+s_fw;
-          s_acc_simd[s_index & c_mask] += s_data * s_b_ext;
+          auto s_index = s_fh * c_fw + s_fw;
+          auto acc_group =
+            (ich_idx * (c_fh * c_fw) + s_fh * c_fw + s_fw) & c_mask;
+          s_acc_simd[acc_group] += s_data * s_b_ext;
 
         }
       }
+    }
 
-      for (auto s_ow_pack = 0; s_ow_pack < c_ow_pack; s_ow_pack++) {
-        for (auto s_och_pack = 0; s_och_pack < c_och_pack; s_och_pack++) {
-          auto s_index_r = s_och_pack*c_ow_pack+s_ow_pack;
-          for (auto s_simd = 0; s_simd < c_simd; s_simd++) {
-            t_acc_simd s_acc_simd_value = 0;
-            t_acc_simd s_acc_adj = 0;
-            if ((s_index_r > 0))
-              s_acc_adj.range(0,0) = s_acc_simd[s_simd].range(c_pad_acc_bits*(s_index_r)-1, c_pad_acc_bits*(s_index_r)-1);
-            s_acc_simd_value.range(c_pad_acc_bits-1, 0) = s_acc_simd[s_simd].range(c_pad_acc_bits*(s_index_r+1)-1, c_pad_acc_bits*(s_index_r));
-            s_acc[s_index_r] += s_acc_simd_value + s_acc_adj;
-          }
-          #ifndef __SYNTHESIS__
-            #ifdef DEBUG_CONV
-              if (och == 0)
-                std::cout << "RES " << s_acc[s_index_r] << std::endl;
-            #endif
-          #endif
+    for (auto s_ow_pack = 0; s_ow_pack < c_ow_pack; s_ow_pack++) {
+      for (auto s_och_pack = 0; s_och_pack < c_och_pack; s_och_pack++) {
+        auto s_index_r = s_och_pack*c_ow_pack+s_ow_pack;
+        for (auto s_simd = 0; s_simd < c_simd; s_simd++) {
+          t_acc_simd s_acc_simd_value = 0;
+          t_acc_simd s_acc_adj = 0;
+          if ((s_index_r > 0))
+            s_acc_adj.range(0,0) = s_acc_simd[s_simd].range(c_pad_acc_bits*(s_index_r)-1, c_pad_acc_bits*(s_index_r)-1);
+          s_acc_simd_value.range(c_pad_acc_bits-1, 0) = s_acc_simd[s_simd].range(c_pad_acc_bits*(s_index_r+1)-1, c_pad_acc_bits*(s_index_r));
+          s_acc[s_index_r] += s_acc_simd_value + s_acc_adj;
         }
       }
     }
@@ -465,6 +459,10 @@ conv_pipe(const t_input i_input,
         }
       }
 
+      for (auto s_simd = 0; s_simd < c_simd; s_simd++) {
+        s_acc_simd[s_simd] = 0;
+      }
+
       for (auto ich_idx = 0; ich_idx < c_in_ops; ich_idx++) {
         if constexpr(c_depth == 1) {
           for (auto s_ow_pack = 0; s_ow_pack < c_ow_pack; s_ow_pack++) {
@@ -484,18 +482,11 @@ conv_pipe(const t_input i_input,
           }
         }
 
-        /* If depthwise there is no need to accumulate the previous
-         results */
-        for (auto s_simd = 0; s_simd < c_simd; s_simd++) {
-          s_acc_simd[s_simd] = 0;
-        }
-
         for (auto s_fh = 0; s_fh < c_fh; s_fh++) {
           for (auto s_fw = 0; s_fw < c_fw; s_fw++) {
             t_input_st s_input_ext[c_ow_pack];
 
-            /* Packing the activation as described in the white paper from
-             * Xilinx */
+            /* Reading the activations */
             for (auto s_ow_pack = 0; s_ow_pack < c_ow_pack; s_ow_pack++) {
               auto s_index = s_fh * FW + s_fw +
                              (c_ow_ops - (s_ow_pack + s_ow_ops) - 1) * c_str;
@@ -504,43 +495,42 @@ conv_pipe(const t_input i_input,
 
             /* Weight index in the window filter */
             auto s_index = s_fh * c_fw + s_fw;
+            auto acc_group =
+              (ich_idx * (c_fh * c_fw) + s_fh * c_fw + s_fw) & c_mask;
 
-#ifdef SIMD_DSP
-            auto s_simd_in1 = s_input_ext[0];
-            auto s_simd_in2 = s_input_ext[1];
-
-            s_acc_simd[s_index & c_mask] = mac_simd(
-              s_simd_in1, s_weight, s_acc_simd[s_index & c_mask], s_simd_in2);
-#else
-            s_acc_simd[s_index & c_mask] =
+            s_acc_simd[acc_group] =
               double_packing_wrap<t_input_st,
                                   t_weight_st,
                                   ap_uint<48>,
                                   c_pad_bits>(s_input_ext[0],
                                               s_input_ext[1],
                                               i_weight[s_index][ich_idx][ops],
-                                              s_acc_simd[s_index & c_mask]);
-#endif
-          }
-        }
-
-        for (auto s_simd = 0; s_simd < c_simd; s_simd++) {
-          for (auto s_ow_pack = 0; s_ow_pack < c_ow_pack; s_ow_pack++) {
-
-            t_acc_simd s_acc_simd_value = 0;
-            t_acc_simd s_acc_adj = 0;
-
-            if (s_ow_pack > 0) {
-              s_acc_adj[0] = s_acc_simd[s_simd][c_pad_acc_bits * (s_ow_pack)-1];
-            }
-            s_acc_simd_value.range(c_pad_acc_bits - 1, 0) =
-              s_acc_simd[s_simd].range(c_pad_acc_bits * (s_ow_pack + 1) - 1,
-                                       c_pad_acc_bits * s_ow_pack);
-            s_acc[s_ow_pack] += s_acc_simd_value + s_acc_adj;
+                                              s_acc_simd[acc_group]);
           }
         }
 
         if constexpr(c_depth == 1) {
+          for (auto s_simd = 0; s_simd < c_simd; s_simd++) {
+            for (auto s_ow_pack = 0; s_ow_pack < c_ow_pack; s_ow_pack++) {
+
+              t_acc_simd s_acc_simd_value = 0;
+              t_acc_simd s_acc_adj = 0;
+
+              /* Recovering the upper dot product as explained in the white paper
+              * from Xilinx. https://docs.xilinx.com/v/u/en-US/wp487-int8-acceleration */
+              if (s_ow_pack > 0) {
+                s_acc_adj[0] =
+                  s_acc_simd[s_simd][(c_pad_acc_bits * s_ow_pack) - 1];
+              }
+
+              s_acc_simd_value.range(c_pad_acc_bits - 1, 0) =
+                s_acc_simd[s_simd].range(c_pad_acc_bits * (s_ow_pack + 1) - 1,
+                                          c_pad_acc_bits * s_ow_pack);
+              s_acc[s_ow_pack] += s_acc_simd_value + s_acc_adj;
+            }
+            s_acc_simd[s_simd] = 0;
+          }
+
           for (auto s_ow_pack = 0; s_ow_pack < c_ow_pack; s_ow_pack++) {
             s_output_struct[s_ow_ops + s_ow_pack][s_num_ops_out + ich_idx] =
               quant_stream<t_output,
@@ -548,6 +538,29 @@ conv_pipe(const t_input i_input,
                            t_output_mask,
                            t_acc,
                            c_relu>(s_acc[s_ow_pack]);
+          }
+        }
+      }
+
+      if constexpr(c_depth == 0) {
+        for (auto s_simd = 0; s_simd < c_simd; s_simd++) {
+          for (auto s_ow_pack = 0; s_ow_pack < c_ow_pack; s_ow_pack++) {
+
+            t_acc_simd s_acc_simd_value = 0;
+            t_acc_simd s_acc_adj = 0;
+
+            /* Recovering the upper dot product as explained in the white paper
+             * from Xilinx.
+             * https://docs.xilinx.com/v/u/en-US/wp487-int8-acceleration */
+            if (s_ow_pack > 0) {
+              s_acc_adj[0] =
+                s_acc_simd[s_simd][(c_pad_acc_bits * s_ow_pack) - 1];
+            }
+
+            s_acc_simd_value.range(c_pad_acc_bits - 1, 0) =
+              s_acc_simd[s_simd].range(c_pad_acc_bits * (s_ow_pack + 1) - 1,
+                                       c_pad_acc_bits * s_ow_pack);
+            s_acc[s_ow_pack] += s_acc_simd_value + s_acc_adj;
           }
         }
       }
@@ -1071,7 +1084,6 @@ conv_comp(hls::stream<t_input_struct> i_input[1],
                     s_weight,
                     s_bias,
                     s_ops,
-                    s_och,
                     s_num_ich,
                     s_ow_ops,
                     s_num_ops_out,
@@ -1129,7 +1141,6 @@ conv_comp(hls::stream<t_input_struct> i_input[1],
                       s_weight_1x1,
                       s_bias_1x1,
                       s_ops,
-                      s_och,
                       s_num_ich,
                       s_ow_ops,
                       s_num_ops_out,
