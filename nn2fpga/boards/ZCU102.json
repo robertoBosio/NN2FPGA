@@ -4,7 +4,7 @@
             "bottom_left" : "X0Y0",
             "upper_right" : "X0Y3",
             "uram": 0,
-            "bram": 1080,
+            "bram": 990,
             "dsp": 2520,
             "lut": 274080,
             "ff": 548160

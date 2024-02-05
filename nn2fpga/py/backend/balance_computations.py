@@ -87,7 +87,7 @@ def generate_architectures(layers_info, NUM_DSP):
             max_ow_par = 1
         
         valid_par_solutions.append(generate_valid_combinations(
-            och=max_och_par, ich=max_ich_par, iw=max_ow_par, iw_clip=4, op_clip=op_clip, och_clip=10))
+            och=max_och_par, ich=max_ich_par, iw=max_ow_par, iw_clip=4, op_clip=op_clip, ich_clip=7))
         
     return valid_par_solutions
 
@@ -266,7 +266,7 @@ def parallelismILP(layers_info, valid_par_solutions, NUM_DSP, NUM_PORTS, prj_roo
                 f"ich_constraint_layer_{layer_index}"
             )
     
-
+    prob.writeLP(prj_root + "/parallel_ops0.lp")
     start_time = time.time()
     prob.solve(PULP_CBC_CMD(timeLimit=10, msg=0))
     # prob.solve(PULP_CBC_CMD(timeLimit=600, gapRel=0.1))
@@ -429,6 +429,7 @@ def resourceILP(layers_info, worst_layer_iter, valid_par_solutions, parallel_op,
             )
     
     # prob_min.solve()
+    prob_min.writeLP(prj_root + "/parallel_ops1.lp")
     prob_min.solve(PULP_CBC_CMD(msg=0))
     if (prob_min.status == pulp.LpStatusInfeasible):
         print("Resource problem unfeasible")
@@ -467,8 +468,8 @@ def balanceILP(layers_info, worst_layer_iter, valid_par_solutions, parallel_op, 
                 }
             )
 
-    # Retriving only the parallelism combinations for lower throughput to save
-    # resources in fast layers. The parallelization over ow is fixed
+    # Retriving only the parallelism combinations with same throughput. 
+    # The parallelization over ow is fixed
     layer_binary_variables = []
     clamped_valid_par_solutions = []
     valid_tot_par_solutions = []
@@ -479,10 +480,17 @@ def balanceILP(layers_info, worst_layer_iter, valid_par_solutions, parallel_op, 
         valid_dist_par_solutions.append([])
         chosen_par = np.prod(parallel_op[layers_info[i]['name']][0:2])
         chosen_ow = parallel_op[layers_info[i]['name']][2]
+        
+        # Do not choose combination which remove the packing feature over och.
+        packing_over_och = parallel_op[layers_info[i]
+                                       ['name']][0] % 2 == 0 and chosen_ow % 2 != 0
         for combination in solution_set:
             tot_par = np.prod(combination[0:2])
             ow_par = combination[2]
+
             if (tot_par == chosen_par and ow_par == chosen_ow):
+                if (packing_over_och and combination[0] % 2 != 0):
+                    continue
                 clamped_valid_par_solutions[i].append(combination)
                 valid_tot_par_solutions[i].append(np.prod(combination))
                 valid_dist_par_solutions[i].append(abs(combination[0] - combination[1]))
@@ -555,7 +563,9 @@ def balanceILP(layers_info, worst_layer_iter, valid_par_solutions, parallel_op, 
             )
     
     # prob_min.solve()
+    prob_min.writeLP(prj_root + "/parallel_ops2.lp")
     prob_min.solve(PULP_CBC_CMD(msg=0))
+    
     if (prob_min.status == pulp.LpStatusInfeasible):
         print("Resource problem unfeasible")
         exit(0)
@@ -568,6 +578,44 @@ def balanceILP(layers_info, worst_layer_iter, valid_par_solutions, parallel_op, 
     
     return parallel_op
 
+def opt_steps(layers_info, parallel_op, valid_par_solutions, prj_root="/tmp"):
+
+    clamped_valid_par_solutions = []
+    for i, solution_set in enumerate(valid_par_solutions):
+        clamped_valid_par_solutions.append([])
+        chosen_par = np.prod(parallel_op[layers_info[i]['name']][0:2])
+        chosen_ow = parallel_op[layers_info[i]['name']][2]
+        
+        # Do not choose combination which remove the packing feature over och.
+        packing_over_och = parallel_op[layers_info[i]
+                                       ['name']][0] % 2 == 0 and chosen_ow % 2 != 0
+        for combination in solution_set:
+            tot_par = np.prod(combination[0:2])
+            ow_par = combination[2]
+
+            if (tot_par == chosen_par and ow_par == chosen_ow):
+                if (packing_over_och and combination[0] % 2 != 0):
+                    continue
+                clamped_valid_par_solutions[i].append(combination)
+    
+    par_prev = parallel_op[layers_info[0]["name"]]
+    prev_name = layers_info[0]["name"]
+    for layer in layers_info[1:]:
+        par = parallel_op[layer["name"]]
+        name = layer["name"]
+        print(f"{prev_name} to {name}: {par_prev[0]} to {par[1]} ")
+        if (par_prev[0] % par[1] != 0 and par[1] % par_prev[0] != 0):
+            print(f"Error: och_ops i -> {par_prev[0]} % ich_ops i+1 -> {par[1]} != 0, using {find_common_mult(par_prev[0], par[1])}")
+            print(f"Other combinations are: {clamped_valid_par_solutions[layer['index']]}")
+            for i, combination in enumerate(clamped_valid_par_solutions[layer['index']]):
+                print(f"\toch_ops i -> {par_prev[0]} % ich_ops i+1 -> {combination[1]}")
+                if (par_prev[0] % combination[1] == 0):
+                    print(f"\t\tAssigning {combination} to {name}")
+                    parallel_op[name] = combination
+                    break
+        par_prev = par
+        prev_name = name    
+
 def parallel_ops_number(io_dict, file_name, board="ULTRA96v2", generate_report_file="tmp.rpt", prj_root="/tmp"):
 
     board_res = extract_board_info(board, prj_root)
@@ -577,12 +625,14 @@ def parallel_ops_number(io_dict, file_name, board="ULTRA96v2", generate_report_f
     NUM_DSP = board_res["dsp"]
     # NUM_DSP = int(NUM_DSP * 1.1)
     # NUM_PORTS = 10000
-    NUM_DSP = 2000
+    NUM_DSP = 1500
 
     valid_par_solutions = generate_architectures(layers_info, NUM_DSP)
     layer_par, worst_iter, n_variables, n_constraints, time_spent = parallelismILP(layers_info, valid_par_solutions, NUM_DSP, NUM_PORTS, prj_root=prj_root)
+    print_report(layers_info, layer_par, n_variables, n_constraints, time_spent, generate_report_file, prj_root=prj_root)
     layer_par = resourceILP(layers_info, worst_iter, valid_par_solutions, layer_par, prj_root=prj_root)
     layer_par = balanceILP(layers_info, worst_iter, valid_par_solutions, layer_par, prj_root=prj_root)
+    opt_steps(layers_info, layer_par, valid_par_solutions, prj_root=prj_root)
     print_report(layers_info, layer_par, n_variables, n_constraints, time_spent, generate_report_file, prj_root=prj_root)
 
     ###### DEBUG ########
@@ -988,15 +1038,8 @@ def ilp(io_dict, off_chip_storage, model, file_name, board="ULTRA96v2", generate
             else:
                 node["adjust_add"] = False
     
-    # print_layers = ["conv", "pool"]
-    # for name, node in io_dict.items():
-    #     if node["type"] in print_layers:
-    #         print(f'{name} -> och: {node["och"]} par {node["ops"]}, ich: {node["ich"]} par {node["ich_ops"]}')
-            
-    #         # Final layer of classification
-    #         if "is_1x1" in node.keys():
-    #             if node["is_1x1"]:
-    #                 continue
-    #         node["ow_ops"] = 2
+    for name, node in io_dict.items():
+        if node["type"] == "conv":
+            print(f"{name} ops_out {node['ops_out']}")
 
     return io_dict

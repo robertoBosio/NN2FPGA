@@ -875,46 +875,41 @@ conv_comp(hls::stream<t_input_struct> i_input[1],
  * Divided in och_ops_out / och_ops packets, each of dimension c_ow_ops * c_ops
  * which are written in parallel.
  */
-// t_output_vector s_output_vector[c_ow_ops];
-t_output s_output_vector[c_ops_out / c_iter_ops_out][c_ow_ops][c_iter_ops_out];
-// #pragma HLS array_reshape variable = s_output_vector type = complete dim = 3
+  t_output s_output_vector[c_ops_out / c_iter_ops_out][c_ow_ops]
+                          [c_iter_ops_out];
+  t_output_1x1 s_output_vector_1x1[c_ops_out / c_iter_ops_out][c_ow_ops]
+                                  [c_iter_ops_out];
 
-// #pragma HLS disaggregate variable = s_output_struct
-// #pragma HLS array_reshape variable = s_output_struct->data[0] type = complete dim = 1
-// #pragma HLS array_partition variable = s_output_struct type = complete dim = 0
+  ////////////////////////////////////////////////////////////////////////////
+  // Constants for the first pipeline
+  // round to the higher log2 c_simd
+  const int c_pad_bits = 27 - c_in_bits - 1;
+  const int c_int_pad_bits = c_simd_bits + c_in_ibits + c_w_ibits;
+  const int c_pad_acc_bits = c_simd_bits + c_in_bits + c_w_bits;
+  // mask on c_simd bits
+  ////////////////////////////////////////////////////////////////////////////
 
-t_output_1x1 s_output_vector_1x1[c_ops_out / c_iter_ops_out][c_ow_ops]
-                                [c_iter_ops_out];
+  ////////////////////////////////////////////////////////////////////////////
+  // Constants for the second pipeline
+  // mask on c_simd bits
 
-////////////////////////////////////////////////////////////////////////////
-// Constants for the first pipeline
-// round to the higher log2 c_simd
-const int c_pad_bits = 27 - c_in_bits - 1;
-const int c_int_pad_bits = c_simd_bits + c_in_ibits + c_w_ibits;
-const int c_pad_acc_bits = c_simd_bits + c_in_bits + c_w_bits;
-// mask on c_simd bits
-////////////////////////////////////////////////////////////////////////////
+  const int c_pad_bits_1x1 = 27 - c_in_bits_1x1 - 1;
+  const int c_int_pad_bits_1x1 =
+    c_simd_bits_1x1 + c_in_ibits_1x1 + c_w_ibits_1x1;
+  const int c_pad_acc_bits_1x1 = c_simd_bits_1x1 + c_in_bits_1x1 + c_w_bits_1x1;
 
-////////////////////////////////////////////////////////////////////////////
-// Constants for the second pipeline
-// mask on c_simd bits
+  ////////////////////////////////////////////////////////////////////////////
 
-const int c_pad_bits_1x1 = 27 - c_in_bits_1x1 - 1;
-const int c_int_pad_bits_1x1 = c_simd_bits_1x1 + c_in_ibits_1x1 + c_w_ibits_1x1;
-const int c_pad_acc_bits_1x1 = c_simd_bits_1x1 + c_in_bits_1x1 + c_w_bits_1x1;
+  // TODO: the number of integer bits of the weights type must be considered
+  typedef ap_fixed<c_pad_acc_bits, c_int_pad_bits, AP_RND_ZERO, AP_WRAP>
+    t_acc_simd;
+  typedef ap_fixed<c_pad_acc_bits_1x1, c_int_pad_bits_1x1, AP_RND_ZERO, AP_WRAP>
+    t_acc_simd_1x1;
+  auto ich_idx_add = 0;
+  auto ich_idx_packets = 0;
 
-////////////////////////////////////////////////////////////////////////////
-
-// TODO: the number of integer bits of the weights type must be considered
-typedef ap_fixed<c_pad_acc_bits, c_int_pad_bits, AP_RND_ZERO, AP_WRAP>
-  t_acc_simd;
-typedef ap_fixed<c_pad_acc_bits_1x1, c_int_pad_bits_1x1, AP_RND_ZERO, AP_WRAP>
-  t_acc_simd_1x1;
-auto ich_idx_add = 0;
-auto ich_idx_packets = 0;
-
-/* Stores the iterator of ops in ops_out */
-auto och_packet_in_ops_out = 0;
+  /* Stores the iterator of ops in ops_out */
+  auto och_packet_in_ops_out = 0;
 
   #ifndef __SYNTHESIS__
     if (c_depth == 1)
