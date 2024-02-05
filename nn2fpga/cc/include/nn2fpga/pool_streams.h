@@ -37,6 +37,7 @@ pool_op(hls::stream<t_input_struct> i_data[c_ow_ops],
 
   static_assert(c_ow_ops_out <= c_ow_ops, "c_ow_ops_out <= c_ow_ops");
   static_assert(c_ops <= c_in_ops, "c_ops <= c_in_ops");
+  static_assert(c_in_ops % c_ops == 0, "c_in_ops \% c_ops != 0");
 
   const int c_index = c_fh * c_fw;
   const int c_f_map = (c_ih * c_iw);
@@ -77,9 +78,9 @@ pool_op(hls::stream<t_input_struct> i_data[c_ow_ops],
 
   t_input_struct s_input_struct;
   for (auto s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
-    for (auto s_och = 0; s_och < c_och; s_och+=c_in_ops) {
-      for (auto s_in_ops = 0; s_in_ops < c_in_ops; s_in_ops+=c_ops) {
-  #pragma HLS pipeline style = stp II=1
+    for (auto s_och = 0; s_och < c_och; s_och += c_in_ops) {
+      for (auto s_in_ops = 0; s_in_ops < c_in_ops; s_in_ops += c_ops) {
+#pragma HLS pipeline style = stp II=1
         for (auto s_ow_ops = 0; s_ow_ops < c_ow_ops; s_ow_ops++) {
           for (auto s_ops = 0; s_ops < c_ops; s_ops++) {
             for (auto s_fh = 0; s_fh < c_fh_iter; s_fh++) {

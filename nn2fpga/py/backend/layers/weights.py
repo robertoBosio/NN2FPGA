@@ -1002,6 +1002,10 @@ def sorted_bind_storage(dict_layers, board_res, uram_storage=False):
     # bits.
     SIZE_URAM = (288 * 1024)
 
+    
+    bandwidth_bram = 36
+    bandwidth_uram = 72
+
     used_uram = 0 
     used_bram = 0 
     fit = True
@@ -1013,19 +1017,32 @@ def sorted_bind_storage(dict_layers, board_res, uram_storage=False):
         # on input and output channel multiplied by the dimension of the
         # filter
         if not node["is_bias"]:
+            tot_bram = 0
+            tot_uram = 0
             w_par = node["par"]
-            wpp = 72 / node["bits"]
-            ports = math.ceil(w_par / wpp)
-            lpm = node["n_weights"] / (wpp * ports)
-            if (ports == 1):
-                if w_par == 4:
-                    lpm // 2
-                elif w_par == 2:
-                    lpm // 4
-                elif w_par == 1:
-                    lpm // 8
-            tot_bram = math.ceil(lpm / (SIZE_BRAM36 / 72)) * ports
-            tot_uram = math.ceil(lpm / (SIZE_URAM / 72)) * ports
+            wpp_uram = bandwidth_uram / node["bits"]
+            wpp_bram = bandwidth_bram / node["bits"]
+            ports_uram = w_par // wpp_uram
+            ports_bram = w_par // wpp_bram
+            lpm = node["n_weights"] // node["par"]
+
+            last_word_bram = int((node["bits"] * w_par) % wpp_bram)
+            last_word_uram = int((node["bits"] * w_par) % wpp_bram)
+
+            if (last_word_bram > 8 and last_word_bram < 18):
+                tot_bram += math.ceil(lpm / (SIZE_BRAM36 / (bandwidth_bram // 2)))
+            elif (last_word_bram > 0 and last_word_bram <= 8):
+                tot_bram += math.ceil(lpm / (SIZE_BRAM36 / (bandwidth_bram // 4)))
+            # if (ports == 1):
+            #     if w_par == 4:
+            #         lpm // 2
+            #     elif w_par == 2:
+            #         lpm // 4
+            #     elif w_par == 1:
+            #         lpm // 8
+            
+            tot_bram += math.ceil(lpm / (SIZE_BRAM36 / bandwidth_bram)) * ports_bram
+            tot_uram += math.ceil(lpm / (SIZE_URAM / bandwidth_uram)) * ports_uram
             
             # wasted_uram = n_uram * SIZE_URAM - (node['n_weights'] * node["bits"])
             # wasted_bram = n_bram * SIZE_BRAM - (node['n_weights'] * node["bits"])

@@ -14,8 +14,11 @@ template <typename din_wrap_t, typename din_t, typename dout_wrap_t,
           unsigned c_ow_ops_out, unsigned BITS, unsigned OPS, unsigned PREPROC>
 void produce_stream(hls::stream<din_wrap_t>& dinStream,
                     hls::stream<dout_wrap_t> doutStream[c_ow_ops_out]) {
+  
   constexpr auto PAR = BITS / 8;
   constexpr auto ISZ = (ICH * IH * IW);
+
+  static_assert(ISZ % OPS == 0, "ISZ % OPS != 0");
   const ap_ufixed<32,0> c_mean[3] = {0.485, 0.456, 0.406};
   const ap_ufixed<32,0> c_std[3] = {0.229, 0.224, 0.225};
 
@@ -33,6 +36,7 @@ void produce_stream(hls::stream<din_wrap_t>& dinStream,
 #endif
   din_wrap_t dinWrap;
 	ap_uint<BITS> din_par;
+
 PRODSTR:
   for (auto i = 0; i < ISZ; i++) {
 #pragma HLS pipeline style = stp

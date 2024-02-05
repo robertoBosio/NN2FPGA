@@ -26,4 +26,5 @@ export TB_ROOT := $(TEST_ROOT)/tb
 export PLATFORM := xilinx_u280_gen3x16_xdma_1_202211_1/xilinx_u280_gen3x16_xdma_1_202211_1.xpfm
 export PYTHON := python3
 export VIVADO_VERSION := 2023.2
-export OPENCV := /usr/include
+export OPENCV := /usr/local/include/opencv4
+# export LD_LIBRARY_PATH := $(LD_LIBRARY_PATH):/usr/lib64/:/usr/local/lib64/

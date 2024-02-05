@@ -7,13 +7,9 @@ from tabulate import tabulate
 import math
 import numpy as np
 from backend.utils import extract_board_info
-from backend.ilp_utils import find_divisors
-from backend.ilp_utils import find_range
 from backend.ilp_utils import generate_valid_combinations
-from backend.ilp_utils import generate_valid_parallelism
-from backend.ilp_utils import find_higher_mult
-from backend.ilp_utils import find_lower_mult
 from backend.ilp_utils import find_common_mult
+from backend.ilp_utils import find_max_commond_div
 from backend.graph import extract_connections
 
 
@@ -87,13 +83,11 @@ def generate_architectures(layers_info, NUM_DSP):
         # possible that one layer uses all the DSPs, considering the packing
         op_clip = (NUM_DSP / layer["kernel"]) * 2 
         
-        # Do not clip the parallelization for pool layers since they do not use DSPs
         if (layer["type"] == "pool"):
             max_ow_par = 1
-            op_clip = max_ich_par * max_och_par * max_ow_par
         
         valid_par_solutions.append(generate_valid_combinations(
-            och=max_och_par, ich=max_ich_par, iw=max_ow_par, iw_clip=4, op_clip=op_clip))
+            och=max_och_par, ich=max_ich_par, iw=max_ow_par, iw_clip=4, op_clip=op_clip, och_clip=10))
         
     return valid_par_solutions
 
@@ -130,6 +124,7 @@ def parallelismILP(layers_info, valid_par_solutions, NUM_DSP, NUM_PORTS, prj_roo
     # Creating a second dictionary in which merged convolution are splitted and
     # pool layers are removed to better compute DSPs and PORTs
     layers_info_unmerged = []
+    # for layer in [x for x in layers_info if x["type"] == "conv"]:
     for layer in [x for x in layers_info if x["type"] == "conv"]:
         layers_info_unmerged.append(layer.copy())
         layers_info_unmerged[-1]["bits"] = layer["bits"][0]
@@ -447,6 +442,132 @@ def resourceILP(layers_info, worst_layer_iter, valid_par_solutions, parallel_op,
     
     return parallel_op
 
+def balanceILP(layers_info, worst_layer_iter, valid_par_solutions, parallel_op, prj_root="/tmp"):
+    """ Balance the parallelization for each layer withouth changing the throughput of the network."""
+    
+    # Creating a second dictionary in which merged convolution are splitted and
+    # pool layers are removed to better compute DSPs and PORTs
+    layers_info_unmerged = []
+    for layer in [x for x in layers_info if x["type"] == "conv"]:
+        layers_info_unmerged.append(layer.copy())
+        layers_info_unmerged[-1]["bits"] = layer["bits"][0]
+        layers_info_unmerged[-1]["merge_1x1"] = False
+        if layer["merge_1x1"]:
+            layers_info_unmerged.append(
+                {
+                    "name": layer["name"],
+                    "total": layer["total"],
+                    "kernel": 1,
+                    "merge_1x1": layer["merge_1x1"],
+                    "bits": layer["bits"][0],
+                    "ich" : layer["ich"],
+                    "och" : layer["och"],
+                    "depth": layer["depth"],
+                    "index": layer["index"]
+                }
+            )
+
+    # Retriving only the parallelism combinations for lower throughput to save
+    # resources in fast layers. The parallelization over ow is fixed
+    layer_binary_variables = []
+    clamped_valid_par_solutions = []
+    valid_tot_par_solutions = []
+    valid_dist_par_solutions = []
+    for i, solution_set in enumerate(valid_par_solutions):
+        clamped_valid_par_solutions.append([])
+        valid_tot_par_solutions.append([])
+        valid_dist_par_solutions.append([])
+        chosen_par = np.prod(parallel_op[layers_info[i]['name']][0:2])
+        chosen_ow = parallel_op[layers_info[i]['name']][2]
+        for combination in solution_set:
+            tot_par = np.prod(combination[0:2])
+            ow_par = combination[2]
+            if (tot_par == chosen_par and ow_par == chosen_ow):
+                clamped_valid_par_solutions[i].append(combination)
+                valid_tot_par_solutions[i].append(np.prod(combination))
+                valid_dist_par_solutions[i].append(abs(combination[0] - combination[1]))
+            
+        layer_binary_variables.append(pulp.LpVariable.dicts(
+            f"Choice_l{i}", range(len(clamped_valid_par_solutions[i])), cat="Binary"))
+    
+    # valid_iter_linebuffer stores the line buffer number of iteration for each valid
+    # solution and it is useful to linearize the constraint of the line buffer
+    valid_iter_solutions = []
+    valid_iter_linebuffer = []
+    for layer, layer_par in zip(layers_info, clamped_valid_par_solutions):
+        valid_iter_solutions.append([])
+        valid_iter_linebuffer.append([])
+        layer_iter =  layer["total"]
+        line_iter =  layer["ich"] * layer["iw"] * layer["ih"]
+        for single_par in layer_par:
+            valid_iter_solutions[-1].append(layer_iter // np.prod(single_par))
+            valid_iter_linebuffer[-1].append(line_iter // (single_par[1] * single_par[2]))
+    
+    # Minimize resource usage
+    prob_min = pulp.LpProblem("Balance_parallelization", pulp.LpMinimize)
+    
+    # Objective function: minimize the DSPs required to run the whole network.
+    prob_min += (
+        pulp.lpSum([pulp.lpDot(layer_binary_variables[layer['index']].values(),
+                    valid_dist_par_solutions[i]) for i, layer in enumerate(layers_info)]),
+        f"Distance_constraint"
+    )
+    
+    # Constraint: Only one binary variable per layer should be equal to 1
+    for layer_index in [x["index"] for x in layers_info]:
+        ones = [1] * len(layer_binary_variables[layer_index])
+        prob_min += (
+            pulp.lpDot(layer_binary_variables[layer_index].values(), ones) == 1,
+            f"One_choice_constraint_layer_{layer_index}"
+        )
+    
+    # Constraints: The iteration done by a line_buffer should be always less
+    # than the one done by the heaviest layer, to avoid being a bottleneck
+    for layer_index in [x["index"] for x in layers_info]:
+        prob_min += (
+            ( pulp.lpDot(layer_binary_variables[layer_index].values(),
+                valid_iter_linebuffer[layer_index])) <= worst_layer_iter,
+            f"linebuffer_constraint_layer_{layer_index}"
+        )
+    
+    # Constraints: To avoid bottlenecks the write/read bandwidth of consecutive
+    # layers should be balanced. The write bandwidth is computed as (och_par *
+    # ich_par) / (ich). The read bandwidth is computed as (och_par * ich_par) /
+    # (och). For depthwise convolution the write bandwidth is ich_par
+    for layer_index in [x["index"] for x in layers_info[1:]]:
+        if layers_info[layer_index - 1]["depth"] or layers_info[layer_index - 1]["type"] == "pool":
+            prob_min += (
+                pulp.lpSum(
+                    [layer_binary_variables[layer_index - 1][i] * tuple[1] * tuple[2]
+                    for i, tuple in enumerate(clamped_valid_par_solutions[layer_index - 1])]
+                ) -
+                ( pulp.lpDot(layer_binary_variables[layer_index].values(),
+                    valid_tot_par_solutions[layer_index]) / layers_info[layer_index]["och"] ) >= 0,
+                f"ich_constraint_layer_{layer_index}"
+            )
+        else:
+            prob_min += (
+                ( pulp.lpDot(layer_binary_variables[layer_index - 1].values(),
+                    valid_tot_par_solutions[layer_index - 1]) / layers_info[layer_index - 1]["ich"] ) - 
+                ( pulp.lpDot(layer_binary_variables[layer_index].values(),
+                    valid_tot_par_solutions[layer_index]) / layers_info[layer_index]["och"] ) >= 0,
+                f"ich_constraint_layer_{layer_index}"
+            )
+    
+    # prob_min.solve()
+    prob_min.solve(PULP_CBC_CMD(msg=0))
+    if (prob_min.status == pulp.LpStatusInfeasible):
+        print("Resource problem unfeasible")
+        exit(0)
+    
+    parallel_op = {}
+    for i, layer in enumerate(clamped_valid_par_solutions):
+        for s in range(len(layer)):
+            if int(layer_binary_variables[i][s].value()) == 1:
+                parallel_op[f"{layers_info[i]['name']}"] = layer[s]
+    
+    return parallel_op
+
 def parallel_ops_number(io_dict, file_name, board="ULTRA96v2", generate_report_file="tmp.rpt", prj_root="/tmp"):
 
     board_res = extract_board_info(board, prj_root)
@@ -456,10 +577,12 @@ def parallel_ops_number(io_dict, file_name, board="ULTRA96v2", generate_report_f
     NUM_DSP = board_res["dsp"]
     # NUM_DSP = int(NUM_DSP * 1.1)
     # NUM_PORTS = 10000
+    NUM_DSP = 2000
 
     valid_par_solutions = generate_architectures(layers_info, NUM_DSP)
     layer_par, worst_iter, n_variables, n_constraints, time_spent = parallelismILP(layers_info, valid_par_solutions, NUM_DSP, NUM_PORTS, prj_root=prj_root)
     layer_par = resourceILP(layers_info, worst_iter, valid_par_solutions, layer_par, prj_root=prj_root)
+    layer_par = balanceILP(layers_info, worst_iter, valid_par_solutions, layer_par, prj_root=prj_root)
     print_report(layers_info, layer_par, n_variables, n_constraints, time_spent, generate_report_file, prj_root=prj_root)
 
     ###### DEBUG ########
@@ -688,6 +811,8 @@ def ilp(io_dict, off_chip_storage, model, file_name, board="ULTRA96v2", generate
 
             io_dict[input_node_name]["ops_out"] = find_common_mult(ops_out, line_ops)
 
+            # Pool layers are versatile, and are used to balance input and 
+            # output parallelization of the attached layers
             if (io_dict[input_node_name]["type"] == "pool"):
                 io_dict[input_node_name]["ops"] = find_common_mult(ops_out, line_ops)
 
@@ -695,7 +820,6 @@ def ilp(io_dict, off_chip_storage, model, file_name, board="ULTRA96v2", generate
                 print(f"Updating for {input_node_name} ow_ops {ow_ops}")
                 io_dict[input_node_name]["ow_ops_out"] = ow_ops
             print(f"Node {input_node_name} ow_ops_out {io_dict[input_node_name]['ow_ops_out']} ow_ops {ow_ops}")
-
 
     for name, node in io_dict.items():
         if "ops" in node:
@@ -796,6 +920,24 @@ def ilp(io_dict, off_chip_storage, model, file_name, board="ULTRA96v2", generate
             if (node['ow_ops'] < node['ow_ops_in']):
                 node["adjust_line_buffer"] = True
                 print(f"Insert bandwidth_adjust from {node['ow_ops_in']} to {node['ow_ops']}")
+
+    # Adjusting pool layer, since in_ops must be a multiple of ops
+    for name, node in io_dict.items():
+        if node["type"] == "pool":
+            output_name = node["output"][0]
+            output_node_name = io_connect[output_name][1][0]
+            print(f"2 - I'm writing for {output_node_name} in_ops {node['in_ops']} ops {node['ops']}")
+            if (node["in_ops"] < node["ops"] or node["in_ops"] % node["ops"] != 0):
+                node["ops"] = find_max_commond_div(node["in_ops"], node["ops"])
+                io_dict[output_node_name]["line_ops"] = node["ops"]
+
+                # A pool cannot scale up over och_ops_out as convolution does, 
+                # so we fix the lower-then-expected parallelization with a bandwidth adjust
+                if (io_dict[output_node_name]["in_ops"] > node["ops"]):
+                    io_dict[output_node_name]["adjust_line_buffer"] = True
+                    io_dict[output_node_name]["adjust_ops"] = io_dict[output_node_name]["in_ops"]
+                    io_dict[output_node_name]["in_ops"] = node["ops"]
+                    print(f"Insert bandwidth_adjust from {io_dict[output_node_name]['in_ops']} to {node['ops']}")
 
     for name, node in io_dict.items():
         if node["type"] in line_buffer_layers:
