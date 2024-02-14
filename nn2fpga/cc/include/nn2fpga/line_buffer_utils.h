@@ -25,6 +25,7 @@ pad_input(hls::stream<din_t> din[(c_fw + (c_ow_ops - 1) * c_str) * c_fh],
 {
   /* #pragma HLS inline */
   static_assert(c_ops % c_ops_out == 0, "c_ops must be a multiple of c_ops_out");
+  static_assert(c_ops >= c_ops_out, "c_ops must be bigger than c_ops_out");
 
   /* This handles padding aware inputs */
 
@@ -252,6 +253,17 @@ void bandwidth_adjust_up(
   static_assert(c_ops_out % c_ops_in == 0, "c_ops_out is not a multiple of c_ops_in");
   static_assert(c_ops_out >= c_ops_in, "c_ops_out is not bigger than c_ops_in");
 
+#ifndef __SYNTHESIS__
+  std::cout << "INFO: Call to bandwidth_adjust_up" << std::endl;
+  std::cout << "\t\tICH = " << ICH << std::endl;
+  std::cout << "\t\tIH = " << IH << std::endl;
+  std::cout << "\t\tIW = " << IW << std::endl;
+  std::cout << "\t\tc_ow_ops_in = " << c_ow_ops_in << std::endl;
+  std::cout << "\t\tc_ow_ops_out = " << c_ow_ops_out << std::endl;
+  std::cout << "\t\tc_ops_in = " << c_ops_in << std::endl;
+  std::cout << "\t\tc_ops_out = " << c_ops_out << std::endl;
+#endif
+
   constexpr int c_ich_iter = ICH / c_ops_in;
   dout_t s_write[c_ow_ops_out];
   din_t s_read[c_ow_ops_in][c_ops_out];
@@ -260,14 +272,15 @@ void bandwidth_adjust_up(
   /* Loop on all the tensor with windows of dimension c_ow_ops_in*/
   for (auto s_index = 0; s_index < IH * IW;
       s_index += c_ow_ops_out) {
-  
-    /* Loop over the ICH dimension */
-    for (auto s_ich = 0; s_ich < ICH; s_ich += c_ops_out) {
 
-      /* Loop over the streams in input*/
-      // The previous convolution writes the data in opposite order
-      // because of the line buffer so they must be reordered accordingly
-      for (auto s_ow_ops_out = 0; s_ow_ops_out < c_ow_ops_out; s_ow_ops_out += c_ow_ops_in) {
+    /* Loop over the streams in input*/
+    // The previous convolution writes the data in opposite order
+    // because of the line buffer so they must be reordered accordingly
+    for (auto s_ow_ops_out = 0; s_ow_ops_out < c_ow_ops_out;
+         s_ow_ops_out += c_ow_ops_in) {
+      
+      /* Loop over the ICH dimension */
+      for (auto s_ich = 0; s_ich < ICH; s_ich += c_ops_out) {
 
         /* Loop over the packets in the ICH dimension */
         for (auto s_i = 0; s_i < c_ops_out; s_i += c_ops_in) {
@@ -279,10 +292,11 @@ void bandwidth_adjust_up(
             auto s_i_write = s_ow_ops_out + s_ow_ops_in;
             // Select the input stream to read from
             s_read[s_ow_ops_in][s_i] = din[s_ow_ops_in].read();
+            
             /* Loop over the c_ops_in packet inside a c_ops_out one */
             for (auto s_j = 0; s_j < c_ops_in; s_j++) {
-
-              s_write[s_i_write].data[0][s_i+s_j] = s_read[s_ow_ops_in][s_i].data[0][s_j];
+              s_write[s_i_write].data[0][s_i + s_j] =
+                s_read[s_ow_ops_in][s_i].data[0][s_j];
             }
 
             // If the packet is finished then write it
@@ -320,10 +334,7 @@ void bandwidth_adjust(
   
   #ifndef __SYNTHESIS__
     // Printing stuff to debug
-    std::cout << "bandwidth_adjust " << ICH << " " << c_ops_in << " "
-              << c_ow_ops_in << " " << c_ops_out << " " << c_ow_ops_out
-              << " " << IH << " " << IW
-              << std::endl;
+    std::cout << "Bandwidth adjust ow_ops " << c_ow_ops_in << " -> " << c_ow_ops_out << " ops " << c_ops_in << " -> " << c_ops_out << std::endl;
     for (auto s_i = 0; s_i < c_ow_ops_in; s_i++) {
       std::cout << "din[" << s_i << "] = " << din[s_i].size() << std::endl;
     }
@@ -355,20 +366,38 @@ void bandwidth_adjust(
       }
       assert (o_data[s_i].size() > 0);
     }
-    std::cout << "end bandwidth_adjust " << ICH << " " << c_ops_in << " "
-              << c_ow_ops_in << " " << c_ops_out << " " << c_ow_ops_out
-              << std::endl;
+    std::cout << "INFO: Finished bandwidth_adjust " << std::endl;
   #endif
 }
 
-template <typename din_t, typename dcomp_t, typename dout_t, int ICH, int OCH, int IH, int IW, int OH, int OW,
-          int c_fh, int c_fw, int c_str, int c_pad, int c_pos_h, int c_pos_w, int c_ow_ops, int c_ops, int c_ops_out>
-void shift_op(hls::stream<din_t> &din, hls::stream<dcomp_t> &o_compute,
-              hls::stream<dout_t> &o_data) {
+template<typename din_t,
+         typename dcomp_t,
+         typename dout_t,
+         int ICH,
+         int OCH,
+         int IH,
+         int IW,
+         int OH,
+         int OW,
+         int c_fh,
+         int c_fw,
+         int c_str,
+         int c_pad,
+         int c_pos_h,
+         int c_pos_w,
+         int c_ow_ops,
+         int c_ops,
+         int c_ops_out>
+void
+shift_op(hls::stream<din_t>& din,
+         hls::stream<dcomp_t>& o_compute,
+         hls::stream<dout_t>& o_data)
+{
   /* #pragma HLS inline */
 
   // Assert that c_ops is a multiple of c_ops_out
   static_assert(c_ops % c_ops_out == 0, "c_ops must be a multiple of c_ops_out");
+  static_assert(c_ops >= c_ops_out, "c_ops must be bigger than c_ops_out");
 
   constexpr int c_pad_index_h = c_pad * (c_fh - 1) / 2;
   constexpr int c_pad_index_w = c_pad * (c_fw - 1) / 2;
