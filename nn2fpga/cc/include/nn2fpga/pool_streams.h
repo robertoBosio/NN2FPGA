@@ -27,7 +27,6 @@ template<class t_input_struct,
          int c_pad,
          int c_pool,
          int c_ow_ops,
-         int c_ow_ops_out,
          int c_ops,
          int c_in_ops>
 void
@@ -35,7 +34,6 @@ pool_op(hls::stream<t_input_struct> i_data[c_ow_ops],
         hls::stream<t_output_struct> o_data[1])
 {
 
-  static_assert(c_ow_ops_out <= c_ow_ops, "c_ow_ops_out <= c_ow_ops");
   static_assert(c_ops <= c_in_ops, "c_ops <= c_in_ops");
   static_assert(c_in_ops % c_ops == 0, "c_in_ops \% c_ops != 0");
 
@@ -55,9 +53,7 @@ pool_op(hls::stream<t_input_struct> i_data[c_ow_ops],
   const int c_str_iter = (c_adaptive) ? 1 : c_str;
 
   bool s_last;
-  t_div s_divisor = c_index;
   t_acc s_acc_buff[c_acc_och];
-  #pragma HLS array_partition variable = s_acc_buff type=cyclic factor=c_ops*c_ow_ops_out 
 
   #ifndef __SYNTHESIS__
     std::cout << "pool_op " << c_ich << std::endl;
@@ -123,9 +119,9 @@ pool_op(hls::stream<t_input_struct> i_data[c_ow_ops],
                 }
                 // std::cout << "s_input_struct.data[" << s_o_index*c_ow_ops+s_ow_ops << "][s_ops] = " << s_input_struct.data[0][s_ops] << std::endl;
 
-                if (c_pool == 0)  // Average Pool
+                if constexpr (c_pool == 0)  // Average Pool
                   s_acc_buff[s_acc_index] += s_input_struct.data[s_index][s_in_ops+s_ops];
-                if (c_pool == 1) {  // Max Pool
+                if constexpr (c_pool == 1) {  // Max Pool
                   if (s_input_struct.data[s_index][s_in_ops+s_ops] > s_acc_buff[s_acc_index]) s_acc_buff[s_acc_index] = s_input_struct.data[s_index][s_in_ops+s_ops];
                 }
 
@@ -138,8 +134,9 @@ pool_op(hls::stream<t_input_struct> i_data[c_ow_ops],
                 if (s_pool_write) {
                   t_div s_acc = s_acc_buff[s_acc_index];
                   // std::cout << std::setprecision(8) << "[" << s_acc_index << "] " << s_acc << " / " << divisor << std::endl;
-                  if (c_pool == 0) {  // Average Pool
+                  if constexpr (c_pool == 0) {  // Average Pool
                     // s_acc = s_acc >> c_average_scale;
+                    t_div s_divisor = c_index;
                     s_acc = s_acc / s_divisor;
                   }
                   s_output_struct.data[0][s_ops] = t_output(s_acc);
@@ -155,6 +152,7 @@ pool_op(hls::stream<t_input_struct> i_data[c_ow_ops],
       }
     }
   }
+
   #ifndef __SYNTHESIS__
     for (auto i = 0; i < c_ow_ops; i++) {
       if (i_data[i].size() > 0)

@@ -189,7 +189,8 @@ def extract_connections(model, io_dict):
             if (not is_produce_stream) and (input_name in io_connect.keys()):
                     io_connect[input_name][1].append(node_name)
 
-    io_connect[graph_output_name][1] = ["consume_stream"]
+    if graph_output_name in io_connect.keys():
+        io_connect[graph_output_name][1] = ["consume_stream"]
 
     return io_connect
 

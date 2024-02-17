@@ -34,8 +34,8 @@ pad_input(hls::stream<din_t> din[(c_fw + (c_ow_ops - 1) * c_str) * c_fh],
 
   constexpr int IH_REM = IH - (IH % c_str) * (1 - c_pad);
   constexpr int IW_REM = IW - (IW % c_str) * (1 - c_pad);
-  constexpr int IH_PAD = IH + c_pad_index_h * 2 - IH_REM * (1 - c_pad);
-  constexpr int IW_PAD = IW + c_pad_index_w * 2 - IW_REM * (1 - c_pad);
+  // constexpr int IH_PAD = IH + c_pad_index_h * 2 - IH_REM * (1 - c_pad);
+  // constexpr int IW_PAD = IW + c_pad_index_w * 2 - IW_REM * (1 - c_pad);
   constexpr int FSZ = c_fh * (c_fw + (c_ow_ops - 1) * c_str);
   constexpr int FW = (c_fw + (c_ow_ops - 1) * c_str);
   constexpr int LAST_IDX =
@@ -181,8 +181,12 @@ void bandwidth_adjust_down(
   static_assert(c_ops_out >= c_ops_in, "c_ops_out is not bigger than c_ops_in");
 
   constexpr int c_ich_iter = ICH / c_ops_in;
-  dout_t s_write[c_ow_ops_out];
-  din_t s_read[c_ow_ops_in][c_ops_out];
+
+  // for (auto i = 0; i < c_ow_ops_in; i++) {
+  //   dout_t s_write;
+  //   s_write.last = din[i].read().last;
+  //   o_data[0].write(s_write);
+  // }
 
   /* Loop on all the tensor with windows of dimension c_ow_ops_in*/
   for (auto s_index = 0; s_index < IH * IW;
@@ -203,39 +207,42 @@ void bandwidth_adjust_down(
 
           /* Loop over c_ow_ops_out stream in input in parallel */
           for (auto s_ow_ops_out = 0; s_ow_ops_out < c_ow_ops_out; s_ow_ops_out++) {
-
-            if (s_i == 0 && s_ow_ops_in == 0) {
-              s_write[s_ow_ops_out].last = false;
-            }
+            din_t s_read;
+            dout_t s_write;
 
             // Select the input stream to read from
             auto s_i_read = s_ow_ops_in + s_ow_ops_out;
-            s_read[s_i_read][s_i] = din[s_i_read].read();
+            s_read = din[s_i_read].read();
+            s_write.last = s_read.last;
+            
             /* Loop over the c_ops_in packet inside a c_ops_out one */
             for (auto s_j = 0; s_j < c_ops_in; s_j++) {
-              s_write[s_ow_ops_out].data[0][s_i+s_j] = s_read[s_i_read][s_i].data[0][s_j];
+              s_write.data[0][s_i + s_j] =
+                s_read.data[0][s_j];
             }
 
-            s_write[s_ow_ops_out].last = s_read[s_i_read][s_i].last ? true : s_write[s_ow_ops_out].last;
             // If the packet is finished then write it
             if (s_i == (c_ops_out - c_ops_in)){
-              #ifndef __SYNTHESIS__
-                #ifdef DEBUG_BANDWIDTH
-                  for (auto s_i = 0; s_i < c_ow_ops_out; s_i++) {
-                    for (auto s_j = 0; s_j < c_ops_out; s_j++) {
-                      std::cout << "s_bandwidth[" << s_i << "][" << s_j << "] = " << s_write[s_i].data[0][s_j] << std::endl;
-                    }
-                  }
-                #endif
-                #ifdef DEBUG_LAST
-                  std::cout << "s_write[" << s_ow_ops_out << "].last = " << s_write[s_ow_ops_out].last << std::endl;
-                #endif
-              #endif
-              o_data[s_ow_ops_out].write(s_write[s_ow_ops_out]);
+#ifndef __SYNTHESIS__
+#ifdef DEBUG_BANDWIDTH
+              for (auto s_i = 0; s_i < c_ow_ops_out; s_i++) {
+                for (auto s_j = 0; s_j < c_ops_out; s_j++) {
+                  std::cout << "s_bandwidth[" << s_i << "][" << s_j
+                            << "] = " << s_write[s_i].data[0][s_j] << std::endl;
+                }
+              }
+#endif
+#ifdef DEBUG_LAST
+              std::cout << "s_write[" << s_ow_ops_out
+                        << "].last = " << s_write[s_ow_ops_out].last
+                        << std::endl;
+#endif
+#endif
+
+              /* Catching only the last coming from the last group of ow */
+              o_data[s_ow_ops_out].write(s_write);
             }
-
           }
-
         }
       }
     }
@@ -267,7 +274,6 @@ void bandwidth_adjust_up(
   constexpr int c_ich_iter = ICH / c_ops_in;
   dout_t s_write[c_ow_ops_out];
   din_t s_read[c_ow_ops_in][c_ops_out];
-  bool last = false;
 
   /* Loop on all the tensor with windows of dimension c_ow_ops_in*/
   for (auto s_index = 0; s_index < IH * IW;
@@ -300,8 +306,6 @@ void bandwidth_adjust_up(
             }
 
             // If the packet is finished then write it
-            last = last || s_read[s_ow_ops_in][s_i].last;
-            s_write[s_i_write].last = last;
             if (s_i == (c_ops_out - c_ops_in)) {
               #ifndef __SYNTHESIS__
                 #ifdef DEBUG_BANDWIDTH
@@ -315,11 +319,10 @@ void bandwidth_adjust_up(
                   std::cout << "s_write[" << s_ow_ops_out << "].last = " << s_write[s_ow_ops_out].last << std::endl;
                 #endif
               #endif
+              s_write[s_i_write].last = s_read[s_ow_ops_in][s_i].last;
               o_data[s_i_write].write(s_write[s_i_write]);
             }
-
           }
-
         }
       }
     }
@@ -405,21 +408,21 @@ shift_op(hls::stream<din_t>& din,
   constexpr int IW_PAD = IW + c_pad_index_w * 2;
   // constexpr int c_paddingh_shift = c_pos_h;
   // constexpr int c_paddingw_shift = c_pos_w;
-  constexpr int c_strideh_shift = (c_str - 1);
-  constexpr int c_stridew_shift = (c_str - 1);
+  // constexpr int c_strideh_shift = (c_str - 1);
+  // constexpr int c_stridew_shift = (c_str - 1);
   // constexpr int c_end_paddingh_shift = (c_fh - 1 - c_pos_h);
   // constexpr int c_end_paddingw_shift = (c_fw + c_ow_ops - 2 - c_pos_w);
   // constexpr int c_end_paddingw_shift = (c_fw - 1 - c_pos_w);
 
   /* Constants for new version */
-  constexpr int c_i_index = IH_PAD * IW_PAD * ICH;
+  // constexpr int c_i_index = IH_PAD * IW_PAD * ICH;
 
-  constexpr int c_endh = IH_PAD - c_pad_index_h;
-  constexpr int c_endw = IW_PAD - c_pad_index_w + (c_fw - c_pos_w) % (c_ow_ops);
+  // constexpr int c_endh = IH_PAD - c_pad_index_h;
+  // constexpr int c_endw = IW_PAD - c_pad_index_w + (c_fw - c_pos_w) % (c_ow_ops);
   constexpr int FW = (c_fw+(c_ow_ops-1)*c_str);
 
   // The window output is written as soon as the first data which falls
-  // in the windoow_ops position is available
+  // in the window_ops position is available
   // The window position is affected by the padding which adds data to 
   // the beginning of the tensor width
   constexpr int c_paddingh_shift = c_pos_h - c_pad_index_h;
@@ -449,11 +452,21 @@ shift_op(hls::stream<din_t>& din,
   #pragma HLS array_partition variable=s_input type=complete
   dcomp_t s_output;
   #pragma HLS array_partition variable=s_output.data type=complete
+  
   #ifndef __SYNTHESIS__
-    std::cout << "shift_op " << ICH << " " << IW << " " << IH << " " << c_ops << " " << c_ops_out << " " << c_ow_ops << std::endl;
-    std::cout << c_strh << " " << c_strw << " " << c_paddingh_shift << " " << c_paddingw_shift << " " << c_end_paddingh_shift << " " << c_end_paddingw_shift << std::endl;
-    std::cout << c_starth << " " << c_startw << " " << c_strw_adj << " " << c_str_adj << std::endl;
-    std::cout << "din.size() " << din.size() << std::endl;
+    std::cout << "INFO: Call to shift_op." << std::endl;
+    std::cout << "\t\tICH = " << ICH << std::endl;
+    std::cout << "\t\tIH = " << IH << std::endl;
+    std::cout << "\t\tIW = " << IW << std::endl;
+    std::cout << "\t\tc_fh = " << c_fh << std::endl;
+    std::cout << "\t\tc_fw = " << c_fw << std::endl;
+    std::cout << "\t\tc_str = " << c_str << std::endl;
+    std::cout << "\t\tc_pad = " << c_pad << std::endl;
+    std::cout << "\t\tc_pos_h = " << c_pos_h << std::endl;
+    std::cout << "\t\tc_pos_w = " << c_pos_w << std::endl;
+    std::cout << "\t\tc_ow_ops = " << c_ow_ops << std::endl;
+    std::cout << "\t\tc_ops = " << c_ops << std::endl;
+    std::cout << "\t\tc_ops_out = " << c_ops_out << std::endl;
   #endif
 
   for (auto s_index_h = c_starth; s_index_h < IH; s_index_h++) {
@@ -495,6 +508,7 @@ shift_op(hls::stream<din_t>& din,
       }
     }
   }
+  
   #ifndef __SYNTHESIS__
       if (din.size() > 0) {
         std::cout << "#### Not empty input stream" << std::endl;
@@ -507,15 +521,15 @@ shift_op(hls::stream<din_t>& din,
           std::cout << "o_data.size() " << o_data.size() << std::endl;
         }
         assert (o_data.size() > 0);
-      } 
-      if ((IW != c_ow_ops*c_str)) {
+      }
+      if ((IW != c_ow_ops * c_str)) {
         if (o_compute.size() == 0) {
           std::cout << "#### Empty compute stream" << std::endl;
           std::cout << "o_compute.size() " << o_compute.size() << std::endl;
         }
         assert (o_compute.size() > 0);
       }
-      std::cout << "end shift_op " << ICH << " " << c_ops << " " << c_ops_out << std::endl;
+      std::cout << "INFO: Finished shift_op." << std::endl;
   #endif
 }
 

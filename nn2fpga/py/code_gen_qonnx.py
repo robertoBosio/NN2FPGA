@@ -106,10 +106,15 @@ def main():
     
     transform = bool(int(os.environ['TRANSFORM']))
     generate_report_file = f"{PRJ_ROOT}/generate_{top_name}_{board}.rpt"
+    generate_log_file = f"{PRJ_ROOT}/generate_{top_name}_{board}.log"
     
     # If the file generate_report_file exists, delete it
     if os.path.exists(generate_report_file):
         os.remove(generate_report_file)
+    
+    # If the file generate_report_file exists, delete it
+    if os.path.exists(generate_log_file):
+        os.remove(generate_log_file)
 
     write_network(
         inferred_model,
@@ -122,6 +127,7 @@ def main():
         anchors=anchors,
         prj_root=PRJ_ROOT,
         generate_report_file=generate_report_file,
+        generate_log_file=generate_log_file,
         transform=transform
     )
 

@@ -11,7 +11,6 @@
 
 #define READ_WIDTH 8
 #define READ_BYTES 1
-#define ACTIVATION_PARALLELISM 8
 #define CLASSES 10
 
 bool directoryExists(const std::string &path) {
@@ -30,14 +29,14 @@ int main(int argc, char** argv) {
   /* Images per batch */
   const unsigned int c_batch = stoi(parser.value("n_images"));
   // const unsigned int c_batch = 2;
-  /* Bytes per activation data stream */
-  const unsigned int c_par = c_inp_1 / ACTIVATION_PARALLELISM;
   /* Bytes per image */
   const unsigned int c_index =
-    (c_produce_stream_ich * c_produce_stream_ih * c_produce_stream_iw) / c_par;
+    (c_produce_stream_ich * c_produce_stream_ih * c_produce_stream_iw) / c_data_per_packet;
   /* Bytes per batch */
-  const int n_bytes = c_index * c_par;
-  
+  const int n_bytes =
+    ((c_produce_stream_ich * c_produce_stream_ih * c_produce_stream_iw) *
+     c_act_width / 8);
+
   std::chrono::duration<double> inference_time;
   unsigned int results[c_batch];
 
@@ -105,24 +104,27 @@ int main(int argc, char** argv) {
     unsigned int s_bytes = 0;
     for (auto itt = it->begin(); itt != it->end(); itt++) {
 
-      int s_par = (s_bytes % c_par);
+      int s_par = (s_bytes % c_data_per_packet);
       unsigned int data = (ap_uint<8>)(*itt);
 
       // To be consistent with training, we need to use a float to normalize
       // data and then convert it to ap_uint<8>, to remove the small error given
       // by directly transform an unsigned int into a 8 bit fixed point value.
-      float data_f = (float)data / 255.0;
-      ap_ufixed<8, 0, AP_RND_ZERO, AP_SAT> data_uf = data_f;
-      ap_uint<8> data_u;
-      data_u.range(7, 0) = data_uf.range(7, 0);
-      send_data.range(8 * (s_par + 1) - 1, 8 * s_par) = data_u;
-      
-      std::cout << data_u << " ";
-      if (s_par == c_par - 1)
-        std::cout << std::endl;
+      float data_f = (float)data / float((1 << c_act_width) - 1);
+      ap_ufixed<c_act_width, 0, AP_RND_ZERO, AP_SAT> data_uf = data_f;
+      ap_uint<c_act_width> data_u;
+      data_u.range(c_act_width - 1, 0) = data_uf.range(c_act_width - 1, 0);
+      send_data.range(c_act_width * (s_par + 1) - 1, c_act_width * s_par) =
+        data_u;
 
-      if ((s_par % ACTIVATION_PARALLELISM) == ACTIVATION_PARALLELISM - 1)
+      // std::cout << data_u << " ";
+      // if (s_par == c_par - 1)
+        // std::cout << std::endl;
+
+      if (s_par == c_data_per_packet - 1){
         mem_activations[mem_activations_p++] = send_data;
+        send_data = 0;
+      }
       s_bytes++;
       if (s_bytes == n_bytes)
         break;

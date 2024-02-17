@@ -156,10 +156,10 @@ def parse_comp(name, node):
 
     if (node["add"]):
         add_name = get_add_name(node)
+        add_base_type_name = add_name.replace("_skip", "")
         if (node["adjust_add"]):
             add_name = add_name + "_adj"
         add_type_name = add_name
-        # add_type_name = add_name.replace("_skip", "")
 
     output_name = node["output"][0]
     output_type_name = output_name.replace("_skip", "")
@@ -185,7 +185,7 @@ def parse_comp(name, node):
         block["template"].append("t_%s_reduce" % input_type_name)
     block["template"].append("t_%s" % input_type_name)
     block["template"].append("t_%s" % weight_name)
-    block["template"].append("t_%s_st" % weight_name)
+    block["template"].append("t_%s_mem" % weight_name)
     if (has_bias):
         block["template"].append("t_%s" % bias_name)
     else:
@@ -196,7 +196,9 @@ def parse_comp(name, node):
         # TODO: add case of 1x1 forward
         # block["template"].append("t_%s_vector" % add_type_name)
         block["template"].append("t_%s_vector" % add_type_name)
+        block["template"].append(f"t_{add_base_type_name}")
     else:
+        block["template"].append("std::nullptr_t")
         block["template"].append("std::nullptr_t")
         block["template"].append("std::nullptr_t")
 
@@ -208,15 +210,16 @@ def parse_comp(name, node):
     if (node["in_scale_factor"][0] is not None):
         block["template"].append("t_%s_mod" % input_type_name)
     else:
-        block["template"].append("std::nullptr_t")
+        block["template"].append("t_%s" % input_type_name)
+        # block["template"].append("std::nullptr_t")
 
     if (node["merge_1x1"]):
         block["template"].append("t_%s_1x1" % input_type_name)
         block["template"].append("t_%s" % weight_1x1_name)
-        block["template"].append("t_%s_st" % weight_1x1_name)
+        block["template"].append("t_%s_mem" % weight_1x1_name)
         block["template"].append("t_%s" % bias_1x1_name)
     else:
-        block["template"].append("std::nullptr_t")
+        block["template"].append("t_%s" % input_type_name)
         block["template"].append("std::nullptr_t")
         block["template"].append("std::nullptr_t")
         block["template"].append("std::nullptr_t")
@@ -258,11 +261,11 @@ def parse_comp(name, node):
     block["template"].append("c_%s_ich_ops" % name)
     if (node["add"]):
         if node["adjust_add"]:
-            block["template"].append(node["adjust_add_ops"])
+            block["template"].append({"name" : node["adjust_add_ops"], "comment" : "add ops"})
         else:
             block["template"].append("c_%s_add_ops" % add_name)
     else:
-        block["template"].append("1")
+        block["template"].append({"name" : "1", "comment" : "add ops"})
     block["template"].append("c_%s_ow_ops" % name)
     block["template"].append("c_%s_ow_ops_out" % name)
     block["template"].append("c_%s_relu" % name)
@@ -321,14 +324,14 @@ def parse_comp(name, node):
     mask = (1 << log2_dsp_chains) - 1
     n_acc = 2 ** log2_dsp_chains 
     print(f"simd: {n_acc}, max_acc {max_acc}, guard_bits {guard_bits}, mask: {mask} for {name} with {node['kernel'] * op_group} adds.")
-    block["template"].append("%0d" % abits)
-    block["template"].append("%0d" % aibits)
+    block["template"].append({"name": f"{abits}", "comment": "act bits"})
+    block["template"].append({"name": f"{aibits}", "comment": "act integer bits"})
     abits, aibits = get_quant_constant(node["wsigned"][0], node["wbits"][0], node["wscale"][0])
-    block["template"].append("%0d" % abits)
-    block["template"].append("%0d" % aibits)
-    block["template"].append("%0d" % guard_bits)
-    block["template"].append("%0d" % n_acc)
-    block["template"].append("%0d" % mask)
+    block["template"].append({"name": f"{abits}", "comment": "weight bits"})
+    block["template"].append({"name": f"{aibits}", "comment": "weight integer bits"})
+    block["template"].append({"name": f"{guard_bits}", "comment": "guard bits"})
+    block["template"].append({"name": f"{n_acc}", "comment": "accumulators in parallel"})
+    block["template"].append({"name": f"{mask}", "comment": "mask bits"})
 
     #############################################################################
     # PACKING: providing info on quantization from template because
@@ -368,7 +371,7 @@ def parse_comp(name, node):
         guard_bits = (end_simd_bit - (a_d_bits + b_bits)*n_partial)//n_partial
         op_group = 1 if (node["depth"] == 1) else node["ich_ops"]
         max_acc = (2 ** (guard_bits + 1)) - 1
-        dsp_chains = int(np.ceil(node["kernel"] * op_group / max_acc))
+        dsp_chains = int(np.ceil(op_group / max_acc))
         log2_dsp_chains = int(math.ceil(np.log2(dsp_chains)))
 
         # Mask selects where the partial results needs to be accumulated. It is used
@@ -381,21 +384,21 @@ def parse_comp(name, node):
         aibits = 0
         guard_bits = 2
 
-    block["template"].append("%0d" % abits)
-    block["template"].append("%0d" % aibits)
+    block["template"].append({"name": f"{abits}", "comment": "act bits 1x1"})
+    block["template"].append({"name": f"{aibits}", "comment": "act integer bits 1x1"})
 
     if (node["merge_1x1"]):
         abits, aibits = get_quant_constant(node["wsigned"][1], node["wbits"][1], node["wscale"][1])
     else:
         abits = 0
         aibits = 0
-    block["template"].append("%0d" % abits)
-    block["template"].append("%0d" % aibits)
-    block["template"].append("%0d" % guard_bits)
-    block["template"].append("%0d" % n_acc)
-    block["template"].append("%0d" % mask)
+    block["template"].append({"name": f"{abits}", "comment": "weight bits 1x1"})
+    block["template"].append({"name": f"{aibits}", "comment": "weight integer bits 1x1"})
+    block["template"].append({"name": f"{guard_bits}", "comment": "guard bits 1x1"})
+    block["template"].append({"name": f"{n_acc}", "comment": "accumulators in parallel 1x1"})
+    block["template"].append({"name": f"{mask}", "comment": "mask bits 1x1"})
     ####################################################################################
-    block["template"].append("%0d" % node["depth"])
+    block["template"].append({"name" : f"{node['depth']}", "comment" : "depth"})
 
     if (node["in_scale_factor"][0] is not None):
         actscale = node["in_scale_factor"][0]
@@ -452,7 +455,7 @@ def parse_comp(name, node):
     # Output type declaration
     output_ops = node["ops_out"]
     block["defines"]["t_%s" % output_name] = ["type", output_type]
-    output_vector_type = "std::array<%s, %0d>" % (output_type, output_ops)
+    output_vector_type = "std::array<t_%s, %0d>" % (output_name, output_ops)
     block["defines"]["t_%s_vector" % output_name] = ["type", output_vector_type]
     block["defines"]["t_%s_struct" % output_name] = [
         "struct",
@@ -474,18 +477,14 @@ def parse_comp(name, node):
 
     if (node["in_scale_factor"][0] is not None):
         input_type_mod = get_quant_type(node["in_signed"][0], node["in_bits"][0], node["in_scale_factor"][0])
-
-    else:
-        input_type_mod = "std::nullptr_t"
-
-    block["defines"]["t_%s_mod" % input_name] = ["type", input_type_mod]
+        block["defines"]["t_%s_mod" % input_name] = ["type", input_type_mod]
 
     if (node["merge_1x1"]):
 
         if (node["in_scale_factor"][1] is not None):
             input_1x1_type = get_quant_type(node["in_signed"][1], node["in_bits"][1], node["in_scale_factor"][1])
         else:
-            input_1x1_type = "std::nullptr_t"
+            input_1x1_type = f"t_{input_type_name}"
         block["defines"]["t_%s_1x1" % input_name] = ["type", input_1x1_type]
 
         if (node["in_scale_factor"][1] is not None):

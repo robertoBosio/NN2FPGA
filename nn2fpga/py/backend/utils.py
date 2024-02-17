@@ -31,13 +31,18 @@ def write_func(fd, info):
     if "template" in info.keys():
         fd.write(" <\n")
         for i, template in enumerate(info["template"]):
-            fd.write("\t\t%s" % template)
-            if i < len(info["template"])-1:
-                fd.write(",\n")
+            if isinstance(template, dict):
+                fd.write(f"\t\t{template['name']}")
             else:
-                fd.write("\n")
-                fd.write("\t>")
-    fd.write(" (\n")
+                fd.write("\t\t%s" % template)
+            if i < len(info["template"])-1:
+                fd.write(",")
+            else:
+                fd.write(">")
+            if isinstance(template, dict):
+                fd.write(f"\t\t//{template['comment']}")
+            fd.write("\n")
+    fd.write("\t(\n")
     for i, arg in enumerate(info["args"]):
         fd.write("\t\t%s" %arg)
         if i < len(info["args"])-1:
@@ -118,8 +123,14 @@ def write_declare(fd, variable):
             else:
                 if form == "float":
                     fd.write("%0.16f" % variable["init"])
-                else:
+                elif form == "int":
                     fd.write("%0d" % variable["init"])
+                else:
+                    fd.write("%s" % variable["init"])
+
+        # For non const variables with a starting value. 
+        if ("init_value" in variable.keys()):
+            fd.write(" = %s" % variable["init_value"])
 
 
     fd.write(";\n")
@@ -177,8 +188,9 @@ def declare(file_path, parsed_write, ap_ctrl=None, inline=False, prj_root="/tmp"
 
         fd.write("\n")
 
-def write_defines(fd, values):
+def write_defines(fd, values, layer_name):
 
+    fd.write(f"\n/************************* {layer_name} *************************/\n")
     for name, value in values.items():
 
         if value[0] == 'const':
@@ -218,4 +230,4 @@ def write_defines(fd, values):
                     value[1],
                 )
             )
-
+    

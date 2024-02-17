@@ -55,11 +55,15 @@ def init(file_name, parsed_write, object_detection=False, prj_root="/tmp"):
 
         for layer in parsed_write:
             if "memory_management" == layer["func"]:
-                for name in layer["input"]:
-                    fd.write("\tconst t_%s_st *i_data_%s,\n" % (name, name))
+                for dict in layer["input"]:
+                    name = dict["name"]
+                    type = dict["type"]
+                    fd.write(f"\tconst {type} *{name},\n")
 
-                for name in layer["stream_input"]:
-                    fd.write("\thls::stream<t_%s_stream> &i_data_%s,\n" % (name, name))
+                for dict in layer["stream_input"]:
+                    name = dict["name"]
+                    type = dict["type"]
+                    fd.write(f"\thls::stream<{type}> &{name},\n")
 
         for layer in parsed_write:
             if "consume_stream" == layer["func"]:
@@ -89,11 +93,15 @@ def init(file_name, parsed_write, object_detection=False, prj_root="/tmp"):
 
         for layer in parsed_write:
             if "memory_management" == layer["func"]:
-                for name in layer["input"]:
-                    fd.write("\tconst t_%s_st *i_data_%s,\n" % (name, name))
+                for dict in layer["input"]:
+                    name = dict["name"]
+                    type = dict["type"]
+                    fd.write(f"\tconst {type} *{name},\n")
 
-                for name in layer["stream_input"]:
-                    fd.write("\thls::stream<t_%s_stream> &i_data_%s,\n" % (name, name))
+                for dict in layer["stream_input"]:
+                    name = dict["name"]
+                    type = dict["type"]
+                    fd.write(f"\thls::stream<{type}> &{name},\n")
 
         for layer in parsed_write:
             if "consume_stream" == layer["func"]:
@@ -103,11 +111,11 @@ def init(file_name, parsed_write, object_detection=False, prj_root="/tmp"):
         fd.write(") {\n")
         fd.write("\n")
 
-def parse_all_main(io_dict, dynamic_init=False):
+def parse_all_main(io_dict, model, dynamic_init=False):
 
     parsed_write = []
     parsed_write.append(
-        weights.parse_main(io_dict, dynamic_init=dynamic_init)
+        weights.parse_main(io_dict)
     )
 
     parsed_const = []
@@ -138,6 +146,7 @@ def parse_all_main(io_dict, dynamic_init=False):
                     pad.parse(name, node)
                 )
             parsed_write = parsed_write + conv.parse(name, node)
+            parsed_const = parsed_const + weights.parse_const(io_dict, model, node)
             last_node = node
 
         if 'pool' == node["type"]:
@@ -155,11 +164,11 @@ def parse_all_main(io_dict, dynamic_init=False):
             last_node = node
 
         # Just for the sake of constant definition
-        if 'const' == node["type"]:
-            parsed_const = parsed_const + weights.parse(
-                name,
-                node
-            )
+        # if 'const' == node["type"]:
+        #     parsed_const = parsed_const + weights.parse_const(
+        #         name,
+        #         node
+        #     )
 
         if 'detect' == node["type"]:
             parsed_write.append(
@@ -206,7 +215,7 @@ def defines(parsed_write, prj_root="/tmp"):
         for layer in parsed_write:
 
             if 'defines' in layer.keys():
-                write_defines(fd, layer["defines"])
+                write_defines(fd, layer["defines"], layer['func'])
 
         fd.write("\n")
         fd.write("#endif /*__NN2FPGA_NETWORK_PARAMS_H__ */")
@@ -216,14 +225,14 @@ def footer(file_path):
     with open(file_path, "a") as fd:
         fd.write("\n}")
 
-def write(io_dict, file_name, ap_ctrl_chain, object_detection, dynamic_init, prj_root="/tmp"):
+def write(io_dict, model, file_name, ap_ctrl_chain, object_detection, dynamic_init, prj_root="/tmp"):
 
     if ap_ctrl_chain:
         ap_ctrl = "ap_ctrl_chain"
     else:
         ap_ctrl = "ap_ctrl_none"
 
-    parsed_write, parsed_const = parse_all_main(io_dict, dynamic_init=dynamic_init)
+    parsed_write, parsed_const = parse_all_main(io_dict, model, dynamic_init=dynamic_init)
 
     file_path = f"{prj_root}/cc/src/{file_name}.cc"
     init(file_name, parsed_write, object_detection, prj_root=prj_root)

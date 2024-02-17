@@ -14,6 +14,18 @@
 #include <type_traits>
 #include <math.h>
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic error "-Wpedantic"
+#pragma GCC diagnostic error "-Wall"
+#pragma GCC diagnostic error "-Wextra"
+#pragma GCC diagnostic ignored "-Wunused-label"
+#pragma GCC diagnostic ignored "-Wsign-compare"
+#pragma GCC diagnostic ignored "-Wunused-parameter"
+#pragma GCC diagnostic ignored "-Wunused-but-set-parameter"
+#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
+#pragma GCC diagnostic ignored "-Wunused-variable"
+#pragma GCC diagnostic ignored "-Wc++11-compat"
+
 namespace nn2fpga {
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -48,24 +60,25 @@ quant_stream(t_acc i_acc)
 template<class t_output,
          class t_output_clip,
          class t_output_mask,
+         class t_add,
          class t_acc,
          int c_relu>
 t_output
-quant_and_add_stream(t_acc i_acc, t_output_clip i_add)
+quant_and_add_stream(t_acc i_acc, t_add i_add)
 {
 #pragma HLS inline
-
+  
   t_acc s_acc = i_acc;
-
-  if constexpr (c_relu == 1) {
-    s_acc = relu_op<t_acc>(s_acc);
-  }
 
   if constexpr (std::is_same<t_output_clip, std::nullptr_t>::value == false) {
     s_acc = t_output_clip(s_acc);
   }
   
   s_acc += i_add;
+  
+  if constexpr (c_relu == 1) {
+    s_acc = relu_op<t_acc>(s_acc);
+  }
 
   if constexpr (std::is_same<t_output_mask, std::nullptr_t>::value == false) {
     s_acc = t_output_mask(s_acc);
@@ -200,10 +213,10 @@ double_packing_debug(t_act input0, t_act input1, t_weight weight, t_res res)
 
 // Template for the conv_pipe function.
 template<class t_input,
-         class t_input_st,
          class t_weight,
          class t_weight_st,
          class t_bias,
+         class t_add_vector,
          class t_add,
          class t_input_mod,
          class t_acc_struct,
@@ -243,9 +256,8 @@ conv_pipe(const t_input i_input,
           const uint32_t ops,
           const uint32_t num_ich,
           const uint32_t s_ow_ops,
-          const uint32_t s_num_ops_out,
           const uint32_t ich_idx_add,
-          const t_add i_add[c_ow_ops],
+          const t_add_vector i_add[c_ow_ops],
           t_acc i_acc_buff[c_ops * c_ow_ops],
           t_output s_output_struct[c_ow_ops][c_iter_ops_out])
 {
@@ -253,7 +265,7 @@ conv_pipe(const t_input i_input,
 
   const int FW = (c_fw + (c_ow_ops - 1) * c_str);
 
-  if (c_och_pack > 1) {
+  if constexpr (c_och_pack > 1) {
     // Depthwise convolutions cannot be packed over the output channels.
 
     t_acc s_acc[c_ow_pack * c_och_pack];
@@ -331,20 +343,10 @@ conv_pipe(const t_input i_input,
                            (c_ow_ops - (s_ow_pack + s_ow_ops) - 1) * c_str;
             auto s_w_index = s_ow_pack * (c_pad_acc_bits);
 
-            if constexpr(std::is_same<t_input_mod, std::nullptr_t>::value == false) {
-              s_b_ext.range(s_w_index + c_bits - 1, s_w_index) = t_input_mod(i_input[s_index][ich_idx]).range(c_bits-1, 0);
-              if constexpr(std::is_same<typename t_input_mod::Base::Base, _AP_ROOT_TYPE<t_input_mod::Base::width, true>>::value) {
-                for (auto pos = s_w_index+c_bits; pos < 18; pos++) {
-                  s_b_ext.range(pos,pos) = s_b_ext.range(s_w_index + c_bits - 1, s_w_index + c_bits - 1);
-                }
-              }
-            }
-            else {
-              s_b_ext.range(s_w_index + c_bits - 1, s_w_index) = i_input[s_index][ich_idx].range(c_bits-1, 0);
-              if constexpr(std::is_same<typename t_input_st::Base::Base, _AP_ROOT_TYPE<t_input_st::Base::width, true>>::value) {
-                for (auto pos = s_w_index+c_bits; pos < 18; pos++) {
-                  s_b_ext.range(pos,pos) = s_b_ext.range(s_w_index + c_bits - 1, s_w_index + c_bits - 1);
-                }
+            s_b_ext.range(s_w_index + c_bits - 1, s_w_index) = t_input_mod(i_input[s_index][ich_idx]).range(c_bits-1, 0);
+            if constexpr(std::is_same<typename t_input_mod::Base::Base, _AP_ROOT_TYPE<t_input_mod::Base::width, true>>::value) {
+              for (auto pos = s_w_index+c_bits; pos < 18; pos++) {
+                s_b_ext.range(pos,pos) = s_b_ext.range(s_w_index + c_bits - 1, s_w_index + c_bits - 1);
               }
             }
 
@@ -356,7 +358,6 @@ conv_pipe(const t_input i_input,
 
           }
 
-          auto s_index = s_fh * c_fw + s_fw;
           auto acc_group =
             (ich_idx * (c_fh * c_fw) + s_fh * c_fw + s_fw) & c_mask;
           s_acc_simd[acc_group] += s_data * s_b_ext;
@@ -385,7 +386,7 @@ conv_pipe(const t_input i_input,
     if (num_ich != 0) {
       for (auto s_ow_pack = 0; s_ow_pack < c_ow_pack; s_ow_pack++) {
         for (auto s_och_pack = 0; s_och_pack < c_och_pack; s_och_pack++) {
-          auto s_w_index = s_och_pack*c_ow_pack+s_ow_pack;
+          auto s_w_index = s_och_pack * c_ow_pack + s_ow_pack;
           s_acc[s_w_index] += s_acc_base[s_w_index];
         }
       }
@@ -413,6 +414,7 @@ conv_pipe(const t_input i_input,
               quant_and_add_stream<t_output,
                                    t_output_clip,
                                    t_output_mask,
+                                   t_add,
                                    t_acc,
                                    c_relu>(
                 s_acc[s_och_pack * c_ow_pack + s_ow_pack],
@@ -492,7 +494,7 @@ conv_pipe(const t_input i_input,
         for (auto s_fh = 0; s_fh < c_fh; s_fh++) {
           FW_OCH_PACKING_LOOP:
           for (auto s_fw = 0; s_fw < c_fw; s_fw++) {
-            t_input_st s_input_ext[c_ow_pack];
+            t_input_mod s_input_ext[c_ow_pack];
 
             /* Reading the activations */
             for (auto s_ow_pack = 0; s_ow_pack < c_ow_pack; s_ow_pack++) {
@@ -507,7 +509,7 @@ conv_pipe(const t_input i_input,
               (ich_idx * (c_fh * c_fw) + s_fh * c_fw + s_fw) & c_mask;
 
             s_acc_simd[acc_group] =
-              double_packing_wrap<t_input_st,
+              double_packing_wrap<t_input_mod,
                                   t_weight_st,
                                   ap_uint<48>,
                                   c_pad_bits>(s_input_ext[0],
@@ -606,6 +608,7 @@ conv_pipe(const t_input i_input,
                 quant_and_add_stream<t_output,
                                      t_output_clip,
                                      t_output_mask,
+                                     t_add,
                                      t_acc,
                                      c_relu>(
                   s_acc[s_ow_pack], i_add[s_ow_pack + s_ow_ops][ich_idx_add]);
@@ -674,8 +677,7 @@ conv_pipe(const t_input i_input,
               #endif
             #endif
             auto s_data = i_input[s_index_act][ich_idx];
-            if constexpr(std::is_same<t_input_mod, std::nullptr_t>::value == false)
-              s_data = t_input_mod(s_data);
+            s_data = t_input_mod(s_data);
             s_acc += s_data * i_weight[s_index][ich_idx][ops];
           }
         }
@@ -711,6 +713,7 @@ conv_pipe(const t_input i_input,
               quant_and_add_stream<t_output,
                                    t_output_clip,
                                    t_output_mask,
+                                   t_add,
                                    t_acc,
                                    c_relu>(
                 s_acc, i_add[s_ow_ops][ich_idx_add]);
@@ -737,6 +740,7 @@ template<class t_input_struct,
          class t_weight_st,
          class t_bias,
          class t_add_struct,
+         class t_add_vector,
          class t_add,
          class t_forward_struct,
          class t_input_mod,
@@ -803,8 +807,10 @@ conv_comp(hls::stream<t_input_struct> i_input[1],
   /* #pragma HLS inline */
   // Generic Convolution Computation
 
+  /* We want to use chain of DSPs and not balance the expressions, we are not
+   * interested in short pipeline, more on resources */
 #pragma HLS expression_balance off
-  // The output ow_ops must be greater or equal and a mutliples of ow_ops
+  // The output ow_ops must be greater or equal and a multliples of ow_ops
   static_assert(c_ow_ops_out >= c_ow_ops, "c_ow_ops_out >= c_ow_ops");
   static_assert(c_ow_ops_out % c_ow_ops == 0, "c_ow_ops_out % c_ow_ops == 0");
   
@@ -840,7 +846,7 @@ conv_comp(hls::stream<t_input_struct> i_input[1],
   const auto c_iter_ops_out = (c_depth == 1) ? c_in_ops : c_ops;
 
   constexpr int FW = (c_fw + (c_ow_ops - 1) * c_str);
-  constexpr int MO = (c_fh * FW) / 2;
+  // constexpr int MO = (c_fh * FW) / 2;
 
   /* Groups of accumulator for a total of och * ow_ops. The one that must be
    * available in parallel are c_ops * c_ow_ops. This data structure is not used
@@ -868,7 +874,7 @@ conv_comp(hls::stream<t_input_struct> i_input[1],
   t_bias_1x1 s_bias_1x1;
 #pragma HLS array_partition variable = s_bias_1x1 type = complete dim = 1
   
-  t_add s_add[c_ow_ops];
+  t_add_vector s_add[c_ow_ops];
 #pragma HLS array_partition variable = s_add type = complete dim = 0
 
 /* Output struct variable used to pack the output in och_ops_out * c_ow_ops.
@@ -925,6 +931,8 @@ conv_comp(hls::stream<t_input_struct> i_input[1],
     std::cout << "input type " << std::is_same<typename t_input_st::Base::Base, _AP_ROOT_TYPE<c_in_bits, true>>::value << std::endl;
     std::cout << "weight type " << std::is_same<typename t_weight_st::Base::Base, _AP_ROOT_TYPE<c_w_bits, true>>::value << std::endl;
     std::cout << "s_input.size() = " << i_input[0].size() << std::endl;
+    std::cout << "s_weight.size() = " << i_weights[0].size() << std::endl;
+    std::cout << "s_bias.size() = " << i_bias[0].size() << std::endl;
   #endif
 
   // Iterating over the portion of tensor of each ow_ops_out slice
@@ -944,7 +952,7 @@ conv_comp(hls::stream<t_input_struct> i_input[1],
         // Iterating over the tensor output channels with steps of output
         // packets
         OCH_LOOP:
-        for (auto s_num_och = 0, ich_idx_packet = 0; s_num_och < c_och_depth;
+        for (auto s_num_och = 0, ich_idx_packets = 0; s_num_och < c_och_depth;
              s_num_och += c_iter_och) {
 
           // Iterating over single output packet with steps of ops
@@ -976,6 +984,17 @@ conv_comp(hls::stream<t_input_struct> i_input[1],
                     }
                   #endif
                 #endif
+#ifndef __SYNTHESIS__
+                constexpr int c_pixels = (c_fh * c_fw + ((c_ow_ops - 1) * c_fh));
+                ap_uint<8 * c_in_ops * c_pixels> tmp;
+                  for (auto s_pixels = 0; s_pixels < c_pixels; s_pixels++) {
+                for (auto s_in_ops = 0; s_in_ops < c_in_ops; s_in_ops++) {
+                    tmp.range(8 * (s_pixels * c_in_ops + s_in_ops + 1) - 1, 8 * (s_pixels * c_in_ops + s_in_ops)) =
+                      s_input[s_pixels][s_in_ops].range(7, 0);
+                  }
+                }
+                std::cout << std::setw(2*c_in_ops * c_pixels) << std::setfill('0') << tmp.to_string(16) << std::endl;
+#endif
               }
 
               /* Buffering to speed up computations */
@@ -1062,10 +1081,10 @@ conv_comp(hls::stream<t_input_struct> i_input[1],
                 for (auto s_ow_ops = 0; s_ow_ops < c_ow_ops; s_ow_ops+=c_ow_pack) {
                   conv_pipe<
                     t_input,
-                    t_input_st,
                     t_weight,
                     t_weight_st,
                     t_bias,
+                    t_add_vector,
                     t_add,
                     t_input_mod,
                     t_acc_struct,
@@ -1105,7 +1124,6 @@ conv_comp(hls::stream<t_input_struct> i_input[1],
                     s_ops,
                     s_num_ich,
                     s_ow_ops,
-                    s_num_ops_out,
                     ich_idx_add,
                     s_add,
                     s_acc_buff[s_reuse][acc_group],
@@ -1119,10 +1137,10 @@ conv_comp(hls::stream<t_input_struct> i_input[1],
                     }
                     conv_pipe<
                       std::array<t_input_data, c_ow_ops>,
-                      t_input_st,
                       t_weight_1x1,
                       t_weight_1x1_st,
                       t_bias_1x1,
+                      std::nullptr_t,
                       std::nullptr_t,
                       t_input_1x1,
                       t_acc_1x1_struct,
@@ -1162,10 +1180,9 @@ conv_comp(hls::stream<t_input_struct> i_input[1],
                       s_ops,
                       s_num_ich,
                       s_ow_ops,
-                      s_num_ops_out,
                       ich_idx_add,
                       nullptr,
-                      s_acc_buff_1x1,
+                      s_acc_buff_1x1[s_reuse][acc_group],
                       s_output_vector_1x1[och_packet_in_ops_out]
                     );
                   }
@@ -1200,7 +1217,6 @@ conv_comp(hls::stream<t_input_struct> i_input[1],
 
                 for (auto s_ow_ops = 0; s_ow_ops < c_ow_ops; s_ow_ops++) {
                   t_output_struct temp_struct;
-                  t_output_struct_1x1 temp_struct_1x1;
                   for (auto s_och_ops_out = 0;
                        s_och_ops_out < c_ops_out / c_iter_ops_out;
                        s_och_ops_out++) {
@@ -1209,25 +1225,32 @@ conv_comp(hls::stream<t_input_struct> i_input[1],
                       temp_struct
                         .data[0][s_och_ops_out * c_iter_ops_out + s_och_ops] =
                         s_output_vector[s_och_ops_out][s_ow_ops][s_och_ops];
+// #ifndef __SYNTHESIS__
+//                       ap_uint<8> temp;
+//                       temp.range(7, 0) =
+//                         s_output_vector[s_och_ops_out][s_ow_ops][s_och_ops]
+//                           .range(7, 0);
+//                       std::cout << temp.to_string(16) << std::endl;
+// #endif
+                    }
+                  }
+                  temp_struct.last = s_last;
+                  o_output[s_ow_ops_out + s_ow_ops].write(temp_struct);
 
-                      // TEST THIS STUFF
-                      if constexpr (std::is_same<t_output_struct_1x1,
-                                                 std::nullptr_t>::value ==
-                                    false) {
+                  if constexpr (std::is_same<t_output_struct_1x1,
+                                             std::nullptr_t>::value == false) {
+                    t_output_struct_1x1 temp_struct_1x1;
+                    for (auto s_och_ops_out = 0;
+                         s_och_ops_out < c_ops_out / c_iter_ops_out;
+                         s_och_ops_out++) {
+                      for (auto s_och_ops = 0; s_och_ops < c_iter_ops_out;
+                           s_och_ops++) {
                         temp_struct_1x1
                           .data[0][s_och_ops_out * c_iter_ops_out + s_och_ops] =
                           s_output_vector_1x1[s_och_ops_out][s_ow_ops]
                                              [s_och_ops];
                       }
                     }
-                  }
-                  temp_struct.last = s_last;
-                  o_output[s_ow_ops_out + s_ow_ops].write(
-                    temp_struct);
-
-                  // TEST THIS STUFF
-                  if constexpr (std::is_same<t_output_struct_1x1,
-                                             std::nullptr_t>::value == false) {
                     if (s_iter < c_iter_1x1) {
                       temp_struct_1x1.last = s_last;
                       o_output_1x1[s_ow_ops_out + s_ow_ops].write(
@@ -1266,6 +1289,7 @@ conv_comp(hls::stream<t_input_struct> i_input[1],
   }
 
   #ifndef __SYNTHESIS__
+  std::cout << i_bias[0].size() << std::endl;
     // Check if input stream is empty
     for (auto s_ow_ops = 0; s_ow_ops < 1; s_ow_ops++) {
       if (i_input[s_ow_ops].size() != 0) {
@@ -1302,5 +1326,6 @@ conv_comp(hls::stream<t_input_struct> i_input[1],
 //////////////////////////////////////////////////////////////////////////////
 
 }  // namespace nn2fpga
+#pragma GCC diagnostic pop
 
 #endif // NN2FPGA_PACKED_CONV_H_

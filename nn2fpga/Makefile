@@ -179,7 +179,7 @@ $(BUILD_DIR)/$(TOP_NAME).xclbin: $(TEMP_DIR)/$(TOP_NAME).xo $(TEMP_DIR)/mm2s_a.x
 all: check_prj_root generate backend
 
 check_prj_root:
-	$(NN2FPGA_ROOT)/scripts/check_settings.sh
+	@$(NN2FPGA_ROOT)/scripts/check_settings.sh
 
 restore_design:
 	cd $(PRJ_ROOT) && vitis_hls -f $(NN2FPGA_ROOT)/tcl/restore_design.tcl \
@@ -202,7 +202,7 @@ vivado_flow:
 
 .PHONY: generate
 generate: check_prj_root check-top check-board check-onnx generate-dir
-	cd $(PRJ_ROOT) && ${PYTHON} $(NN2FPGA_ROOT)/py/code_gen_qonnx.py
+	@cd $(PRJ_ROOT) && ${PYTHON} $(NN2FPGA_ROOT)/py/code_gen_qonnx.py
 
 host: check-xrt check-top $(HOST_SRCS) $(PRJ_ROOT)/cc/include/$(TOP_NAME)_sim.h
 	cp $(PRJ_ROOT)/cc/include/$(TOP_NAME)_sim.h $(PRJ_ROOT)/cc/include/network_sim.h
@@ -214,7 +214,7 @@ run_model:
 download_cifar10:
 	$(TB_ROOT)/cifar10/download_cifar10.sh
 
-cosim: generate
+cosim:
 	cp $(PRJ_ROOT)/cc/include/$(TOP_NAME)_sim.h $(PRJ_ROOT)/cc/include/network_sim.h
 ifeq ($(VITIS_FLOW), 1)
 	make build TARGET=hw_emu
@@ -223,8 +223,8 @@ else
 endif
 
 csim: check-top check-hls check-board
-	cp $(PRJ_ROOT)/cc/include/$(TOP_NAME)_sim.h $(PRJ_ROOT)/cc/include/network_sim.h
-	make syn CSIM=1
+	@cp $(PRJ_ROOT)/cc/include/$(TOP_NAME)_sim.h $(PRJ_ROOT)/cc/include/network_sim.h
+	@make syn CSIM=1
 
 backend: syn vivado_flow
 

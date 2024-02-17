@@ -13,16 +13,95 @@ from backend.layers.uram_download import fill_uram_layer, add_uram_layer
 import backend.layers.uram_download as uram_download
 from backend.layers.quant import get_quant_type
 
-def parse_on_chip(
+WIDTH_STREAM = 8
+
+def num_of_words(bits, n_weights, word = 8):
+    """ Compute the number of words needed to store 1 parameter """
+    # TODO: add support for weights packing in streaming
+    if (word >= bits):
+        return n_weights
+    else:
+        return int(n_weights * (bits // word))
+
+def bias_ops_calc(
+    ich_ops,
+    ops,
+    depth
+):
+    """ Compute the number of parallel biases needed"""
+    parallelism = ops
+    if depth:
+        parallelism = ich_ops
+
+    return parallelism
+
+def mem_shape_calc(node):
+    """ Compute the memory shape needed to store the weights """
+    ich = node["ich"]
+    och = node["och"]
+    fh = node["ih"]
+    fw = node["iw"]
+    ops = node["ops"]
+    ich_ops = node["ich_ops"]
+    depth = node["depth"]
+
+    if (node["is_bias"]):
+        parallelism = bias_ops_calc(ich_ops, ops, depth)
+        return [och // parallelism, parallelism]
+
+    ich_iter_ops = ich // ich_ops
+    och_iter_ops = och // ops
+
+    assert ich_iter_ops > 0
+    assert och_iter_ops > 0
+
+    return [fh * fw, ich_iter_ops * och_iter_ops, ich_ops * ops]
+    
+def compute_bram_layer(weight_bits, weight_number, parallelism):
+    """Compute the number of BRAMs needed to store the weights, given the parallelism """
+
+    # Useful space in BRAM18. Each BRAM18 is 18kb with a maximum word width of
+    # 36 bits, in which 4 bits are reserved to ECC code
+    SIZE_BRAM18 = (18 * 1024)
+    
+    # Useful space in BRAM36, composed by two BRAM18.
+    SIZE_BRAM36 = SIZE_BRAM18 * 2
+
+    WIDTH_BRAM36 = 36
+
+    # Assuming is implemented using LUTRAM
+    if (weight_number * weight_bits) <= SIZE_BRAM36:
+        return 0
+    
+    very_long_word = parallelism * weight_bits
+    mem_width = very_long_word // WIDTH_BRAM36
+    mem_width_rem = very_long_word % WIDTH_BRAM36
+    # print(f"mem_width: {mem_width}, mem_width_rem: {mem_width_rem}")
+    word_depth = weight_number // parallelism
+    mem_depth = int(math.ceil(word_depth / (SIZE_BRAM36 // WIDTH_BRAM36)))
+    tot_bram = mem_width * mem_depth
+    # print(f"mem_depth: {mem_depth}, tot_bram: {tot_bram}")
+
+    if (mem_width_rem > 18):
+        tot_bram += int(math.ceil(word_depth / (SIZE_BRAM36 // WIDTH_BRAM36)))
+    if (mem_width_rem > 8 and mem_width_rem < 18):
+        tot_bram += int(math.ceil(word_depth / (SIZE_BRAM36 // (WIDTH_BRAM36 // 2))))
+    elif (mem_width_rem > 0 and mem_width_rem <= 8):
+        tot_bram += int(math.ceil(word_depth / (SIZE_BRAM36 // (WIDTH_BRAM36 // 4))))
+    
+    return tot_bram
+
+def parse_on_chip_weights(
     node_info,
     pre_values,
-    bits=8,
-    signed=1,
-    narrow=1,
-    dynamic_init=False
+    bits = 8,
+    signed = 1,
+    narrow = 1,
+    dynamic_init = False
 ):
-    # Transforming a filter of dimension [iw][ih][ich][och] into one of
-    # dimension [iw * ih][(ich * och)/ops][ops] where ops is the number 2D convolutions
+
+    # Transforming a filter of dimension [och][ich][ih][iw] into one of
+    # dimension [iw * ih][(ich * och)/(och_ops * ich_ops)][och_ops * ich_ops] where ops is the number 2D convolutions
     # computed in parallel
 
     dich = node_info["ich"]
@@ -36,49 +115,35 @@ def parse_on_chip(
     narrow_h = 0
     if not signed and narrow:
       narrow_h = 1
-    limit_h = 2**(bits-signed)-1-narrow_h
+    limit_h = 2**(bits-signed) - 1 - narrow_h
 
     narrow_l = 0
     if signed and narrow:
       narrow_l = 1
-    limit_l = -1*signed*2**(bits-signed)+narrow_l
+    limit_l = -1 * signed * 2**(bits-signed) + narrow_l
 
-    doch_ops = int(doch/dops)
-    dich_iter_ops = int(dich/dich_ops)
-
-    # check that ich_iter_ops and och_ops are greater than 0
-    # if (dich_ops > 1):
-    # print("dich_iter_ops: %d" % dich_iter_ops)
-    # print("dich_ops: %d" % dich_ops)
-    # print("depth: %d" % node_info["depth"])
-    # print("dich: %d" % dich)
-    # print("diw: %d" % diw)
-    # print("dih: %d" % dih)
-    # print("doch: %d" % doch)
-    # print("dops: %d" % dops)
-    # print("dim: ", pre_values.shape)
+    doch_ops = int(doch / dops)
+    dich_iter_ops = int(dich / dich_ops)
 
     assert dich_iter_ops > 0
     assert doch_ops > 0
 
     values = np.zeros(
-        [dih*diw, dich_iter_ops*doch_ops, dich_ops*dops]
+        mem_shape_calc(node_info)
     )
 
-    # if node_info["ich"] == 3:
-    #     print("####################################################")
+    # Reordering the weights based on the parallelism needed by the convolution
     for ich in range(dich_iter_ops):
         for och in range(doch_ops):
-            off = och*dops
+            off = och * dops
             for ich_ops in range(dich_ops):
-                for ih in range(dih-1, -1, -1):
-                    for iw in range(diw-1, -1, -1):
-                        off_ich = ich*dich_ops + ich_ops
+                for ih in range(dih - 1, -1, -1):
+                    for iw in range(diw - 1, -1, -1):
+                        off_ich = ich * dich_ops + ich_ops
                         for ops in range(dops):
-                            quant_value = pre_values[off+ops][off_ich][ih][iw]
-                            # if (node_info["ich"] == 3):
-                                # print("quant_value: %f" % quant_value)
-                            quant_value = np.round(quant_value/scale_factor)
+                            quant_value = pre_values[off + ops][off_ich][ih][iw]
+                            quant_value = np.round(quant_value / scale_factor)
+                            
                             if (limit_h < quant_value):
                                 quant_value = limit_h
 
@@ -86,24 +151,74 @@ def parse_on_chip(
                                 quant_value = limit_l
                             
                             if not dynamic_init:
-                                quant_value = quant_value*scale_factor
+                                quant_value = quant_value * scale_factor
 
-                            # if (node_info["ich"] == 3):
-                            #     print("quant_value post: %f" % quant_value)
+                            index = ih * diw + iw
+                            ch = ich * doch_ops + och
+                            ops_index = ich_ops * dops + ops
+                            values[dih * diw - 1 - index][ch][ops_index] = quant_value
+    
+    return values
 
-                            index = ih*diw+iw
-                            ch = ich*doch_ops+och
-                            ops_index = ich_ops*dops+ops
-                            values[dih*diw-1-index][ch][ops_index] = quant_value
+def parse_on_chip_biases(
+    node_info,
+    pre_values,
+    bits = 8,
+    signed = 1,
+    narrow = 1,
+    dynamic_init = False
+):
+    """ Parse the biases and reorganize the data """
+
+    dich = node_info["ich"]
+    doch = node_info["och"]
+    dops = node_info["ops"]
+    dich_ops = node_info["ich_ops"]
+    scale_factor = 2**node_info["scale_factor"]
+
+    narrow_h = 0
+    if not signed and narrow:
+      narrow_h = 1
+    limit_h = 2**(bits-signed) - 1 - narrow_h
+
+    narrow_l = 0
+    if signed and narrow:
+      narrow_l = 1
+    limit_l = -1 * signed * 2**(bits-signed) + narrow_l
+
+    parallelism = bias_ops_calc(dich_ops, dops, node_info["depth"])
+
+    values = np.zeros(mem_shape_calc(node_info))
+    pre_values = np.squeeze(pre_values)
+    
+    # Reordering the weights based on the parallelism needed by the convolution
+    for s_och in range(doch // parallelism):
+        for s_ops in range(parallelism):
+            quant_value = pre_values[s_och * parallelism + s_ops]
+            quant_value = np.round(quant_value / scale_factor)
+            
+            if (limit_h < quant_value):
+                quant_value = limit_h
+
+            if (limit_l > quant_value):
+                quant_value = limit_l
+            
+            if not dynamic_init:
+                quant_value = quant_value * scale_factor
+            
+            values[s_och][s_ops] = quant_value
     
     return values
 
 def pack_weights(
     values,
     bits=8,
+    is_bias=False
 ):
+    """ Pack the weights in a single array """
 
-    values = np.swapaxes(values,0,1)
+    if (not is_bias):
+        values = np.swapaxes(values,0,1)
     values = values.flatten()
 
     if bits >= 8:
@@ -126,24 +241,22 @@ def pack_weights(
             #     new_values[i*bytes_num+j] = data_bytes[j]
 
         values = new_values
-    elif bits < 8:
-        pack_width = int(8/bits)
-        new_values = np.zeros([int(values.shape[0]/pack_width)])
-        mask = 2**bits - 1
+    # elif bits < 8:
+    #     pack_width = int(8/bits)
+    #     new_values = np.zeros([int(values.shape[0]/pack_width)])
+    #     mask = 2**bits - 1
 
-        for i in range(0, values.shape[0], pack_width):
-            data_byte = 0
-            for j in range(pack_width):
-                data = values[i+j]
-                data_byte |= (int(data) & mask) << (j*bits)
+    #     for i in range(0, values.shape[0], pack_width):
+    #         data_byte = 0
+    #         for j in range(pack_width):
+    #             data = values[i+j]
+    #             data_byte |= (int(data) & mask) << (j*bits)
 
-            new_values[int(i/pack_width)] = data_byte
+    #         new_values[int(i/pack_width)] = data_byte
 
-        values = new_values
+    #     values = new_values
     
     return values
-
-    
 
 def parse_off_chip(
     node_info,
@@ -211,13 +324,12 @@ def extract_info(
         pre_values = np.expand_dims(pre_values, axis=-1)
         pre_values = np.expand_dims(pre_values, axis=-1)
 
-    oh     = node_info["oh"]
-    ow     = node_info["ow"]
+    oh = node_info["oh"]
+    ow = node_info["ow"]
     stride = node_info["stride"]
-    pad    = node_info["pad"]
-
-
+    pad = node_info["pad"]
     ops = node_info["ops"]
+    ich_ops = node_info["ich_ops"]
 
     if len(shape) > 1:
         is_bias = False
@@ -226,17 +338,11 @@ def extract_info(
         is_bias = True
 
     if is_bias:
-        ich_ops = 1
         if node_info["depth"]:
             ops = node_info["ich_ops"]
-        ich = 1
     else:
         if node_info["depth"]:
             och = 1
-        ich_ops = node_info["ich_ops"]
-
-    if ops > och:
-        ops = och
 
     signed = new_node["signed"]
     scale_factor = new_node["scale_factor"]
@@ -273,7 +379,10 @@ def extract_info(
     new_node["type"]    = 'const'
     new_node["kernel"]  = ih*iw
     new_node["total"]   = ich*och*ih*iw*oh*ow/stride
-    new_node["n_weights"] = ich*och*ih*iw
+    if (not is_bias):
+        new_node["n_weights"] = ich*och*ih*iw
+    else:
+        new_node["n_weights"] = och
     new_node["dynamic_init"] = dynamic_init
     # assert that uram_storage allows only if dynamic_init
     assert not(uram_storage and not(dynamic_init))
@@ -352,7 +461,7 @@ def weights_info(
 
     return io_dict
 
-def parse_main(io_dict, dynamic_init):
+def parse_main(io_dict):
     
     block = {}
     block["func"] = "memory_management"
@@ -365,92 +474,112 @@ def parse_main(io_dict, dynamic_init):
     block["defines"] = {}
     block["pragma"] = []
 
-    uram_storage = False
+    # for name, node in io_dict.items():
+    #     if 'const' == node["type"]:
+    #         output_name = node["output"][0]
+    #         if node["off_chip_memory"]:
+    #             block["input"].append("%s" % output_name)
+    #             block["args"].append("i_data_%s" % output_name)
 
-    for name, node in io_dict.items():
-        if 'const' == node["type"]:
-            output_name = node["output"][0]
-            if node["off_chip_memory"]:
-                block["input"].append("%s" % output_name)
-                block["args"].append("i_data_%s" % output_name)
+    #             pragma = {}
+    #             pragma["name"] = "interface"
+    #             options = [
+    #                 ["port", "i_data_%s" % output_name],
+    #                 ["mode", "m_axi"],
+    #             ]
+    #             pragma["options"] = options
+    #             block["pragma"].append(pragma)
 
-                pragma = {}
-                pragma["name"] = "interface"
-                options = [
-                    ["port", "i_data_%s" % output_name],
-                    ["mode", "m_axi"],
-                ]
-                pragma["options"] = options
-                block["pragma"].append(pragma)
-            
-            if node["uram_storage"]:
-                # FIX: removing biases from URAM storage, they are few
-                uram_storage = True
+    output_name = "params"
+    block["stream_input"].append({"name" : f"i_data_{output_name}", "type" : "t_params_axi_stream"})
+    block["args"].append("i_data_%s" % output_name)
 
-    if dynamic_init:
-        output_name = "weights"
-        block["stream_input"].append("%s" % output_name)
-        block["args"].append("i_data_%s" % output_name)
+    block["defines"]["t_%s_stream" % output_name] = [
+        "type", 
+        "ap_uint<8>"
+    ]
 
-        block["defines"]["t_%s_st" % output_name] = [
-            "type", 
-            "ap_uint<8>"
-        ]
+    block["defines"]["t_%s_axi_stream" % output_name] = [
+        "type", 
+        "ap_axiu<8, 0, 0, 0>"
+    ]
 
-        block["defines"]["t_%s_stream" % output_name] = [
-            "type", 
-            "ap_axiu<8, 0, 0, 0>"
-        ]
+    block["defines"]["t_%s_st" % output_name] = [
+        "type", 
+        "uint8_t"
+    ]
 
-        block["defines"]["t_%s_st" % output_name] = [
-            "type", 
-            "uint8_t"
-        ]
+    pragma = {}
+    pragma["name"] = "interface"
+    options = [
+        ["port", "i_data_%s" % output_name],
+        ["mode", "axis"],
+    ]
+    pragma["options"] = options
+    block["pragma"].append(pragma)
+
+    block["is_const"] = True
+
+    def declare_stream(name, dim):
+        """ Declare a stream with all the needed pragmas """
+        arg = f"s_{name}"
+
+        tmp = {}
+        tmp["name"] = f"s_{name}"
+        tmp["type"] = f"t_{name}"
+        tmp["dim"]  = dim
+        tmp["is_array"] = True
+        declare = tmp
 
         pragma = {}
-        pragma["name"] = "interface"
+        pragma["name"] = "stream"
         options = [
-            ["port", "i_data_%s" % output_name],
-            ["mode", "axis"],
+            ["variable", f"s_{name}"],
+            ["depth", "2"],
+            ["type", "fifo"],
         ]
         pragma["options"] = options
-        block["pragma"].append(pragma)
+        pragma0 = pragma
 
-        block["is_const"] = True
- 
+        pragma = {}
+        pragma["name"] = "array_partition"
+        options = [
+            ["variable", f"s_{name}"],
+            ["type", "complete"],
+        ]
+        pragma["options"] = options
+        pragma1 = pragma
+        return arg, declare, pragma0, pragma1
 
     for name, node in io_dict.items():
-        if 'const' == node["type"]:
-            input_name = node["input"][0]
-            output_name = node["output"][0]
-            block["args"].append("s_%s" % output_name)
+        if 'conv' == node["type"]:
+            weight_name = node["input"][1]
+            args, declare, pragma0, pragma1 = declare_stream(weight_name, node["fw"] * node["fh"])
+            block["args"].append(args)
+            block["declare"].append(declare)
+            block["pragma"].append(pragma0)
+            block["pragma"].append(pragma1)
+            
+            if (node["has_bias"]):
+                bias_name = node["input"][2]
+                args, declare, pragma0, _ = declare_stream(bias_name, 1)
+                block["args"].append(args)
+                block["declare"].append(declare)
+                block["pragma"].append(pragma0)
 
-            tmp = {}
-            tmp["name"] = "s_%s" % output_name
-            tmp["type"] = "t_%s" % output_name
-            tmp["dim"]  = node["ih"]*node["iw"]
-            tmp["is_array"] = True
-
-            block["declare"].append(tmp)
-
-            pragma = {}
-            pragma["name"] = "stream"
-            options = [
-                ["variable", "s_%s" % output_name],
-                ["depth", "2"],
-                ["type", "fifo"],
-            ]
-            pragma["options"] = options
-            block["pragma"].append(pragma)
-
-            pragma = {}
-            pragma["name"] = "array_partition"
-            options = [
-                ["variable", "s_%s" % output_name],
-                ["type", "complete"],
-            ]
-            pragma["options"] = options
-            block["pragma"].append(pragma)
+            if (node["merge_1x1"]):
+                weight_name_1x1 = node["input"][3]
+                args, declare, pragma0, _ = declare_stream(weight_name_1x1, 1)
+                block["args"].append(args)
+                block["declare"].append(declare)
+                block["pragma"].append(pragma0)
+                
+                if (node["has_bias"]):
+                    bias_name_1x1 = node["input"][4]
+                    args, declare, pragma0, _ = declare_stream(bias_name_1x1, 1)
+                    block["args"].append(args)
+                    block["declare"].append(declare)
+                    block["pragma"].append(pragma0)
 
     return block
 
@@ -584,359 +713,526 @@ def off_chip_ddr(
     return blocks
 
 def on_chip_rom(
-    name,
-    node,
-    input_name,
-    output_name
+    param_node,
+    width_stream
 ):
 
     blocks = []
     block = {}
 
-    uram_storage = node["uram_storage"]
-    dynamic_init = node["dynamic_init"]
-
-    block["func"] = "produce_stream"
-    block["args"] = []
-    block["input"] = []
-    block["stream_input"] = []
-    block["uram_input"] = []
-    block["output"] = []
-    block["bits"] = node["bits"]
-    block["index"] = node["ih"]*node["iw"]
-    block["och"] = node["och"]
-    # FIX: adding this check to avoid problems in merged pipelines
-    # with same inputs but different output channels
-    # Check if ops are mode than och and clip
-    if node["ops"] > node["och"]:
-        block["ops"] = node["och"]
-    else:
-        block["ops"] = node["ops"]
-    block["ich_ops"] = node["ich_ops"]
-    block["dynamic_init"] = dynamic_init
-    block["uram_storage"] = uram_storage
-
-    block["template"] = []
-    block["template"].append("t_%s_st" % (output_name))
-    if dynamic_init:
-        block["template"].append("t_%s_init" % (output_name))
-    block["template"].append("t_%s" % (output_name))
-    block["template"].append("c_%s_ich" % (name))
-    block["template"].append("c_%s_och" % (name))
-    block["template"].append("c_%s_ow" % (name))
-    block["template"].append("c_%s_oh" % (name))
-    block["template"].append("c_%s_iw" % (output_name))
-    block["template"].append("c_%s_ih" % (output_name))
-    block["template"].append("c_%s_ops" % (name))
-    block["template"].append("c_%s_ich_ops" % (name))
-    block["template"].append("c_%s_reuse" % (output_name))
-
-    block["output"].append("%s" % output_name)
-    block["args"].append("c_%s" % output_name)
-    if dynamic_init:
-        block["args"].append("s_%s_init" % output_name)
-        block["args"].append("s_%s_init_flag" % output_name)
-    block["args"].append("s_%s" % output_name)
-
-    pre_values = node["pre_values"]
-    if node["depth"] and not(node["is_bias"]):
-        pre_values = np.swapaxes(pre_values, 0, 1)
-
-    node["values"] = parse_on_chip(
-        node,
-        pre_values,
-        node["bits"],
-        node["signed"],
-        node["narrow"],
-        node["dynamic_init"],
-    )
-
-    if dynamic_init:
-        block["uram_input"].append("s_%s_init" % output_name)
-        block["uram_total"] = [node["n_weights"]]
-
-        # Declare only in tb wrapper
-        block["tb_declare"] = []
-        tmp = {}
-        tmp["name"] = "c_%s" % output_name
-        tmp["type"] = "t_%s" % output_name
-        tmp["is_array"] = True
-        tmp["is_const"] = not uram_storage
-        values = pack_weights(node["values"], node["bits"])
-        tmp["size"] = values.shape
-        tmp["init"] = values
-
-        block["tb_declare"].append(tmp)
-
-    block["declare"] = []
-
-    tmp = {}
-    if dynamic_init:
-        tmp["name"] = "static c_%s" % output_name
-    else:
-        tmp["name"] = "c_%s" % output_name
-    tmp["type"] = "t_%s_st" % output_name
-    tmp["is_array"] = True
-    tmp["is_const"] = not dynamic_init
-    size = node["values"].shape
-    tmp["size"] = size
-    tmp["init"] = node["values"]
-    tmp["form"] = "float"
-
-    block["declare"].append(tmp)
-
-    if dynamic_init:
-        tmp = {}
-        tmp["name"] = "s_%s_init_flag" % output_name
-        tmp["type"] = "static bool"
-        tmp["is_array"] = False
-        tmp["is_const"] = False
-        tmp["size"] = 1
-        tmp["init"] = None
-        block["declare"].append(tmp)
-
-        tmp = {}
-        tmp["name"] = "s_%s_init" % output_name
-        tmp["type"] = "t_%s_init" % output_name
-        tmp["is_array"] = True
-        tmp["dim"] = node["ih"]*node["iw"]
-
-        block["declare"].append(tmp)
-
-    block["defines"] = {}
-    block["defines"]["t_%s_st" % (output_name)]    = ["type", node["data_type"]]
-    output_type_name = "std::array<std::array<%s, %0d>, %0d>" % (node["data_type"], node["ops"], node["ich_ops"])
-    if dynamic_init:
-        block["defines"]["t_%s_init" % (output_name)]    = ["type", "t_%s_st" % output_name]
-    block["defines"]["t_%s" % (output_name)]       = ["type",  output_type_name]
-    block["defines"]["c_%s_ich" % (name)]          = ["const", node["ich"]]
-    block["defines"]["c_%s_och" % (name)]          = ["const", node["och"]]
-    block["defines"]["c_%s_ops" % (name)]          = ["const", node["ops"]]
-    block["defines"]["c_%s_ich_ops" % (name)]      = ["const", node["ich_ops"]]
-    block["defines"]["c_%s_ow" % (name)]           = ["const", node["ow"]]
-    block["defines"]["c_%s_oh" % (name)]           = ["const", node["oh"]]
-    block["defines"]["c_%s_iw" % (output_name)]    = ["const", node["iw"]]
-    block["defines"]["c_%s_ih" % (output_name)]    = ["const", node["ih"]]
-    block["defines"]["c_%s_ops" % (output_name)]   = ["const", node["ops"]]
-    block["defines"]["c_%s_reuse" % (output_name)] = ["const", node["reuse"]]
-
-    block["pragma"] = []
-    #######################################################################
-    # pragma = {}
-    # pragma["name"] = "array_partition"
-    # options = [
-    #     ["variable", "c_%s" % (output_name)],
-    #     ["type", "block"],
-    #     ["factor", 1],
-    #     ["dim", 1],
-    # ]
-    # pragma["options"] = options
-
-    # block["pragma"].append(pragma)
-    #######################################################################
-    #######################################################################
-    if uram_storage:
-        pragma = {}
-        pragma["name"] = "bind_storage"
-        options = [
-            ["variable", "c_%s" % (output_name)],
-            ["impl", "URAM"],
-            ["type", "RAM_T2P"]
-        ]
-        pragma["options"] = options
-
-        block["pragma"].append(pragma)
-
-    interface_width = 72
+    conv_name = param_node["name"]
+    conv_node = param_node["conv_node"]
+    weight_node = param_node["weight_node"]
+    weight_output_name = weight_node["output"][0]
     
-    # FIX: Reducing bias resource usage increasing the produce_stream II
-    dim_1_partition_factor = 1
-    dim_3_partition_factor = 1
-    dim_2_reshape_factor = 1
-    if node["is_bias"]:
-        parallelism = 1
-        dim_1_reshape_factor = 1
-        dim_3_reshape_factor = 1
-    else: 
-        parallelism = node["ops"] * node["ich_ops"]
-
-        # Compute the number of weights fitting a word.
-        divider = interface_width // node["bits"]
-
-        # if divider == 1:
-        #     dim_1_reshape_factor = 1
-        # else:
-        #     # If the weights in a filter do not perfectly fit in a word of the
-        #     # memory, do not reshape on the first dimension
-        #     if ((node["ih"] * node["iw"]) % divider) != 0:
-        #         dim_1_reshape_factor = 1
-        #     else:
-        #         dim_1_reshape_factor = np.clip( node["ih"] * node["iw"], 1, divider)
-        #     divider = divider//dim_1_reshape_factor
-
-        # if parallelism > divider:
-        #     dim_3_reshape_factor = divider
-        #     divider = 1
-        # else: 
-        #     dim_3_reshape_factor = parallelism
-        #     divider = divider//parallelism
-
-        # if dim_3_reshape_factor >= parallelism:
-        #     dim_3_partition_factor = 1
-        # else:
-        #     dim_3_partition_factor = math.ceil(parallelism/dim_3_reshape_factor)
-
-        # if divider > 1:
-        #     dim_2_reshape_factor = divider
-        #     divider = 1
-        # else:
-        #     dim_2_reshape_factor = 1
-
-        # if dim_1_reshape_factor == 1:
-        #     dim_1_partition_factor = node["ih"]*node["iw"]
-        # elif dim_1_reshape_factor < (node["ih"]*node["iw"]):
-        #     dim_1_partition_factor = math.ceil(node["ih"]*node["iw"]/dim_1_reshape_factor)
-        # else:
-        #     dim_1_partition_factor = 1
-        dim_3_reshape_factor = parallelism
-        dim_1_reshape_factor = node['ih']*node['iw'] 
-
-    #######################################################################
-
-    pragma = {}
-    pragma["name"] = "array_reshape"
-    options = [
-        ["variable", "c_%s" % (output_name)],
-        ["dim", 3],
-    ]
-
-    if dim_3_reshape_factor < parallelism:
-        options.append(["factor", dim_3_reshape_factor])
-        options.append(["type", "cyclic"])
+    bias_node = param_node["bias_node"]
+    if (bias_node is not None):
+        bias_output_name = bias_node["output"][0]
     else:
-        dim_3_reshape_factor = parallelism
-        options.append(["type", "complete"])
+        bias_output_name = None
 
-    pragma["options"] = options
-    if dim_3_reshape_factor > 1:
-        block["pragma"].append(pragma)
-
-    #######################################################################
-    pragma = {}
-    pragma["name"] = "array_partition"
-    options = [
-        ["variable", "c_%s" % (output_name)],
-        ["dim", 3],
-    ]
-
-    if dim_3_partition_factor > 1:
-        options.append(["factor", dim_3_partition_factor])
-        options.append(["type", "cyclic"])
-
-    pragma["options"] = options
-    if dim_3_partition_factor > 1:
-        block["pragma"].append(pragma)
-
-    #######################################################################
-
-    pragma = {}
-    pragma["name"] = "array_reshape"
-    options = [
-        ["variable", "c_%s" % (output_name)],
-        ["dim", 1],
-    ]
-
-    if dim_1_reshape_factor > 1:
-        if dim_1_reshape_factor == (node["ih"]*node["iw"]):
-            options.append(["type", "complete"])
-        else:
-            options.append(["factor", dim_1_reshape_factor])
-            options.append(["type", "cyclic"])
-
-    pragma["options"] = options
-
-    if dim_1_reshape_factor > 1:
-        block["pragma"].append(pragma)
-
-    #######################################################################
-    if (dim_2_reshape_factor > 1):
-        pragma = {}
-        pragma["name"] = "array_reshape"
-        options = [
-            ["variable", "c_%s" % (output_name)],
-            ["type", "cyclic"],
-            ["factor", dim_2_reshape_factor],
-            ["dim", 2],
-        ]
-        pragma["options"] = options
-        block["pragma"].append(pragma)
-
-    #######################################################################
-    pragma = {}
-    pragma["name"] = "array_partition"
-    options = [
-        ["variable", "c_%s" % (output_name)],
-        ["dim", 1],
-    ]
-
-    if dim_1_partition_factor >= parallelism:
-        options.append(["type", "complete"])
+    weight_node_1x1 = param_node["weight_node_1x1"]
+    if (weight_node_1x1 is not None):
+        weight_output_name_1x1 = weight_node_1x1["output"][0]
     else:
-        options.append(["factor", dim_1_partition_factor])
-        options.append(["type", "cyclic"])
+        weight_output_name_1x1 = None
 
-    pragma["options"] = options
-    if dim_1_partition_factor > 1:
-        block["pragma"].append(pragma)
-
-    if dynamic_init:
+    bias_node_1x1 = param_node["bias_node_1x1"]
+    if (bias_node_1x1 is not None):
+        bias_output_name_1x1 = bias_node_1x1["output"][0]
+    else:
+        bias_output_name_1x1 = None
+    
+    bias_ops = bias_ops_calc(
+        conv_node["ich_ops"],
+        conv_node["ops"],
+        conv_node["depth"]
+    )
+    
+    # Declare the function to pass from axi stream data type to internal type for params
+    if (param_node["first"]):
+        block["func"] = "axi_to_stream"
+        block["args"] = []
+        block["input"] = []
+        block["stream_input"] = []
+        block["uram_input"] = []
+        block["output"] = []
+        block["declare"] = []
+        block["pragma"] = []
+        block["template"] = ["t_params_axi_stream", "t_params_stream",
+                             {"name": param_node["params"], "comment": "tot cycles"}]
+        block["args"] = ["i_data_params", "s_axi_to_stream_init_flag", "s_axi_to_stream_out"]
+        
         pragma = {}
         pragma["name"] = "stream"
         options = [
-            ["variable", "s_%s_init" % output_name],
+            ["variable", f"s_axi_to_stream_out"],
             ["depth", "2"],
             ["type", "fifo"],
         ]
         pragma["options"] = options
         block["pragma"].append(pragma)
+        
+        tmp = {}
+        tmp["name"] = f"s_axi_to_stream_init_flag"
+        tmp["type"] = "static bool"
+        tmp["is_array"] = False
+        tmp["is_const"] = False
+        tmp["size"] = 1
+        tmp["init_value"] = "false"
+        block["declare"].append(tmp)
+        
+        tmp = {}
+        tmp["name"] = f"s_axi_to_stream_out"
+        tmp["type"] = f"t_params_stream"
+        tmp["is_array"] = True
+        tmp["dim"] = 1
+        block["declare"].append(tmp)
+        blocks.append(block)
+        block = {}
 
-    block["size"] = node["iw"]*node["ih"]
-    block["is_const"] = True
-    blocks.append(block)
-
-    return blocks
-
-def parse(name, node):
+    block["func"] = "produce_shift_stream"
+    block["args"] = []
+    block["input"] = []
+    block["stream_input"] = []
+    block["uram_input"] = []
+    block["output"] = []
+    # block["bits"] = node["bits"]
+    # block["index"] = node["ih"] * node["iw"]
+    # block["och"] = node["och"]
     
-    input_name = node["input"][0]
-    output_name = node["output"][0]
+    # FIX: adding this check to avoid problems in merged pipelines
+    # with same inputs but different output channels
+    # Check if ops are mode than och and clip
+    # if node["ops"] > node["och"]:
+    #     block["ops"] = node["och"]
+    # else:
+    #     block["ops"] = node["ops"]
+    
+    # block["ich_ops"] = node["ich_ops"]
+    # block["dynamic_init"] = dynamic_init
+    # block["uram_storage"] = uram_storage
 
-    if node["off_chip_memory"]:
-        blocks = off_chip_ddr(
-            name,
-            node,
-            input_name,
-            output_name
-        )
-
+    ### Template declaration of the produce_shift_stream function
+    block["template"] = []
+    if (bias_node is not None):
+        block["template"].append(f"t_{bias_output_name}_mem")
     else:
+        block["template"].append("std::nullptr_t")
+    
+    block["template"].append(f"t_{weight_output_name}_mem")
+    
+    if (bias_node_1x1 is not None):
+        block["template"].append(f"t_{bias_output_name_1x1}_mem")
+    else:
+        block["template"].append("std::nullptr_t")
+    
+    if (weight_node_1x1 is not None):
+        block["template"].append(f"t_{weight_output_name_1x1}_mem")
+    else:
+        block["template"].append("std::nullptr_t")
+    
+    block["template"].append(f"t_params_stream")
+    
+    if (bias_node is not None):
+        block["template"].append(f"t_{bias_output_name}")
+    else:
+        block["template"].append("std::nullptr_t")
+    
+    block["template"].append(f"t_{weight_output_name}")
+    
+    if (bias_node_1x1 is not None):
+        block["template"].append(f"t_{bias_output_name_1x1}")
+    else:
+        block["template"].append("std::nullptr_t")
+    
+    if (weight_node_1x1 is not None):
+        block["template"].append(f"t_{weight_output_name_1x1}")
+    else:
+        block["template"].append("std::nullptr_t")
 
-        blocks = on_chip_rom(
-            name,
-            node,
-            input_name,
-            output_name
-        )
-      
+    # Not a really beatiful solution, we cannot modify och since it is used also for the bias
+    # size. Must correct this when introducing groups.
+    if (conv_node["depth"]):
+        block["template"].append({"name" : f"{weight_node['och']}", "comment" : f"ich divided by groups"})
+    else:
+        block["template"].append(f"c_{conv_name}_ich")
+    block["template"].append(f"c_{conv_name}_och")
+    block["template"].append(f"c_{conv_name}_ow")
+    block["template"].append(f"c_{conv_name}_oh")
+    block["template"].append(f"c_{conv_name}_fw")
+    block["template"].append(f"c_{conv_name}_fh")
+    block["template"].append(f"c_{conv_name}_ops")
+    block["template"].append(f"c_{conv_name}_ich_ops")
+    block["template"].append({"name" : bias_ops, "comment" : "bias_ops"})
+    block["template"].append(f"c_{conv_name}_reuse")
+    block["template"].append({"name" : param_node["shift_cycles"], "comment" : "shift cycles"})
+    block["template"].append({"name" : width_stream, "comment" : "width stream"})
+    if (bias_node is not None):
+        block["template"].append({"name" : int(np.ceil(bias_node["bits"]/width_stream)), "comment" : "bias reads per data"})
+    else:
+        block["template"].append({"name" : 0, "comment" : "bias reads per data"})
+    block["template"].append({"name" : int(np.ceil(weight_node["bits"]/width_stream)), "comment" : "weight reads per data"})
+    ### Finish template declaration
+
+    ### Arguments of the produce_shift_stream function
+    if (bias_node is not None):
+        block["args"].append(f"c_{bias_output_name}")
+    else:
+        block["args"].append(f"nullptr")
+
+    block["args"].append(f"c_{weight_output_name}")
+    
+    if (bias_node_1x1 is not None):
+        block["args"].append(f"c_{bias_output_name_1x1}")
+    else:
+        block["args"].append("nullptr")
+    
+    if (weight_node_1x1 is not None):
+        block["args"].append(f"c_{weight_output_name_1x1}")
+    else:
+        block["args"].append("nullptr")
+    
+    block["args"].append(f"s_{param_node['connections']['in']}_out")
+    block["args"].append(f"s_{conv_name}_init_flag")
+    
+    if (bias_node is not None):
+        block["args"].append(f"s_{bias_output_name}")
+    else:
+        block["args"].append("(hls::stream<std::nullptr_t>*)(nullptr)")
+    
+    block["args"].append(f"s_{weight_output_name}")
+
+    if (bias_node_1x1 is not None):
+        block["args"].append(f"s_{bias_output_name_1x1}")
+    else:
+        block["args"].append("(hls::stream<std::nullptr_t>*)(nullptr)")
+    
+    if (weight_node_1x1 is not None):
+        block["args"].append(f"s_{weight_output_name_1x1}")
+    else:
+        block["args"].append("(hls::stream<std::nullptr_t>*)(nullptr)")
+    
+    if (not param_node["last"]):
+        block["args"].append(f"s_{conv_name}_out")
+    else:
+        block["args"].append("(hls::stream<t_params_stream>*)(nullptr)")
+    ### Finish arguments
+
+    ### Variable declaration
+    block["declare"] = []
+    tmp = {}
+    tmp["name"] = f"static c_{weight_output_name}"
+    tmp["type"] = f"t_{weight_output_name}_mem"
+    tmp["is_array"] = True
+    tmp["is_const"] = False
+    # size = weight_node["values"].shape
+    tmp["size"] = mem_shape_calc(weight_node)
+    # tmp["init"] = weight_node["values"]
+    tmp["form"] = "float"
+    block["declare"].append(tmp)
+    
+    if (bias_node is not None):
+        tmp = {}
+        tmp["name"] = f"static c_{bias_output_name}"
+        tmp["type"] = f"t_{bias_output_name}_mem"
+        tmp["is_array"] = True
+        tmp["is_const"] = False
+        # size = bias_node["values"].shape
+        tmp["size"] = mem_shape_calc(bias_node)
+        # tmp["init"] = bias_node["values"]
+        tmp["form"] = "float"
+        block["declare"].append(tmp)
+    
+    if (weight_node_1x1 is not None):
+        tmp = {}
+        tmp["name"] = f"static c_{weight_output_name_1x1}"
+        tmp["type"] = f"t_{weight_output_name_1x1}_mem"
+        tmp["is_array"] = True
+        tmp["is_const"] = False
+        # size = weight_node_1x1["values"].shape
+        tmp["size"] = mem_shape_calc(weight_node_1x1)
+        # tmp["init"] = weight_node_1x1["values"]
+        tmp["form"] = "float"
+        block["declare"].append(tmp)
+    
+    if (bias_node_1x1 is not None):
+        tmp = {}
+        tmp["name"] = f"static c_{bias_output_name_1x1}"
+        tmp["type"] = f"t_{bias_output_name_1x1}_mem"
+        tmp["is_array"] = True
+        tmp["is_const"] = False
+        # size = bias_node_1x1["values"].shape
+        tmp["size"] = mem_shape_calc(bias_node_1x1)
+        # tmp["init"] = bias_node_1x1["values"]
+        tmp["form"] = "float"
+        block["declare"].append(tmp)
+
+    tmp = {}
+    tmp["name"] = f"s_{conv_name}_init_flag"
+    tmp["type"] = "static bool"
+    tmp["is_array"] = False
+    tmp["is_const"] = False
+    tmp["size"] = 1
+    tmp["init_value"] = "false"
+    block["declare"].append(tmp)
+
+    if (not param_node["last"]):
+        tmp = {}
+        tmp["name"] = f"s_{conv_name}_out"
+        tmp["type"] = f"t_params_stream"
+        tmp["is_array"] = True
+        tmp["dim"] = 1
+        block["declare"].append(tmp)
+    ### Finish variable declaration
+
+    block["pragma"] = []
+    
+    # Binding memory to URAM storage
+    if weight_node["uram_storage"]:
+        pragma = {}
+        pragma["name"] = "bind_storage"
+        options = [
+            ["variable", f"c_{weight_output_name}"],
+            ["impl", "URAM"],
+            ["type", "RAM_2P"]
+        ]
+        pragma["options"] = options
+
+        block["pragma"].append(pragma)
+    
+    if (weight_node_1x1 is not None and weight_node_1x1["uram_storage"]):
+        pragma = {}
+        pragma["name"] = "bind_storage"
+        options = [
+            ["variable", f"c_{weight_output_name_1x1}"],
+            ["impl", "URAM"],
+            ["type", "RAM_2P"]
+        ]
+        pragma["options"] = options
+
+        block["pragma"].append(pragma)
+
+    # Completely reshaping weights and bias memory
+    pragma = {}
+    pragma["name"] = "array_reshape"
+    options = [
+        ["variable", f"c_{weight_output_name}"],
+        ["dim", 3],
+        ["type", "complete"]
+    ]
+    pragma["options"] = options
+    block["pragma"].append(pragma)
+    
+    if (bias_node is not None):
+        pragma = {}
+        pragma["name"] = "array_reshape"
+        options = [
+            ["variable", f"c_{bias_output_name}"],
+            ["dim", 2],
+            ["type", "complete"]
+        ]
+        pragma["options"] = options
+        block["pragma"].append(pragma)
+    
+    if (weight_node_1x1 is not None):
+        pragma = {}
+        pragma["name"] = "array_reshape"
+        options = [
+            ["variable", f"c_{weight_output_name_1x1}"],
+            ["dim", 3],
+            ["type", "complete"]
+        ]
+        pragma["options"] = options
+        block["pragma"].append(pragma)
+    
+    if (bias_node_1x1 is not None):
+        pragma = {}
+        pragma["name"] = "array_reshape"
+        options = [
+            ["variable", f"c_{bias_output_name_1x1}"],
+            ["dim", 2],
+            ["type", "complete"]
+        ]
+        pragma["options"] = options
+        block["pragma"].append(pragma)
+
+    # Declaring streams connecting produce_shift_stream
+    if (not param_node["last"]):
+        pragma = {}
+        pragma["name"] = "stream"
+        options = [
+            ["variable", f"s_{conv_name}_out"],
+            ["depth", "2"],
+            ["type", "fifo"],
+        ]
+        pragma["options"] = options
+        block["pragma"].append(pragma)
+    
+    ### Memory management input and outputs 
+    block["output"].append({"name" : f"s_{weight_output_name}", "type" : f"t_{weight_output_name}", "size": conv_node["fh"] * conv_node["fw"]})
+    if (bias_node is not None):
+        block["output"].append({"name" : f"s_{bias_output_name}", "type": f"t_{bias_output_name}", "size": 1})
+    if (weight_node_1x1 is not None):
+        block["output"].append({"name" : f"s_{weight_output_name_1x1}", "type": f"t_{weight_output_name_1x1}", "size": 1})
+    if (bias_node_1x1 is not None):
+        block["output"].append({"name" : f"s_{bias_output_name_1x1}", "type": f"t_{bias_output_name_1x1}", "size": 1})
+    block["is_const"] = True
+    if (param_node["first"]):
+        block["stream_input"].append({"name" : "&i_data_params", "type" : "t_params_axi_stream"})
+    blocks.append(block)
+    ### Finish memory management outputs
+
     return blocks
 
-def parse_all(io_dict, prj_root="/tmp", board="KRIA", uram_storage = False, generate_report_file="tmp.rpt"):
+def parse_const(io_dict, model, node):
+    """ Parse the constants of the produce_shift_stream """
+
+    has_bias = node["has_bias"]
+    blocks = []
+    block = {}
+    io_connect = extract_connections(model, io_dict)
+    conv_node = node
+    weight_output_name = node["input"][1]
+    weight_node = io_dict[io_connect[weight_output_name][0][0]]
+    bias_node = None
+    weight_node_1x1 = None
+    bias_node_1x1 = None
+
+    block["bytes_param"] = num_of_words(weight_node["bits"], weight_node["n_weights"], WIDTH_STREAM)
     
+    if (has_bias):
+        bias_output_name = node["input"][2]
+        bias_node = io_dict[io_connect[bias_output_name][0][0]]
+        bias_ops = bias_ops_calc(
+            conv_node["ich_ops"],
+            conv_node["ops"],
+            conv_node["depth"]
+        )
+        block["bytes_param"] += num_of_words(bias_node["bits"], bias_node["n_weights"], WIDTH_STREAM)
+
+    if (node["merge_1x1"]):
+        weight_output_name_1x1 = node["input"][3]
+        weight_node_1x1 = io_dict[io_connect[weight_output_name_1x1][0][0]]
+        block["bytes_param"] += num_of_words(weight_node_1x1["bits"], weight_node_1x1["n_weights"], WIDTH_STREAM)
+        if (has_bias):
+            bias_output_name_1x1 = node["input"][4]
+            bias_node_1x1 = io_dict[io_connect[bias_output_name_1x1][0][0]]
+            block["bytes_param"] += num_of_words(bias_node_1x1["bits"], bias_node_1x1["n_weights"], WIDTH_STREAM)
+    
+
+    # Recovering parameters values
+    pre_values_weights = weight_node["pre_values"]
+    if conv_node["depth"]:
+        pre_values_weights = np.swapaxes(pre_values_weights, 0, 1)
+
+    weight_node["values"] = parse_on_chip_weights(
+        weight_node,
+        pre_values_weights,
+        weight_node["bits"],
+        weight_node["signed"],
+        weight_node["narrow"],
+        weight_node["dynamic_init"],
+    )
+
+    if (bias_node is not None):
+        pre_values_biases = bias_node["pre_values"]
+        bias_node["values"] = parse_on_chip_biases(
+            bias_node,
+            pre_values_biases,
+            bias_node["bits"],
+            bias_node["signed"],
+            bias_node["narrow"],
+            bias_node["dynamic_init"],
+        )
+    
+    if (weight_node_1x1 is not None):
+        pre_values_weights_1x1 = weight_node_1x1["pre_values"]
+        if conv_node["depth"]:
+            pre_values_weights_1x1 = np.swapaxes(pre_values_weights_1x1, 0, 1)
+
+        weight_node_1x1["values"] = parse_on_chip_weights(
+            weight_node_1x1,
+            pre_values_weights_1x1,
+            weight_node_1x1["bits"],
+            weight_node_1x1["signed"],
+            weight_node_1x1["narrow"],
+            weight_node_1x1["dynamic_init"],
+        )
+
+    if (bias_node_1x1 is not None):
+        pre_values_biases_1x1 = bias_node_1x1["pre_values"]
+        bias_node_1x1["values"] = parse_on_chip_biases(
+            bias_node_1x1,
+            pre_values_biases_1x1,
+            bias_node_1x1["bits"],
+            bias_node_1x1["signed"],
+            bias_node_1x1["narrow"],
+            bias_node_1x1["dynamic_init"],
+        )
+
+    ### Type defintions
+    block["defines"] = {}
+    block["func"] = "produce_shift_stream"
+    block["defines"][f"t_{weight_output_name}_mem"]    = ["type", weight_node["data_type"]]
+    output_type_name = f"std::array<std::array<t_{weight_output_name}_mem, {conv_node['ops']}>, {conv_node['ich_ops']}>"
+    block["defines"][f"t_{weight_output_name}"]      = ["type",  output_type_name]
+    block["params"] = pack_weights(weight_node["values"], weight_node["bits"])
+    if (has_bias):
+        block["defines"][f"t_{bias_output_name}_mem"]    = ["type", bias_node["data_type"]]
+        output_type_name = f"std::array<std::array<t_{bias_output_name}_mem, {bias_ops}>, 1>"
+        block["defines"][f"t_{bias_output_name}"]      = ["type",  output_type_name]
+        block["params"] = np.concatenate([block["params"], pack_weights(bias_node["values"], bias_node["bits"], True)])
+    if (node["merge_1x1"]):
+        block["defines"][f"t_{weight_output_name_1x1}_mem"]    = ["type", weight_node_1x1["data_type"]]
+        output_type_name = f"std::array<std::array<t_{weight_output_name_1x1}_mem, {conv_node['ops']}>, {conv_node['ich_ops']}>"
+        block["defines"][f"t_{weight_output_name_1x1}"]      = ["type",  output_type_name]
+        block["params"] = np.concatenate([block["params"], pack_weights(weight_node_1x1["values"], weight_node_1x1["bits"])])
+        if (has_bias):
+            block["defines"][f"t_{bias_output_name_1x1}_mem"]    = ["type", bias_node_1x1["data_type"]]
+            output_type_name = f"std::array<std::array<t_{bias_output_name_1x1}_mem, {bias_ops}>, 1>"
+            block["defines"][f"t_{bias_output_name_1x1}"]      = ["type",  output_type_name]
+            block["params"] = np.concatenate([block["params"], pack_weights(bias_node_1x1["values"], bias_node_1x1["bits"], True)])
+    ### Finish type definitions
+
+    blocks.append(block)
+    return blocks
+
+def parse_all(io_dict, model, prj_root="/tmp", board="KRIA", uram_storage = False, generate_report_file="tmp.rpt"):
+    """ This function handles the parsing of the weights and biases, the allocation of the functions 
+    to stream the parameters and the resource estimation of them. """
+    
+    def next_layer(io_connect, node):
+        """ Return the name of the next layer from the io_connect dict """
+        if (io_connect[node["output"][0]][1] == []):
+            return None
+        return io_connect[node["output"][0]][1][0]
+    
+    def build_graph(io_dict, io_connect, start_node_name):
+        """ Build the graph to stream the weights and biases """
+        allowed_types = ["conv"]
+        graph = {}
+        next_node = io_dict[start_node_name]
+        graph[start_node_name] = {}
+        graph[start_node_name]["in"] = "axi_to_stream"
+
+        while (next_layer(io_connect, next_node) != None):
+            next_node_name = next_layer(io_connect, next_node)
+            next_node = io_dict[next_node_name]
+
+            if (next_node["type"] in allowed_types):
+                graph[start_node_name]["out"] = next_node_name
+                graph[next_node_name] = {}
+                graph[next_node_name]["in"] = start_node_name
+                start_node_name = next_node_name
+
+        return graph
+     
     parsed_write = []
     board_res = extract_board_info(board, prj_root)
+    io_connect = extract_connections(model, io_dict)
     
     # Check if there is URAM storage
-    dynamic_init = False
     BANDWIDTH = 72 
     n_weights = []
     for name, node in io_dict.items():
@@ -963,29 +1259,83 @@ def parse_all(io_dict, prj_root="/tmp", board="KRIA", uram_storage = False, gene
                     "ich_ops": node["ich_ops"]
                 }
             )
-    
+
+    # Compute the number of weights and biases for each layer 
+    read_cycles_per_layer = {}
+    for name, node in io_dict.items():
+        if (node["type"] == "conv"):
+            weight_node = io_dict[io_connect[node["input"][1]][0][0]]
+            read_cycles_per_layer[name] = num_of_words(weight_node["bits"], weight_node["n_weights"], WIDTH_STREAM)
+            
+            if (node["has_bias"]):
+                bias_node = io_dict[io_connect[node["input"][2]][0][0]]
+                read_cycles_per_layer[name] += num_of_words(bias_node["bits"], bias_node["n_weights"], WIDTH_STREAM)
+            
+            if (node["merge_1x1"]):
+                weight_node_1x1 = io_dict[io_connect[node["input"][3]][0][0]]
+                read_cycles_per_layer[name] += num_of_words(weight_node_1x1["bits"], weight_node_1x1["n_weights"], WIDTH_STREAM)
+                
+                if (node["has_bias"]):
+                    bias_node_1x1 = io_dict[io_connect[node["input"][4]][0][0]]
+                    read_cycles_per_layer[name] += num_of_words(bias_node_1x1["bits"], bias_node_1x1["n_weights"], WIDTH_STREAM)
+
+
+    # Save the number of weights to shift for each layer 
+    shift_cycles = {}
+    cycles_to_shift = sum(read_cycles_per_layer.values())
+    for name, cycles in read_cycles_per_layer.items():
+        cycles_to_shift -= cycles
+        shift_cycles[name] = int(cycles_to_shift)
+
     fit = sorted_bind_storage(n_weights, board_res, uram_storage)
 
+    # Saving which layer should be implemented in URAM
     for layer in n_weights:
         if not layer["is_bias"]:
             io_dict[layer["name"]]["uram_storage"] = layer["uram_storage"]
 
+    # parsed_write.append(add_uram_layer())
+
+    # Searching for the first and last layer names.
+    # PAY ATTENTION: this is a temporary solution, it should be improved
+    # as it is assuming sorted layers
+    first_layer = [name for name, layer in io_dict.items() if layer["type"] == "conv"][0]
+
+    # Building a graph based only on parameters streaming
+    graph = build_graph(io_dict, io_connect, first_layer)
     for name, node in io_dict.items():
+        
+        if (node["type"] == "conv"):
+            weight_node = io_dict[io_connect[node["input"][1]][0][0]]
+            bias_node = None
+            weight_node_1x1 = None
+            bias_node_1x1 = None
 
-        if ('const' == node["type"]) and node["dynamic_init"]:
-            dynamic_init = True
+            if (node["has_bias"]):
+                bias_node = io_dict[io_connect[node["input"][2]][0][0]]
+            
+            if (node["merge_1x1"]):
+                weight_node_1x1 = io_dict[io_connect[node["input"][3]][0][0]]
+                
+                if (node["has_bias"]):
+                    bias_node_1x1 = io_dict[io_connect[node["input"][4]][0][0]]
+            
+            param_conv_node = {
+                "weight_node": weight_node,
+                "bias_node": bias_node,
+                "weight_node_1x1": weight_node_1x1,
+                "bias_node_1x1": bias_node_1x1,
+                "conv_node": node,
+                "name": name,
+                "shift_cycles": shift_cycles[name],
+                "connections": graph[name],
+                "first": name == first_layer,
+                "last": not "out" in graph[name],
+                "params" : sum(read_cycles_per_layer.values())
+            }
+            parsed_write += on_chip_rom(param_conv_node, WIDTH_STREAM)
 
-    if dynamic_init:
-        parsed_write.append(add_uram_layer())
-
-    for name, node in io_dict.items():
-
-        # FIX: adding the hybrid bram/uram scheme
-        if ('const' == node["type"]):
-            parsed_write = parsed_write + parse(name, node)
-
-    if dynamic_init:
-        parsed_write[0] = fill_uram_layer(parsed_write)
+    # parsed_write[0] = fill_uram_layer(parsed_write)
 
     print_report(n_weights, fit, generate_report_file)
     return parsed_write
@@ -1021,28 +1371,11 @@ def sorted_bind_storage(dict_layers, board_res, uram_storage=False):
             tot_uram = 0
             w_par = node["par"]
             wpp_uram = bandwidth_uram / node["bits"]
-            wpp_bram = bandwidth_bram / node["bits"]
             ports_uram = w_par // wpp_uram
-            ports_bram = w_par // wpp_bram
             lpm = node["n_weights"] // node["par"]
 
-            last_word_bram = int((node["bits"] * w_par) % wpp_bram)
-            last_word_uram = int((node["bits"] * w_par) % wpp_bram)
-
-            if (last_word_bram > 8 and last_word_bram < 18):
-                tot_bram += math.ceil(lpm / (SIZE_BRAM36 / (bandwidth_bram // 2)))
-            elif (last_word_bram > 0 and last_word_bram <= 8):
-                tot_bram += math.ceil(lpm / (SIZE_BRAM36 / (bandwidth_bram // 4)))
-            # if (ports == 1):
-            #     if w_par == 4:
-            #         lpm // 2
-            #     elif w_par == 2:
-            #         lpm // 4
-            #     elif w_par == 1:
-            #         lpm // 8
-            
-            tot_bram += math.ceil(lpm / (SIZE_BRAM36 / bandwidth_bram)) * ports_bram
             tot_uram += math.ceil(lpm / (SIZE_URAM / bandwidth_uram)) * ports_uram
+            tot_bram += compute_bram_layer(node["bits"], node["n_weights"], node["par"])
             
             # wasted_uram = n_uram * SIZE_URAM - (node['n_weights'] * node["bits"])
             # wasted_bram = n_bram * SIZE_BRAM - (node['n_weights'] * node["bits"])
@@ -1119,9 +1452,6 @@ def init(file_name, network_name, parsed_write, uram_layer_include, prj_root="/t
         "hls_stream.h",
     ]
 
-    if uram_layer_include:
-        libraries.append("load_uram_%s.h" % network_name)
-
     with open(prj_root + ("/cc/include/%s.h" % file_name), "w+") as fd:
         
         fd.write(f"#ifndef __NETWORK_{file_name.upper()}_H__\n")
@@ -1141,18 +1471,17 @@ def init(file_name, network_name, parsed_write, uram_layer_include, prj_root="/t
 
         # URAM read handled by external DMA
         for layer in parsed_write:
-            for name in layer["stream_input"]:
-                fd.write("\thls::stream<t_%s_stream> &i_data_%s,\n" % (name, name))
+            for dict in layer["stream_input"]:
+                name = dict["name"]
+                type = dict["type"]
+                fd.write(f"\thls::stream<{type}> {name},\n")
 
         for i, layer in enumerate(parsed_write):
-            for j, name in enumerate(layer["output"]):
-                fd.write(
-                    "\thls::stream<t_%s> s_%s[%0d]" % (
-                        name,
-                        name,
-                        layer["size"]
-                    )
-                )
+            for j, dict in enumerate(layer["output"]):
+                name = dict["name"]
+                type = dict["type"]
+                size = dict["size"]
+                fd.write(f"\thls::stream<{type}> {name}[{size}]")
                 if i < (len(parsed_write)-1) or j < (len(layer["output"])-1):
                     fd.write(",")
                 fd.write("\n")
@@ -1166,17 +1495,17 @@ def footer(file_name, parsed_write, prj_root="/tmp"):
         fd.write("\n")
         fd.write("#endif")
 
-def write(io_dict, network_name, board="KRIA", uram_storage = False, generate_report_file="tmp.rpt", prj_root="/tmp"):
+def write(io_dict, model, network_name, board="KRIA", uram_storage = False, generate_report_file="tmp.rpt", prj_root="/tmp"):
 
-    parsed_write = parse_all(io_dict, prj_root, board, uram_storage, generate_report_file)
+    parsed_write = parse_all(io_dict, model, prj_root, board, uram_storage, generate_report_file)
 
     uram_layer_include = False
-    for layer in parsed_write:
-        if layer['func'] == "load_uram":
-            uram_download.write(layer, network_name, prj_root)
-            uram_layer_include = True
+    # for layer in parsed_write:
+    #     if layer['func'] == "load_uram":
+    #         uram_download.write(layer, network_name, prj_root)
+    #         uram_layer_include = True
 
-    memory_management_file_name = "memory_management_%s" % network_name
+    memory_management_file_name = f"memory_management_{network_name}"
     file_path = f"{prj_root}/cc/include/memory_management_{network_name}.h"
     init(memory_management_file_name, network_name, parsed_write, uram_layer_include, prj_root=prj_root)
     declare(file_path, parsed_write, ap_ctrl=None, inline=True, prj_root=prj_root)

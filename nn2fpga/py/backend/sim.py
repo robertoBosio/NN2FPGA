@@ -108,63 +108,56 @@ def init(file_name, parsed_write, prj_root="/tmp"):
 
         fd.write(") {\n")
 
-def declare_uram_layer(parsed_write):
+def declare_params_array(parsed_write):
 
     # Concatenating all the weights of the layers in a single array to be stored
     # in a file 
-    concat_weights = None
-    remove_tb_declare = []
+    concat_params = None
     for i, layer in enumerate(parsed_write):
-        if 'uram_input' in layer.keys():
-            if len(layer["uram_input"]) > 0:
-                if concat_weights is None:
-                    concat_weights = layer["tb_declare"][0]["init"]
-                else:
-                    concat_weights = np.concatenate(
-                        [
-                            concat_weights,
-                            layer["tb_declare"][0]["init"]
-                        ]
-                    )
-                remove_tb_declare.append(i)
+        if "produce_shift_stream" == layer["func"]:
+            if concat_params is None:
+                concat_params = layer["params"]
+            else:
+                concat_params = np.concatenate(
+                    [
+                        concat_params,
+                        layer["params"]
+                    ]
+                )
 
-    # Removing weights declaration from the dictionary.
-    for i in remove_tb_declare:
-       parsed_write[i]["tb_declare"] = []
-    
-    # Create a single variable delcaration for the concatenation of the weights
-    uram_declare = None
-    if concat_weights is not None:
-        output_name = "weights"
-        uram_declare = {}
-        uram_declare["name"] = "c_%s" % output_name
-        uram_declare["type"] = "t_%s_st" % output_name
-        uram_declare["is_array"] = False
-        uram_declare["is_pointer"] = True
-        uram_declare["is_const"] = False
+    # Create a single variable delcaration for the concatenation of the params
+    param_declare = None
+    if concat_params is not None:
+        output_name = "params"
+        param_declare = {}
+        param_declare["name"] = "c_%s" % output_name
+        param_declare["type"] = "t_%s_st" % output_name
+        param_declare["is_array"] = False
+        param_declare["is_pointer"] = True
+        param_declare["is_const"] = False
 
-        # uram_declare["is_array"] = True
-        # uram_declare["is_const"] = True
-        # uram_declare["size"] = concat_weights.shape
-        # uram_declare["init"] = concat_weights
-        # uram_declare["attribute"] = "aligned(4096)"
-        uram_declare["defines"] = {}
-        uram_declare["defines"]["c_%s_dim" % (output_name)] = ["const", concat_weights.shape[0]]
+        # param_declare["is_array"] = True
+        # param_declare["is_const"] = True
+        # param_declare["size"] = concat_params.shape
+        # param_declare["init"] = concat_params
+        # param_declare["attribute"] = "aligned(4096)"
+        param_declare["defines"] = {}
+        param_declare["defines"]["c_%s_dim" % (output_name)] = ["const", concat_params.shape[0]]
     
     dim = None
-    if concat_weights is not None:
-        dim = concat_weights.shape[0]
+    if concat_params is not None:
+        dim = concat_params.shape[0]
 
-    return parsed_write, [uram_declare], dim, concat_weights
+    return parsed_write, [param_declare], dim, concat_params
 
 
 def body(file_name, parsed_write, prj_root="/tmp"):
     with open(prj_root + "/cc/include/%s_sim.h" % file_name, "a") as fd:
 
-        parsed_write, uram_declare, uram_dim, concat_weights = declare_uram_layer(parsed_write)
+        parsed_write, uram_declare, uram_dim, concat_weights = declare_params_array(parsed_write)
         if uram_declare[0] is not None:
             print("\t", end="", file=fd)
-            write_defines(fd, uram_declare[0]["defines"])
+            write_defines(fd, uram_declare[0]["defines"], uram_declare[0]["name"])
             tb_declare(fd, uram_declare)
             fd.write(f"\tposix_memalign((void**)&{uram_declare[0]['name']}, 4096, {uram_dim} * sizeof({uram_declare[0]['type']}));\n")
             fd.write(f"\tstd::ifstream file_weights(prj_root + \"npy/{file_name}_weights.bin\", std::ios::binary);\n")
@@ -176,7 +169,7 @@ def body(file_name, parsed_write, prj_root="/tmp"):
                 if len(layer["tb_declare"]) > 0:
                     tb_declare(fd, layer["tb_declare"])
         
-        # Alveo boards must follow the vitis flow, which 
+        # Alveo boards must follow the vitis flow
         vitis_flow = False
         if "VITIS_FLOW" in os.environ:
             if int(os.environ.get("VITIS_FLOW")) == 1:
@@ -191,10 +184,10 @@ def body(file_name, parsed_write, prj_root="/tmp"):
         # stream are located in the testbench
         for layer in parsed_write:
             if "memory_management" == layer["func"]:
-                for name in layer["stream_input"]:
+                for dict in layer["stream_input"]:
                     tmp = {}
-                    tmp["name"] = "c_%s_stream" % name
-                    tmp["type"] = "t_%s_stream" % name
+                    tmp["name"] = dict["name"]
+                    tmp["type"] = dict["type"]
                     tmp["is_array"] = False
                     tmp["dim"] = 0
                     write_declare(fd, tmp)
@@ -222,7 +215,8 @@ def body(file_name, parsed_write, prj_root="/tmp"):
         # Defining memory to stream function to load weights
         for layer in parsed_write:
             if "memory_management" == layer["func"]:
-                for name in layer["stream_input"]:
+                for dict in layer["stream_input"]:
+                    name = "params"
                     mm2s_weights_layer = {}
                     mm2s_weights_layer["func"] = "mm2s"
                     mm2s_weights_layer["args"] = []
@@ -232,10 +226,10 @@ def body(file_name, parsed_write, prj_root="/tmp"):
                     mm2s_weights_layer["output"] = []
                     mm2s_weights_layer["template"] = []
                     mm2s_weights_layer["template"].append("t_%s_st" % (name))
-                    mm2s_weights_layer["template"].append("t_%s_stream" % (name))
+                    mm2s_weights_layer["template"].append(f"{dict['type']}")
                     mm2s_weights_layer["args"].append("c_%s" % name)
                     mm2s_weights_layer["args"].append("c_%s_dim" % name)
-                    mm2s_weights_layer["args"].append("c_%s_stream" % name)
+                    mm2s_weights_layer["args"].append(f"{dict['name']}")
                     mm2s_weights_layer["declare"] = []
                     mm2s_weights_layer["defines"] = {}
                     mm2s_weights_layer["pragma"] = []
@@ -256,7 +250,7 @@ def body(file_name, parsed_write, prj_root="/tmp"):
                     d_function["parameters"].append(f"c_{name}_stream")
                     d_function["function_name"] = "nn2fpga::mm2s"
                     d_function["template"] = []
-                    d_function["template"].append(f"t_{name}_st")
+                    d_function["template"].append(f"t_{name}_mem")
                     d_function["template"].append(f"t_{name}_stream")
                     connectivity.append(f"sp=mm2s_weights_1.c_{name}:DDR[0]")
                     connectivity.append(f"sc=mm2s_weights_1.c_{name}_stream:{file_name}_1.i_data_weights")
@@ -318,11 +312,15 @@ def body(file_name, parsed_write, prj_root="/tmp"):
 
         for layer in parsed_write:
             if "memory_management" == layer["func"]:
-                for name in layer["input"]:
-                    fd.write("\t\tc_%s,\n" % (name))
+                for dict in layer["input"]:
+                    name = dict["name"]
+                    type = dict["type"]
+                    fd.write(f"\t\t{name},\n")
 
-                for name in layer["stream_input"]:
-                    fd.write("\t\tc_%s_stream,\n" % (name))
+                for dict in layer["stream_input"]:
+                    name = dict["name"]
+                    type = dict["type"]
+                    fd.write(f"\t\t{name},\n")
 
         for layer in parsed_write:
             if "consume_stream" == layer["func"]:
@@ -520,9 +518,9 @@ def write_templated_converted(filename, dict, prj_root):
              
 
 
-def write(io_dict, file_name, dynamic_init, prj_root="/tmp"):
+def write(io_dict, model, file_name, dynamic_init, prj_root="/tmp"):
 
-    parsed_write, parsed_const = parse_all_main(io_dict, dynamic_init=dynamic_init)
+    parsed_write, parsed_const = parse_all_main(io_dict, model, dynamic_init=dynamic_init)
     parsed_write = parsed_write + parsed_const
 
     init(file_name, parsed_write, prj_root=prj_root)
