@@ -28,10 +28,11 @@ int main(int argc, char** argv) {
  
   /* Images per batch */
   const unsigned int c_batch = stoi(parser.value("n_images"));
-  // const unsigned int c_batch = 2;
+  
   /* Bytes per image */
   const unsigned int c_index =
     (c_produce_stream_ich * c_produce_stream_ih * c_produce_stream_iw) / c_data_per_packet;
+  
   /* Bytes per batch */
   const int n_bytes =
     ((c_produce_stream_ich * c_produce_stream_ih * c_produce_stream_iw) *

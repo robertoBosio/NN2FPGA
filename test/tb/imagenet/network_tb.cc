@@ -13,7 +13,6 @@
 
 #define READ_WIDTH 8
 #define READ_BYTES 1
-#define ACTIVATION_PARALLELISM 8
 #define CLASSES 1000
 
 // Get directory names in a given path
@@ -140,15 +139,17 @@ int main(int argc, char** argv) {
 
   /* Images per batch */
   const unsigned int c_batch = stoi(parser.value("n_images"));
-  // const unsigned int c_batch = 10;
-  /* Bytes per activation data stream */
-  const unsigned int c_par = c_inp_1 / ACTIVATION_PARALLELISM;
+  
   /* Bytes per image */
   const unsigned int c_index =
-    (c_produce_stream_ich * c_produce_stream_ih * c_produce_stream_iw) / c_par;
-  /* Bytes per batch */
-  const int n_bytes = c_index * c_par;
+    (c_produce_stream_ich * c_produce_stream_ih * c_produce_stream_iw) /
+    c_data_per_packet;
   
+  /* Bytes per batch */
+  const int n_bytes =
+    (c_produce_stream_ich * c_produce_stream_ih * c_produce_stream_iw) *
+    c_act_width / 8;
+
   std::chrono::duration<double> inference_time;
   unsigned int results[c_batch];
   unsigned int correct_labels[c_batch];
@@ -256,34 +257,25 @@ int main(int argc, char** argv) {
         ap_uint<64> s_data = 0;
         std::cout << "sending image with rows: " << result_ocv.rows << " cols: " << result_ocv.cols << std::endl;
         for (int i = 0; i < result_ocv.rows; i++) {
-            for (int j = 0; j < result_ocv.cols; j++) {
-                cv::Vec3f pixel = result_ocv.at<cv::Vec3f>(i, j);
-                // Iterate over channels (typically BGR)
-                // Iterate over channells on RGB
-                for (int c = 0; c < 3; c++) {
-                // for (int c = 2; c > -1; c--) {
-                    //std::cout << (int)pixel[c] << std::endl;
-                    int s_par = (s_bytes % ACTIVATION_PARALLELISM);
-                    // if (s_par == 0) {
-                    //   std::cout << "Packet: ";
-                    // }
-                    // t_transform tmp = (float)pixel[c];
-                    // std::cout << tmp << " ";
-                    ap_ufixed<8,0,AP_RND_CONV,AP_SAT> tmp2 = pixel[c];
-                    s_data.range(8 * (s_par + 1) - 1, 8 * s_par) = tmp2.range(7,0);
+          for (int j = 0; j < result_ocv.cols; j++) {
+            cv::Vec3f pixel = result_ocv.at<cv::Vec3f>(i, j);
+            for (int c = 0; c < 3; c++) {
+              int s_par = (s_bytes % c_data_per_packet);
+              // if (s_par == 0) {
+              //   std::cout << "Packet: ";
+              // }
+              // t_transform tmp = (float)pixel[c];
+              // std::cout << tmp << " ";
+              ap_ufixed<c_act_width, 0, AP_RND_CONV, AP_SAT> tmp2 = pixel[c];
+              s_data.range(c_act_width * (s_par + 1) - 1, c_act_width * s_par) =
+                tmp2.range(c_act_width - 1, 0);
 
-                    // #ifdef DEBUG
-                    // std::cout << (ap_uint<8>)(pixel[c]) << " ";
-                    // #endif
-
-                    if (s_par == (c_par - 1)) {
-                        mem_activations[mem_activations_p++] = s_data;
-                        // std::cout << std::endl;
-                    }
-
-                    s_bytes++;
-                }
+              if (s_par == (c_data_per_packet - 1)) {
+                mem_activations[mem_activations_p++] = s_data;
+              }
+              s_bytes++;
             }
+          }
         }
 
     // TODO: Change arguments to -w 0 after first run in CSIM, to remove the
