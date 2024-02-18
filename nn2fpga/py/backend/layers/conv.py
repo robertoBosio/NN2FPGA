@@ -449,7 +449,8 @@ def parse_comp(name, node):
         block["defines"]["t_%s_vector" % forward_name] = ["type", input_reduce_type]
         block["defines"]["t_%s_struct" % forward_name] = [
             "struct",
-            [["data", "std::array<t_%s_reduce, 1>" % input_name], ["last", "bool"]]
+            # [["data", "std::array<t_%s_reduce, 1>" % input_name], ["last", "bool"]]
+            [["data", "std::array<t_%s_reduce, 1>" % input_name]]
         ]
 
     # Output type declaration
@@ -472,7 +473,8 @@ def parse_comp(name, node):
         block["defines"]["t_%s_vector" % output_1x1_name] = ["type", output_vector_type]
         block["defines"]["t_%s_struct" % output_1x1_name] = [
             "struct",
-            [["data", "std::array<t_%s_vector, 1>" % output_1x1_name], ["last", "bool"]]
+            # [["data", "std::array<t_%s_vector, 1>" % output_1x1_name], ["last", "bool"]]
+            [["data", "std::array<t_%s_vector, 1>" % output_1x1_name]]
         ]
 
     if (node["in_scale_factor"][0] is not None):

@@ -161,8 +161,9 @@ consume_stream(hls::stream<din_wrap_t> dinStream[ow_ops],
       dout.data = wrap.data[0][s_ops];
 #ifndef __SYNTHESIS__
 #ifdef DEBUG
-      // if (c_depth == 1)
-      std::cout << dout.data << std::endl;
+      ap_uint<8> tmp = 0;
+      tmp.range(7, 0) = dout.data.range(7, 0);
+      std::cout << tmp.to_string(16) << std::endl;
 #endif
 #endif
       dout.last = wrap.last & (i == (OSZ - 1)) & (s_ops == (OPS - 1));

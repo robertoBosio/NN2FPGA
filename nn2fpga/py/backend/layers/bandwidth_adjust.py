@@ -6,7 +6,7 @@ from onnx import numpy_helper
 import numpy as np
 import math
 
-def parse(name, node, adjust_name, in_ops, adjust_ops, ow_ops, ow_ops_in, dim="i"):
+def parse(name, node, adjust_name, in_ops, adjust_ops, ow_ops, ow_ops_in, dim="i", skip=False):
     
     node_name = "bandwidth_adjust_%s" % adjust_name
     input_name = adjust_name
@@ -33,6 +33,10 @@ def parse(name, node, adjust_name, in_ops, adjust_ops, ow_ops, ow_ops_in, dim="i
     block["template"].append("c_%s_ow_ops" % node_name)
     block["template"].append("c_%s_old_in_ops" % node_name)
     block["template"].append("c_%s_in_ops" % node_name)
+    if skip:
+        block["template"].append({"name": "true", "comment": "skip connection flag"})
+    else:
+        block["template"].append({"name": "false", "comment": "skip connection flag"})
 
     block["args"] = []
     block["args"].append("s_%s" % input_name)
@@ -44,10 +48,18 @@ def parse(name, node, adjust_name, in_ops, adjust_ops, ow_ops, ow_ops_in, dim="i
     output_ops = node[adjust_ops]
     output_vector_type = "std::array<t_%s, %0d>" % (input_name.replace("_skip", ""), output_ops)
     block["defines"]["t_%s_vector" % output_name] = ["type", output_vector_type]
-    block["defines"]["t_%s_struct" % output_name] = [
-        "struct",
-        [["data", "std::array<t_%s_vector, 1>" % output_name], ["last", "bool"]]
-    ]
+
+    # In case of skip connection, the last is not needed
+    if not skip:
+        block["defines"]["t_%s_struct" % output_name] = [
+            "struct",
+            [["data", "std::array<t_%s_vector, 1>" % output_name], ["last", "bool"]]
+        ]
+    else:
+        block["defines"]["t_%s_struct" % output_name] = [
+            "struct",
+            [["data", "std::array<t_%s_vector, 1>" % output_name]]
+        ]
 
     block["defines"]["c_%s_%sch" % (node_name, dim)] = ["const", node["%sch" % dim]]
     block["defines"]["c_%s_%sh" % (node_name, dim)] = ["const", node["%sh" % dim]]

@@ -975,25 +975,20 @@ conv_comp(hls::stream<t_input_struct> i_input[1],
                 s_input = s_input_struct.data;
                 /* Sending last only at the bottom right data */
                 s_last = s_input_struct.last;
-                #ifndef __SYNTHESIS__
-                  #ifdef DEBUG_INPUT
-                    for (auto s_index = 0; s_index < c_fh*FW; s_index++) {
-                      for (auto s_log_ich = 0; s_log_ich < c_in_ops; s_log_ich++) {
-                        std::cout << "input[" << s_index << "][" << s_log_ich << "]" << " " << s_input[s_index][s_log_ich] << std::endl;
+#ifndef __SYNTHESIS__
+#ifdef DEBUG_INPUT
+                    constexpr int c_pixels =
+                      (c_fh * c_fw + ((c_ow_ops - 1) * c_fh));
+                    ap_uint<8 * c_in_ops * c_pixels> tmp;
+                    for (auto s_pixels = 0; s_pixels < c_pixels; s_pixels++) {
+                      for (auto s_in_ops = 0; s_in_ops < c_in_ops; s_in_ops++) {
+                        tmp.range(8 * (s_pixels * c_in_ops + s_in_ops + 1) - 1,
+                                  8 * (s_pixels * c_in_ops + s_in_ops)) =
+                          s_input[s_pixels][s_in_ops].range(7, 0);
                       }
                     }
-                  #endif
-                #endif
-#ifndef __SYNTHESIS__
-                constexpr int c_pixels = (c_fh * c_fw + ((c_ow_ops - 1) * c_fh));
-                ap_uint<8 * c_in_ops * c_pixels> tmp;
-                  for (auto s_pixels = 0; s_pixels < c_pixels; s_pixels++) {
-                for (auto s_in_ops = 0; s_in_ops < c_in_ops; s_in_ops++) {
-                    tmp.range(8 * (s_pixels * c_in_ops + s_in_ops + 1) - 1, 8 * (s_pixels * c_in_ops + s_in_ops)) =
-                      s_input[s_pixels][s_in_ops].range(7, 0);
-                  }
-                }
-                std::cout << std::setw(2*c_in_ops * c_pixels) << std::setfill('0') << tmp.to_string(16) << std::endl;
+                    std::cout << "inp " << tmp.to_string(16) << std::endl;
+#endif
 #endif
               }
 
@@ -1045,20 +1040,32 @@ conv_comp(hls::stream<t_input_struct> i_input[1],
                   for (auto s_ow_ops = 0; s_ow_ops < c_ow_ops; s_ow_ops++) {
                   // FIX FOR MOBILENETv2: Taking into account different output and
                   // input channels
-                    #ifndef __SYNTHESIS__
-                      #ifdef DEBUG_ADD
-                        std::cout << "reading s_add[" << s_ow_ops << "]" << std::endl;
-                      #endif
-                    #endif
+                    
                     t_add_struct s_add_struct = i_add[s_ow_ops].read();
-                    s_add[s_ow_ops] = s_add_struct.data[0];   
-                    #ifndef __SYNTHESIS__
-                      #ifdef DEBUG_ADD
-                      for (auto s_ich_idx_add = 0; s_ich_idx_add < c_add_ops; s_ich_idx_add++) {
-                        std::cout << "add[" << s_ow_ops << "][" << s_ich_idx_add << "] " << s_add[s_ow_ops].data[0][s_ich_idx_add] << std::endl;
-                      }
-                      #endif
-                    #endif
+                    s_add[s_ow_ops] = s_add_struct.data[0];
+#ifndef __SYNTHESIS__
+#ifdef DEBUG_ADD
+                    ap_uint<t_add::width * c_add_ops> tmp = 0;
+                    for (auto s_add_ops = 0; s_add_ops < c_add_ops;
+                         s_add_ops++) {
+                      tmp.range((t_add::width * (s_add_ops + 1)) - 1,
+                                t_add::width * s_add_ops) =
+                        s_add[s_ow_ops][s_add_ops].range(t_add::width - 1, 0);
+                    }
+                    std::cout << "add " << tmp.to_string(16) << " " << s_ow_ops
+                              << std::endl;
+#endif
+#endif
+#ifndef __SYNTHESIS__
+#ifdef DEBUG_ADD
+                    for (auto s_ich_idx_add = 0; s_ich_idx_add < c_add_ops;
+                         s_ich_idx_add++) {
+                      std::cout
+                        << "add[" << s_ow_ops << "][" << s_ich_idx_add << "] "
+                        << s_add[s_ow_ops].data[0][s_ich_idx_add] << std::endl;
+                    }
+#endif
+#endif
                   }
                 }
               }
@@ -1189,23 +1196,27 @@ conv_comp(hls::stream<t_input_struct> i_input[1],
                 }
               }
 
-              if constexpr(std::is_same<t_forward_struct, std::nullptr_t>::value == false) {
+              if constexpr (std::is_same<t_forward_struct,
+                                         std::nullptr_t>::value == false) {
                 for (auto s_ow_ops = 0; s_ow_ops < c_ow_ops; s_ow_ops++) {
-                  if ((s_num_ops_out == (c_ops_out - c_iter_ops_out)) && (s_num_och == (c_och_depth - c_iter_och))) {
+                  if ((s_num_ops_out == (c_ops_out - c_iter_ops_out)) &&
+                      (s_num_och == (c_och_depth - c_iter_och))) {
                     t_forward_struct s_forward;
                     // auto forward_index = MO + MO%c_str - s_ow_ops*c_str;
                     auto forward_index =
                       (c_fh / 2 + 1) * FW - c_fw / 2 - s_ow_ops * c_str - 1;
                     s_forward.data[0] = s_input[forward_index];
-                    s_forward.last = false;
-                    o_forward[s_ow_ops_out+s_ow_ops].write(s_forward);
-                    #ifndef __SYNTHESIS__
-                      #ifdef DEBUG_FORWARD
-                        for (auto s_log_ich = 0; s_log_ich < c_in_ops; s_log_ich++) {
-                          std::cout << "forward[" << s_ow_ops_out+s_ow_ops << "][" << s_log_ich << "] " << s_forward.data[0][s_log_ich] << std::endl;
-                        }
-                      #endif
-                    #endif
+                    o_forward[s_ow_ops_out + s_ow_ops].write(s_forward);
+#ifndef __SYNTHESIS__
+#ifdef DEBUG_FORWARD
+                    for (auto s_log_ich = 0; s_log_ich < c_in_ops;
+                         s_log_ich++) {
+                      std::cout << "forward[" << s_ow_ops_out + s_ow_ops << "]["
+                                << s_log_ich << "] "
+                                << s_forward.data[0][s_log_ich] << std::endl;
+                    }
+#endif
+#endif
                   }
                 }
               }
@@ -1225,18 +1236,19 @@ conv_comp(hls::stream<t_input_struct> i_input[1],
                       temp_struct
                         .data[0][s_och_ops_out * c_iter_ops_out + s_och_ops] =
                         s_output_vector[s_och_ops_out][s_ow_ops][s_och_ops];
-// #ifndef __SYNTHESIS__
-//                       ap_uint<8> temp;
-//                       temp.range(7, 0) =
-//                         s_output_vector[s_och_ops_out][s_ow_ops][s_och_ops]
-//                           .range(7, 0);
-//                       std::cout << temp.to_string(16) << std::endl;
-// #endif
                     }
                   }
                   temp_struct.last = s_last;
                   o_output[s_ow_ops_out + s_ow_ops].write(temp_struct);
 
+// #ifndef __SYNTHESIS__
+//                   ap_uint<8 * c_ops_out> temp = 0;
+//                   for (auto s_tmp = c_ops_out - 1; s_tmp >= 0; s_tmp--) {
+//                     temp <<= 8;
+//                     temp.range(7, 0) = temp_struct.data[0][s_tmp].range(7, 0);
+//                   }
+//                   std::cout << temp.to_string(16) << " " << s_ow_ops + s_ow_ops_out << std::endl;
+// #endif
                   if constexpr (std::is_same<t_output_struct_1x1,
                                              std::nullptr_t>::value == false) {
                     t_output_struct_1x1 temp_struct_1x1;
@@ -1252,9 +1264,16 @@ conv_comp(hls::stream<t_input_struct> i_input[1],
                       }
                     }
                     if (s_iter < c_iter_1x1) {
-                      temp_struct_1x1.last = s_last;
                       o_output_1x1[s_ow_ops_out + s_ow_ops].write(
                         temp_struct_1x1);
+// #ifndef __SYNTHESIS__
+//                       ap_uint<8 * c_ops_out> temp = 0;
+//                       for (auto s_tmp = c_ops_out - 1; s_tmp >= 0; s_tmp--) {
+//                         temp <<= 8;
+//                         temp.range(7, 0) = temp_struct_1x1.data[0][s_tmp].range(7, 0);
+//                       }
+//                       std::cout << temp.to_string(16) << " " << s_ow_ops + s_ow_ops_out << " 1x1" << std::endl;
+// #endif
                     }
                   }
                 }
