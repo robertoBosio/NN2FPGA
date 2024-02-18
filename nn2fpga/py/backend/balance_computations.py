@@ -975,7 +975,6 @@ def write_parallelism(io_dict, model, parallel_ops):
                     next_node["ow_ops_in"] = next_node["ow_ops"]
                     node["ow_ops_out"] = node["ow_ops"]
 
-    
     # Adjusting pool layer, since in_ops must be a multiple of ops
     print("Adjusting pool layers")
     for name, node in io_dict.items():
@@ -999,6 +998,9 @@ def write_parallelism(io_dict, model, parallel_ops):
                 else:
                     io_dict[output_node_name]["line_ops"] = io_dict[output_node_name]["in_ops"]
                 io_dict[output_node_name]["in_ops"] = node["ops"]
+            
+            # Assigning as ops the ops_out
+            node["ops"] = node["ops_out"]
 
     print("Adjusting line buffer for the last layer")
     for name, node in io_dict.items():
