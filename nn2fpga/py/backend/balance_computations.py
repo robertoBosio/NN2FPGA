@@ -88,7 +88,7 @@ def generate_architectures(layers_info, NUM_DSP):
             max_ow_par = 1
         
         valid_par_solutions.append(generate_valid_combinations(
-            och=max_och_par, ich=max_ich_par, iw=max_ow_par, iw_clip=4, op_clip=op_clip, och_clip=10))
+            och=max_och_par, ich=max_ich_par, iw=max_ow_par, iw_clip=4, op_clip=op_clip))
         
     return valid_par_solutions
 
@@ -302,7 +302,7 @@ def parallelismILP(layers_info, valid_par_solutions, NUM_DSP, NUM_PORTS, prj_roo
 
     return parallel_op, int(pulp.value(prob.objective)), sum([len(s) for s in valid_par_solutions]), constraints_counter, (end_time - start_time)
 
-def resourceILP(layers_info, model_II, valid_par_solutions, parallel_op, NUM_PORTS, prj_root="/tmp"):
+def resourceILP(layers_info, model_II, valid_par_solutions, parallel_op, NUM_DSP, NUM_PORTS, prj_root="/tmp"):
     """ Given the throughput of the network, find the parallelization for each layer that minimize the resources usage."""
     
     # Creating a second dictionary in which merged convolution are splitted and
@@ -398,12 +398,19 @@ def resourceILP(layers_info, model_II, valid_par_solutions, parallel_op, NUM_POR
     # Minimize resource usage
     prob_min = pulp.LpProblem("Resource_usage", pulp.LpMinimize)
     
-    # Objective function: minimize the DSPs required to run the whole network.
+    # Objective function: minimize the BRAMs required to run the whole network.
     prob_min += (
         pulp.lpSum([pulp.lpDot(layer_binary_variables[layer['index']].values(),
-                    valid_dsp_solutions[i]) for i, layer in enumerate(layers_info_unmerged)]),
-        f"DSP_constraint"
+                    valid_bram_solutions[i]) for i, layer in enumerate(layers_info_unmerged)]),
+        f"PORTS_constraint"
     )
+    
+    # Objective function: minimize the DSPs required to run the whole network.
+    # prob_min += (
+    #     pulp.lpSum([pulp.lpDot(layer_binary_variables[layer['index']].values(),
+    #                 valid_dsp_solutions[i]) for i, layer in enumerate(layers_info_unmerged)]),
+    #     f"DSP_constraint"
+    # )
     
     # Constraint: Only one binary variable per layer should be equal to 1
     for layer_index in [x["index"] for x in layers_info]:
@@ -415,9 +422,15 @@ def resourceILP(layers_info, model_II, valid_par_solutions, parallel_op, NUM_POR
     
     prob_min += (
         pulp.lpSum([pulp.lpDot(layer_binary_variables[layer['index']].values(),
-                    valid_bram_solutions[i]) for i, layer in enumerate(layers_info_unmerged)]) <= NUM_PORTS,
-        f"PORTS_constraint"
+                    valid_dsp_solutions[i]) for i, layer in enumerate(layers_info_unmerged)]) <= NUM_DSP,
+        f"DSP_constraint"
     )
+    
+    # prob_min += (
+    #     pulp.lpSum([pulp.lpDot(layer_binary_variables[layer['index']].values(),
+    #                 valid_bram_solutions[i]) for i, layer in enumerate(layers_info_unmerged)]) <= NUM_PORTS,
+    #     f"PORTS_constraint"
+    # )
     
     # Constraints: The throughtput of each layer should be equal or bigger to
     # the heaviest one. The throughtput of each layer is computed as the parallelism
@@ -664,10 +677,18 @@ def opt_steps(layers_info, parallel_op, valid_par_solutions, prj_root="/tmp"):
     for layer in layers_info[1:]:
         par = parallel_op[layer["name"]]
         name = layer["name"]
-        if (par_prev[0] % par[1] != 0 and par[1] % par_prev[0] != 0):
-            adjust = find_common_mult(par_prev[0], par[1])
-            if adjust > max(par_prev[0], par[1]):
-                tot_mismatch_before += adjust - max(par_prev[0], par[1])
+
+        # For depth conv the parallelization in output is the one over ich
+        if (layer["depth"]):
+            par_prev_out = par_prev[1]
+        else:
+            par_prev_out = par_prev[0]
+
+        par_in = par[1]
+        if (par_prev_out % par_in != 0 and par_in % par_prev_out != 0):
+            adjust = find_common_mult(par_prev_out, par_in)
+            if adjust > max(par_prev_out, par_in):
+                tot_mismatch_before += adjust - max(par_prev_out, par_in)
         par_prev = par
         prev_name = name    
 
@@ -680,16 +701,24 @@ def opt_steps(layers_info, parallel_op, valid_par_solutions, prj_root="/tmp"):
     for layer in layers_info[1:]:
         par = new_parallel_op[layer["name"]]
         name = layer["name"]
-        if (par_prev[0] % par[1] != 0 and par[1] % par_prev[0] != 0):
-            print(f"Error: och_ops i -> {par_prev[0]} % ich_ops i+1 -> {par[1]} != 0, using {find_common_mult(par_prev[0], par[1])}")
+        
+        # For depth conv the parallelization in output is the one over ich
+        if (layer["depth"]):
+            par_prev_out = par_prev[1]
+        else:
+            par_prev_out = par_prev[0]
+        
+        par_in = par[1]
+        if (par_prev_out % par_in != 0 and par_in % par_prev_out != 0):
+            print(f"Error: och_ops i -> {par_prev_out} % ich_ops i+1 -> {par_in} != 0, using {find_common_mult(par_prev_out, par_in)}")
             
             for i, combination in enumerate(clamped_valid_par_solutions[layer['index']]):
-                if (par_prev[0] % combination[1] == 0):
+                if (par_prev_out % combination[1] == 0):
                     print(f"\t\tAssigning {combination} to {name}")
                     new_parallel_op[name] = combination
                     break
             else:
-                tot_mismatch_after += find_common_mult(par_prev[0], par[1]) - max(par_prev[0], par[1])
+                tot_mismatch_after += find_common_mult(par_prev_out, par_in) - max(par_prev_out, par_in)
         par_prev = par
 
     print(f"Before: {tot_mismatch_before}, After: {tot_mismatch_after}") 
@@ -752,8 +781,12 @@ def print_report(layers_info, layer_par, n_variables, n_constraints, model_II, t
             if pack:
                 string_dsp += f" ({pack})"
     
+            name = layer['name']
+            if (layer["depth"]):
+                name = f"{name} (depth)"
+            
             row_data = [
-                layer['name'],
+                name,
                 layer['ich'],
                 layer['och'],
                 layer['iw'],
@@ -798,7 +831,7 @@ def print_report(layers_info, layer_par, n_variables, n_constraints, model_II, t
                     string_dsp += f" ({pack})"
 
                 merge_row_data = [
-                    f"{layer['name']}_merge",
+                    f"{layer['name']} (merge 1x1)",
                     layer['ich'],
                     layer['och'],
                     layer['iw'],
@@ -877,7 +910,8 @@ def write_parallelism(io_dict, model, parallel_ops):
 
             # Assigning as ops_out of the previous layer the mcm between the ops of previous layer and current ich_ops
             io_dict[input_node_name]["ops_out"] = find_common_mult(ops_out, line_ops)
-            print(f"\tAssigning to node {input_node_name} ops_out = {io_dict[input_node_name]['ops_out']}")
+            print(f"\tAssigning to node {input_node_name} ops_out = {io_dict[input_node_name]['ops_out']} as mcm between {ops_out} and {line_ops}")
+            # print(f'Could maybe done with {find_max_commond_div(ops_out, line_ops)}') 
 
     # Propagating ops and ow_ops to output nodes to assign in_ops and ow_ops_in
     print("Starting forward propagation of ops and ow_ops")
@@ -981,6 +1015,9 @@ def write_parallelism(io_dict, model, parallel_ops):
         if node["type"] == "pool":
             output_name = node["output"][0]
             output_node_name = io_connect[output_name][1][0]
+            
+            # Assigning as ops the ops_out
+            node["ops"] = node["ops_out"]
 
             # Right now node["ops"] is the ich_ops of the follwing layer.
             if (node["in_ops"] < node["ops_out"] or node["in_ops"] % node["ops_out"] != 0):
@@ -998,9 +1035,6 @@ def write_parallelism(io_dict, model, parallel_ops):
                 else:
                     io_dict[output_node_name]["line_ops"] = io_dict[output_node_name]["in_ops"]
                 io_dict[output_node_name]["in_ops"] = node["ops"]
-            
-            # Assigning as ops the ops_out
-            node["ops"] = node["ops_out"]
 
     print("Adjusting line buffer for the last layer")
     for name, node in io_dict.items():
@@ -1035,11 +1069,10 @@ def write_parallelism(io_dict, model, parallel_ops):
                 add_node_name = io_connect[add_name][0][0]
                 if (io_dict[add_node_name]["merge_1x1"]):
                     add_ops = io_dict[add_node_name]["ops_out"]
-                    ow_ops = io_dict[add_node_name]["ow_ops_out"]
                 else:
                     # ich_ops because it's a forward
                     add_ops = io_dict[add_node_name]["ich_ops"]
-                    ow_ops = io_dict[add_node_name]["ow_ops_out"]
+                ow_ops = io_dict[add_node_name]["ow_ops_out"]
                 node["add_ops"] = add_ops
 
                 if (node["add_ops"] % node["ops"] != 0) or (node["ow_ops"] != ow_ops):
@@ -1047,8 +1080,8 @@ def write_parallelism(io_dict, model, parallel_ops):
                     node["adjust_add_ops"] = find_common_mult(
                         node["ops"], node["add_ops"])
                     node["adjust_add_ow_ops_in"] = ow_ops
-                    print(
-                        f"\tAdjusting add stream for {name} over channels: {node['add_ops']} -> {node['adjust_add_ops']} -> {node['ops']} (add_ops -> adjust_add_ops -> ops)")
+                    print(f"\tAdjusting add stream for {name} over channels: {node['add_ops']} -> {node['adjust_add_ops']} -> {node['ops']} (add_ops -> adjust_add_ops -> ops)")
+                    print(f"\tAdjusting add stream for {name} over width: {ow_ops} -> {node['adjust_add_ow_ops_in']} -> {node['ow_ops']} (ow_ops_out -> adjust_add_ow_ops_in -> ow_ops)")
                 else:
                     node["adjust_add"] = False
             else:
@@ -1091,8 +1124,8 @@ def check_adjustments(io_dict, model):
                                 print(f"Error: {name} adjust_add_ops ({node['adjust_add_ops']}) is not a multiple of ops ({node['ops']}).")
                                 return False
 
-                            if (node["adjust_add_ow_ops_in"] % node["ow_ops"] != 0):
-                                print(f"Error: {name} adjust_add_ow_ops_in ({node['adjust_add_ow_ops_in']}) is not a multiple of ow_ops ({node['ow_ops']}).")
+                            if (node["adjust_add_ow_ops_in"] % node["ow_ops"] != 0 and node["ow_ops"] % node["adjust_add_ow_ops_in"] != 0):
+                                print(f"Error: {name} adjust_add_ow_ops ({node['adjust_add_ow_ops_in']}) is not multiple of ow_ops ({node['ow_ops']}) and viceversa.")
                                 return False
                         else:
                             if (node["add_ops"] % node["ops"] != 0):
@@ -1153,12 +1186,12 @@ def ilp(io_dict, off_chip_storage, model, file_name, board="ULTRA96v2", generate
     NUM_PORTS = (board_res["bram"] + board_res["uram"])
     NUM_DSP = board_res["dsp"]
     # NUM_DSP = int(NUM_DSP * 1.1)
-    # NUM_PORTS = 1000
-    NUM_DSP = 1500
+    NUM_PORTS = int(NUM_PORTS * 0.85)
+    NUM_DSP = 1700
 
     valid_par_solutions = generate_architectures(layers_info, NUM_DSP)
     layer_par, model_II, n_variables, n_constraints, time_spent = parallelismILP(layers_info, valid_par_solutions, NUM_DSP, NUM_PORTS, prj_root=prj_root)
-    layer_par = resourceILP(layers_info, model_II, valid_par_solutions, layer_par, NUM_PORTS, prj_root=prj_root)
+    layer_par = resourceILP(layers_info, model_II, valid_par_solutions, layer_par, NUM_DSP, NUM_PORTS, prj_root=prj_root)
     layer_par = balanceILP(layers_info, model_II, valid_par_solutions, layer_par, NUM_PORTS, prj_root=prj_root)
     layer_par = opt_steps(layers_info, layer_par, valid_par_solutions, prj_root=prj_root)
     io_dict = write_parallelism(io_dict, model, layer_par)

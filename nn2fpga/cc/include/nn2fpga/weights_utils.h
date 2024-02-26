@@ -489,6 +489,7 @@ produce_shift_stream(
     }
 
 #ifndef __SYNTHESIS__
+#ifndef SKIP_ASSERTIONS
     std::cout << "\tINFO: Finished saving parameters." << std::endl;
     /* Check that all the input streams are empty */
     if (p_in[0].size() > 0) {
@@ -503,6 +504,7 @@ produce_shift_stream(
                 << p_out[0].size() << std::endl;
     }
     assert(p_out[0].size() == DATA_TO_SHIFT);
+#endif /* SKIP_ASSERTIONS */
 #endif
   }
 

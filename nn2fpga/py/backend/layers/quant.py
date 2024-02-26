@@ -59,11 +59,11 @@ def info(io_dict, node, node_name, init_info, tensors_info):
         oh       = 1
         ow       = 1
 
+    io_dict[node_name]["narrow"] = narrow
+    io_dict[node_name]["type"] = "quant"
     io_dict[node_name]["scale_factor"] = scale_factor
     io_dict[node_name]["signed"] = signed
-    io_dict[node_name]["narrow"] = narrow
     io_dict[node_name]["bits"] = int(bits)
-    io_dict[node_name]["type"] = "quant"
     io_dict[node_name]["clip"] = scale_factor
     io_dict[node_name]["mask"] = scale_factor
     io_dict[node_name]["clip_signed"] = signed

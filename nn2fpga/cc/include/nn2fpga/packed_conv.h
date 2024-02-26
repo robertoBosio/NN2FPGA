@@ -15,9 +15,9 @@
 #include <math.h>
 
 #pragma GCC diagnostic push
-#pragma GCC diagnostic error "-Wpedantic"
-#pragma GCC diagnostic error "-Wall"
-#pragma GCC diagnostic error "-Wextra"
+// #pragma GCC diagnostic error "-Wpedantic"
+// #pragma GCC diagnostic error "-Wall"
+// #pragma GCC diagnostic error "-Wextra"
 #pragma GCC diagnostic ignored "-Wunused-label"
 #pragma GCC diagnostic ignored "-Wsign-compare"
 #pragma GCC diagnostic ignored "-Wunused-parameter"
@@ -969,27 +969,27 @@ conv_comp(hls::stream<t_input_struct> i_input[1],
               auto s_reuse = s_iter;
 
               // Reading ich_ops windows of input data each och/c_ops cycles
-              if (((s_num_och == 0) && (s_num_ops_out == 0)) || (c_depth == 1)) {
+              if (((s_num_och == 0) && (s_num_ops_out == 0)) ||
+                  (c_depth == 1)) {
                 t_input_struct s_input_struct = i_input[0].read();
-                #pragma HLS array_partition variable=s_input_struct.data type=complete
+#pragma HLS array_partition variable = s_input_struct.data type = complete
                 s_input = s_input_struct.data;
                 /* Sending last only at the bottom right data */
                 s_last = s_input_struct.last;
 #ifndef __SYNTHESIS__
 #ifdef DEBUG_INPUT
-                    constexpr int c_pixels =
-                      (c_fh * c_fw + ((c_ow_ops - 1) * c_fh));
-                    ap_uint<8 * c_in_ops * c_pixels> tmp;
-                    for (auto s_pixels = 0; s_pixels < c_pixels; s_pixels++) {
-                      for (auto s_in_ops = 0; s_in_ops < c_in_ops; s_in_ops++) {
-                        tmp.range(8 * (s_pixels * c_in_ops + s_in_ops + 1) - 1,
-                                  8 * (s_pixels * c_in_ops + s_in_ops)) =
-                          s_input[s_pixels][s_in_ops].range(7, 0);
-                      }
-                    }
-                    std::cout << "inp " << tmp.to_string(16) << std::endl;
-#endif
-#endif
+                constexpr int c_pixels = (c_fh * FW);
+                ap_uint<8 * c_in_ops * c_pixels> tmp;
+                for (auto s_pixels = 0; s_pixels < c_pixels; s_pixels++) {
+                  for (auto s_in_ops = 0; s_in_ops < c_in_ops; s_in_ops++) {
+                    tmp.range(8 * (s_pixels * c_in_ops + s_in_ops + 1) - 1,
+                              8 * (s_pixels * c_in_ops + s_in_ops)) =
+                      s_input[s_pixels][s_in_ops].range(7, 0);
+                  }
+                }
+                std::cout << "inp " << tmp.to_string(16) << std::endl;
+#endif /* DEBUG_INPUT */
+#endif /* __SYNTHESIS__ */
               }
 
               /* Buffering to speed up computations */
@@ -1071,12 +1071,14 @@ conv_comp(hls::stream<t_input_struct> i_input[1],
               }
 
               std::array<t_input_data, c_ow_ops> s_input_1x1;
-              if constexpr(std::is_same<t_acc_1x1_struct, std::nullptr_t>::value == false) {
-                #pragma HLS array_partition variable = s_input_1x1 type = complete
+              if constexpr (std::is_same<t_acc_1x1_struct,
+                                         std::nullptr_t>::value == false) {
+#pragma HLS array_partition variable = s_input_1x1 type = complete
                 for (auto s_ow_ops = 0; s_ow_ops < c_ow_ops; s_ow_ops++) {
                   auto forward_index =
                     (c_fh / 2 + 1) * FW - c_fw / 2 - s_ow_ops * c_str - 1;
-                  // s_input_1x1[s_ow_ops] = s_input[MO + MO%c_str - s_ow_ops*c_str];
+                  // s_input_1x1[s_ow_ops] = s_input[MO + MO%c_str -
+                  // s_ow_ops*c_str];
                   s_input_1x1[c_ow_ops - s_ow_ops - 1] = s_input[forward_index];
                 }
               }
@@ -1203,6 +1205,8 @@ conv_comp(hls::stream<t_input_struct> i_input[1],
                       (s_num_och == (c_och_depth - c_iter_och))) {
                     t_forward_struct s_forward;
                     // auto forward_index = MO + MO%c_str - s_ow_ops*c_str;
+
+                    /* Compute the center of each window in input */
                     auto forward_index =
                       (c_fh / 2 + 1) * FW - c_fw / 2 - s_ow_ops * c_str - 1;
                     s_forward.data[0] = s_input[forward_index];
@@ -1215,8 +1219,8 @@ conv_comp(hls::stream<t_input_struct> i_input[1],
                                 << s_log_ich << "] "
                                 << s_forward.data[0][s_log_ich] << std::endl;
                     }
-#endif
-#endif
+#endif /* DEBUG_FORWARD */
+#endif /* __SYNTHESIS__ */
                   }
                 }
               }
@@ -1307,39 +1311,45 @@ conv_comp(hls::stream<t_input_struct> i_input[1],
     }
   }
 
-  #ifndef __SYNTHESIS__
+#ifndef __SYNTHESIS__
   std::cout << i_bias[0].size() << std::endl;
-    // Check if input stream is empty
-    for (auto s_ow_ops = 0; s_ow_ops < 1; s_ow_ops++) {
-      if (i_input[s_ow_ops].size() != 0) {
-        std::cout << "ERROR: The input stream is not empty" << std::endl;
-        std::cout << "i_input[" << s_ow_ops << "].size() = " << i_input[s_ow_ops].size() << std::endl;
-        assert (false);
+  // Check if input stream is empty
+#ifndef SKIP_ASSERTION
+  for (auto s_ow_ops = 0; s_ow_ops < 1; s_ow_ops++) {
+    if (i_input[s_ow_ops].size() != 0) {
+      std::cout << "ERROR: The input stream is not empty" << std::endl;
+      std::cout << "i_input[" << s_ow_ops
+                << "].size() = " << i_input[s_ow_ops].size() << std::endl;
+      assert(false);
+    }
+  }
+  // Check if input add is empty
+  for (auto s_ow_ops = 0; s_ow_ops < c_ow_ops; s_ow_ops++) {
+    if constexpr (std::is_same<t_add_struct, std::nullptr_t>::value == false) {
+      if (i_add[s_ow_ops].size() != 0) {
+        std::cout << "ERROR: The input add stream is not empty" << std::endl;
+        std::cout << "i_add[" << s_ow_ops
+                  << "].size() = " << i_add[s_ow_ops].size() << std::endl;
+        assert(false);
       }
     }
-    // Check if input add is empty
-    for (auto s_ow_ops = 0; s_ow_ops < c_ow_ops; s_ow_ops++) {
-      if constexpr(std::is_same<t_add_struct, std::nullptr_t>::value == false) {
-        if (i_add[s_ow_ops].size() != 0) {
-          std::cout << "ERROR: The input add stream is not empty" << std::endl;
-          std::cout << "i_add[" << s_ow_ops << "].size() = " << i_add[s_ow_ops].size() << std::endl;
-          assert (false);
-        }
-      }
+  }
+  for (auto s_ow_ops_out = 0; s_ow_ops_out < c_ow_ops_out; s_ow_ops_out++) {
+    std::cout << "o_output[" << s_ow_ops_out
+              << "].size() = " << o_output[s_ow_ops_out].size() << std::endl;
+    if (o_output[s_ow_ops_out].size() == 0) {
+      std::cout << "ERROR: The output stream is empty" << std::endl;
+      std::cout << "o_output[" << s_ow_ops_out
+                << "].size() = " << o_output[s_ow_ops_out].size() << std::endl;
+      assert(false);
     }
-    for (auto s_ow_ops_out = 0; s_ow_ops_out < c_ow_ops_out; s_ow_ops_out++) {
-      std::cout << "o_output[" << s_ow_ops_out << "].size() = " << o_output[s_ow_ops_out].size() << std::endl;
-      if (o_output[s_ow_ops_out].size() == 0) {
-        std::cout << "ERROR: The output stream is empty" << std::endl;
-        std::cout << "o_output[" << s_ow_ops_out << "].size() = " << o_output[s_ow_ops_out].size() << std::endl;
-        assert (false);
-      }
-    }
-    if (c_depth == 1)
-      std::cout << "end depth_conv_op " << c_ich << " " << c_depth << std::endl;
-    else
-      std::cout << "end conv_op " << c_ich << " " << c_depth << std::endl;
-  #endif /* __SYNTHESIS__ */
+  }
+#endif /* SKIP_ASSERTION */
+  if (c_depth == 1)
+    std::cout << "end depth_conv_op " << c_ich << " " << c_depth << std::endl;
+  else
+    std::cout << "end conv_op " << c_ich << " " << c_depth << std::endl;
+#endif /* __SYNTHESIS__ */
 }
 
 //////////////////////////////////////////////////////////////////////////////

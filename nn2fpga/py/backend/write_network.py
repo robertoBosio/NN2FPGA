@@ -99,11 +99,11 @@ def write_network(
     
     # Save the original stdout and stderr
     original_stdout = sys.stdout
-    original_stderr = sys.stderr
+    # original_stderr = sys.stderr
 
     with open(generate_log_file, "w") as log_file:
         sys.stdout = log_file
-        sys.stderr = log_file
+        # sys.stderr = log_file
 
         status_thread = StatusThread("Graph_info", original_stdout)
         status_thread.start()
@@ -272,4 +272,4 @@ def write_network(
 
     # Restore the original stdout and stderr
     sys.stdout = original_stdout
-    sys.stderr = original_stderr
+    # sys.stderr = original_stderr

@@ -510,7 +510,7 @@ def opt_quant(model, io_dict, init_info, flag_modified, debug=False):
 
             if not others_quant:
                 print(
-                    f"Merging {layer_in_name} [{io_dict[layer_in_name]['type']}] -> {layer_out_name} [{io_dict[layer_out_name]['type']}]for opt_quant")
+                    f"Merging {layer_in_name} [{io_dict[layer_in_name]['type']}] -> {layer_out_name} [{io_dict[layer_out_name]['type']}] for opt_quant")
                 out_names = io_dict[layer_out_name]["output"]
 
                 # Scale factor is equal to the one of the quantization in 
@@ -519,7 +519,6 @@ def opt_quant(model, io_dict, init_info, flag_modified, debug=False):
                     signed = io_dict[layer_in_name]["signed"]
                 else:
                     signed = None
-                # seq_scale = quant_info[net_name]["seq_scale"]
                     
                 seq_scale = io_dict[layer_out_name]["scale_factor"]
                 if isinstance(seq_scale, list):

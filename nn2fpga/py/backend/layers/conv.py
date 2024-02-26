@@ -624,12 +624,14 @@ def parse_comp(name, node):
         ]
         pragma["options"] = options
         block["pragma"].append(pragma)
+        print(f"Declaring array of stream of forward {declare['name']} with depth {depth}")
 
     # Dimension of the stream in output of the conv, covers a burst over och, ow_ops_out may be wrong
     # if node["adjust_out"]:
     #     depth = 3
     # else:
-    depth = int(node["och"]/node["ops_out"])*node["ow_ops_out"] + 1
+    # depth = int(node["och"] / node["ops_out"]) * node["ow_ops_out"] + 1
+    depth = int(node["och"] / node["ops_out"]) + 1
     # TODO: Modified to reduce bram usage but slowing down arch
     # depth = 2
 
@@ -675,6 +677,7 @@ def parse_comp(name, node):
         ]
         pragma["options"] = options
         block["pragma"].append(pragma)
+        print(f"Declaring array of stream of merge_1x1 {declare['name']} with depth {depth}")
 
         # FIX: Adding pragma to bind storage to SRL
         # if the depth of the fifo is small enough to

@@ -108,10 +108,12 @@ PRODSTR:
   }
 
 #ifndef __SYNTHESIS__
+#ifndef SKIP_ASSERTIONS
   if (dinStream.size() > 0) {
     std::cout << "ERROR: Not empty dinStream " << dinStream.size() << " > 0\n";
     assert(dinStream.size() == 0);
   }
+#endif /* SKIP_ASSERTIONS */
   std::cout << "INFO: Finished produce_stream" << std::endl;
 #endif
 }
@@ -172,7 +174,9 @@ consume_stream(hls::stream<din_wrap_t> dinStream[ow_ops],
       doutStream << dout;
     }
   }
+
 #ifndef __SYNTHESIS__
+#ifndef SKIP_ASSERTIONS
   if (doutStream.size() == 0) {
     std::cout << "ERROR: consume_stream: doutStream.size() "
               << doutStream.size() << " == 0\n";
@@ -188,6 +192,7 @@ consume_stream(hls::stream<din_wrap_t> dinStream[ow_ops],
               << doutStream.size() << " != " << (OCH * OH * OW) << "\n";
     assert(doutStream.size() == (OCH * OH * OW));
   }
+#endif /* SKIP_ASSERTIONS */
   std::cout << "INFO: Finished consume_stream " << std::endl;
 #endif
 }

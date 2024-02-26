@@ -97,25 +97,29 @@ pad_input(hls::stream<din_t> din[(c_fw + (c_ow_ops - 1) * c_str) * c_fh],
     }
   }
 
-  #ifndef __SYNTHESIS__
-    // Check that all the input streams are empty
-    for (auto s_i = 0; s_i < FSZ; s_i++) {
-      if (din[s_i].size() > 0) {
-        std::cout << "#### Not empty input stream" << std::endl;
-        std::cout << "din[" << s_i << "] = " << din[s_i].size() << std::endl;
-      }
-      assert (din[s_i].size() == 0);
+#ifndef __SYNTHESIS__
+#ifndef SKIP_ASSERTIONS
+  // Check that all the input streams are empty
+  for (auto s_i = 0; s_i < FSZ; s_i++) {
+    if (din[s_i].size() > 0) {
+      std::cout << "#### Not empty input stream" << std::endl;
+      std::cout << "din[" << s_i << "] = " << din[s_i].size() << std::endl;
     }
-    // Check that all the output streams are not empty
-    for (auto s_i = 0; s_i < 1; s_i++) {
-      if (o_data[s_i].size() == 0) {
-        std::cout << "#### Empty output stream" << std::endl;
-        std::cout << "o_data[" << s_i << "] = " << o_data[s_i].size() << std::endl;
-      }
-      assert (o_data[s_i].size() > 0);
+    assert(din[s_i].size() == 0);
+  }
+  // Check that all the output streams are not empty
+  for (auto s_i = 0; s_i < 1; s_i++) {
+    if (o_data[s_i].size() == 0) {
+      std::cout << "#### Empty output stream" << std::endl;
+      std::cout << "o_data[" << s_i << "] = " << o_data[s_i].size()
+                << std::endl;
     }
-    std::cout << "end pad_input " << ICH << " " << c_pad << " " << c_ops << " " << c_ops_out << std::endl;
-  #endif
+    assert(o_data[s_i].size() > 0);
+  }
+#endif /* SKIP_ASSERTIONS */
+  std::cout << "end pad_input " << ICH << " " << c_pad << " " << c_ops << " "
+            << c_ops_out << std::endl;
+#endif
 }
 
 /* Adjust the tensor by merging the c_ow_ops_in streams in c_ow_ops_out stream.
@@ -364,24 +368,27 @@ bandwidth_adjust(hls::stream<din_t> din[c_ow_ops_in],
   }
 
 #ifndef __SYNTHESIS__
-    // Check that all the input streams are empty
-    for (auto s_i = 0; s_i < c_ow_ops_in; s_i++) {
-      if (din[s_i].size() > 0) {
-        std::cout << "#### Not empty input stream" << std::endl;
-        std::cout << "din[" << s_i << "] = " << din[s_i].size() << std::endl;
-      }
-      assert (din[s_i].size() == 0);
+#ifndef SKIP_ASSERTIONS
+  // Check that all the input streams are empty
+  for (auto s_i = 0; s_i < c_ow_ops_in; s_i++) {
+    if (din[s_i].size() > 0) {
+      std::cout << "#### Not empty input stream" << std::endl;
+      std::cout << "din[" << s_i << "] = " << din[s_i].size() << std::endl;
     }
-    // Check that all the output streams are not empty
-    for (auto s_i = 0; s_i < c_ow_ops_out; s_i++) {
-      if (o_data[s_i].size() == 0) {
-        std::cout << "#### Empty output stream" << std::endl;
-        std::cout << "o_data[" << s_i << "] = " << o_data[s_i].size() << std::endl;
-      }
-      assert (o_data[s_i].size() > 0);
+    assert(din[s_i].size() == 0);
+  }
+  // Check that all the output streams are not empty
+  for (auto s_i = 0; s_i < c_ow_ops_out; s_i++) {
+    if (o_data[s_i].size() == 0) {
+      std::cout << "#### Empty output stream" << std::endl;
+      std::cout << "o_data[" << s_i << "] = " << o_data[s_i].size()
+                << std::endl;
     }
-    std::cout << "INFO: Finished bandwidth_adjust " << std::endl;
-  #endif
+    assert(o_data[s_i].size() > 0);
+  }
+#endif /* SKIP_ASSERTIONS */
+  std::cout << "INFO: Finished bandwidth_adjust " << std::endl;
+#endif
 }
 
 template<typename din_t,
@@ -439,7 +446,7 @@ shift_op(hls::stream<din_t>& din,
   constexpr int c_paddingh_shift = c_pos_h - c_pad_index_h;
   constexpr int c_paddingw_shift = c_pos_w - c_pad_index_w;
 
-  // No window output is written if the data is not in the windoow_ops position
+  // No window output is written if the data is not in the window_ops position
   // At the end of the tensor width
   // The window position is affected by the padding which adds data to
   // the end of the tensor width
@@ -519,29 +526,31 @@ shift_op(hls::stream<din_t>& din,
       }
     }
   }
-  
-  #ifndef __SYNTHESIS__
-      if (din.size() > 0) {
-        std::cout << "#### Not empty input stream" << std::endl;
-        std::cout << "din.size() " << din.size() << std::endl;
-      }
-      assert (din.size() == 0);
-      if constexpr(std::is_same<dout_t, std::nullptr_t>::value == false) {
-        if (o_data.size() == 0) {
-          std::cout << "#### Empty compute stream" << std::endl;
-          std::cout << "o_data.size() " << o_data.size() << std::endl;
-        }
-        assert (o_data.size() > 0);
-      }
-      if ((IW != c_ow_ops * c_str)) {
-        if (o_compute.size() == 0) {
-          std::cout << "#### Empty compute stream" << std::endl;
-          std::cout << "o_compute.size() " << o_compute.size() << std::endl;
-        }
-        assert (o_compute.size() > 0);
-      }
-      std::cout << "INFO: Finished shift_op." << std::endl;
-  #endif
+
+#ifndef __SYNTHESIS__
+#ifndef SKIP_ASSERTIONS
+  if (din.size() > 0) {
+    std::cout << "#### Not empty input stream" << std::endl;
+    std::cout << "din.size() " << din.size() << std::endl;
+  }
+  assert(din.size() == 0);
+  if constexpr (std::is_same<dout_t, std::nullptr_t>::value == false) {
+    if (o_data.size() == 0) {
+      std::cout << "#### Empty compute stream" << std::endl;
+      std::cout << "o_data.size() " << o_data.size() << std::endl;
+    }
+    assert(o_data.size() > 0);
+  }
+  if ((IW != c_ow_ops * c_str)) {
+    if (o_compute.size() == 0) {
+      std::cout << "#### Empty compute stream" << std::endl;
+      std::cout << "o_compute.size() " << o_compute.size() << std::endl;
+    }
+    assert(o_compute.size() > 0);
+  }
+#endif /* SKIP_ASSERTIONS */
+  std::cout << "INFO: Finished shift_op." << std::endl;
+#endif
 }
 
 }  // namespace nn2fpga

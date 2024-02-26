@@ -208,7 +208,7 @@ def weights_quant(model, io_dict):
 
     return io_dict
 
-def merge_quant(model, io_dict, init_info, flag_mod, inherit_quant=False):
+def merge_quant(model, io_dict, init_info, flag_mod, inherit_quant=False, safe_merge=True):
     """Merging consecutive quantizations"""
     
     quant_info = extract_quant_info(
@@ -430,6 +430,7 @@ def merge_quant(model, io_dict, init_info, flag_mod, inherit_quant=False):
     return io_dict, (flag_mod or len(remove_node) > 0)
 
 def extract_quant_info(model, io_dict, init_info):
+
 
     quant_info = {}
 

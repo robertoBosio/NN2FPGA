@@ -159,8 +159,8 @@ int main(int argc, char** argv) {
                               mem_outputs);
 
 #endif
-  
-    for (int image = 0; image < c_batch; image++) {
+
+  for (int image = 0; image < c_batch; image++) {
     t_out_mem max_value = INT32_MIN;
     int max_index = 0;
     std::cout << image << " image" << std::endl;

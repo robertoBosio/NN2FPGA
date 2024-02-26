@@ -153,18 +153,22 @@ pool_op(hls::stream<t_input_struct> i_data[c_ow_ops],
     }
   }
 
-  #ifndef __SYNTHESIS__
-    for (auto i = 0; i < c_ow_ops; i++) {
-      if (i_data[i].size() > 0)
-        std::cout << "ERROR: pool_op: i_data[" << i << "].size() " << i_data[i].size() << " > 0\n";
-        assert (i_data[i].size() == 0);
-      }
-      if (o_data[0].size() == 0) {
-        std::cout << "ERROR: pool_op: o_data[0].size() " << o_data[0].size() << " == 0\n";
-        assert (o_data[0].size() > 0);
-      }
-      std::cout << "end pool_op " << c_ich << std::endl;
-  #endif
+#ifndef __SYNTHESIS__
+#ifndef SKIP_ASSERTION
+  for (auto i = 0; i < c_ow_ops; i++) {
+    if (i_data[i].size() > 0)
+      std::cout << "ERROR: pool_op: i_data[" << i << "].size() "
+                << i_data[i].size() << " > 0\n";
+    assert(i_data[i].size() == 0);
+  }
+  if (o_data[0].size() == 0) {
+    std::cout << "ERROR: pool_op: o_data[0].size() " << o_data[0].size()
+              << " == 0\n";
+    assert(o_data[0].size() > 0);
+  }
+#endif /* SKIP_ASSERTION */
+  std::cout << "end pool_op " << c_ich << std::endl;
+#endif
 }
 }
 
