@@ -250,10 +250,10 @@ def body(file_name, parsed_write, prj_root="/tmp"):
                     d_function["parameters"].append(f"c_{name}_stream")
                     d_function["function_name"] = "nn2fpga::mm2s"
                     d_function["template"] = []
-                    d_function["template"].append(f"t_{name}_mem")
+                    d_function["template"].append(f"t_{name}_st")
                     d_function["template"].append(f"t_{name}_stream")
                     connectivity.append(f"sp=mm2s_weights_1.c_{name}:DDR[0]")
-                    connectivity.append(f"sc=mm2s_weights_1.c_{name}_stream:{file_name}_1.i_data_weights")
+                    connectivity.append(f"sc=mm2s_weights_1.c_{name}_stream:{file_name}_1.i_data_params")
                     write_templated_converted("mm2s_weights", d_function, prj_root)
         
         # Defining memory to stream function to load activations
