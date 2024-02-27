@@ -6,17 +6,18 @@ import sys
 import os
 import numpy as np
 
-from boards import kria_inference, ultra96_inference
-from datasets import cifar10_dataloader, coco_dataloader, vw_dataloader
+from boards import kria_inference, ultra96_inference, zcu102_inference
+from datasets import cifar10_dataloader, coco_dataloader, vw_dataloader, imagenet_dataloader
 from coco import postprocess as coco_postprocess
 from cifar10 import postprocess as cifar10_postprocess
 from vw import postprocess as vw_postprocess
+from imagenet import postprocess as imagenet_postprocess
 
 if __name__ == "__main__":
     # Uploading all data
 
-    supported_boards = ["KRIA", "ULTRA96v2"]
-    supported_datasets = ["cifar10", "vw"]
+    supported_boards = ["KRIA", "ULTRA96v2", "ZCU102"]
+    supported_datasets = ["cifar10", "vw", "coco", "imagenet"]
     supported_uram_storage = [0, 1]
 
     if (len(sys.argv) < 3):
@@ -27,19 +28,17 @@ if __name__ == "__main__":
 
     sel_board = sys.argv[1]
     if (sel_board not in supported_boards):
-        print("Selected %s" % sel_board)
-        print("Allowed board selection: KRIA, ULTRA96v2")
+        print(f"Error: selected {sel_board}, allowed board selection: {supported_boards}")
         sys.exit(0)
 
     sel_dataset = sys.argv[2]
     if (sel_dataset not in supported_datasets):
-        print("Allowed dataset selection: cifar10")
+        print(f"Error: selected {sel_dataset}, allowed dataset selection: {supported_datasets}")
         sys.exit(0)
 
     sel_uram_storage = int(sys.argv[3])
     if (sel_uram_storage not in supported_uram_storage):
-        print("Selected %s" % sel_uram_storage)
-        print("Allowed uram_storage selection: 0, 1")
+        print(f"Error: selected {sel_uram_storage}, allowed uram_storage selection: {supported_uram_storage}")
         sys.exit(0)
 
     off_chip_memory = False
@@ -55,6 +54,9 @@ if __name__ == "__main__":
     if (sel_dataset == "coco"):
         dataloader = coco_dataloader
         postprocess = coco_postprocess
+    if (sel_dataset == "imagenet"):
+        dataloader = imagenet_dataloader
+        postprocess = imagenet_postprocess
 
     test_loader, buffer_dim = dataloader(batch_size)
 
@@ -83,9 +85,10 @@ if __name__ == "__main__":
 
     if (sel_board == "ULTRA96v2"):
         inference = ultra96_inference
-
     if (sel_board == "KRIA"):
         inference = kria_inference
+    if (sel_board == "ZCU102"):
+        inference = zcu102_inference
 
     inference(
         test_loader,

@@ -42,6 +42,8 @@ cp ${NN2FPGA_ROOT}/scripts/datasets.py ${PRJ_ROOT}/overlay/datasets.py
 cp ${NN2FPGA_ROOT}/scripts/coco.py ${PRJ_ROOT}/overlay/coco.py
 cp ${NN2FPGA_ROOT}/scripts/cifar10.py ${PRJ_ROOT}/overlay/cifar10.py
 cp ${NN2FPGA_ROOT}/scripts/vw.py ${PRJ_ROOT}/overlay/vw.py
+cp ${NN2FPGA_ROOT}/scripts/imagenet.py ${PRJ_ROOT}/overlay/imagenet.py
+
 if [ ${DYNAMIC_INIT} = 1 ]; then
     cp ${PRJ_ROOT}/npy/uram_${TOP_NAME}.npy ${PRJ_ROOT}/overlay/uram.npy
 fi

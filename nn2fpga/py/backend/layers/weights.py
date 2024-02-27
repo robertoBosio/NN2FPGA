@@ -851,12 +851,13 @@ def on_chip_rom(
     else:
         block["template"].append("std::nullptr_t")
 
-    # Not a really beatiful solution, we cannot modify och since it is used also for the bias
+    # Not a beatiful solution, we cannot modify och since it is used also for the bias
     # size. Must correct this when introducing groups.
     if (conv_node["depth"]):
         block["template"].append({"name" : f"{weight_node['och']}", "comment" : f"ich divided by groups"})
     else:
         block["template"].append(f"c_{conv_name}_ich")
+
     block["template"].append(f"c_{conv_name}_och")
     block["template"].append(f"c_{conv_name}_ow")
     block["template"].append(f"c_{conv_name}_oh")
