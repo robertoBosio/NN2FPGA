@@ -123,7 +123,7 @@ LDFLAGS += -lrt -lstdc++
 LDFLAGS += -luuid -lxrt_coreutil -pthread -lopencv_imgproc -lopencv_core -lopencv_imgcodecs
 LDFLAGS += -L$(XILINX_XRT)/lib -pthread -lOpenCL
 
-EXECUTABLE = host.o
+EXECUTABLE = $(PRJ_ROOT)/host.o
 EMCONFIG_DIR = $(TEMP_DIR)
 
 ############################## Kernel Source Files Repository##########################
@@ -138,10 +138,10 @@ $(EMCONFIG_DIR)/emconfig.json:
 .PHONY: test
 test: $(EXECUTABLE) emconfig check-target check-top
 ifeq ($(TARGET),$(filter $(TARGET),sw_emu hw_emu))
-	cp $(EMCONFIG_DIR)/emconfig.json .
-	XCL_EMULATION_MODE=$(TARGET) ./$(EXECUTABLE) $(CMD_ARGS)
+	cd $(PRJ_ROOT) && cp $(EMCONFIG_DIR)/emconfig.json .
+	cd $(PRJ_ROOT) && XCL_EMULATION_MODE=$(TARGET) $(EXECUTABLE) $(CMD_ARGS)
 else
-	./$(EXECUTABLE) $(CMD_ARGS)
+	$(EXECUTABLE) $(CMD_ARGS)
 endif
 ############################## Setting up Kernel Variables ##############################
 # Kernel compiler global settings
@@ -156,19 +156,19 @@ VPP_LDFLAGS += --config $(PRJ_ROOT)/$(TOP_NAME)_link.cfg
 
 $(TEMP_DIR)/$(TOP_NAME).xo: $(PRJ_ROOT)/cc/src/$(TOP_NAME).cc
 	mkdir -p $(TEMP_DIR)
-	v++ -g -c $(VPP_FLAGS) -t $(TARGET) --platform $(PLATFORM) -k $(TOP_NAME) --temp_dir $(TEMP_DIR) -I$(PRJ_ROOT)/cc/include -I$(PRJ_ROOT)/cc/src -I$(PRJ_ROOT)/../nn2fpga/cc/include/ -o'$@' '$<'
+	v++ -g -c $(VPP_FLAGS) -t $(TARGET) --platform $(PLATFORM) -k $(TOP_NAME) --temp_dir $(TEMP_DIR) -I$(PRJ_ROOT)/cc/include -I$(PRJ_ROOT)/cc/src -I$(NN2FPGA_ROOT)/cc/include/ -o'$@' '$<'
 
 $(TEMP_DIR)/mm2s_a.xo: $(PRJ_ROOT)/cc/src/mm2s_activations.cc
 	mkdir -p $(TEMP_DIR)
-	v++ -g -c $(VPP_FLAGS) -t $(TARGET) --platform $(PLATFORM) -k mm2s_activations --temp_dir $(TEMP_DIR) -I$(PRJ_ROOT)/cc/include -I$(PRJ_ROOT)/../nn2fpga/cc/include/ -o'$@' '$<'
+	v++ -g -c $(VPP_FLAGS) -t $(TARGET) --platform $(PLATFORM) -k mm2s_activations --temp_dir $(TEMP_DIR) -I$(PRJ_ROOT)/cc/include -I$(NN2FPGA_ROOT)/cc/include/ -o'$@' '$<'
 
 $(TEMP_DIR)/mm2s_w.xo: $(PRJ_ROOT)/cc/src/mm2s_weights.cc
 	mkdir -p $(TEMP_DIR)
-	v++ -g -c $(VPP_FLAGS) -t $(TARGET) --platform $(PLATFORM) -k mm2s_weights --temp_dir $(TEMP_DIR) -I$(PRJ_ROOT)/cc/include -I$(PRJ_ROOT)/../nn2fpga/cc/include/ -o'$@' '$<'
+	v++ -g -c $(VPP_FLAGS) -t $(TARGET) --platform $(PLATFORM) -k mm2s_weights --temp_dir $(TEMP_DIR) -I$(PRJ_ROOT)/cc/include -I$(NN2FPGA_ROOT)/cc/include/ -o'$@' '$<'
 
 $(TEMP_DIR)/s2mm.xo: $(PRJ_ROOT)/cc/src/s2mm_outputs.cc
 	mkdir -p $(TEMP_DIR)
-	v++ -g -c $(VPP_FLAGS) -t $(TARGET) --platform $(PLATFORM) -k s2mm_outputs --temp_dir $(TEMP_DIR) -I$(PRJ_ROOT)/cc/include -I$(PRJ_ROOT)/../nn2fpga/cc/include/ -o'$@' '$<'
+	v++ -g -c $(VPP_FLAGS) -t $(TARGET) --platform $(PLATFORM) -k s2mm_outputs --temp_dir $(TEMP_DIR) -I$(PRJ_ROOT)/cc/include -I$(NN2FPGA_ROOT)/cc/include/ -o'$@' '$<'
 
 $(BUILD_DIR)/$(TOP_NAME).xclbin: $(TEMP_DIR)/$(TOP_NAME).xo $(TEMP_DIR)/mm2s_a.xo $(TEMP_DIR)/mm2s_w.xo $(TEMP_DIR)/s2mm.xo
 	mkdir -p $(BUILD_DIR)
@@ -206,7 +206,7 @@ generate: check_prj_root check-top check-board check-onnx generate-dir
 
 host: check-xrt check-top $(HOST_SRCS) $(PRJ_ROOT)/cc/include/$(TOP_NAME)_sim.h
 	cp $(PRJ_ROOT)/cc/include/$(TOP_NAME)_sim.h $(PRJ_ROOT)/cc/include/network_sim.h
-	g++ -o host.o $(HOST_SRCS) $(CXXFLAGS) $(LDFLAGS)
+	g++ -o $(EXECUTABLE) $(HOST_SRCS) $(CXXFLAGS) $(LDFLAGS)
 
 run_model:
 	cd $(PRJ_ROOT) && ${PYTHON} $(NN2FPGA_ROOT)/py/utils/test_model.py

@@ -140,6 +140,15 @@ def get_add_name(node):
         add_name = node["input"][2]
     return add_name
 
+def get_forward_name(node):
+    return node["output"][1]
+
+def get_merge_1x1_name(node):
+    return node["output"][1]
+
+def get_output_name(node):
+    return node["output"][0]
+
 def parse_comp(name, node):
     input_name  = node["input"][0]
     input_type_name = input_name.replace("_skip", "")
@@ -161,12 +170,12 @@ def parse_comp(name, node):
             add_name = add_name + "_adj"
         add_type_name = add_name
 
-    output_name = node["output"][0]
+    output_name = get_output_name(node)
     output_type_name = output_name.replace("_skip", "")
     if (node["has_forward"]):
-        forward_name = node["output"][1]
+        forward_name = get_forward_name(node)
     if (node["merge_1x1"]):
-        output_1x1_name = node["output"][1]
+        output_1x1_name = get_merge_1x1_name(node)
         output_1x1_type_name = output_1x1_name.replace("_skip", "")
 
     block = {}

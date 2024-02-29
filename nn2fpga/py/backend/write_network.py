@@ -14,6 +14,7 @@ import backend.balance_computations as balance_computations
 import backend.balance_reuse as balance_reuse
 import backend.main as main
 import backend.sim as sim
+import backend.kpn_sim as kpn_sim
 
 from onnx import numpy_helper
 import numpy as np
@@ -203,7 +204,6 @@ def write_network(
             io_dict
         )
 
-
         io_dict = share_reuse(
             inferred_model,
             io_dict
@@ -218,12 +218,13 @@ def write_network(
             io_dict
         )
 
-
         io_dict = rename_edges(
             model,
             io_dict
         )
         
+        # kpn_sim.simulate(model, io_dict)
+
         status_thread.stop()
         status_thread.join()
         status_thread = StatusThread("Write model code", original_stdout)

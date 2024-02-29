@@ -1497,6 +1497,9 @@ def footer(file_name, parsed_write, prj_root="/tmp"):
         fd.write("#endif")
 
 def write(io_dict, model, network_name, board="KRIA", uram_storage = False, generate_report_file="tmp.rpt", prj_root="/tmp"):
+    
+    if extract_board_info(board, prj_root)["uram"] > 0:
+        uram_storage = True
 
     parsed_write = parse_all(io_dict, model, prj_root, board, uram_storage, generate_report_file)
 

@@ -161,6 +161,10 @@ def body(file_name, parsed_write, prj_root="/tmp"):
             tb_declare(fd, uram_declare)
             fd.write(f"\tposix_memalign((void**)&{uram_declare[0]['name']}, 4096, {uram_dim} * sizeof({uram_declare[0]['type']}));\n")
             fd.write(f"\tstd::ifstream file_weights(prj_root + \"npy/{file_name}_weights.bin\", std::ios::binary);\n")
+            fd.write(f"\tif (!file_weights.is_open()) {{\n")
+            fd.write(f"\t\tstd::cerr << \"Error: unable to open the parameters file.\" << std::endl;\n")
+            fd.write(f"\t\texit(-1);\n")
+            fd.write(f"\t}}\n")
             fd.write(f"\tfile_weights.read(reinterpret_cast<char*>({uram_declare[0]['name']}), {uram_dim} * sizeof({uram_declare[0]['type']}));\n")
             fd.write(f"\tfile_weights.close();\n\n")
 
@@ -243,7 +247,7 @@ def body(file_name, parsed_write, prj_root="/tmp"):
                     d_function["arguments"] = []
                     d_function["arguments"].append(f"const t_{name}_st* c_{name}")
                     d_function["arguments"].append(f"const unsigned int c_{name}_dim")
-                    d_function["arguments"].append(f"hls::stream<t_{name}_stream>& c_{name}_stream")
+                    d_function["arguments"].append(f"hls::stream<t_{name}_axi_stream>& c_{name}_stream")
                     d_function["parameters"] = []
                     d_function["parameters"].append(f"c_{name}")
                     d_function["parameters"].append(f"c_{name}_dim")
@@ -251,7 +255,7 @@ def body(file_name, parsed_write, prj_root="/tmp"):
                     d_function["function_name"] = "nn2fpga::mm2s"
                     d_function["template"] = []
                     d_function["template"].append(f"t_{name}_st")
-                    d_function["template"].append(f"t_{name}_stream")
+                    d_function["template"].append(f"t_{name}_axi_stream")
                     connectivity.append(f"sp=mm2s_weights_1.c_{name}:DDR[0]")
                     connectivity.append(f"sc=mm2s_weights_1.c_{name}_stream:{file_name}_1.i_data_params")
                     write_templated_converted("mm2s_weights", d_function, prj_root)

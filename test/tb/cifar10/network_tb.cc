@@ -57,12 +57,21 @@ int main(int argc, char** argv) {
     size_t projPos = currentDirStr.find("project_");
     // Search the "/" after projPos
     size_t projEndPos = currentDirStr.find("/", projPos);
+    std::cout << "projPos: " << projPos << std::endl;
+    std::cout << "projEndPos: " << projEndPos << std::endl;
+    
     if (projEndPos != std::string::npos){
       currentDirStr = currentDirStr.substr(0, projEndPos + 1);
-      // Check if the new path exists
-      if (directoryExists(currentDirStr)) {
-        projPath = currentDirStr;
-      }
+    } else {
+      currentDirStr += "/";
+    }
+
+    if (directoryExists(currentDirStr)) {
+      projPath = currentDirStr;
+    } else {
+      std::cerr << "Error: Could not find the path to the project directory." << std::endl;
+      std::cerr << projPath << std::endl;
+      return -1;
     }
 
     if (topPos != std::string::npos) {
@@ -77,9 +86,13 @@ int main(int argc, char** argv) {
     }
   }
   
-  if (cifarPath == "" || projPath == "")
+  if (cifarPath == "" || projPath == ""){
+    std::cerr << "Error: Could not find the path to the CIFAR-10 dataset or the project directory." << std::endl;
+    std::cerr << "cifar: " << cifarPath << std::endl;
+    std::cerr << "proj:" << projPath << std::endl;
     return -1;
-  
+  }  
+
   std::cout << "Sending " << c_batch << " images." << std::endl;
   t_in_mem *mem_activations;
   posix_memalign((void**)&mem_activations, 4096, c_index * c_batch * sizeof(t_in_mem));

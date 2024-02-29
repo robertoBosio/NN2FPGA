@@ -77,13 +77,19 @@ def info(io_dict, node, node_name, init_info, tensors_info):
 
     return io_dict
 
-def parse(name, node):
-
+def get_input_name(node):
     input_name  = node["input"][0]
     if node["adjust_line_buffer"]:
         input_name = input_name + "_adj"
+    return input_name
+
+def get_output_name(node):
+    return node["output"][0]
+
+def parse(name, node):
+    input_name = get_input_name(node)
     input_type_name = input_name.replace("_skip", "")
-    output_name = node["output"][0]
+    output_name = get_output_name(node)
     output_type_name = output_name.replace("_skip", "")
 
     signed = node["signed"]

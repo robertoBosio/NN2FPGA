@@ -6,8 +6,10 @@ void
 mm2s(const T_mem* mem, const unsigned int size, hls::stream<T_stream>& stream)
 {
 
+#ifndef __SYNTHESIS__
   std::cout << "INFO: Call to mm2s" << std::endl;
   std::cout << "\t\tsize: " << size << std::endl;
+#endif // __SYNTHESIS__
 
 #pragma HLS INLINE
 MM2S_LOOP:
@@ -21,6 +23,9 @@ MM2S_LOOP:
     s_data.keep = ~0;
     stream.write(s_data);
   }
+
+#ifndef __SYNTHESIS__
   std::cout << "INFO: Finished mm2s" << std::endl;
+#endif // __SYNTHESIS__
 }
 } // namespace nn2fpga
