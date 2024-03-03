@@ -36,8 +36,11 @@ pad_input(hls::stream<din_t> din[(c_fw + (c_ow_ops - 1) * c_str) * c_fh],
   constexpr int IW_REM = IW - (IW % c_str) * (1 - c_pad);
   // constexpr int IH_PAD = IH + c_pad_index_h * 2 - IH_REM * (1 - c_pad);
   // constexpr int IW_PAD = IW + c_pad_index_w * 2 - IW_REM * (1 - c_pad);
-  constexpr int FSZ = c_fh * (c_fw + (c_ow_ops - 1) * c_str);
+
+  // Window size considering stride, ow_ops and original dimensions.
   constexpr int FW = (c_fw + (c_ow_ops - 1) * c_str);
+  constexpr int FSZ = c_fh * FW;
+
   constexpr int LAST_IDX =
     FSZ - 1 - (c_fw + (c_ow_ops - 1) * c_str - c_pad_index_w) % c_ow_ops;
 
@@ -63,7 +66,6 @@ pad_input(hls::stream<din_t> din[(c_fw + (c_ow_ops - 1) * c_str) * c_fh],
             for (auto s_fw = 0; s_fw < FW; s_fw++) {
 
               auto s_index = s_fh * FW + s_fw;
-
               bool s_data_read = true;
 
               s_data_read &= (s_index_h >= (c_pad_index_h - s_fh));
@@ -81,7 +83,6 @@ pad_input(hls::stream<din_t> din[(c_fw + (c_ow_ops - 1) * c_str) * c_fh],
                 }
                 s_write.last = s_read[FSZ - s_index - 1].last;
               } else {
-                // for (auto s_i = 0; s_i < c_ops; s_i++) {
                 // This is padding branch, if the data of the window should not be read
                 // form the input stream then we pad it with zeros
                 for (auto s_i = 0; s_i < c_ops_out; s_i++) {

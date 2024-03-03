@@ -83,6 +83,9 @@ def parse(name, node, debug=False):
 
             block["args"] = []
 
+            # dfw - 1 - fw gives us the position of the input in the inverted line buffer, applying 
+            # the modulo we get the correct ow_ops stream moving that section of the tensor. pad_value
+            # is used to adjust the position of the input in the line buffer.
             if index < ow_ops:
                 if node["adjust_line_buffer"]:
                     block["args"].append("s_%s_adj[%0d]" % (input_name, (dfw - 1 - fw - pad_value)%ow_ops))
