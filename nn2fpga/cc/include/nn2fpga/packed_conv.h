@@ -1549,6 +1549,7 @@ conv_comp_onchip(
 
   /* Stores the iterator of weights packet in memory */
   auto s_weight_index = 0;
+  auto s_bias_index = 0;
 
   #ifndef __SYNTHESIS__
     if (c_depth == 1)
@@ -1572,7 +1573,7 @@ conv_comp_onchip(
     // Iterating over each ow_ops_out slice
     OW_OPS_OUT_LOOP:
     for (auto s_ow_ops_out = 0; s_ow_ops_out < c_ow_ops_out;
-         s_ow_ops_out += c_reuse, s_weight_index = 0) {
+         s_ow_ops_out += c_reuse, s_weight_index = 0, s_bias_index = 0) {
 
       // Iterating over the tensor input channels with steps of input packets
       ICH_LOOP:
@@ -1645,13 +1646,23 @@ conv_comp_onchip(
                   }
                 }
 
-                if constexpr(std::is_same<t_bias, std::nullptr_t>::value == false) {
-                  // if ((s_num_ich == 0) || (c_depth == 1)) s_bias = i_bias[0].read();
+                if (s_num_ich == 0 || c_depth == 1) {
+                  if constexpr (std::is_same<t_bias, std::nullptr_t>::value ==
+                                false) {
+                    for (auto s_ops = 0; s_ops < c_bias_ops; s_ops++) {
+                      s_bias[s_ops] = mem_bias[s_bias_index][s_ops];
+                    }
+                    if constexpr (std::is_same<t_bias_1x1,
+                                               std::nullptr_t>::value ==
+                                  false) {
+                      for (auto s_ops = 0; s_ops < c_bias_ops; s_ops++) {
+                        s_bias_1x1[s_ops] = mem_bias_1x1[s_bias_index][s_ops];
+                      }
+                    }
+                  }
+                  s_bias_index++;
                 }
 
-                if constexpr(std::is_same<t_bias_1x1, std::nullptr_t>::value == false) {
-                  // if ((s_num_ich == 0) || (c_depth == 1)) s_bias_1x1 = i_bias_1x1[0].read();
-                }
                 s_weight_index++;
               }
               

@@ -8,6 +8,108 @@
 
 namespace nn2fpga {
 
+
+// Read a stream, quantise it, stream it out.
+template<typename din_wrap_t,  // Input stream type
+         typename dout_wrap_t, // Output stream type
+         size_t LOOPS,         // Number of loops
+         size_t DATA_PER_READ, // Number of data in each read
+         size_t OPS>           // Number of data packed in output stream
+void
+produce_pack_stream(hls::stream<din_wrap_t> dinStream[DATA_PER_READ],
+                    hls::stream<dout_wrap_t> doutStream[1])
+{
+  din_wrap_t dinWrap;
+  dout_wrap_t doutWrap;
+  auto n_act = 0;
+
+PRODSTR_PACK_LOOP:
+  for (auto s_read = 0; s_read < LOOPS; s_read++) {
+#pragma HLS pipeline II = 1 style = stp
+    for (auto s_data = 0; s_data < OPS; s_data++) {
+#pragma HLS unroll factor = OPS
+
+      auto stream_index = n_act % DATA_PER_READ;
+      n_act++;
+
+      dinWrap = dinStream[stream_index].read();
+      doutWrap.data[0][s_data] = dinWrap.data;
+
+      /* Write last only in case of last packet, since input can have more
+       * than one out packet */
+      if (s_data == (OPS - 1)) {
+        doutWrap.last = dinWrap.last;
+      } else {
+        doutWrap.last = false;
+      }
+
+      if (s_data == (OPS - 1)) {
+        doutStream[0].write(doutWrap);
+      }
+    }
+  }
+}
+
+// Read activation stream, process it and stream it out.
+template<typename din_wrap_t,  // Input stream type
+         typename din_t,       // Input data type
+         typename dout_wrap_t, // Output stream type
+         typename dout_t,      // Output data type
+         size_t LOOPS,           // Loops size
+         size_t ICH,           // Number of input channels
+         size_t BITS,          // Number of bits in input data
+         size_t WIDTH,         // Width of the data type
+         size_t DATA_PER_READ, // Number of data in each read
+         bool PREPROC>         // Preprocessing flag
+void
+produce_flatten_stream(hls::stream<din_wrap_t>& dinStream,
+                       hls::stream<dout_wrap_t> doutStream[DATA_PER_READ])
+{
+  const ap_ufixed<32, 0> c_mean[3] = { 0.485, 0.456, 0.406 };
+  const ap_ufixed<32, 0> c_std[3] = { 0.229, 0.224, 0.225 };
+  din_wrap_t dinWrap;
+  dout_wrap_t doutWrap;
+  ap_uint<BITS> din_par = 0;
+  auto n_act = 0;
+
+PRODSTR_FLAT_LOOP:
+  for (auto s_read = 0; s_read < LOOPS; s_read++) {
+#pragma HLS pipeline II = 1 style = stp
+    for (auto s_data = 0; s_data < DATA_PER_READ; s_data++) {
+#pragma HLS unroll
+
+      auto ich = n_act % ICH;
+      ap_ufixed<WIDTH, 0, AP_RND_ZERO> din = 0;
+      n_act++;
+
+      if (s_data == 0) {
+        dinWrap = dinStream.read();
+        din_par.range(BITS - 1, 0) = dinWrap.data.range(BITS - 1, 0);
+      }
+
+      din.range(WIDTH - 1, 0) =
+        din_par.range((WIDTH * (s_data + 1)) - 1, (WIDTH * s_data));
+
+      if constexpr (PREPROC == 1) {
+        doutWrap.data = dout_t((din - c_mean[ich]) / c_std[ich]);
+      } else {
+        doutWrap.data = (dout_t(din));
+      }
+
+      /* Write last only in case of last packet, since input can have more
+       * than one out packet */
+      if (s_data == (DATA_PER_READ - 1)) {
+        doutWrap.last = dinWrap.last;
+      } else {
+        doutWrap.last = false;
+      }
+
+      /* Write in the correct stream the data */
+      doutStream[s_data].write(doutWrap);
+    }
+  }
+}
+
 // Read a stream, quantise it, stream it out.
 template<typename din_wrap_t,  // Input stream type
          typename din_t,       // Input data type
@@ -25,18 +127,6 @@ produce_stream(hls::stream<din_wrap_t>& dinStream,
                hls::stream<dout_wrap_t> doutStream[1])
 {
 
-  constexpr auto ISZ = (ICH * IH * IW);
-  static_assert(BITS % WIDTH == 0,
-                "Width stream not a multiple of data width");
-  constexpr auto PAR = BITS / WIDTH;
-  static_assert(ISZ % OPS == 0, "ISZ \% OPS != 0");
-  static_assert(PAR % OPS == 0, "PAR \% OPS != 0");
-
-  constexpr auto OSZ = ISZ / PAR;                 // Number of reads
-  constexpr auto OPS_PACKET_PER_READ = PAR / OPS; // Number of packets per read
-  const ap_ufixed<32, 0> c_mean[3] = { 0.485, 0.456, 0.406 };
-  const ap_ufixed<32, 0> c_std[3] = { 0.229, 0.224, 0.225 };
-
 #ifndef __SYNTHESIS__
   std::cout << "INFO: Call to produce_stream" << std::endl;
   std::cout << "\t\tICH: " << ICH << std::endl;
@@ -47,65 +137,42 @@ produce_stream(hls::stream<din_wrap_t>& dinStream,
   std::cout << "\t\tPREPROC: " << PREPROC << std::endl;
 #endif
 
-  din_wrap_t dinWrap;
-  dout_wrap_t doutWrap;
-  ap_uint<BITS> din_par = 0;
-  auto n_act = 0;
+  #pragma HLS dataflow
+  constexpr auto ISZ = (ICH * IH * IW);
+  static_assert(BITS % WIDTH == 0,
+                "Width stream not a multiple of data width");
+  constexpr auto PAR = BITS / WIDTH;
+  static_assert(ISZ % OPS == 0, "ISZ \% OPS != 0");
+  static_assert(ISZ % PAR == 0, "ISZ \% PAR != 0");
 
-PRODSTR:
-  for (auto s_read = 0; s_read < OSZ; s_read++) {
-    for (auto s_data = 0; s_data < OPS_PACKET_PER_READ; s_data++) {
-#pragma HLS pipeline II = 1 style = stp
-      for (auto s_ops = 0; s_ops < OPS; s_ops++) {
-#pragma HLS unroll
+  constexpr auto OSZ_FLAT = ISZ / PAR; // Number of reads for flatten
+  constexpr auto OSZ_PACK = ISZ / OPS; // Number of reads for pack
 
-        auto ich = n_act % ICH;
-        ap_ufixed<WIDTH, 0, AP_RND_ZERO> din = 0;
-        n_act++;
+  // Custom type to wrap data between the two functions
+  struct temp_wrap_t {
+    dout_t data;
+    bool last;
+  };
+  
+  // Streams carrying the data to be packed
+  hls::stream<temp_wrap_t> streamToPack[PAR];
 
-        if (s_ops == 0 && s_data == 0) {
-          dinWrap = dinStream.read();
-          din_par.range(BITS - 1, 0) = dinWrap.data.range(BITS - 1, 0);
-        }
-
-        din.range(WIDTH - 1, 0) =
-          din_par.range((WIDTH * (s_data * OPS + s_ops + 1)) - 1,
-                        (WIDTH * (s_data * OPS + s_ops)));
-
-        if constexpr (PREPROC == 1) {
-          doutWrap.data[0][s_ops] = dout_t((din - c_mean[ich]) / c_std[ich]);
-        } else {
-          doutWrap.data[0][s_ops] = (dout_t(din));
-        }
-
-        /* Write last only in case of last packet, since input can have more
-         * than one out packet */
-        if (s_data == (OPS_PACKET_PER_READ - 1)) {
-          doutWrap.last = dinWrap.last;
-        } else {
-          doutWrap.last = false;
-        }
-
-        if (s_ops == (OPS - 1)) {
-          doutStream[0].write(doutWrap);
-        }
-        // din_par >>= WIDTH;
-
-#ifndef __SYNTHESIS__
-#ifdef DEBUG
-        std::cout << ap_uint<8>(din_par & 0xff) << " ";
-        std::cout << std::setprecision(8) << din << " ";
-        std::cout << (din - c_mean[ich]) / c_std[ich] << " ";
-        std::cout << doutWrap.data[0][ops] << " ";
-#endif /* DEBUG */
-#ifdef DEBUG_RES
-        // std::cout << (din-c_mean[ich])/c_std[ich] << std::endl;
-        std::cout << doutWrap.data[0][ops] << std::endl;
-#endif /* DEBUG_RES */
-#endif /* __SYNTHESIS__ */
-      }
-    }
-  }
+  produce_flatten_stream<din_wrap_t,
+                         din_t,
+                         temp_wrap_t,
+                         dout_t,
+                         OSZ_FLAT,
+                         ICH,
+                         BITS,
+                         WIDTH,
+                         PAR,
+                         PREPROC>(dinStream, streamToPack);
+  
+  produce_pack_stream<temp_wrap_t,
+                      dout_wrap_t,
+                      OSZ_PACK,
+                      PAR,
+                      OPS>(streamToPack, doutStream);
 
 #ifndef __SYNTHESIS__
 #ifndef SKIP_ASSERTIONS

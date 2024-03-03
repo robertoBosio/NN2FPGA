@@ -89,12 +89,30 @@ def parse(name, node):
         "const",
         node["bits"][0]
     ]
+
+    #### Version with fixed width but using only part of the input
     # Computing how many ops data it can be inserted in a packet from DMA.
-    ops_packet = 64 // (node["bits"][0] * node["ops"])
-    useful_bits = node["bits"][0] * node["ops"] * ops_packet
+    # width_stream = 64
+    # ops_packet = width_stream // (node["bits"][0] * node["ops"])
+    # useful_bits = node["bits"][0] * node["ops"] * ops_packet
+
+    #### Version with size of the stream equal to the useful bits
+    # width_stream = node["bits"][0] * node["ops"]
+    # ops_packet = 1
+    # useful_bits = width_stream
+    
+    #### Verion with fixed width and using all the input with modulo index
+    width_stream = 64
+    useful_bits = width_stream
+    act_per_packet = width_stream // node["bits"][0]
+
     block["defines"]["c_data_per_packet"] = [
         "const",
-        ops_packet * node["ops"]
+        act_per_packet
+    ]
+    block["defines"]["c_width_act_stream"] = [
+        "const",
+        width_stream
     ]
     ### End of defines for testbench
 
@@ -109,12 +127,12 @@ def parse(name, node):
 
     block["defines"]["t_in_mem"] = [
         "type",
-        "ap_uint<64>"
+        f"ap_uint<{width_stream}>"
     ]
     
     block["defines"]["t_%s" % input_type_name] = [
         "type",
-        "ap_axiu<64, 0, 0, 0>"
+        f"ap_axiu<{width_stream}, 0, 0, 0>"
     ]
 
     output_type = get_quant_type(node["signed"], node["bits"][0], node["scale_factor"][0])
