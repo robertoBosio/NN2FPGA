@@ -990,27 +990,44 @@ def on_chip_rom(
     block["pragma"] = []
     
     # Binding memory to URAM storage
+    pragma = {}
     if weight_node["uram_storage"]:
-        pragma = {}
         pragma["name"] = "bind_storage"
         options = [
             ["variable", f"c_{weight_output_name}"],
-            ["impl", "URAM"],
-            ["type", "RAM_2P"]
+            ["impl", "uram"],
+            ["type", "ram_s2p"]
+        ]
+        pragma["options"] = options
+    else:
+        pragma["name"] = "bind_storage"
+        options = [
+            ["variable", f"c_{weight_output_name}"],
+            ["impl", "bram"],
+            ["type", "ram_s2p"]
         ]
         pragma["options"] = options
 
-        block["pragma"].append(pragma)
+    block["pragma"].append(pragma)
     
-    if (weight_node_1x1 is not None and weight_node_1x1["uram_storage"]):
+    if (weight_node_1x1 is not None):
         pragma = {}
-        pragma["name"] = "bind_storage"
-        options = [
-            ["variable", f"c_{weight_output_name_1x1}"],
-            ["impl", "URAM"],
-            ["type", "RAM_2P"]
-        ]
-        pragma["options"] = options
+        if (weight_node_1x1["uram_storage"]):
+            pragma["name"] = "bind_storage"
+            options = [
+                ["variable", f"c_{weight_output_name_1x1}"],
+                ["impl", "uram"],
+                ["type", "ram_s2p"]
+            ]
+            pragma["options"] = options
+        else:
+            pragma["name"] = "bind_storage"
+            options = [
+                ["variable", f"c_{weight_output_name_1x1}"],
+                ["impl", "bram"],
+                ["type", "ram_s2p"]
+            ]
+            pragma["options"] = options
 
         block["pragma"].append(pragma)
 
@@ -1020,6 +1037,16 @@ def on_chip_rom(
     options = [
         ["variable", f"c_{weight_output_name}"],
         ["dim", 3],
+        ["type", "complete"]
+    ]
+    pragma["options"] = options
+    block["pragma"].append(pragma)
+    
+    pragma = {}
+    pragma["name"] = "array_reshape"
+    options = [
+        ["variable", f"c_{weight_output_name}"],
+        ["dim", 1],
         ["type", "complete"]
     ]
     pragma["options"] = options

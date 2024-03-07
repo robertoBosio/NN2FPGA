@@ -399,20 +399,20 @@ def resourceILP(layers_info, model_II, valid_par_solutions, parallel_op, NUM_DSP
     prob_min = pulp.LpProblem("Resource_usage", pulp.LpMinimize)
     
     # Objective function: minimize the BRAMs required to run the whole network.
-    prob_min += (
-        pulp.lpSum([pulp.lpDot(layer_binary_variables[layer['index']].values(),
-                    valid_bram_solutions[i]) for i, layer in enumerate(layers_info_unmerged)]) +
-        pulp.lpSum([pulp.lpDot(layer_binary_variables[layer['index']].values(),
-                    valid_dsp_solutions[i]) for i, layer in enumerate(layers_info_unmerged)]),
-        f"Resource_objective"
-    )
-    
-    # Objective function: minimize the DSPs required to run the whole network.
     # prob_min += (
     #     pulp.lpSum([pulp.lpDot(layer_binary_variables[layer['index']].values(),
+    #                 valid_bram_solutions[i]) for i, layer in enumerate(layers_info_unmerged)]) +
+    #     pulp.lpSum([pulp.lpDot(layer_binary_variables[layer['index']].values(),
     #                 valid_dsp_solutions[i]) for i, layer in enumerate(layers_info_unmerged)]),
-    #     f"DSP_constraint"
+    #     f"Resource_objective"
     # )
+    
+    # Objective function: minimize the DSPs required to run the whole network.
+    prob_min += (
+        pulp.lpSum([pulp.lpDot(layer_binary_variables[layer['index']].values(),
+                    valid_dsp_solutions[i]) for i, layer in enumerate(layers_info_unmerged)]),
+        f"DSP_constraint"
+    )
     
     # Constraint: Only one binary variable per layer should be equal to 1
     for layer_index in [x["index"] for x in layers_info]:
@@ -422,11 +422,11 @@ def resourceILP(layers_info, model_II, valid_par_solutions, parallel_op, NUM_DSP
             f"One_choice_constraint_layer_{layer_index}"
         )
     
-    prob_min += (
-        pulp.lpSum([pulp.lpDot(layer_binary_variables[layer['index']].values(),
-                    valid_dsp_solutions[i]) for i, layer in enumerate(layers_info_unmerged)]) <= NUM_DSP,
-        f"DSP_constraint"
-    )
+    # prob_min += (
+    #     pulp.lpSum([pulp.lpDot(layer_binary_variables[layer['index']].values(),
+    #                 valid_dsp_solutions[i]) for i, layer in enumerate(layers_info_unmerged)]) <= NUM_DSP,
+    #     f"DSP_constraint"
+    # )
     
     prob_min += (
         pulp.lpSum([pulp.lpDot(layer_binary_variables[layer['index']].values(),
@@ -1188,8 +1188,8 @@ def ilp(io_dict, off_chip_storage, model, file_name, board="ULTRA96v2", generate
     NUM_PORTS = (board_res["bram"] + board_res["uram"])
     NUM_DSP = board_res["dsp"]
     # NUM_DSP = int(NUM_DSP * 1.1)
-    NUM_PORTS = int(NUM_PORTS * 0.9)
-    NUM_DSP = 1700
+    # NUM_PORTS = int(NUM_PORTS * 1.5)
+    # NUM_DSP = 1700
 
     valid_par_solutions = generate_architectures(layers_info, NUM_DSP)
     layer_par, model_II, n_variables, n_constraints, time_spent = parallelismILP(layers_info, valid_par_solutions, NUM_DSP, NUM_PORTS, prj_root=prj_root)

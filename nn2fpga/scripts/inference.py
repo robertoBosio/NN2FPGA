@@ -13,6 +13,16 @@ from cifar10 import postprocess as cifar10_postprocess
 from vw import postprocess as vw_postprocess
 from imagenet import postprocess as imagenet_postprocess
 
+def print_sorted_nested_dict(dictionary, indent=0):
+    for key in sorted(dictionary.keys()):
+        value = dictionary[key]
+        if isinstance(value, dict):
+            print("  " * indent + f"{key}:")
+            print_sorted_nested_dict(value, indent + 1)
+        else:
+            print("  " * indent + f"{key}: {value}")
+
+
 if __name__ == "__main__":
     # Uploading all data
 
@@ -62,6 +72,8 @@ if __name__ == "__main__":
 
     print("Loading overlay")
     overlay = Overlay('./overlay/design_1.bit')
+    print_sorted_nested_dict(overlay.ip_dict)
+
 
     print("Loaded overlay")
     dma = overlay.axi_dma_0
@@ -101,3 +113,5 @@ if __name__ == "__main__":
         postprocess,
         sel_uram_storage
     )
+
+    del in_buffer, out_buffer

@@ -639,8 +639,8 @@ def parse_comp(name, node):
     # if node["adjust_out"]:
     #     depth = 3
     # else:
-    # depth = int(node["och"] / node["ops_out"]) * node["ow_ops_out"] + 1
-    depth = int(node["och"] / node["ops_out"]) + 1
+    depth = int(node["och"] / node["ops_out"]) * node["ow_ops_out"] + 1
+    # depth = int(node["och"] / node["ops_out"]) + 1
     # TODO: Modified to reduce bram usage but slowing down arch
     # depth = 2
 
