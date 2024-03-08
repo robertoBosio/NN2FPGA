@@ -114,7 +114,7 @@ def declare_params_array(parsed_write):
     # in a file 
     concat_params = None
     for i, layer in enumerate(parsed_write):
-        if "produce_shift_stream" == layer["func"]:
+        if "fake_func_params" == layer["func"]:
             if concat_params is None:
                 concat_params = layer["params"]
             else:
@@ -187,7 +187,7 @@ def body(file_name, parsed_write, prj_root="/tmp"):
         # In case of embedded FPGA the blocks for stream to memory and memory to
         # stream are located in the testbench
         for layer in parsed_write:
-            if "memory_management" == layer["func"]:
+            if "axi_to_stream" == layer["func"]:
                 for dict in layer["stream_input"]:
                     tmp = {}
                     tmp["name"] = dict["name"]
@@ -218,7 +218,7 @@ def body(file_name, parsed_write, prj_root="/tmp"):
 
         # Defining memory to stream function to load weights
         for layer in parsed_write:
-            if "memory_management" == layer["func"]:
+            if "axi_to_stream" == layer["func"]:
                 for dict in layer["stream_input"]:
                     name = "params"
                     mm2s_weights_layer = {}
@@ -315,7 +315,7 @@ def body(file_name, parsed_write, prj_root="/tmp"):
                     fd.write("\t\tc_%s_stream,\n" % (name))
 
         for layer in parsed_write:
-            if "memory_management" == layer["func"]:
+            if "axi_to_stream" == layer["func"]:
                 for dict in layer["input"]:
                     name = dict["name"]
                     type = dict["type"]
@@ -418,7 +418,7 @@ def body(file_name, parsed_write, prj_root="/tmp"):
                         input_kernels.append("mm2s_a")
 
             for layer in parsed_write:
-                if "memory_management" == layer["func"]:
+                if "axi_to_stream" == layer["func"]:
                     if (len(layer["stream_input"]) > 0):
                         fd.write(f"\tauto mm2s_weights = xrt::kernel(device, uuid, \"mm2s_weights\");\n")
                         fd.write("\tauto buff_weights = xrt::bo(device, (int*)%s, %s, mm2s_weights.group_id(0));\n" % (uram_declare[0]["name"], uram_dim))
@@ -524,7 +524,7 @@ def write_templated_converted(filename, dict, prj_root):
 
 def write(io_dict, model, file_name, dynamic_init, prj_root="/tmp"):
 
-    parsed_write, parsed_const = parse_all_main(io_dict, model, dynamic_init=dynamic_init)
+    parsed_write, parsed_const = parse_all_main(io_dict, model)
     parsed_write = parsed_write + parsed_const
 
     init(file_name, parsed_write, prj_root=prj_root)

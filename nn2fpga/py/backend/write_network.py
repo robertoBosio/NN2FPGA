@@ -184,9 +184,7 @@ def write_network(
             init_info,
             off_chip_storage,
             dynamic_init,
-            uram_storage
         )
-
 
         if off_chip_storage:
             io_dict = balance_reuse.ilp(
@@ -237,26 +235,31 @@ def write_network(
             ap_ctrl_chain,
             object_detection=object_detection,
             dynamic_init=dynamic_init,
+            board=board,
+            off_chip_storage=off_chip_storage,
             prj_root=prj_root,
+            generate_report_file=generate_report_file
         )
 
         status_thread.stop()
         status_thread.join()
-        status_thread = StatusThread("Write memory management code", original_stdout)
-        status_thread.start()
 
-        weights.write(
-            io_dict,
-            model,
-            file_name,
-            board,
-            uram_storage,
-            generate_report_file,
-            prj_root=prj_root
-        )
+        if (off_chip_storage):
+            status_thread = StatusThread("Write memory management code", original_stdout)
+            status_thread.start()
+
+            weights.write(
+                io_dict,
+                model,
+                file_name,
+                board,
+                generate_report_file,
+                prj_root=prj_root
+            )
+            
+            status_thread.stop()
+            status_thread.join()
         
-        status_thread.stop()
-        status_thread.join()
         status_thread = StatusThread("Write host code", original_stdout)
         status_thread.start()
         

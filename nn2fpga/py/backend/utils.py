@@ -2,7 +2,7 @@ import os
 import sys
 import json
 
-def extract_board_info(board="ULTRA96v2", prj_root="/tmp"):
+def extract_board_info(board, prj_root):
     """ Read the board json file and returns a dictionary with the available resources"""
     
     # Remove the part before NN2FPGA from the path

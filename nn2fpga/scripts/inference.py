@@ -72,9 +72,7 @@ if __name__ == "__main__":
 
     print("Loading overlay")
     overlay = Overlay('./overlay/design_1.bit')
-    print_sorted_nested_dict(overlay.ip_dict)
-
-
+    
     print("Loaded overlay")
     dma = overlay.axi_dma_0
     if (sel_uram_storage == 1):

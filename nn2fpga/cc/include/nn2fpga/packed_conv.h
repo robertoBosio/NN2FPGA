@@ -1551,21 +1551,6 @@ conv_comp_onchip(
   auto s_weight_index = 0;
   auto s_bias_index = 0;
 
-  #ifndef __SYNTHESIS__
-    if (c_depth == 1)
-      std::cout << "depth_conv_op " << c_ich << " " << c_och <<  " " << c_reuse_iter << std::endl;
-    else
-      std::cout << "conv_op " << c_ich << " " << c_och_ops << " " << c_ich_ops << std::endl;
-    if constexpr(std::is_same<t_add_struct, std::nullptr_t>::value == false)
-      std::cout << "#### The convolution has add" << std::endl;
-    std::cout << "parallelism " << c_och_ops << " " << c_ich_ops << " " << c_ow_ops << std::endl;
-    std::cout << "output_stream " << c_och_ops << " " << c_ow_ops_out << std::endl;
-    std::cout << "packing " << c_och_pack << " " << c_ow_pack << std::endl;
-    std::cout << "padding " << c_pad_bits << " " << c_int_pad_bits << " " << c_simd_bits << " " << c_pad_acc_bits << " " << c_simd << std::endl;
-    std::cout << "input type " << std::is_same<typename t_input_st::Base::Base, _AP_ROOT_TYPE<c_in_bits, true>>::value << std::endl;
-    std::cout << "weight type " << std::is_same<typename t_weight_st::Base::Base, _AP_ROOT_TYPE<c_w_bits, true>>::value << std::endl;
-  #endif
-
   // Iterating over the portion of tensor of each ow_ops_out slice
   CONV_LOOP:
   for (auto s_o_index = 0; s_o_index < c_o_index; s_o_index++) {
@@ -2009,18 +1994,19 @@ template<typename t_input_struct, // input activation struct type
          typename t_weight_1x1_st, // weight 1x1 standard type
          typename t_bias_1x1,      // bias 1x1 vector type
          typename t_bias_1x1_st,   // bias 1x1 standard type
-         typename t_acc_struct,
-         typename t_acc,
-         typename t_acc_1x1_struct,
-         typename t_acc_1x1,
-         typename t_output_struct,
-         typename t_output_vector,
-         typename t_output,
-         typename t_output_clip,
-         typename t_output_mask,
+         typename t_acc_struct,     // accumulator struct type
+         typename t_acc,            // accumulator type
+         typename t_acc_1x1_struct, // 1x1 accumulator struct type
+         typename t_acc_1x1,        // 1x1 accumulator type
+         typename t_output_struct,  // output activation struct type
+         typename t_output_vector,  // output activation vector type
+         typename t_output_st,      // output activation standard type
+         typename t_output_clip,    // output activation clip type cast
+         typename t_output_mask,    // output activation mask type cast
          typename t_output_struct_1x1,
          typename t_output_1x1,
          typename p_stream_t,
+         size_t c_ich_groups,
          size_t c_ich,
          size_t c_och,
          size_t c_och_1x1,
@@ -2066,7 +2052,16 @@ conv_comp_wrap(
   hls::stream<p_stream_t> p_in[1],
   bool& s_init,
   hls::stream<p_stream_t> p_out[1],
+  
+  // Memories for parameters
+  t_bias_st mem_bias[c_och / c_bias_ops][c_bias_ops],
+  t_weight_st mem_weights[c_fh * c_fw][c_och * c_ich_groups / (c_och_ops * c_ich_ops)]
+                         [c_och_ops * c_ich_ops],
+  t_bias_1x1_st mem_bias_1x1[c_och / c_bias_ops][c_bias_ops],
+  t_weight_1x1_st mem_weights_1x1[1][c_och * c_ich_groups / (c_och_ops * c_ich_ops)]
+                                 [c_och_ops * c_ich_ops],
 
+  // Streams for input and output in dataflow
   hls::stream<t_input_struct> i_input[1],
   hls::stream<t_add_struct> i_add[c_ow_ops],
   hls::stream<t_forward_struct> o_forward[c_ow_ops],
@@ -2138,26 +2133,6 @@ conv_comp_wrap(
   std::cout << "\t\tc_mask_1x1 = " << c_mask_1x1 << std::endl;
   std::cout << "\t\tc_depth = " << c_depth << std::endl;
 #endif
-
-  /* Memory for biases */
-  static t_bias_st mem_bias[c_och / c_bias_ops][c_bias_ops];
-#pragma HLS array_reshape variable = mem_bias dim = 2 type = complete
-
-  /* Memory for weights */
-  static t_weight_st mem_weights[c_fh * c_fw]
-                                [c_och * c_ich_group / (c_och_ops * c_ich_ops)]
-                                [c_och_ops * c_ich_ops];
-#pragma HLS array_reshape variable = mem_weights dim = 3 type = complete
-
-  /* Memory for biases in merged downsamples */
-  static t_bias_1x1_st mem_bias_1x1[c_och / c_bias_ops][c_bias_ops];
-#pragma HLS array_reshape variable = mem_bias_1x1 dim = 2 type = complete
-
-  /* Memory for weights in merged downsamples */
-  static t_weight_1x1_st
-    mem_weights_1x1[1][c_och * c_ich_group / (c_och_ops * c_ich_ops)]
-                   [c_och_ops * c_ich_ops];
-#pragma HLS array_reshape variable = mem_weights_1x1 dim = 3 type = complete
 
   if (!s_init) {
     p_stream_t packed_data;

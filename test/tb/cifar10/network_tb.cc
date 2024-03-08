@@ -114,12 +114,17 @@ int main(int argc, char** argv) {
   for (auto it = dataset.test_images.begin(); it != dataset.test_images.end();
        ++it) {
 
-    ap_uint<64> send_data = 0;
+    ap_uint<c_width_act_stream> send_data = 0;
     unsigned int s_bytes = 0;
     for (auto itt = it->begin(); itt != it->end(); itt++) {
 
       int s_par = (s_bytes % c_data_per_packet);
       unsigned int data = (ap_uint<8>)(*itt);
+      if (s_bytes < 10){
+        std::cout << data << " ";
+      } else if (s_bytes == 10){
+        std::cout << std::endl;
+      }
 
       // To be consistent with training, we need to use a float to normalize
       // data and then convert it to ap_uint<8>, to remove the small error given
@@ -179,7 +184,9 @@ int main(int argc, char** argv) {
     std::cout << image << " image" << std::endl;
     for (int g = 0; g < CLASSES; g++) {
       auto data = mem_outputs[g + image * CLASSES];
-      std::cout << data << std::endl;
+      ap_int<c_act_width> data_int;
+      data_int.range(c_act_width - 1, 0) = data.range(c_act_width - 1, 0);
+      std::cout << data << "\t" << data_int << std::endl;
       if (data > max_value) {
         max_value = data;
         max_index = g;

@@ -7,8 +7,8 @@ import numpy as np
 from tabulate import tabulate
 import math
 import json
-from backend.graph import extract_connections
-from backend.utils import *
+import backend.graph as graph
+import backend.utils as utils
 from backend.layers.uram_download import fill_uram_layer, add_uram_layer
 import backend.layers.uram_download as uram_download
 from backend.layers.quant import get_quant_type
@@ -35,7 +35,7 @@ def bias_ops_calc(
 
     return parallelism
 
-def mem_shape_calc(node):
+def mem_shape_calc(node, is_bias=False):
     """ Compute the memory shape needed to store the weights """
     ich = node["ich"]
     och = node["och"]
@@ -45,7 +45,7 @@ def mem_shape_calc(node):
     ich_ops = node["ich_ops"]
     depth = node["depth"]
 
-    if (node["is_bias"]):
+    if (is_bias):
         parallelism = bias_ops_calc(ich_ops, ops, depth)
         return [och // parallelism, parallelism]
 
@@ -129,7 +129,7 @@ def parse_on_chip_weights(
     assert doch_ops > 0
 
     values = np.zeros(
-        mem_shape_calc(node_info)
+        mem_shape_calc(node_info, node_info["is_bias"])
     )
 
     # Reordering the weights based on the parallelism needed by the convolution
@@ -188,7 +188,7 @@ def parse_on_chip_biases(
 
     parallelism = bias_ops_calc(dich_ops, dops, node_info["depth"])
 
-    values = np.zeros(mem_shape_calc(node_info))
+    values = np.zeros(mem_shape_calc(node_info, node_info["is_bias"]))
     pre_values = np.squeeze(pre_values)
     
     # Reordering the weights based on the parallelism needed by the convolution
@@ -307,7 +307,6 @@ def extract_info(
     init_info,
     off_chip_memory,
     dynamic_init,
-    uram_storage
 ):
     pre_values = numpy_helper.to_array(init_info[weight_name]) 
     shape = pre_values.shape
@@ -384,9 +383,7 @@ def extract_info(
     else:
         new_node["n_weights"] = och
     new_node["dynamic_init"] = dynamic_init
-    # assert that uram_storage allows only if dynamic_init
-    assert not(uram_storage and not(dynamic_init))
-    new_node["uram_storage"] = uram_storage and not(is_bias)
+    new_node["uram_storage"] = False
     new_node["img_ch"]  = ich*och
     new_node["reuse"] = 1
     new_node["pre_values"] = pre_values
@@ -405,12 +402,11 @@ def weights_info(
     init_info,
     off_chip_memory=False,
     dynamic_init=False,
-    uram_storage=False
 ):
     new_nodes = {}
     rem_nodes = []
 
-    io_connect = extract_connections(model, io_dict)
+    io_connect = graph.extract_connections(model, io_dict)
 
     for node_name, node_info in io_dict.items():
         if 'quant' in node_name.lower():
@@ -448,7 +444,6 @@ def weights_info(
                 init_info,
                 off_chip_memory,
                 dynamic_init,
-                uram_storage
             )
 
             rem_nodes.append(node_name)
@@ -712,6 +707,48 @@ def off_chip_ddr(
 
     return blocks
 
+def generate_axitostandard_stream(tot_params):
+    """ Declare the first function that converts from axi to standard stream """
+    block = {}
+    block["func"] = "axi_to_stream"
+    block["args"] = []
+    block["input"] = []
+    block["stream_input"] = []
+    block["uram_input"] = []
+    block["output"] = []
+    block["declare"] = []
+    block["pragma"] = []
+    block["template"] = ["t_params_axi_stream", "t_params_stream",
+                            {"name": tot_params, "comment": "tot cycles"}]
+    block["args"] = ["i_data_params", "s_axi_to_stream_init_flag", "s_axi_to_stream_out"]
+    
+    pragma = {}
+    pragma["name"] = "stream"
+    options = [
+        ["variable", f"s_axi_to_stream_out"],
+        ["depth", "2"],
+        ["type", "fifo"],
+    ]
+    pragma["options"] = options
+    block["pragma"].append(pragma)
+    
+    tmp = {}
+    tmp["name"] = f"s_axi_to_stream_init_flag"
+    tmp["type"] = "static bool"
+    tmp["is_array"] = False
+    tmp["is_const"] = False
+    tmp["size"] = 1
+    tmp["init_value"] = "false"
+    block["declare"].append(tmp)
+    
+    tmp = {}
+    tmp["name"] = f"s_axi_to_stream_out"
+    tmp["type"] = f"t_params_stream"
+    tmp["is_array"] = True
+    tmp["dim"] = 1
+    block["declare"].append(tmp)
+    return block
+
 def on_chip_rom(
     param_node,
     width_stream
@@ -751,45 +788,7 @@ def on_chip_rom(
     
     # Declare the function to pass from axi stream data type to internal type for params
     if (param_node["first"]):
-        block["func"] = "axi_to_stream"
-        block["args"] = []
-        block["input"] = []
-        block["stream_input"] = []
-        block["uram_input"] = []
-        block["output"] = []
-        block["declare"] = []
-        block["pragma"] = []
-        block["template"] = ["t_params_axi_stream", "t_params_stream",
-                             {"name": param_node["params"], "comment": "tot cycles"}]
-        block["args"] = ["i_data_params", "s_axi_to_stream_init_flag", "s_axi_to_stream_out"]
-        
-        pragma = {}
-        pragma["name"] = "stream"
-        options = [
-            ["variable", f"s_axi_to_stream_out"],
-            ["depth", "2"],
-            ["type", "fifo"],
-        ]
-        pragma["options"] = options
-        block["pragma"].append(pragma)
-        
-        tmp = {}
-        tmp["name"] = f"s_axi_to_stream_init_flag"
-        tmp["type"] = "static bool"
-        tmp["is_array"] = False
-        tmp["is_const"] = False
-        tmp["size"] = 1
-        tmp["init_value"] = "false"
-        block["declare"].append(tmp)
-        
-        tmp = {}
-        tmp["name"] = f"s_axi_to_stream_out"
-        tmp["type"] = f"t_params_stream"
-        tmp["is_array"] = True
-        tmp["dim"] = 1
-        block["declare"].append(tmp)
-        blocks.append(block)
-        block = {}
+        block.append(generate_axitostandard_stream(param_node["tot_params"]))
 
     block["func"] = "produce_shift_stream"
     block["args"] = []
@@ -928,7 +927,7 @@ def on_chip_rom(
     tmp["is_array"] = True
     tmp["is_const"] = False
     # size = weight_node["values"].shape
-    tmp["size"] = mem_shape_calc(weight_node)
+    tmp["size"] = mem_shape_calc(weight_node, weight_node["is_bias"])
     # tmp["init"] = weight_node["values"]
     tmp["form"] = "float"
     block["declare"].append(tmp)
@@ -940,7 +939,7 @@ def on_chip_rom(
         tmp["is_array"] = True
         tmp["is_const"] = False
         # size = bias_node["values"].shape
-        tmp["size"] = mem_shape_calc(bias_node)
+        tmp["size"] = mem_shape_calc(bias_node, bias_node["is_bias"])
         # tmp["init"] = bias_node["values"]
         tmp["form"] = "float"
         block["declare"].append(tmp)
@@ -952,7 +951,7 @@ def on_chip_rom(
         tmp["is_array"] = True
         tmp["is_const"] = False
         # size = weight_node_1x1["values"].shape
-        tmp["size"] = mem_shape_calc(weight_node_1x1)
+        tmp["size"] = mem_shape_calc(weight_node_1x1, weight_node_1x1["is_bias"])
         # tmp["init"] = weight_node_1x1["values"]
         tmp["form"] = "float"
         block["declare"].append(tmp)
@@ -964,7 +963,7 @@ def on_chip_rom(
         tmp["is_array"] = True
         tmp["is_const"] = False
         # size = bias_node_1x1["values"].shape
-        tmp["size"] = mem_shape_calc(bias_node_1x1)
+        tmp["size"] = mem_shape_calc(bias_node_1x1, bias_node_1x1["is_bias"])
         # tmp["init"] = bias_node_1x1["values"]
         tmp["form"] = "float"
         block["declare"].append(tmp)
@@ -1003,7 +1002,6 @@ def on_chip_rom(
         pragma["name"] = "bind_storage"
         options = [
             ["variable", f"c_{weight_output_name}"],
-            ["impl", "bram"],
             ["type", "ram_s2p"]
         ]
         pragma["options"] = options
@@ -1024,7 +1022,6 @@ def on_chip_rom(
             pragma["name"] = "bind_storage"
             options = [
                 ["variable", f"c_{weight_output_name_1x1}"],
-                ["impl", "bram"],
                 ["type", "ram_s2p"]
             ]
             pragma["options"] = options
@@ -1114,12 +1111,12 @@ def on_chip_rom(
     return blocks
 
 def parse_const(io_dict, model, node):
-    """ Parse the constants of the produce_shift_stream """
+    """ Parse the constants of the parameters """
 
     has_bias = node["has_bias"]
     blocks = []
     block = {}
-    io_connect = extract_connections(model, io_dict)
+    io_connect = graph.extract_connections(model, io_dict)
     conv_node = node
     weight_output_name = node["input"][1]
     weight_node = io_dict[io_connect[weight_output_name][0][0]]
@@ -1201,7 +1198,7 @@ def parse_const(io_dict, model, node):
 
     ### Type defintions
     block["defines"] = {}
-    block["func"] = "produce_shift_stream"
+    block["func"] = "fake_func_params"
     block["defines"][f"t_{weight_output_name}_mem"]    = ["type", weight_node["data_type"]]
     output_type_name = f"std::array<std::array<t_{weight_output_name}_mem, {conv_node['ops']}>, {conv_node['ich_ops']}>"
     block["defines"][f"t_{weight_output_name}"]      = ["type",  output_type_name]
@@ -1226,9 +1223,63 @@ def parse_const(io_dict, model, node):
     blocks.append(block)
     return blocks
 
-def parse_all(io_dict, model, prj_root="/tmp", board="KRIA", uram_storage = False, generate_report_file="tmp.rpt"):
+def parse_all(io_dict, model, prj_root="/tmp", board="KRIA", generate_report_file="tmp.rpt"):
     """ This function handles the parsing of the weights and biases, the allocation of the functions 
     to stream the parameters and the resource estimation of them. """
+    
+    io_connect = graph.extract_connections(model, io_dict)
+    graph, shift_cycles, tot_cycles, n_weights, fit = handle_streaming_params(io_dict, model, prj_root, board)
+    
+    # Saving which layer should be implemented in URAM
+    for layer in n_weights:
+        if not layer["is_bias"]:
+            io_dict[layer["name"]]["uram_storage"] = layer["uram_storage"]
+
+    # parsed_write.append(add_uram_layer())
+    # Searching for the first and last layer names.
+    # PAY ATTENTION: this is a temporary solution, it should be improved
+    # as it is assuming sorted layers
+    first_layer = [name for name, layer in io_dict.items() if layer["type"] == "conv"][0]
+    parsed_write = []
+    for name, node in io_dict.items():
+        
+        if (node["type"] == "conv"):
+            weight_node = io_dict[io_connect[node["input"][1]][0][0]]
+            bias_node = None
+            weight_node_1x1 = None
+            bias_node_1x1 = None
+
+            if (node["has_bias"]):
+                bias_node = io_dict[io_connect[node["input"][2]][0][0]]
+            
+            if (node["merge_1x1"]):
+                weight_node_1x1 = io_dict[io_connect[node["input"][3]][0][0]]
+                
+                if (node["has_bias"]):
+                    bias_node_1x1 = io_dict[io_connect[node["input"][4]][0][0]]
+            
+            param_conv_node = {
+                "weight_node": weight_node,
+                "bias_node": bias_node,
+                "weight_node_1x1": weight_node_1x1,
+                "bias_node_1x1": bias_node_1x1,
+                "conv_node": node,
+                "name": name,
+                "shift_cycles": shift_cycles[name],
+                "connections": graph[name],
+                "first": name == first_layer,
+                "last": not "out" in graph[name],
+                "params" : tot_cycles
+            }
+            parsed_write += on_chip_rom(param_conv_node, WIDTH_STREAM)
+
+    # parsed_write[0] = fill_uram_layer(parsed_write)
+
+    print_report(n_weights, fit, generate_report_file)
+    return parsed_write
+
+def handle_streaming_params(io_dict, model, prj_root, board="KRIA"):
+    """ This function handles the generation of the graph of streaming parameters, the computation of the number of weights to shift for each conv. """
     
     def next_layer(io_connect, node):
         """ Return the name of the next layer from the io_connect dict """
@@ -1254,11 +1305,12 @@ def parse_all(io_dict, model, prj_root="/tmp", board="KRIA", uram_storage = Fals
                 graph[next_node_name]["in"] = start_node_name
                 start_node_name = next_node_name
 
+        graph[start_node_name]["out"] = "null"
         return graph
      
-    parsed_write = []
-    board_res = extract_board_info(board, prj_root)
-    io_connect = extract_connections(model, io_dict)
+    board_res = utils.extract_board_info(board, prj_root)
+    io_connect = graph.extract_connections(model, io_dict)
+    uram_storage = board_res["uram"] > 0
     
     # Check if there is URAM storage
     BANDWIDTH = 72 
@@ -1317,56 +1369,15 @@ def parse_all(io_dict, model, prj_root="/tmp", board="KRIA", uram_storage = Fals
 
     fit = sorted_bind_storage(n_weights, board_res, uram_storage)
 
-    # Saving which layer should be implemented in URAM
-    for layer in n_weights:
-        if not layer["is_bias"]:
-            io_dict[layer["name"]]["uram_storage"] = layer["uram_storage"]
-
-    # parsed_write.append(add_uram_layer())
-
     # Searching for the first and last layer names.
     # PAY ATTENTION: this is a temporary solution, it should be improved
     # as it is assuming sorted layers
     first_layer = [name for name, layer in io_dict.items() if layer["type"] == "conv"][0]
-
+    
     # Building a graph based only on parameters streaming
-    graph = build_graph(io_dict, io_connect, first_layer)
-    for name, node in io_dict.items():
-        
-        if (node["type"] == "conv"):
-            weight_node = io_dict[io_connect[node["input"][1]][0][0]]
-            bias_node = None
-            weight_node_1x1 = None
-            bias_node_1x1 = None
-
-            if (node["has_bias"]):
-                bias_node = io_dict[io_connect[node["input"][2]][0][0]]
-            
-            if (node["merge_1x1"]):
-                weight_node_1x1 = io_dict[io_connect[node["input"][3]][0][0]]
-                
-                if (node["has_bias"]):
-                    bias_node_1x1 = io_dict[io_connect[node["input"][4]][0][0]]
-            
-            param_conv_node = {
-                "weight_node": weight_node,
-                "bias_node": bias_node,
-                "weight_node_1x1": weight_node_1x1,
-                "bias_node_1x1": bias_node_1x1,
-                "conv_node": node,
-                "name": name,
-                "shift_cycles": shift_cycles[name],
-                "connections": graph[name],
-                "first": name == first_layer,
-                "last": not "out" in graph[name],
-                "params" : sum(read_cycles_per_layer.values())
-            }
-            parsed_write += on_chip_rom(param_conv_node, WIDTH_STREAM)
-
-    # parsed_write[0] = fill_uram_layer(parsed_write)
-
-    print_report(n_weights, fit, generate_report_file)
-    return parsed_write
+    graph_streaming = build_graph(io_dict, io_connect, first_layer)
+    
+    return graph_streaming, shift_cycles, sum(read_cycles_per_layer.values()), n_weights, fit
 
 def sorted_bind_storage(dict_layers, board_res, uram_storage=False):
     # Useful space in BRAM18. Each BRAM18 is 18kb with a maximum word width of
@@ -1523,12 +1534,9 @@ def footer(file_name, parsed_write, prj_root="/tmp"):
         fd.write("\n")
         fd.write("#endif")
 
-def write(io_dict, model, network_name, board="KRIA", uram_storage = False, generate_report_file="tmp.rpt", prj_root="/tmp"):
+def write(io_dict, model, network_name, board="KRIA", generate_report_file="tmp.rpt", prj_root="/tmp"):
     
-    if extract_board_info(board, prj_root)["uram"] > 0:
-        uram_storage = True
-
-    parsed_write = parse_all(io_dict, model, prj_root, board, uram_storage, generate_report_file)
+    parsed_write = parse_all(io_dict, model, prj_root, board, generate_report_file)
 
     uram_layer_include = False
     # for layer in parsed_write:

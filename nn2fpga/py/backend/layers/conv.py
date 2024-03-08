@@ -7,6 +7,7 @@ from onnx import numpy_helper
 import numpy as np
 import backend.quant
 from backend.layers.quant import get_quant_type, get_quant_constant
+from backend.layers import weights
 
 def info(io_dict, node, node_name, init_info, tensors_info):
 
@@ -109,6 +110,7 @@ def info(io_dict, node, node_name, init_info, tensors_info):
     io_dict[node_name]["in_signed"] = in_signed
     io_dict[node_name]["type"]   = 'conv'
     io_dict[node_name]["wbias"]  = len(node.input) > 2
+    io_dict[node_name]["bbits"]  = 0
     io_dict[node_name]["wbits"]  = []
     io_dict[node_name]["wsigned"]  = []
     io_dict[node_name]["actbits"] = []
@@ -149,7 +151,7 @@ def get_merge_1x1_name(node):
 def get_output_name(node):
     return node["output"][0]
 
-def parse_comp(name, node):
+def parse_comp(name, node, streaming_params=False):
     input_name  = node["input"][0]
     input_type_name = input_name.replace("_skip", "")
     weight_name = node["input"][1]
@@ -157,7 +159,7 @@ def parse_comp(name, node):
     # If no batchnorm merge then there is no bias
     has_bias = node["has_bias"]
     if (has_bias):
-        bias_name   = node["input"][2]
+        bias_name = node["input"][2]
 
     if (node["merge_1x1"]):
         weight_1x1_name = node["input"][3]
@@ -197,7 +199,9 @@ def parse_comp(name, node):
     block["template"].append("t_%s_mem" % weight_name)
     if (has_bias):
         block["template"].append("t_%s" % bias_name)
+        block["template"].append("t_%s_mem" % bias_name)
     else:
+        block["template"].append("std::nullptr_t")
         block["template"].append("std::nullptr_t")
 
     if (node["add"]):
@@ -227,8 +231,10 @@ def parse_comp(name, node):
         block["template"].append("t_%s" % weight_1x1_name)
         block["template"].append("t_%s_mem" % weight_1x1_name)
         block["template"].append("t_%s" % bias_1x1_name)
+        block["template"].append("t_%s_mem" % bias_1x1_name)
     else:
         block["template"].append("t_%s" % input_type_name)
+        block["template"].append("std::nullptr_t")
         block["template"].append("std::nullptr_t")
         block["template"].append("std::nullptr_t")
         block["template"].append("std::nullptr_t")
@@ -255,6 +261,15 @@ def parse_comp(name, node):
         block["template"].append("std::nullptr_t")
         block["template"].append("std::nullptr_t")
 
+    block["template"].append("t_params_stream")
+    
+    # Not a beatiful solution, we cannot modify och since it is used also for the bias
+    # size. Must correct this when introducing groups.
+    if (node["depth"]):
+        block["template"].append({"name" : f"{node['och']}", "comment" : f"ich divided by groups"})
+    else:
+        block["template"].append(f"c_{name}_ich")
+    
     block["template"].append("c_%s_ich" % name)
     block["template"].append("c_%s_och" % name)
     block["template"].append("c_%s_och_1x1" % name)
@@ -268,6 +283,7 @@ def parse_comp(name, node):
     block["template"].append("c_%s_ops_out" % name)
     # block["template"].append("c_%s_ops_1x1" % name)
     block["template"].append("c_%s_ich_ops" % name)
+    
     if (node["add"]):
         if node["adjust_add"]:
             block["template"].append({"name" : node["adjust_add_ops"], "comment" : "add ops"})
@@ -275,9 +291,17 @@ def parse_comp(name, node):
             block["template"].append("c_%s_add_ops" % add_name)
     else:
         block["template"].append({"name" : "1", "comment" : "add ops"})
+    
     block["template"].append("c_%s_ow_ops" % name)
     block["template"].append("c_%s_ow_ops_out" % name)
-    block["template"].append("c_%s_relu" % name)
+
+    bias_ops = weights.bias_ops_calc(
+        node["ich_ops"],
+        node["ops"],
+        node["depth"]
+    )
+    
+    block["template"].append({"name" : bias_ops, "comment" : "bias_ops"})
     block["template"].append("c_%s_reuse" % name)
     block["template"].append("c_%s_ow_pack" % name)
     block["template"].append("c_%s_och_pack" % name)
@@ -407,6 +431,17 @@ def parse_comp(name, node):
     block["template"].append({"name": f"{n_acc}", "comment": "accumulators in parallel 1x1"})
     block["template"].append({"name": f"{mask}", "comment": "mask bits 1x1"})
     ####################################################################################
+    
+    width_stream = 8
+    block["template"].append({"name" : node["shift_cycles"], "comment" : "shift cycles"})
+    block["template"].append({"name" : width_stream, "comment" : "width stream"})
+    wbits, aibits = get_quant_constant(node["wsigned"][0], node["wbits"][0], node["wscale"][0])
+    if (node["has_bias"]):
+        block["template"].append({"name" : int(np.ceil(node["bbits"]/width_stream)), "comment" : "bias reads per data"})
+    else:
+        block["template"].append({"name" : 0, "comment" : "bias reads per data"})
+    block["template"].append({"name" : int(np.ceil(wbits/width_stream)), "comment" : "weight reads per data"})
+    block["template"].append("c_%s_relu" % name)
     block["template"].append({"name" : f"{node['depth']}", "comment" : "depth"})
 
     if (node["in_scale_factor"][0] is not None):
@@ -551,24 +586,53 @@ def parse_comp(name, node):
         block["defines"]["c_%s_add_ops" % forward_name]         = ["const", node["ich_ops"]]
 
     block["args"] = []
+    
+    ### Params stream args
+    block["args"].append(f"s_{node['connections']['in']}_out")
+    block["args"].append(f"s_{name}_init_flag")
+    if node["connections"]["out"] == "null":
+        block["args"].append("(hls::stream<t_params_stream>*)(nullptr)")
+    else:
+        block["args"].append(f"s_{name}_out")
+    ### End params stream args
+    
+    ### Memory args
+    if (has_bias):
+        block["args"].append(f"c_{bias_name}")
+    else:
+        block["args"].append(f"nullptr")
 
+    block["args"].append(f"c_{weight_name}")
+    
+    if (has_bias and node["merge_1x1"]):
+        block["args"].append(f"c_{bias_1x1_name}")
+    else:
+        block["args"].append("nullptr")
+    
+    if (node["merge_1x1"]):
+        block["args"].append(f"c_{weight_1x1_name}")
+    else:
+        block["args"].append("nullptr")
+    ### End memory args
+
+    ### Conv stream args
     if (node["pad"] == 0) and (node["ow_ops"] == 1):
         block["args"].append("s_%s_pre_pad" % input_name)
     else:
         block["args"].append("s_%s_compute" % input_name)
 
-    block["args"].append("s_%s" % weight_name)
-    if (has_bias):
-        block["args"].append("s_%s" % bias_name)
-    else:
-        block["args"].append("(hls::stream<std::nullptr_t>*)(nullptr)")
+    # block["args"].append("s_%s" % weight_name)
+    # if (has_bias):
+    #     block["args"].append("s_%s" % bias_name)
+    # else:
+    #     block["args"].append("(hls::stream<std::nullptr_t>*)(nullptr)")
 
-    if (node["merge_1x1"]):
-        block["args"].append("s_%s" % weight_1x1_name)
-        block["args"].append("s_%s" % bias_1x1_name)
-    else:
-        block["args"].append("(hls::stream<std::nullptr_t>*)(nullptr)")
-        block["args"].append("(hls::stream<std::nullptr_t>*)(nullptr)")
+    # if (node["merge_1x1"]):
+    #     block["args"].append("s_%s" % weight_1x1_name)
+    #     block["args"].append("s_%s" % bias_1x1_name)
+    # else:
+    #     block["args"].append("(hls::stream<std::nullptr_t>*)(nullptr)")
+    #     block["args"].append("(hls::stream<std::nullptr_t>*)(nullptr)")
 
     if (node["add"]):
         block["args"].append("s_%s" % add_name)
@@ -586,6 +650,7 @@ def parse_comp(name, node):
         block["args"].append("s_%s" % output_1x1_name)
     else:
         block["args"].append("(hls::stream<std::nullptr_t>*)(nullptr)")
+    ### End conv stream args
 
     block["output"] = []
     block["output"].append("s_%s" % output_name)
@@ -598,7 +663,6 @@ def parse_comp(name, node):
     declare["is_array"] = True
     declare["dim"] = node["ow_ops_out"]
     block["declare"].append(declare)
-
 
     if (node["merge_1x1"]):
         declare = {}
@@ -615,6 +679,73 @@ def parse_comp(name, node):
         declare["is_array"] = True
         declare["dim"] = node["ow_ops_out"]
         block["declare"].append(declare)
+    
+    ### Variable declaration
+    block["declare"] = []
+    tmp = {}
+    tmp["name"] = f"static c_{weight_name}"
+    tmp["type"] = f"t_{weight_name}_mem"
+    tmp["is_array"] = True
+    tmp["is_const"] = False
+    # size = weight_node["values"].shape
+    tmp["size"] = weights.mem_shape_calc(node, False)
+    # tmp["init"] = weight_node["values"]
+    tmp["form"] = "float"
+    block["declare"].append(tmp)
+    
+    if (has_bias):
+        tmp = {}
+        tmp["name"] = f"static c_{bias_name}"
+        tmp["type"] = f"t_{bias_name}_mem"
+        tmp["is_array"] = True
+        tmp["is_const"] = False
+        # size = bias_node["values"].shape
+        tmp["size"] = weights.mem_shape_calc(node, True)
+        # tmp["init"] = bias_node["values"]
+        tmp["form"] = "float"
+        block["declare"].append(tmp)
+    
+    if (node["merge_1x1"]):
+        tmp = {}
+        tmp["name"] = f"static c_{weight_1x1_name}"
+        tmp["type"] = f"t_{weight_1x1_name}_mem"
+        tmp["is_array"] = True
+        tmp["is_const"] = False
+        # size = weight_node_1x1["values"].shape
+        tmp["size"] = weights.mem_shape_calc(node, False)
+        # tmp["init"] = weight_node_1x1["values"]
+        tmp["form"] = "float"
+        block["declare"].append(tmp)
+    
+    if (has_bias and node["merge_1x1"]):
+        tmp = {}
+        tmp["name"] = f"static c_{bias_1x1_name}"
+        tmp["type"] = f"t_{bias_1x1_name}_mem"
+        tmp["is_array"] = True
+        tmp["is_const"] = False
+        # size = bias_node_1x1["values"].shape
+        tmp["size"] = weights.mem_shape_calc(node, True)
+        # tmp["init"] = bias_node_1x1["values"]
+        tmp["form"] = "float"
+        block["declare"].append(tmp)
+
+    tmp = {}
+    tmp["name"] = f"s_{name}_init_flag"
+    tmp["type"] = "static bool"
+    tmp["is_array"] = False
+    tmp["is_const"] = False
+    tmp["size"] = 1
+    tmp["init_value"] = "false"
+    block["declare"].append(tmp)
+
+    if (not param_node["last"]):
+        tmp = {}
+        tmp["name"] = f"s_{conv_name}_out"
+        tmp["type"] = f"t_params_stream"
+        tmp["is_array"] = True
+        tmp["dim"] = 1
+        block["declare"].append(tmp)
+    ### Finish variable declaration
 
     block["pragma"] = []
 
@@ -707,15 +838,6 @@ def parse_comp(name, node):
 
     return [block]
 
-def parse_split(name, node):
+def parse(name, node, streaming_params=False):
 
-    blocks = []
-
-    blocks = blocks + parse_comp(name, node)
-    # blocks = blocks + parse_wout(name, node)
-
-    return blocks
-
-def parse(name, node, wrapper=False):
-
-    return parse_split(name, node)
+    return parse_comp(name, node, streaming_params)

@@ -21,7 +21,7 @@ set script_folder [_tcl::get_script_folder]
 set scripts_vivado_version ${VIVADO_VERSION}
 set current_vivado_version [version -short]
 
-if {${VIVADO_VERSION} == 2023.2} {
+if {${VIVADO_VERSION} == 2023.2 || ${VIVADO_VERSION} == 2023.1} {
    set MPSOC_VERSION 3.5
 } else {
    set MPSOC_VERSION 3.4
@@ -31,7 +31,7 @@ if { [string first $scripts_vivado_version $current_vivado_version] == -1 } {
    puts ""
    catch {common::send_gid_msg -ssname BD::TCL -id 2041 -severity "ERROR" "This script was generated using Vivado <$scripts_vivado_version> and is being run in <$current_vivado_version> of Vivado. Please run the script in Vivado <$scripts_vivado_version> then open the design in Vivado <$current_vivado_version>. Upgrade the design by running \"Tools => Report => Report IP Status...\", then run write_bd_tcl to create an updated script."}
 
-   return 1
+#   return 1
 }
 
 ################################################################

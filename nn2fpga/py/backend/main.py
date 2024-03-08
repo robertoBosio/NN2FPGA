@@ -15,14 +15,13 @@ import backend.layers.non_max_suppression as non_max_suppression
 import backend.layers.bandwidth_adjust as bandwidth_adjust
 from backend.utils import *
 
-def init(file_name, parsed_write, object_detection=False, prj_root="/tmp"):
+def init(file_name, parsed_write, object_detection=False, off_chip_storage=False, prj_root="/tmp"):
 
 
     libraries = [
         "params.h",
         "ap_int.h",
         "hls_stream.h",
-        f"memory_management_{file_name}.h",
         "nn2fpga/packed_conv.h",
         "nn2fpga/pool_streams.h",
         "nn2fpga/utils.h",
@@ -37,6 +36,9 @@ def init(file_name, parsed_write, object_detection=False, prj_root="/tmp"):
         libraries.append("nn2fpga/detect_utils.h")
         libraries.append("nn2fpga/non_max_suppression.h")
         libraries.append("hls_np_channel.h")
+    
+    if (off_chip_storage):
+        libraries.append("nn2fpga/memory_management.h")
 
     with open(prj_root + ("/cc/include/%s.h" % file_name), "w+") as fd:
 
@@ -54,16 +56,23 @@ def init(file_name, parsed_write, object_detection=False, prj_root="/tmp"):
                     fd.write("\thls::stream<t_%s> &i_%s,\n" % (name, name))
 
         for layer in parsed_write:
-            if "memory_management" == layer["func"]:
-                for dict in layer["input"]:
-                    name = dict["name"]
-                    type = dict["type"]
-                    fd.write(f"\tconst {type} *{name},\n")
+            if (off_chip_storage):
+                if "memory_management" == layer["func"]:
+                    for dict in layer["input"]:
+                        name = dict["name"]
+                        type = dict["type"]
+                        fd.write(f"\tconst {type} *{name},\n")
 
-                for dict in layer["stream_input"]:
-                    name = dict["name"]
-                    type = dict["type"]
-                    fd.write(f"\thls::stream<{type}> &{name},\n")
+                    for dict in layer["stream_input"]:
+                        name = dict["name"]
+                        type = dict["type"]
+                        fd.write(f"\thls::stream<{type}> &{name},\n")
+            else:
+                if "axi_to_stream" == layer["func"]:
+                    for dict in layer["stream_input"]:
+                        name = dict["name"]
+                        type = dict["type"]
+                        fd.write(f"\thls::stream<{type}> &{name},\n")
 
         for layer in parsed_write:
             if "consume_stream" == layer["func"]:
@@ -92,16 +101,23 @@ def init(file_name, parsed_write, object_detection=False, prj_root="/tmp"):
                     fd.write("\thls::stream<t_%s> &i_%s,\n" % (name, name))
 
         for layer in parsed_write:
-            if "memory_management" == layer["func"]:
-                for dict in layer["input"]:
-                    name = dict["name"]
-                    type = dict["type"]
-                    fd.write(f"\tconst {type} *{name},\n")
+            if (off_chip_storage):
+                if "memory_management" == layer["func"]:
+                    for dict in layer["input"]:
+                        name = dict["name"]
+                        type = dict["type"]
+                        fd.write(f"\tconst {type} *{name},\n")
 
-                for dict in layer["stream_input"]:
-                    name = dict["name"]
-                    type = dict["type"]
-                    fd.write(f"\thls::stream<{type}> &{name},\n")
+                    for dict in layer["stream_input"]:
+                        name = dict["name"]
+                        type = dict["type"]
+                        fd.write(f"\thls::stream<{type}> &{name},\n")
+            else:
+                if "axi_to_stream" == layer["func"]:
+                    for dict in layer["stream_input"]:
+                        name = dict["name"]
+                        type = dict["type"]
+                        fd.write(f"\thls::stream<{type}> &{name},\n")
 
         for layer in parsed_write:
             if "consume_stream" == layer["func"]:
@@ -111,15 +127,38 @@ def init(file_name, parsed_write, object_detection=False, prj_root="/tmp"):
         fd.write(") {\n")
         fd.write("\n")
 
-def parse_all_main(io_dict, model, dynamic_init=False):
+def handle_parameters(io_dict, model, board, off_chip_storage, prj_root, generate_report_file): 
+    
+    # Writing the separate file for the memory management only in case of off-chip.
+    # In the other case the memory management is handled directly by the conv.
+    if off_chip_storage: 
+        return weights.parse_main(io_dict)
+    else:
+        graph_streaming, shift_cycles, tot_cycles, n_weights, fit = weights.handle_streaming_params(io_dict, model, prj_root, board)
+        for name, node in io_dict.items():
+            if 'conv' == node["type"]:
+                node["shift_cycles"] = shift_cycles[name]
+                node["shift_params_connections"] = graph_streaming[name]
+                print(node)
+                weights.print_report(n_weights, fit, generate_report_file)
+        block = weights.generate_axitostandard_stream(tot_cycles)
+
+        # Adding declaration of the stream input and pragma interface
+        block["stream_input"].append({"name" : "i_data_params", "type" : "t_params_axi_stream"})
+        pragma = {}
+        pragma["name"] = "interface"
+        options = [
+            ["port", "i_data_params"],
+            ["mode", "axis"],
+        ]
+        pragma["options"] = options
+        block["pragma"].append(pragma)
+        return block
+
+def parse_all_main(io_dict, model, off_chip_storage=False):
 
     parsed_write = []
-    parsed_write.append(
-        weights.parse_main(io_dict)
-    )
-
     parsed_const = []
-
     no_output_gen = False
     last_node = None
 
@@ -137,15 +176,16 @@ def parse_all_main(io_dict, model, dynamic_init=False):
             if (node["adjust_line_buffer"]):
                 adjust_name = conv.get_input_name(node)
                 parsed_write = parsed_write + bandwidth_adjust.parse(name, node, adjust_name, "in_ops", "adjust_ops", "ow_ops", "ow_ops", dim="i")
+
             if (node["adjust_add"]):
                 adjust_name = conv.get_add_name(node)
                 parsed_write = parsed_write + bandwidth_adjust.parse(name, node, adjust_name, "add_ops", "adjust_add_ops", "ow_ops", "adjust_add_ow_ops", dim="o", skip=True)
+
             parsed_write = parsed_write + line_buffer.parse(name, node)
             if (node["pad"] != 0) or (node["ow_ops"] > 1):
-                parsed_write.append(
-                    pad.parse(name, node)
-                )
-            parsed_write = parsed_write + conv.parse(name, node)
+                parsed_write.append(pad.parse(name, node))
+
+            parsed_write = parsed_write + conv.parse(name, node, off_chip_storage)
             parsed_const = parsed_const + weights.parse_const(io_dict, model, node)
             last_node = node
 
@@ -225,17 +265,30 @@ def footer(file_path):
     with open(file_path, "a") as fd:
         fd.write("\n}")
 
-def write(io_dict, model, file_name, ap_ctrl_chain, object_detection, dynamic_init, prj_root="/tmp"):
+def write(
+        io_dict, 
+        model, 
+        file_name, 
+        ap_ctrl_chain, 
+        object_detection, 
+        dynamic_init, 
+        board, 
+        off_chip_storage, 
+        prj_root="/tmp", 
+        generate_report_file="tmp.rpt"
+        ):
 
     if ap_ctrl_chain:
         ap_ctrl = "ap_ctrl_chain"
     else:
         ap_ctrl = "ap_ctrl_none"
 
-    parsed_write, parsed_const = parse_all_main(io_dict, model, dynamic_init=dynamic_init)
-
+    parsed_write_mem = handle_parameters(io_dict, model, board, off_chip_storage, prj_root, generate_report_file)
+    parsed_write, parsed_const = parse_all_main(io_dict, model, off_chip_storage)
+    parsed_write.insert(0, parsed_write_mem)
+    
     file_path = f"{prj_root}/cc/src/{file_name}.cc"
-    init(file_name, parsed_write, object_detection, prj_root=prj_root)
+    init(file_name, parsed_write, object_detection, off_chip_storage, prj_root=prj_root)
     declare(file_path, parsed_write, ap_ctrl, prj_root=prj_root)
     body(file_path, parsed_write, prj_root=prj_root)
     footer(file_path)
