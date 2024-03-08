@@ -13,6 +13,7 @@ import backend.layers.output_gen as output_gen
 import backend.layers.detect as detect
 import backend.layers.non_max_suppression as non_max_suppression
 import backend.layers.bandwidth_adjust as bandwidth_adjust
+import backend.graph as graph
 from backend.utils import *
 
 def init(file_name, parsed_write, object_detection=False, off_chip_storage=False, prj_root="/tmp"):
@@ -132,8 +133,9 @@ def handle_parameters(io_dict, model, board, off_chip_storage, prj_root, generat
     # Writing the separate file for the memory management only in case of off-chip.
     # In the other case the memory management is handled directly by the conv.
     if off_chip_storage: 
-        return weights.parse_main(io_dict)
+        block = weights.parse_main(io_dict)
     else:
+        io_connect = graph.extract_connections(model, io_dict)
         graph_streaming, shift_cycles, tot_cycles, n_weights, fit = weights.handle_streaming_params(io_dict, model, prj_root, board)
         for name, node in io_dict.items():
             if 'conv' == node["type"]:
@@ -142,6 +144,19 @@ def handle_parameters(io_dict, model, board, off_chip_storage, prj_root, generat
                 print(node)
                 weights.print_report(n_weights, fit, generate_report_file)
         block = weights.generate_axitostandard_stream(tot_cycles)
+        
+        for name, node in io_dict.items():
+            if (node["type"] == "conv"):
+                weight_node = io_connect[node["input"][1]][0][0]
+                for elem in n_weights:
+                    if elem["name"] == weight_node:
+                        node["uram_storage"] = elem["uram_storage"]
+                
+                if (node["merge_1x1"]):
+                    weight_node_1x1 = io_connect[node["input"][3]][0][0]
+                    for elem in n_weights:
+                        if elem["name"] == weight_node_1x1:
+                            node["uram_storage_1x1"] = elem["uram_storage"]
 
         # Adding declaration of the stream input and pragma interface
         block["stream_input"].append({"name" : "i_data_params", "type" : "t_params_axi_stream"})
@@ -153,7 +168,23 @@ def handle_parameters(io_dict, model, board, off_chip_storage, prj_root, generat
         ]
         pragma["options"] = options
         block["pragma"].append(pragma)
-        return block
+
+    block["defines"] = {}
+    block["defines"]["t_params_stream"] = [
+        "type", 
+        "ap_uint<8>"
+    ]
+
+    block["defines"]["t_params_axi_stream"] = [
+        "type", 
+        "ap_axiu<8, 0, 0, 0>"
+    ]
+
+    block["defines"]["t_params_st"] = [
+        "type", 
+        "uint8_t"
+    ]
+    return block
 
 def parse_all_main(io_dict, model, off_chip_storage=False):
 

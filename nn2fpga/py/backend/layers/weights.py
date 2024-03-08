@@ -489,21 +489,6 @@ def parse_main(io_dict):
     block["stream_input"].append({"name" : f"i_data_{output_name}", "type" : "t_params_axi_stream"})
     block["args"].append("i_data_%s" % output_name)
 
-    block["defines"]["t_%s_stream" % output_name] = [
-        "type", 
-        "ap_uint<8>"
-    ]
-
-    block["defines"]["t_%s_axi_stream" % output_name] = [
-        "type", 
-        "ap_axiu<8, 0, 0, 0>"
-    ]
-
-    block["defines"]["t_%s_st" % output_name] = [
-        "type", 
-        "uint8_t"
-    ]
-
     pragma = {}
     pragma["name"] = "interface"
     options = [

@@ -268,6 +268,7 @@ def write_network(
             model,
             file_name,
             dynamic_init=dynamic_init,
+            off_chip_storage=off_chip_storage,
             prj_root=prj_root
         )
         

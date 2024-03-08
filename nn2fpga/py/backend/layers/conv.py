@@ -181,7 +181,7 @@ def parse_comp(name, node, streaming_params=False):
         output_1x1_type_name = output_1x1_name.replace("_skip", "")
 
     block = {}
-    block["func"] = "conv_comp"
+    block["func"] = "conv_comp_wrap"
 
     # Template parameters
     block["template"] = []
@@ -588,9 +588,9 @@ def parse_comp(name, node, streaming_params=False):
     block["args"] = []
     
     ### Params stream args
-    block["args"].append(f"s_{node['connections']['in']}_out")
+    block["args"].append(f"s_{node['shift_params_connections']['in']}_out")
     block["args"].append(f"s_{name}_init_flag")
-    if node["connections"]["out"] == "null":
+    if node["shift_params_connections"]["out"] == "null":
         block["args"].append("(hls::stream<t_params_stream>*)(nullptr)")
     else:
         block["args"].append(f"s_{name}_out")
@@ -655,8 +655,8 @@ def parse_comp(name, node, streaming_params=False):
     block["output"] = []
     block["output"].append("s_%s" % output_name)
 
+    ### Variable declaration
     block["declare"] = []
-
     declare = {}
     declare["name"] = "s_%s" % output_name
     declare["type"] = "t_%s_struct" % output_name
@@ -680,76 +680,151 @@ def parse_comp(name, node, streaming_params=False):
         declare["dim"] = node["ow_ops_out"]
         block["declare"].append(declare)
     
-    ### Variable declaration
-    block["declare"] = []
-    tmp = {}
-    tmp["name"] = f"static c_{weight_name}"
-    tmp["type"] = f"t_{weight_name}_mem"
-    tmp["is_array"] = True
-    tmp["is_const"] = False
+    declare = {}
+    declare["name"] = f"static c_{weight_name}"
+    declare["type"] = f"t_{weight_name}_mem"
+    declare["is_array"] = True
+    declare["is_const"] = False
     # size = weight_node["values"].shape
-    tmp["size"] = weights.mem_shape_calc(node, False)
-    # tmp["init"] = weight_node["values"]
-    tmp["form"] = "float"
-    block["declare"].append(tmp)
+    declare["size"] = weights.mem_shape_calc(node, False)
+    # declare["init"] = weight_node["values"]
+    declare["form"] = "float"
+    block["declare"].append(declare)
     
     if (has_bias):
-        tmp = {}
-        tmp["name"] = f"static c_{bias_name}"
-        tmp["type"] = f"t_{bias_name}_mem"
-        tmp["is_array"] = True
-        tmp["is_const"] = False
+        declare = {}
+        declare["name"] = f"static c_{bias_name}"
+        declare["type"] = f"t_{bias_name}_mem"
+        declare["is_array"] = True
+        declare["is_const"] = False
         # size = bias_node["values"].shape
-        tmp["size"] = weights.mem_shape_calc(node, True)
-        # tmp["init"] = bias_node["values"]
-        tmp["form"] = "float"
-        block["declare"].append(tmp)
+        declare["size"] = weights.mem_shape_calc(node, True)
+        # declare["init"] = bias_node["values"]
+        declare["form"] = "float"
+        block["declare"].append(declare)
     
     if (node["merge_1x1"]):
-        tmp = {}
-        tmp["name"] = f"static c_{weight_1x1_name}"
-        tmp["type"] = f"t_{weight_1x1_name}_mem"
-        tmp["is_array"] = True
-        tmp["is_const"] = False
+        declare = {}
+        declare["name"] = f"static c_{weight_1x1_name}"
+        declare["type"] = f"t_{weight_1x1_name}_mem"
+        declare["is_array"] = True
+        declare["is_const"] = False
         # size = weight_node_1x1["values"].shape
-        tmp["size"] = weights.mem_shape_calc(node, False)
-        # tmp["init"] = weight_node_1x1["values"]
-        tmp["form"] = "float"
-        block["declare"].append(tmp)
+        declare["size"] = weights.mem_shape_calc(node, False)
+        # declare["init"] = weight_node_1x1["values"]
+        declare["form"] = "float"
+        block["declare"].append(declare)
     
     if (has_bias and node["merge_1x1"]):
-        tmp = {}
-        tmp["name"] = f"static c_{bias_1x1_name}"
-        tmp["type"] = f"t_{bias_1x1_name}_mem"
-        tmp["is_array"] = True
-        tmp["is_const"] = False
+        declare = {}
+        declare["name"] = f"static c_{bias_1x1_name}"
+        declare["type"] = f"t_{bias_1x1_name}_mem"
+        declare["is_array"] = True
+        declare["is_const"] = False
         # size = bias_node_1x1["values"].shape
-        tmp["size"] = weights.mem_shape_calc(node, True)
-        # tmp["init"] = bias_node_1x1["values"]
-        tmp["form"] = "float"
-        block["declare"].append(tmp)
+        declare["size"] = weights.mem_shape_calc(node, True)
+        # declare["init"] = bias_node_1x1["values"]
+        declare["form"] = "float"
+        block["declare"].append(declare)
 
-    tmp = {}
-    tmp["name"] = f"s_{name}_init_flag"
-    tmp["type"] = "static bool"
-    tmp["is_array"] = False
-    tmp["is_const"] = False
-    tmp["size"] = 1
-    tmp["init_value"] = "false"
-    block["declare"].append(tmp)
+    declare = {}
+    declare["name"] = f"s_{name}_init_flag"
+    declare["type"] = "static bool"
+    declare["is_array"] = False
+    declare["is_const"] = False
+    declare["size"] = 1
+    declare["init_value"] = "false"
+    block["declare"].append(declare)
 
-    if (not param_node["last"]):
-        tmp = {}
-        tmp["name"] = f"s_{conv_name}_out"
-        tmp["type"] = f"t_params_stream"
-        tmp["is_array"] = True
-        tmp["dim"] = 1
-        block["declare"].append(tmp)
+    if node["shift_params_connections"]["out"] != "null":
+        declare = {}
+        declare["name"] = f"s_{name}_out"
+        declare["type"] = f"t_params_stream"
+        declare["is_array"] = True
+        declare["dim"] = 1
+        block["declare"].append(declare)
     ### Finish variable declaration
 
     block["pragma"] = []
+   
+    # Binding memory to URAM storage
+    if node["uram_storage"]:
+        pragma = {}
+        pragma["name"] = "bind_storage"
+        options = [
+            ["variable", f"c_{weight_name}"],
+            ["impl", "uram"],
+            ["type", "ram_s2p"]
+        ]
+        pragma["options"] = options
+        block["pragma"].append(pragma)
+    
+    if (node["merge_1x1"]):
+        pragma = {}
+        if (node["uram_storage_1x1"]):
+            pragma["name"] = "bind_storage"
+            options = [
+                ["variable", f"c_{weight_1x1_name}"],
+                ["impl", "uram"],
+                ["type", "ram_s2p"]
+            ]
+            pragma["options"] = options
+            block["pragma"].append(pragma)
 
     # depth = int(node["och"]/node["ops"] + 1)
+    # Completely reshaping weights and bias memory
+    pragma = {}
+    pragma["name"] = "array_reshape"
+    options = [
+        ["variable", f"c_{weight_name}"],
+        ["dim", 3],
+        ["type", "complete"]
+    ]
+    pragma["options"] = options
+    block["pragma"].append(pragma)
+    
+    pragma = {}
+    pragma["name"] = "array_reshape"
+    options = [
+        ["variable", f"c_{weight_name}"],
+        ["dim", 1],
+        ["type", "complete"]
+    ]
+    pragma["options"] = options
+    block["pragma"].append(pragma)
+    
+    if (has_bias):
+        pragma = {}
+        pragma["name"] = "array_reshape"
+        options = [
+            ["variable", f"c_{bias_name}"],
+            ["dim", 2],
+            ["type", "complete"]
+        ]
+        pragma["options"] = options
+        block["pragma"].append(pragma)
+    
+    if (node["merge_1x1"]):
+        pragma = {}
+        pragma["name"] = "array_reshape"
+        options = [
+            ["variable", f"c_{weight_1x1_name}"],
+            ["dim", 3],
+            ["type", "complete"]
+        ]
+        pragma["options"] = options
+        block["pragma"].append(pragma)
+    
+    if (has_bias and node["merge_1x1"]):
+        pragma = {}
+        pragma["name"] = "array_reshape"
+        options = [
+            ["variable", f"c_{bias_1x1_name}"],
+            ["dim", 2],
+            ["type", "complete"]
+        ]
+        pragma["options"] = options
+        block["pragma"].append(pragma)
 
     if (node["has_forward"]):
         # First two lines
@@ -764,7 +839,6 @@ def parse_comp(name, node, streaming_params=False):
         ]
         pragma["options"] = options
         block["pragma"].append(pragma)
-        print(f"Declaring array of stream of forward {declare['name']} with depth {depth}")
 
     # Dimension of the stream in output of the conv, covers a burst over och, ow_ops_out may be wrong
     # if node["adjust_out"]:
@@ -789,17 +863,17 @@ def parse_comp(name, node, streaming_params=False):
     # FIX: Adding pragma to bind storage to SRL
     # if the depth of the fifo is small enough to
     # not justify the use of BRAM
-    if (depth < 64):
-        pragma = {}
-        pragma["name"] = "bind_storage"
-        options = [
-            ["variable", "s_%s" % output_name],
-            ["impl", "SRL"],
-            ["type", "fifo"]
-        ]
-        pragma["options"] = options
+    # if (depth < 64):
+    #     pragma = {}
+    #     pragma["name"] = "bind_storage"
+    #     options = [
+    #         ["variable", "s_%s" % output_name],
+    #         ["impl", "SRL"],
+    #         ["type", "fifo"]
+    #     ]
+    #     pragma["options"] = options
 
-        block["pragma"].append(pragma)
+    #     block["pragma"].append(pragma)
 
 
     if (node["merge_1x1"]):
@@ -817,22 +891,21 @@ def parse_comp(name, node, streaming_params=False):
         ]
         pragma["options"] = options
         block["pragma"].append(pragma)
-        print(f"Declaring array of stream of merge_1x1 {declare['name']} with depth {depth}")
 
         # FIX: Adding pragma to bind storage to SRL
         # if the depth of the fifo is small enough to
         # not justify the use of BRAM
-        if (depth < 64):
-            pragma = {}
-            pragma["name"] = "bind_storage"
-            options = [
-                ["variable", "s_%s" % output_1x1_name],
-                ["impl", "SRL"],
-            ["type", "fifo"]
-            ]
-            pragma["options"] = options
+        # if (depth < 64):
+        #     pragma = {}
+        #     pragma["name"] = "bind_storage"
+        #     options = [
+        #         ["variable", "s_%s" % output_1x1_name],
+        #         ["impl", "SRL"],
+        #     ["type", "fifo"]
+        #     ]
+        #     pragma["options"] = options
 
-            block["pragma"].append(pragma)
+        #     block["pragma"].append(pragma)
 
 
 

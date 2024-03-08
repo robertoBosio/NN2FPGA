@@ -186,15 +186,12 @@ def body(file_name, parsed_write, prj_root="/tmp"):
 
         # In case of embedded FPGA the blocks for stream to memory and memory to
         # stream are located in the testbench
-        for layer in parsed_write:
-            if "axi_to_stream" == layer["func"]:
-                for dict in layer["stream_input"]:
-                    tmp = {}
-                    tmp["name"] = dict["name"]
-                    tmp["type"] = dict["type"]
-                    tmp["is_array"] = False
-                    tmp["dim"] = 0
-                    write_declare(fd, tmp)
+        tmp = {}
+        tmp["name"] = "i_data_params"
+        tmp["type"] = "t_params_axi_stream"
+        tmp["is_array"] = False
+        tmp["dim"] = 0
+        write_declare(fd, tmp)
 
         for layer in parsed_write:
             if "produce_stream" == layer["func"]:
@@ -217,48 +214,45 @@ def body(file_name, parsed_write, prj_root="/tmp"):
                     write_declare(fd, tmp)
 
         # Defining memory to stream function to load weights
-        for layer in parsed_write:
-            if "axi_to_stream" == layer["func"]:
-                for dict in layer["stream_input"]:
-                    name = "params"
-                    mm2s_weights_layer = {}
-                    mm2s_weights_layer["func"] = "mm2s"
-                    mm2s_weights_layer["args"] = []
-                    mm2s_weights_layer["input"] = []
-                    mm2s_weights_layer["stream_input"] = []
-                    mm2s_weights_layer["uram_input"] = []
-                    mm2s_weights_layer["output"] = []
-                    mm2s_weights_layer["template"] = []
-                    mm2s_weights_layer["template"].append("t_%s_st" % (name))
-                    mm2s_weights_layer["template"].append(f"{dict['type']}")
-                    mm2s_weights_layer["args"].append("c_%s" % name)
-                    mm2s_weights_layer["args"].append("c_%s_dim" % name)
-                    mm2s_weights_layer["args"].append(f"{dict['name']}")
-                    mm2s_weights_layer["declare"] = []
-                    mm2s_weights_layer["defines"] = {}
-                    mm2s_weights_layer["pragma"] = []
-                    write_func(fd, mm2s_weights_layer)
+        name = "params"
+        mm2s_weights_layer = {}
+        mm2s_weights_layer["func"] = "mm2s"
+        mm2s_weights_layer["args"] = []
+        mm2s_weights_layer["input"] = []
+        mm2s_weights_layer["stream_input"] = []
+        mm2s_weights_layer["uram_input"] = []
+        mm2s_weights_layer["output"] = []
+        mm2s_weights_layer["template"] = []
+        mm2s_weights_layer["template"].append("t_params_st")
+        mm2s_weights_layer["template"].append(f"t_{name}_axi_stream")
+        mm2s_weights_layer["args"].append("c_%s" % name)
+        mm2s_weights_layer["args"].append("c_%s_dim" % name)
+        mm2s_weights_layer["args"].append(f"i_data_{name}")
+        mm2s_weights_layer["declare"] = []
+        mm2s_weights_layer["defines"] = {}
+        mm2s_weights_layer["pragma"] = []
+        write_func(fd, mm2s_weights_layer)
 
-                    # Wrap the templated function for the Vitis flow
-                    d_function = {}
-                    d_function["includes"] = []
-                    d_function["includes"].append("nn2fpga/mm2s.h")
-                    d_function["includes"].append("params.h")
-                    d_function["arguments"] = []
-                    d_function["arguments"].append(f"const t_{name}_st* c_{name}")
-                    d_function["arguments"].append(f"const unsigned int c_{name}_dim")
-                    d_function["arguments"].append(f"hls::stream<t_{name}_axi_stream>& c_{name}_stream")
-                    d_function["parameters"] = []
-                    d_function["parameters"].append(f"c_{name}")
-                    d_function["parameters"].append(f"c_{name}_dim")
-                    d_function["parameters"].append(f"c_{name}_stream")
-                    d_function["function_name"] = "nn2fpga::mm2s"
-                    d_function["template"] = []
-                    d_function["template"].append(f"t_{name}_st")
-                    d_function["template"].append(f"t_{name}_axi_stream")
-                    connectivity.append(f"sp=mm2s_weights_1.c_{name}:DDR[0]")
-                    connectivity.append(f"sc=mm2s_weights_1.c_{name}_stream:{file_name}_1.i_data_params")
-                    write_templated_converted("mm2s_weights", d_function, prj_root)
+        # Wrap the templated function for the Vitis flow
+        d_function = {}
+        d_function["includes"] = []
+        d_function["includes"].append("nn2fpga/mm2s.h")
+        d_function["includes"].append("params.h")
+        d_function["arguments"] = []
+        d_function["arguments"].append(f"const t_{name}_st* c_{name}")
+        d_function["arguments"].append(f"const unsigned int c_{name}_dim")
+        d_function["arguments"].append(f"hls::stream<t_{name}_axi_stream>& c_{name}_stream")
+        d_function["parameters"] = []
+        d_function["parameters"].append(f"c_{name}")
+        d_function["parameters"].append(f"c_{name}_dim")
+        d_function["parameters"].append(f"c_{name}_stream")
+        d_function["function_name"] = "nn2fpga::mm2s"
+        d_function["template"] = []
+        d_function["template"].append(f"t_{name}_st")
+        d_function["template"].append(f"t_{name}_axi_stream")
+        connectivity.append(f"sp=mm2s_weights_1.c_{name}:DDR[0]")
+        connectivity.append(f"sc=mm2s_weights_1.c_{name}_stream:{file_name}_1.i_data_params")
+        write_templated_converted("mm2s_weights", d_function, prj_root)
         
         # Defining memory to stream function to load activations
         for layer in parsed_write:
@@ -314,17 +308,7 @@ def body(file_name, parsed_write, prj_root="/tmp"):
                 for name in layer["input"]:
                     fd.write("\t\tc_%s_stream,\n" % (name))
 
-        for layer in parsed_write:
-            if "axi_to_stream" == layer["func"]:
-                for dict in layer["input"]:
-                    name = dict["name"]
-                    type = dict["type"]
-                    fd.write(f"\t\t{name},\n")
-
-                for dict in layer["stream_input"]:
-                    name = dict["name"]
-                    type = dict["type"]
-                    fd.write(f"\t\t{name},\n")
+        fd.write(f"\t\ti_data_params,\n")
 
         for layer in parsed_write:
             if "consume_stream" == layer["func"]:
@@ -522,9 +506,9 @@ def write_templated_converted(filename, dict, prj_root):
              
 
 
-def write(io_dict, model, file_name, dynamic_init, prj_root="/tmp"):
+def write(io_dict, model, file_name, dynamic_init, off_chip_storage, prj_root="/tmp"):
 
-    parsed_write, parsed_const = parse_all_main(io_dict, model)
+    parsed_write, parsed_const = parse_all_main(io_dict, model, off_chip_storage)
     parsed_write = parsed_write + parsed_const
 
     init(file_name, parsed_write, prj_root=prj_root)

@@ -1416,10 +1416,6 @@ template<typename t_input_struct, // input activation struct type
          size_t c_simd_bits_1x1,
          size_t c_simd_1x1,
          size_t c_mask_1x1,
-         size_t c_stream_bits,
-         size_t c_read_weight,
-         size_t c_read_bias,
-         size_t c_data_to_shift,
          bool c_relu,
          bool c_depth>
 void
@@ -1635,13 +1631,13 @@ conv_comp_onchip(
                   if constexpr (std::is_same<t_bias, std::nullptr_t>::value ==
                                 false) {
                     for (auto s_ops = 0; s_ops < c_bias_ops; s_ops++) {
-                      s_bias[s_ops] = mem_bias[s_bias_index][s_ops];
+                      s_bias[0][s_ops] = mem_bias[s_bias_index][s_ops];
                     }
                     if constexpr (std::is_same<t_bias_1x1,
                                                std::nullptr_t>::value ==
                                   false) {
                       for (auto s_ops = 0; s_ops < c_bias_ops; s_ops++) {
-                        s_bias_1x1[s_ops] = mem_bias_1x1[s_bias_index][s_ops];
+                        s_bias_1x1[0][s_ops] = mem_bias_1x1[s_bias_index][s_ops];
                       }
                     }
                   }
@@ -2040,10 +2036,10 @@ template<typename t_input_struct, // input activation struct type
          size_t c_simd_bits_1x1,
          size_t c_simd_1x1,
          size_t c_mask_1x1,
-         size_t c_stream_bits,
-         size_t c_read_weight,
-         size_t c_read_bias,
          size_t c_data_to_shift,
+         size_t c_stream_bits,
+         size_t c_read_bias,
+         size_t c_read_weight,
          bool c_relu,
          bool c_depth>
 void
@@ -2271,6 +2267,7 @@ conv_comp_wrap(
                    t_weight,
                    t_weight_st,
                    t_bias,
+                   t_bias_st,
                    t_add_struct,
                    t_add_vector,
                    t_add_st,
@@ -2287,7 +2284,7 @@ conv_comp_wrap(
                    t_acc_1x1,
                    t_output_struct,
                    t_output_vector,
-                   t_output,
+                   t_output_st,
                    t_output_clip,
                    t_output_mask,
                    t_output_struct_1x1,
@@ -2328,16 +2325,15 @@ conv_comp_wrap(
                    c_simd_1x1,
                    c_mask_1x1,
                    c_relu,
-                   c_depth>(mem_weights,
-                            mem_bias,
-                            mem_weights_1x1,
+                   c_depth>(mem_bias,
+                            mem_weights,
                             mem_bias_1x1,
+                            mem_weights_1x1,
                             i_input,
                             i_add,
                             o_forward,
                             o_output,
-                            o_output_1x1,
-                            s_init);
+                            o_output_1x1);
 }
 } // namespace nn2fpga
 #pragma GCC diagnostic pop
