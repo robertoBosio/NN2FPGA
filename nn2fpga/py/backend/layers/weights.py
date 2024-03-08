@@ -35,12 +35,10 @@ def bias_ops_calc(
 
     return parallelism
 
-def mem_shape_calc(node, is_bias=False):
+def mem_shape_calc(node, fh, fw, is_bias=False):
     """ Compute the memory shape needed to store the weights """
     ich = node["ich"]
     och = node["och"]
-    fh = node["ih"]
-    fw = node["iw"]
     ops = node["ops"]
     ich_ops = node["ich_ops"]
     depth = node["depth"]
@@ -129,7 +127,7 @@ def parse_on_chip_weights(
     assert doch_ops > 0
 
     values = np.zeros(
-        mem_shape_calc(node_info, node_info["is_bias"])
+        mem_shape_calc(node_info, node_info["ih"], node_info["iw"], node_info["is_bias"])
     )
 
     # Reordering the weights based on the parallelism needed by the convolution
@@ -188,7 +186,7 @@ def parse_on_chip_biases(
 
     parallelism = bias_ops_calc(dich_ops, dops, node_info["depth"])
 
-    values = np.zeros(mem_shape_calc(node_info, node_info["is_bias"]))
+    values = np.zeros(mem_shape_calc(node_info, node_info["ih"], node_info["iw"], node_info["is_bias"]))
     pre_values = np.squeeze(pre_values)
     
     # Reordering the weights based on the parallelism needed by the convolution
@@ -912,7 +910,7 @@ def on_chip_rom(
     tmp["is_array"] = True
     tmp["is_const"] = False
     # size = weight_node["values"].shape
-    tmp["size"] = mem_shape_calc(weight_node, weight_node["is_bias"])
+    tmp["size"] = mem_shape_calc(weight_node, weight_node["ih"], weight_node["iw"], weight_node["is_bias"])
     # tmp["init"] = weight_node["values"]
     tmp["form"] = "float"
     block["declare"].append(tmp)
@@ -924,7 +922,7 @@ def on_chip_rom(
         tmp["is_array"] = True
         tmp["is_const"] = False
         # size = bias_node["values"].shape
-        tmp["size"] = mem_shape_calc(bias_node, bias_node["is_bias"])
+        tmp["size"] = mem_shape_calc(bias_node, bias_node["ih"], bias_node["iw"], bias_node["is_bias"])
         # tmp["init"] = bias_node["values"]
         tmp["form"] = "float"
         block["declare"].append(tmp)
@@ -936,7 +934,7 @@ def on_chip_rom(
         tmp["is_array"] = True
         tmp["is_const"] = False
         # size = weight_node_1x1["values"].shape
-        tmp["size"] = mem_shape_calc(weight_node_1x1, weight_node_1x1["is_bias"])
+        tmp["size"] = mem_shape_calc(weight_node_1x1, weight_node_1x1["ih"], weight_node_1x1["iw"], weight_node_1x1["is_bias"])
         # tmp["init"] = weight_node_1x1["values"]
         tmp["form"] = "float"
         block["declare"].append(tmp)
@@ -948,7 +946,7 @@ def on_chip_rom(
         tmp["is_array"] = True
         tmp["is_const"] = False
         # size = bias_node_1x1["values"].shape
-        tmp["size"] = mem_shape_calc(bias_node_1x1, bias_node_1x1["is_bias"])
+        tmp["size"] = mem_shape_calc(bias_node_1x1, bias_node_1x1["ih"], bias_node_1x1["iw"], bias_node_1x1["is_bias"])
         # tmp["init"] = bias_node_1x1["values"]
         tmp["form"] = "float"
         block["declare"].append(tmp)

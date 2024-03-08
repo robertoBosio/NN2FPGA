@@ -686,7 +686,7 @@ def parse_comp(name, node, streaming_params=False):
     declare["is_array"] = True
     declare["is_const"] = False
     # size = weight_node["values"].shape
-    declare["size"] = weights.mem_shape_calc(node, False)
+    declare["size"] = weights.mem_shape_calc(node, node["fh"], node["fw"], False)
     # declare["init"] = weight_node["values"]
     declare["form"] = "float"
     block["declare"].append(declare)
@@ -698,7 +698,7 @@ def parse_comp(name, node, streaming_params=False):
         declare["is_array"] = True
         declare["is_const"] = False
         # size = bias_node["values"].shape
-        declare["size"] = weights.mem_shape_calc(node, True)
+        declare["size"] = weights.mem_shape_calc(node, node["fh"], node["fw"], True)
         # declare["init"] = bias_node["values"]
         declare["form"] = "float"
         block["declare"].append(declare)
@@ -710,7 +710,7 @@ def parse_comp(name, node, streaming_params=False):
         declare["is_array"] = True
         declare["is_const"] = False
         # size = weight_node_1x1["values"].shape
-        declare["size"] = weights.mem_shape_calc(node, False)
+        declare["size"] = weights.mem_shape_calc(node, node["fh"], node["fw"], False)
         # declare["init"] = weight_node_1x1["values"]
         declare["form"] = "float"
         block["declare"].append(declare)
@@ -722,7 +722,7 @@ def parse_comp(name, node, streaming_params=False):
         declare["is_array"] = True
         declare["is_const"] = False
         # size = bias_node_1x1["values"].shape
-        declare["size"] = weights.mem_shape_calc(node, True)
+        declare["size"] = weights.mem_shape_calc(node, node["fh"], node["fw"], True)
         # declare["init"] = bias_node_1x1["values"]
         declare["form"] = "float"
         block["declare"].append(declare)
