@@ -266,7 +266,7 @@ def parse_comp(name, node, streaming_params=False):
     # Not a beatiful solution, we cannot modify och since it is used also for the bias
     # size. Must correct this when introducing groups.
     if (node["depth"]):
-        block["template"].append({"name" : f"{node['och']}", "comment" : f"ich divided by groups"})
+        block["template"].append({"name" : "1", "comment" : f"ich divided by groups"})
     else:
         block["template"].append(f"c_{name}_ich")
     
@@ -710,7 +710,7 @@ def parse_comp(name, node, streaming_params=False):
         declare["is_array"] = True
         declare["is_const"] = False
         # size = weight_node_1x1["values"].shape
-        declare["size"] = weights.mem_shape_calc(node, node["fh"], node["fw"], False)
+        declare["size"] = weights.mem_shape_calc(node, 1, 1, False)
         # declare["init"] = weight_node_1x1["values"]
         declare["form"] = "float"
         block["declare"].append(declare)
@@ -722,7 +722,7 @@ def parse_comp(name, node, streaming_params=False):
         declare["is_array"] = True
         declare["is_const"] = False
         # size = bias_node_1x1["values"].shape
-        declare["size"] = weights.mem_shape_calc(node, node["fh"], node["fw"], True)
+        declare["size"] = weights.mem_shape_calc(node, 1, 1, True)
         # declare["init"] = bias_node_1x1["values"]
         declare["form"] = "float"
         block["declare"].append(declare)

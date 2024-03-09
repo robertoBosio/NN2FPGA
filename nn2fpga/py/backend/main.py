@@ -141,8 +141,7 @@ def handle_parameters(io_dict, model, board, off_chip_storage, prj_root, generat
             if 'conv' == node["type"]:
                 node["shift_cycles"] = shift_cycles[name]
                 node["shift_params_connections"] = graph_streaming[name]
-                print(node)
-                weights.print_report(n_weights, fit, generate_report_file)
+        weights.print_report(n_weights, fit, generate_report_file)
         block = weights.generate_axitostandard_stream(tot_cycles)
         
         for name, node in io_dict.items():

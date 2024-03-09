@@ -88,7 +88,7 @@ def generate_architectures(layers_info, NUM_DSP):
             max_ow_par = 1
         
         valid_par_solutions.append(generate_valid_combinations(
-            och=max_och_par, ich=max_ich_par, iw=max_ow_par, iw_clip=4, op_clip=op_clip))
+            och=max_och_par, ich=max_ich_par, iw=max_ow_par, iw_clip=4, och_clip=10, op_clip=op_clip))
         
     return valid_par_solutions
 
@@ -1188,8 +1188,8 @@ def ilp(io_dict, off_chip_storage, model, file_name, board="ULTRA96v2", generate
     NUM_PORTS = (board_res["bram"] + board_res["uram"])
     NUM_DSP = board_res["dsp"]
     # NUM_DSP = int(NUM_DSP * 1.1)
-    # NUM_PORTS = int(NUM_PORTS * 1.5)
-    # NUM_DSP = 1700
+    NUM_PORTS = int(NUM_PORTS * 0.9)
+    NUM_DSP = 1700
 
     valid_par_solutions = generate_architectures(layers_info, NUM_DSP)
     layer_par, model_II, n_variables, n_constraints, time_spent = parallelismILP(layers_info, valid_par_solutions, NUM_DSP, NUM_PORTS, prj_root=prj_root)

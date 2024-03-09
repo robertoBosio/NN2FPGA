@@ -49,6 +49,8 @@ def mem_shape_calc(node, fh, fw, is_bias=False):
 
     ich_iter_ops = ich // ich_ops
     och_iter_ops = och // ops
+    if depth:
+        och_iter_ops = 1
 
     assert ich_iter_ops > 0
     assert och_iter_ops > 0

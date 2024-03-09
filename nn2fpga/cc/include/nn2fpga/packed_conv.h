@@ -2061,7 +2061,7 @@ conv_comp_wrap(
 {
   /* Generic convolution with bias and weights inside */
   constexpr unsigned c_fsz = c_fh * c_fw;
-  constexpr unsigned c_ch_weight = c_ich * c_och / (c_och_ops * c_ich_ops);
+  constexpr unsigned c_ch_weight = c_ich_groups * c_och / (c_och_ops * c_ich_ops);
   
   /* The output ow_ops must be greater or equal and a multliples of ow_ops */
   static_assert(c_ow_ops_out >= c_ow_ops, "c_ow_ops_out >= c_ow_ops");
@@ -2122,6 +2122,7 @@ conv_comp_wrap(
   std::cout << "\t\tc_simd_1x1 = " << c_simd_1x1 << std::endl;
   std::cout << "\t\tc_mask_1x1 = " << c_mask_1x1 << std::endl;
   std::cout << "\t\tc_depth = " << c_depth << std::endl;
+  std::cout << "\t\tc_data_to_shift = " << c_data_to_shift << std::endl;
 #endif
 
   if (!s_init) {

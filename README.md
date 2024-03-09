@@ -43,6 +43,7 @@ For more information, please refer to the [paper]() where we implemented Resnet-
 - [ ] Clean the C++ headers from unused functions.
 - [ ] Remove unused Python libraries.
 - [ ] Correct double quantization behaviour
+- [ ] Support 32 bit biases
 - [ ] Insert bandwidth adjust down on och
 - [ ] Consider fifos in BRAM ILP
 - [ ] Add support for object detection and segmentation. (On-going)

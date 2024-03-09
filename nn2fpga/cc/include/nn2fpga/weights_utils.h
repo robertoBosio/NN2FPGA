@@ -188,7 +188,6 @@ template<typename din_t,  // input data type
 void
 axi_to_stream(hls::stream<din_t>& in, bool& s_init, hls::stream<dout_t> out[1])
 {
-#pragma HLS inline
 #ifndef __SYNTHESIS__
   std::cout << "INFO: Call to axi_to_stream" << std::endl;
   std::cout << "\t\tCYCLES: " << CYCLES << std::endl;
@@ -204,6 +203,10 @@ axi_to_stream(hls::stream<din_t>& in, bool& s_init, hls::stream<dout_t> out[1])
 
 #ifndef __SYNTHESIS__
   std::cout << "INFO: Finished axi_to_stream" << std::endl;
+  if (in.size() > 0) {
+    std::cout << "ERROR: Not empty input stream. in.size() = " << in.size()
+              << std::endl;
+  }
 #endif
 }
 
