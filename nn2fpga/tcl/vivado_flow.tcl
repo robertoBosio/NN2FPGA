@@ -17,6 +17,7 @@ make_wrapper -files \
   -top
 add_files -norecurse \
   ${PRJ_ROOT}/${PRJ_NAME}/${PRJ_NAME}.gen/sources_1/bd/design_1/hdl/design_1_wrapper.v
+generate_target all [get_files ${PRJ_ROOT}/${PRJ_NAME}/${PRJ_NAME}.srcs/sources_1/bd/design_1/design_1.bd]
 
 if {${BOARD} == "ULTRA96v2"} {
   set_property STEPS.SYNTH_DESIGN.ARGS.FLATTEN_HIERARCHY full [get_runs synth_1]

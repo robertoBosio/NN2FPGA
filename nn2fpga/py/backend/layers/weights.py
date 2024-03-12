@@ -57,7 +57,7 @@ def mem_shape_calc(node, fh, fw, is_bias=False):
 
     return [fh * fw, ich_iter_ops * och_iter_ops, ich_ops * ops]
     
-def compute_bram_layer(weight_bits, weight_number, parallelism):
+def compute_bram_layer(weight_bits, weight_number, parallelism, WIDTH=36):
     """Compute the number of BRAMs needed to store the weights, given the parallelism """
 
     # Useful space in BRAM18. Each BRAM18 is 18kb with a maximum word width of
@@ -67,7 +67,7 @@ def compute_bram_layer(weight_bits, weight_number, parallelism):
     # Useful space in BRAM36, composed by two BRAM18.
     SIZE_BRAM36 = SIZE_BRAM18 * 2
 
-    WIDTH_BRAM36 = 36
+    WIDTH_BRAM36 = WIDTH
 
     # Assuming is implemented using LUTRAM
     if (weight_number * weight_bits) <= SIZE_BRAM36:
@@ -1398,8 +1398,8 @@ def sorted_bind_storage(dict_layers, board_res, uram_storage=False):
             ports_uram = w_par // wpp_uram
             lpm = node["n_weights"] // node["par"]
 
-            tot_uram += math.ceil(lpm / (SIZE_URAM / bandwidth_uram)) * ports_uram
-            tot_bram += compute_bram_layer(node["bits"], node["n_weights"], node["par"])
+            tot_uram = math.ceil(lpm / (SIZE_URAM / bandwidth_uram)) * ports_uram
+            tot_bram = compute_bram_layer(node["bits"], node["n_weights"], node["par"])
             
             # wasted_uram = n_uram * SIZE_URAM - (node['n_weights'] * node["bits"])
             # wasted_bram = n_bram * SIZE_BRAM - (node['n_weights'] * node["bits"])
@@ -1414,14 +1414,17 @@ def sorted_bind_storage(dict_layers, board_res, uram_storage=False):
                 # print(f"produce_stream_{node['ich']}_{node['och']}_{node['ow']}_{node['oh']}_{node['iw']}_{node['ih']} P:{w_par} of {node['bits']}b. {node['n_weights']}. {tot_uram}U {tot_bram}B.")
                 node["uram_storage"] = True
                 node["mems"] = tot_uram
+                node["mems_72"] = tot_uram
             else:
                 used_bram += tot_bram
                 # print(f"produce_stream_{node['ich']}_{node['och']}_{node['ow']}_{node['oh']}_{node['iw']}_{node['ih']} P:{w_par} of {node['bits']}b. {node['n_weights']}. {tot_bram}B {tot_uram}U.")
                 node["mems"] = tot_bram
+                node["mems_72"] = compute_bram_layer(node["bits"], node["n_weights"], node["par"], 72)
                 node["uram_storage"] = False
         else:
             node["uram_storage"] = False
             node["mems"] = 0
+            node["mems_72"] = 0
 
     return fit    
 
@@ -1437,7 +1440,7 @@ def print_report(weights_layer_dict, fit, generate_report_file="tmp.rpt"):
         table_data = []
 
         #header row
-        header = ["Layer name", "Bias", "Parallelism", "Weight bits", "N. of weights", "BRAM", "URAM"]
+        header = ["Layer name", "Bias", "Parallelism", "Weight bits", "N. of weights", "BRAM", "BRAM72", "URAM"]
         table_data.append(header)
         tot_bram = 0
         tot_uram = 0
@@ -1451,10 +1454,12 @@ def print_report(weights_layer_dict, fit, generate_report_file="tmp.rpt"):
             row.append(layer["n_weights"])
             if layer["uram_storage"]:
                 row.append("0")
+                row.append("0")
                 row.append(layer["mems"])
                 tot_uram += layer["mems"]
             else:
                 row.append(layer["mems"])
+                row.append(layer["mems_72"])
                 row.append("0")
                 tot_bram += layer["mems"]
             table_data.append(row)

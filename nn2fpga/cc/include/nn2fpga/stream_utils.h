@@ -79,7 +79,7 @@ PRODSTR_FLAT_LOOP:
 #pragma HLS unroll
 
       auto ich = n_act % ICH;
-      ap_ufixed<WIDTH, 0, AP_RND_ZERO> din = 0;
+      dout_t din = 0;
       n_act++;
 
       if (s_data == 0) {
@@ -278,7 +278,7 @@ act_tensor_hook(hls::stream<data_t> dinStream[w_step],
   std::cout << "HOOK FUNCTION ACTIVATION TENSOR" << std::endl;
   std::ofstream file_stream;
   file_stream.open(
-    "/home/roberto/Documents/NN2FPGA/nn2fpga/tmp/logs/" +
+    "/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/tmp/logs/" +
     name + "_acts.txt");
   for (auto h = 0; h < H; h++) {
     for (auto w = 0; w < W; w += w_step) {

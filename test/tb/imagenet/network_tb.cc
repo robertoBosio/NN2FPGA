@@ -124,8 +124,14 @@ cv::Mat opencv_transform(cv::Mat image) {
     std::cout << "#### Extracting region of interest" << std::endl;
     cv::Rect roi(j, i, 224, 224);
     image = image(roi);
-    
-    // printFlattenedMatToFile(image, "/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/tmp/logs/image_preprocessed_opencv.txt");
+
+    // Normalize the image
+    std::cout << "#### Normalizing image" << std::endl;
+    cv::Scalar mean(0.485, 0.456, 0.406);
+    cv::Scalar std(0.229, 0.224, 0.225);
+    cv::divide(image - mean, std, image); // Element-wise division
+
+    printFlattenedMatToFile(image, "/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/tmp/logs/image_preprocessed_opencv.txt");
     return image;
 }
 
@@ -205,9 +211,9 @@ int main(int argc, char** argv) {
   
   std::cout << "Allocated " << c_index * c_batch << " ap_uint<64> for activations." << std::endl;
   std::cout << "Allocated " << CLASSES * c_batch << " ap_uint<8> for output results." << std::endl;
-  std::string path = "/tools/datasets/Imagenet/train/n01440764/";
   // std::string path = "/tools/datasets/Imagenet/train/n01440764/";
-  // std::string path = "/tools/datasets/Imagenet/train/n01530575/";
+  // std::string path = "/tools/datasets/Imagenet/train/n01440764/";
+  std::string path = "/home-ssd/datasets/Imagenet/train/n01440764/";
   // std::string path = "/home/filippo/workspace/NN2FPGA/test/tb/imagenet/images/n15075141/";
   std::cout << "Taking images from " << path << std::endl;
   sortAndFillHashTable("/tools/datasets/Imagenet/train/", pathToLabelHashTable);
@@ -225,8 +231,8 @@ int main(int argc, char** argv) {
   struct dirent *ent;
   std::cout << "OPENING DIRECTORY" << std::endl;
   typedef ap_ufixed<8,0> t_transform;
-  t_transform mean[3] = {0.485, 0.456, 0.406};
-  t_transform std[3] = {0.229, 0.224, 0.225};
+  float mean[3] = {0.485, 0.456, 0.406};
+  float std[3] = {0.229, 0.224, 0.225};
   if ((dir = opendir (path.c_str())) != NULL) {
     /* print all the files and directories within directory */
     std::cout << "OPENED DIRECTORY" << std::endl;
@@ -261,17 +267,13 @@ int main(int argc, char** argv) {
             cv::Vec3f pixel = result_ocv.at<cv::Vec3f>(i, j);
             for (int c = 0; c < 3; c++) {
               int s_par = (s_bytes % c_data_per_packet);
-              // if (s_par == 0) {
-              //   std::cout << "Packet: ";
-              // }
-              // t_transform tmp = (float)pixel[c];
-              // std::cout << tmp << " ";
-              ap_ufixed<c_act_width, 0, AP_RND_CONV, AP_SAT> tmp2 = pixel[c];
+              ap_fixed<c_act_width, 3, AP_RND_CONV, AP_SAT> tmp2 = pixel[c];
               s_data.range(c_act_width * (s_par + 1) - 1, c_act_width * s_par) =
                 tmp2.range(c_act_width - 1, 0);
 
               if (s_par == (c_data_per_packet - 1)) {
                 mem_activations[mem_activations_p++] = s_data;
+                s_data = 0;
               }
               s_bytes++;
             }

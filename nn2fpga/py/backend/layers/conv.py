@@ -792,6 +792,15 @@ def parse_comp(name, node, streaming_params=False):
     ]
     pragma["options"] = options
     block["pragma"].append(pragma)
+
+    pragma = {} 
+    pragma["name"] = "array_partition"
+    options = [
+        ["variable", f"c_{weight_name}"],
+        ["off", "true"],
+    ]
+    pragma["options"] = options
+    block["pragma"].append(pragma)
     
     if (has_bias):
         pragma = {}
@@ -800,6 +809,15 @@ def parse_comp(name, node, streaming_params=False):
             ["variable", f"c_{bias_name}"],
             ["dim", 2],
             ["type", "complete"]
+        ]
+        pragma["options"] = options
+        block["pragma"].append(pragma)
+        
+        pragma = {} 
+        pragma["name"] = "array_partition"
+        options = [
+            ["variable", f"c_{bias_name}"],
+            ["off", "true"],
         ]
         pragma["options"] = options
         block["pragma"].append(pragma)
@@ -814,6 +832,15 @@ def parse_comp(name, node, streaming_params=False):
         ]
         pragma["options"] = options
         block["pragma"].append(pragma)
+        
+        pragma = {} 
+        pragma["name"] = "array_partition"
+        options = [
+            ["variable", f"c_{weight_1x1_name}"],
+            ["off", "true"],
+        ]
+        pragma["options"] = options
+        block["pragma"].append(pragma)
     
     if (has_bias and node["merge_1x1"]):
         pragma = {}
@@ -822,6 +849,15 @@ def parse_comp(name, node, streaming_params=False):
             ["variable", f"c_{bias_1x1_name}"],
             ["dim", 2],
             ["type", "complete"]
+        ]
+        pragma["options"] = options
+        block["pragma"].append(pragma)
+        
+        pragma = {} 
+        pragma["name"] = "array_partition"
+        options = [
+            ["variable", f"c_{bias_1x1_name}"],
+            ["off", "true"],
         ]
         pragma["options"] = options
         block["pragma"].append(pragma)

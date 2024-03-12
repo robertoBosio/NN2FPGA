@@ -164,8 +164,8 @@ def imagenet_dataloader(batch_size):
         torchvision.transforms.Resize(256),
         torchvision.transforms.CenterCrop(224),
         torchvision.transforms.ToTensor(),
-        # transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
-        lambda x: x.float()])
+        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+    ])
 
     args = {
         'train': False,
@@ -179,8 +179,8 @@ def imagenet_dataloader(batch_size):
     test_loader = torch.utils.data.DataLoader(
         dataset,
         batch_size=batch_size,
-        shuffle=False,
-        num_workers=1
+        shuffle=True,
+        num_workers=2
     )
 
     ICH = 3

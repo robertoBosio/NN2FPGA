@@ -53,7 +53,7 @@ if __name__ == "__main__":
 
     off_chip_memory = False
 
-    batch_size = 1000
+    batch_size = 400
 
     if (sel_dataset == "cifar10"):
         dataloader = cifar10_dataloader
@@ -79,16 +79,18 @@ if __name__ == "__main__":
         print("Loading URAM")
         dma_uram = overlay.axi_dma_1
         uram_vector = np.load("overlay/uram.npy")
-        uram_buffer = allocate(shape=(uram_vector.shape[0], ), dtype=np.uint8)
+        uram_buffer = allocate(shape=(uram_vector.shape[0], ), dtype=np.int8)
         uram_buffer[:] = uram_vector[:]
         dma_uram.sendchannel.transfer(uram_buffer)
+        dma_uram.sendchannel.wait()
+    print("Loaded URAM", flush=True)
 
     if (off_chip_memory):
         network = overlay.Network_0
     else:
         network = None
 
-    in_buffer = allocate(shape=(batch_size*buffer_dim[0], ), dtype=np.uint8)
+    in_buffer = allocate(shape=(batch_size*buffer_dim[0], ), dtype=np.int8)
     out_buffer = allocate(shape=(batch_size, buffer_dim[1], ), dtype=np.int8)
 
     #################################Inference##################################
@@ -111,5 +113,8 @@ if __name__ == "__main__":
         postprocess,
         sel_uram_storage
     )
+
+    if (sel_uram_storage == 1):
+        del uram_buffer
 
     del in_buffer, out_buffer
