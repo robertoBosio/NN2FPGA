@@ -4056,7 +4056,7 @@ conv_comp_wrap(
     /* Shift remaining parameters to following layers */
   SHIFT_LOOP:
     for (auto p_left = 0; p_left < c_data_to_shift; p_left++) {
-#pragma HLS pipeline II = 1
+#pragma HLS pipeline II = 1 style = stp
       p_out[0].write(p_in[0].read());
     }
 

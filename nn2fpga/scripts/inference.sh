@@ -36,6 +36,8 @@ fi
 mkdir -p ${PRJ_ROOT}/overlay
 scp ${PRJ_ROOT}/${prj_name}_example/${prj_name}_example.gen/sources_1/bd/design_1/hw_handoff/design_1.hwh ${PRJ_ROOT}/overlay/design_1.hwh
 scp ${PRJ_ROOT}/${prj_name}_example/design_1.bit ${PRJ_ROOT}/overlay/design_1.bit
+# cp /home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/work/notable_bitstream/mobilenet_ZCU102_20240313/design_1.bit ${PRJ_ROOT}/overlay/design_1.bit
+# cp /home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/work/notable_bitstream/mobilenet_ZCU102_20240313/design_1.hwh ${PRJ_ROOT}/overlay/design_1.hwh
 cp ${NN2FPGA_ROOT}/scripts/inference.py ${PRJ_ROOT}/overlay/inference.py
 cp ${NN2FPGA_ROOT}/scripts/boards.py ${PRJ_ROOT}/overlay/boards.py
 cp ${NN2FPGA_ROOT}/scripts/datasets.py ${PRJ_ROOT}/overlay/datasets.py

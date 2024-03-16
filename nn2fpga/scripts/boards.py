@@ -87,8 +87,8 @@ def zcu102_inference(
 ):
     
         NUM_BATCH = len(test_loader)
-        MAX_BATCH = 10
-        Clocks._instance.PL_CLK_CTRLS[0].DIVISOR0 = 7
+        MAX_BATCH = 1
+        Clocks._instance.PL_CLK_CTRLS[0].DIVISOR0 = 15
         start_exe = time.time()    
         time_to_copy = 0
         time_post_proc = 0
@@ -128,6 +128,7 @@ def zcu102_inference(
                 total_time += batch_time
                 time_to_copy += (start - start_copy)
                 time_post_proc = post_proc - end
+                print(f"Batch {batch} time: {batch_time:.2f} seconds", flush=True)
                 if (batch == MAX_BATCH - 1):
                     break 
                 # print("Total time:", batch_time, "seconds")
@@ -138,13 +139,13 @@ def zcu102_inference(
     
             with open("overlay/results.txt", "w+") as fd:
                 # total_energy = energy
-                fd.write("Total time: %f seconds" % total_time)
-                # fd.write("Total power: %f W" % mean_power)
-                # fd.write("Total energy: %f J" % total_energy)
-                fd.write("Batch size %d" % batch_size)
-                fd.write('images nums: {} .'.format(batch_size*NUM_BATCH))
-                fd.write('fps: {} .'.format(batch_size * MAX_BATCH / total_time))
-                fd.write('Accuracy: {} .'.format(accuracy / (batch_size * NUM_BATCH)))
+                fd.write(f"Total time: {total_time:.2f} seconds\n")
+                # fd.write("Total power: %f W" % mean_powe\nr)
+                # fd.write("Total energy: %f J" % total_energ\ny)
+                fd.write(f"Batch size {batch_size}\n")
+                fd.write(f"Images nums: {batch_size * MAX_BATCH}\n")
+                fd.write(f"Fps: {(batch_size * MAX_BATCH / total_time)}\n")
+                fd.write(f"Accuracy: {(accuracy / (batch_size * MAX_BATCH))}\n")
     
                 # total_energy = energy
             print("Total time:", total_time, "seconds")

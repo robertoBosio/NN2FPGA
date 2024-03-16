@@ -83,7 +83,7 @@ def write_network(
     generate_log_file="tmp.log"
 ):
 
-    print(f"Current log file: {generate_log_file}")
+    print(f"\nCurrent log file: {generate_log_file}\n")
 
     # Cases in which a master axi interface is needed
     ap_ctrl_chain = off_chip_storage

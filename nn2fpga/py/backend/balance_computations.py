@@ -87,8 +87,10 @@ def generate_architectures(layers_info, NUM_DSP):
         if (layer["type"] == "pool"):
             max_ow_par = 1
         
+            
         valid_par_solutions.append(generate_valid_combinations(
-            och=max_och_par, ich=max_ich_par, iw=max_ow_par, iw_clip=2, och_clip=20, op_clip=op_clip))
+            och=max_och_par, ich=max_ich_par, iw=max_ow_par, iw_clip=4, och_clip=20, op_clip=op_clip))
+
         
     return valid_par_solutions
 
@@ -401,9 +403,9 @@ def resourceILP(layers_info, model_II, valid_par_solutions, parallel_op, NUM_DSP
     # Objective function: minimize the BRAMs required to run the whole network.
     prob_min += (
         pulp.lpSum([pulp.lpDot(layer_binary_variables[layer['index']].values(),
-                    valid_bram_solutions[i]) for i, layer in enumerate(layers_info_unmerged)]),
-        # pulp.lpSum([pulp.lpDot(layer_binary_variables[layer['index']].values(),
-        #             valid_dsp_solutions[i]) for i, layer in enumerate(layers_info_unmerged)]),
+                    valid_bram_solutions[i]) for i, layer in enumerate(layers_info_unmerged)]) +
+        pulp.lpSum([pulp.lpDot(layer_binary_variables[layer['index']].values(),
+                    valid_dsp_solutions[i]) for i, layer in enumerate(layers_info_unmerged)]),
         f"Resource_objective"
     )
     
@@ -1081,7 +1083,11 @@ def write_parallelism(io_dict, model, parallel_ops):
                     node["adjust_add"] = True
                     node["adjust_add_ops"] = find_common_mult(
                         node["ops"], node["add_ops"])
+                    
                     node["adjust_add_ow_ops_in"] = ow_ops
+                    if ow_ops % node["ow_ops"] != 0 and node["ow_ops"] % ow_ops != 0:
+                        print(f"Error: {name} ow_ops ({node['ow_ops']}) is not a multiple/divisor of ow_ops_out of {add_node_name} ({ow_ops})")
+
                     print(f"\tAdjusting add stream for {name} over channels: {node['add_ops']} -> {node['adjust_add_ops']} -> {node['ops']} (add_ops -> adjust_add_ops -> ops)")
                     print(f"\tAdjusting add stream for {name} over width: {ow_ops} -> {node['adjust_add_ow_ops_in']} -> {node['ow_ops']} (ow_ops_out -> adjust_add_ow_ops_in -> ow_ops)")
                 else:
@@ -1188,7 +1194,8 @@ def ilp(io_dict, off_chip_storage, model, file_name, board="ULTRA96v2", generate
     NUM_PORTS = (board_res["bram"] + board_res["uram"])
     NUM_DSP = board_res["dsp"]
     # NUM_DSP = int(NUM_DSP * 1.1)
-    NUM_PORTS = int(NUM_PORTS * 0.9)
+    # NUM_PORTS = int(NUM_PORTS * 0.85)
+    NUM_PORTS = 780
     NUM_DSP = 1700
 
     valid_par_solutions = generate_architectures(layers_info, NUM_DSP)

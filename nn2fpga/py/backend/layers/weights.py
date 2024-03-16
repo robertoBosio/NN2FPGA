@@ -57,7 +57,20 @@ def mem_shape_calc(node, fh, fw, is_bias=False):
 
     return [fh * fw, ich_iter_ops * och_iter_ops, ich_ops * ops]
     
-def compute_bram_layer(weight_bits, weight_number, parallelism, WIDTH=36):
+def compute_bram_layer(weight_bits, weight_number, parallelism, print_info=False):
+    """Compute the number of BRAMs needed to store the weights, given the parallelism """
+
+    bram9 = bram_consumption(weight_bits, weight_number, parallelism, WIDTH=9)
+    bram18 = bram_consumption(weight_bits, weight_number, parallelism, WIDTH=18)
+    bram36 = bram_consumption(weight_bits, weight_number, parallelism, WIDTH=36)
+    bram72 = bram_consumption(weight_bits, weight_number, parallelism, WIDTH=72)
+
+    if (print_info):
+        print(f"{weight_bits} bits, {weight_number} weights, {parallelism} parallelism, BRAM9: {bram9}, BRAM18: {bram18}, BRAM36: {bram36}, BRAM72: {bram72}")
+    
+    return min(bram9, bram18, bram36, bram72)
+
+def bram_consumption(weight_bits, weight_number, parallelism, WIDTH=36):
     """Compute the number of BRAMs needed to store the weights, given the parallelism """
 
     # Useful space in BRAM18. Each BRAM18 is 18kb with a maximum word width of
@@ -76,18 +89,21 @@ def compute_bram_layer(weight_bits, weight_number, parallelism, WIDTH=36):
     very_long_word = parallelism * weight_bits
     mem_width = very_long_word // WIDTH_BRAM36
     mem_width_rem = very_long_word % WIDTH_BRAM36
-    # print(f"mem_width: {mem_width}, mem_width_rem: {mem_width_rem}")
     word_depth = weight_number // parallelism
     mem_depth = int(math.ceil(word_depth / (SIZE_BRAM36 // WIDTH_BRAM36)))
     tot_bram = mem_width * mem_depth
-    # print(f"mem_depth: {mem_depth}, tot_bram: {tot_bram}")
 
-    if (mem_width_rem > 18):
-        tot_bram += int(math.ceil(word_depth / (SIZE_BRAM36 // WIDTH_BRAM36)))
-    if (mem_width_rem > 8 and mem_width_rem < 18):
-        tot_bram += int(math.ceil(word_depth / (SIZE_BRAM36 // (WIDTH_BRAM36 // 2))))
+    rem_bram = 0
+    if (mem_width_rem > 36):
+        rem_bram = int(math.ceil(word_depth / (SIZE_BRAM36 // 72)))
+    elif (mem_width_rem > 18 and mem_width_rem <= 36):
+        rem_bram = int(math.ceil(word_depth / (SIZE_BRAM36 // 36)))
+    elif (mem_width_rem > 8 and mem_width_rem <= 18):
+        rem_bram = int(math.ceil(word_depth / (SIZE_BRAM36 // 18)))
     elif (mem_width_rem > 0 and mem_width_rem <= 8):
-        tot_bram += int(math.ceil(word_depth / (SIZE_BRAM36 // (WIDTH_BRAM36 // 4))))
+        rem_bram = int(math.ceil(word_depth / (SIZE_BRAM36 // 9)))
+    
+    tot_bram += rem_bram
     
     return tot_bram
 
@@ -1377,7 +1393,6 @@ def sorted_bind_storage(dict_layers, board_res, uram_storage=False):
     SIZE_URAM = (288 * 1024)
 
     
-    bandwidth_bram = 36
     bandwidth_uram = 72
 
     used_uram = 0 
@@ -1399,7 +1414,7 @@ def sorted_bind_storage(dict_layers, board_res, uram_storage=False):
             lpm = node["n_weights"] // node["par"]
 
             tot_uram = math.ceil(lpm / (SIZE_URAM / bandwidth_uram)) * ports_uram
-            tot_bram = compute_bram_layer(node["bits"], node["n_weights"], node["par"])
+            tot_bram = compute_bram_layer(node["bits"], node["n_weights"], node["par"], True)
             
             # wasted_uram = n_uram * SIZE_URAM - (node['n_weights'] * node["bits"])
             # wasted_bram = n_bram * SIZE_BRAM - (node['n_weights'] * node["bits"])
@@ -1414,17 +1429,14 @@ def sorted_bind_storage(dict_layers, board_res, uram_storage=False):
                 # print(f"produce_stream_{node['ich']}_{node['och']}_{node['ow']}_{node['oh']}_{node['iw']}_{node['ih']} P:{w_par} of {node['bits']}b. {node['n_weights']}. {tot_uram}U {tot_bram}B.")
                 node["uram_storage"] = True
                 node["mems"] = tot_uram
-                node["mems_72"] = tot_uram
             else:
                 used_bram += tot_bram
                 # print(f"produce_stream_{node['ich']}_{node['och']}_{node['ow']}_{node['oh']}_{node['iw']}_{node['ih']} P:{w_par} of {node['bits']}b. {node['n_weights']}. {tot_bram}B {tot_uram}U.")
                 node["mems"] = tot_bram
-                node["mems_72"] = compute_bram_layer(node["bits"], node["n_weights"], node["par"], 72)
                 node["uram_storage"] = False
         else:
             node["uram_storage"] = False
             node["mems"] = 0
-            node["mems_72"] = 0
 
     return fit    
 
@@ -1440,7 +1452,7 @@ def print_report(weights_layer_dict, fit, generate_report_file="tmp.rpt"):
         table_data = []
 
         #header row
-        header = ["Layer name", "Bias", "Parallelism", "Weight bits", "N. of weights", "BRAM", "BRAM72", "URAM"]
+        header = ["Layer name", "Bias", "Parallelism", "Weight bits", "N. of weights", "BRAM", "URAM"]
         table_data.append(header)
         tot_bram = 0
         tot_uram = 0
@@ -1454,12 +1466,10 @@ def print_report(weights_layer_dict, fit, generate_report_file="tmp.rpt"):
             row.append(layer["n_weights"])
             if layer["uram_storage"]:
                 row.append("0")
-                row.append("0")
                 row.append(layer["mems"])
                 tot_uram += layer["mems"]
             else:
                 row.append(layer["mems"])
-                row.append(layer["mems_72"])
                 row.append("0")
                 tot_bram += layer["mems"]
             table_data.append(row)

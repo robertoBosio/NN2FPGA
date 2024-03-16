@@ -1,6 +1,7 @@
 import pynq
 from pynq import Overlay
 from pynq import allocate
+from pynq import Clocks
 
 import sys
 import os
@@ -70,13 +71,14 @@ if __name__ == "__main__":
 
     test_loader, buffer_dim = dataloader(batch_size)
 
-    print("Loading overlay")
+    print("Loading overlay", flush=True)
     overlay = Overlay('./overlay/design_1.bit')
     
-    print("Loaded overlay")
+    print("Loaded overlay", flush=True)
+    Clocks._instance.PL_CLK_CTRLS[0].DIVISOR0 = 15
     dma = overlay.axi_dma_0
     if (sel_uram_storage == 1):
-        print("Loading URAM")
+        print("Loading URAM", flush=True)
         dma_uram = overlay.axi_dma_1
         uram_vector = np.load("overlay/uram.npy")
         uram_buffer = allocate(shape=(uram_vector.shape[0], ), dtype=np.int8)

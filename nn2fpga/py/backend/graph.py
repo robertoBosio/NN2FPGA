@@ -423,7 +423,7 @@ def graph_info(model, init_info, object_detection=False, anchors=None, transform
             last_layer_name = node_name
             continue
         
-        if 'flatten' in node.op_type.lower():
+        if 'flatten' in node.op_type.lower() or 'reshape' in node.op_type.lower():
             io_dict[node_name]["type"] = "flatten"
             last_layer_name = node_name
             continue
