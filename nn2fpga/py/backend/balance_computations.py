@@ -264,26 +264,26 @@ def parallelismILP(layers_info, valid_par_solutions, NUM_DSP, NUM_PORTS, prj_roo
     # layers should be balanced. The write bandwidth is computed as (och_par *
     # ich_par) / (ich). The read bandwidth is computed as (och_par * ich_par) /
     # (och). For depthwise convolution the write bandwidth is ich_par.
-    for layer_index in [x["index"] for x in layers_info[1:]]:
-        constraints_counter += 1
-        if layers_info[layer_index - 1]["depth"] or layers_info[layer_index - 1]["type"] == "pool":
-            prob += (
-                pulp.lpSum(
-                    [layer_binary_variables[layer_index - 1][i] * tuple[1] * tuple[2]
-                    for i, tuple in enumerate(valid_par_solutions[layer_index - 1])]
-                ) -
-                ( pulp.lpDot(layer_binary_variables[layer_index].values(),
-                    valid_tot_par_solutions[layer_index]) / layers_info[layer_index]["och"] ) >= 0,
-                f"ich_constraint_layer_{layer_index}"
-            )
-        else:
-            prob += (
-                ( pulp.lpDot(layer_binary_variables[layer_index - 1].values(),
-                    valid_tot_par_solutions[layer_index - 1]) / layers_info[layer_index - 1]["ich"] ) - 
-                ( pulp.lpDot(layer_binary_variables[layer_index].values(),
-                    valid_tot_par_solutions[layer_index]) / layers_info[layer_index]["och"] ) >= 0,
-                f"ich_constraint_layer_{layer_index}"
-            )
+    # for layer_index in [x["index"] for x in layers_info[1:]]:
+    #     constraints_counter += 1
+    #     if layers_info[layer_index - 1]["depth"] or layers_info[layer_index - 1]["type"] == "pool":
+    #         prob += (
+    #             pulp.lpSum(
+    #                 [layer_binary_variables[layer_index - 1][i] * tuple[1] * tuple[2]
+    #                 for i, tuple in enumerate(valid_par_solutions[layer_index - 1])]
+    #             ) -
+    #             ( pulp.lpDot(layer_binary_variables[layer_index].values(),
+    #                 valid_tot_par_solutions[layer_index]) / layers_info[layer_index]["och"] ) >= 0,
+    #             f"ich_constraint_layer_{layer_index}"
+    #         )
+    #     else:
+    #         prob += (
+    #             ( pulp.lpDot(layer_binary_variables[layer_index - 1].values(),
+    #                 valid_tot_par_solutions[layer_index - 1]) / layers_info[layer_index - 1]["ich"] ) - 
+    #             ( pulp.lpDot(layer_binary_variables[layer_index].values(),
+    #                 valid_tot_par_solutions[layer_index]) / layers_info[layer_index]["och"] ) >= 0,
+    #             f"ich_constraint_layer_{layer_index}"
+    #         )
     
     prob.writeLP(prj_root + "/parallel_ops0.lp")
     start_time = time.time()
@@ -459,25 +459,25 @@ def resourceILP(layers_info, model_II, valid_par_solutions, parallel_op, NUM_DSP
     # layers should be balanced. The write bandwidth is computed as (och_par *
     # ich_par) / (ich). The read bandwidth is computed as (och_par * ich_par) /
     # (och). For depthwise convolution the write bandwidth is ich_par
-    for layer_index in [x["index"] for x in layers_info[1:]]:
-        if layers_info[layer_index - 1]["depth"] or layers_info[layer_index - 1]["type"] == "pool":
-            prob_min += (
-                pulp.lpSum(
-                    [layer_binary_variables[layer_index - 1][i] * tuple[1] * tuple[2]
-                    for i, tuple in enumerate(clamped_valid_par_solutions[layer_index - 1])]
-                ) -
-                ( pulp.lpDot(layer_binary_variables[layer_index].values(),
-                    valid_tot_par_solutions[layer_index]) / layers_info[layer_index]["och"] ) >= 0,
-                f"ich_constraint_layer_{layer_index}"
-            )
-        else:
-            prob_min += (
-                ( pulp.lpDot(layer_binary_variables[layer_index - 1].values(),
-                    valid_tot_par_solutions[layer_index - 1]) / layers_info[layer_index - 1]["ich"] ) - 
-                ( pulp.lpDot(layer_binary_variables[layer_index].values(),
-                    valid_tot_par_solutions[layer_index]) / layers_info[layer_index]["och"] ) >= 0,
-                f"ich_constraint_layer_{layer_index}"
-            )
+    # for layer_index in [x["index"] for x in layers_info[1:]]:
+    #     if layers_info[layer_index - 1]["depth"] or layers_info[layer_index - 1]["type"] == "pool":
+    #         prob_min += (
+    #             pulp.lpSum(
+    #                 [layer_binary_variables[layer_index - 1][i] * tuple[1] * tuple[2]
+    #                 for i, tuple in enumerate(clamped_valid_par_solutions[layer_index - 1])]
+    #             ) -
+    #             ( pulp.lpDot(layer_binary_variables[layer_index].values(),
+    #                 valid_tot_par_solutions[layer_index]) / layers_info[layer_index]["och"] ) >= 0,
+    #             f"ich_constraint_layer_{layer_index}"
+    #         )
+    #     else:
+    #         prob_min += (
+    #             ( pulp.lpDot(layer_binary_variables[layer_index - 1].values(),
+    #                 valid_tot_par_solutions[layer_index - 1]) / layers_info[layer_index - 1]["ich"] ) - 
+    #             ( pulp.lpDot(layer_binary_variables[layer_index].values(),
+    #                 valid_tot_par_solutions[layer_index]) / layers_info[layer_index]["och"] ) >= 0,
+    #             f"ich_constraint_layer_{layer_index}"
+    #         )
     
     # prob_min.solve()
     prob_min.writeLP(prj_root + "/parallel_ops1.lp")
@@ -613,25 +613,25 @@ def balanceILP(layers_info, model_II, valid_par_solutions, parallel_op, NUM_PORT
     # layers should be balanced. The write bandwidth is computed as (och_par *
     # ich_par) / (ich). The read bandwidth is computed as (och_par * ich_par) /
     # (och). For depthwise convolution the write bandwidth is ich_par
-    for layer_index in [x["index"] for x in layers_info[1:]]:
-        if layers_info[layer_index - 1]["depth"] or layers_info[layer_index - 1]["type"] == "pool":
-            prob_min += (
-                pulp.lpSum(
-                    [layer_binary_variables[layer_index - 1][i] * tuple[1] * tuple[2]
-                    for i, tuple in enumerate(clamped_valid_par_solutions[layer_index - 1])]
-                ) -
-                ( pulp.lpDot(layer_binary_variables[layer_index].values(),
-                    valid_tot_par_solutions[layer_index]) / layers_info[layer_index]["och"] ) >= 0,
-                f"ich_constraint_layer_{layer_index}"
-            )
-        else:
-            prob_min += (
-                ( pulp.lpDot(layer_binary_variables[layer_index - 1].values(),
-                    valid_tot_par_solutions[layer_index - 1]) / layers_info[layer_index - 1]["ich"] ) - 
-                ( pulp.lpDot(layer_binary_variables[layer_index].values(),
-                    valid_tot_par_solutions[layer_index]) / layers_info[layer_index]["och"] ) >= 0,
-                f"ich_constraint_layer_{layer_index}"
-            )
+    # for layer_index in [x["index"] for x in layers_info[1:]]:
+    #     if layers_info[layer_index - 1]["depth"] or layers_info[layer_index - 1]["type"] == "pool":
+    #         prob_min += (
+    #             pulp.lpSum(
+    #                 [layer_binary_variables[layer_index - 1][i] * tuple[1] * tuple[2]
+    #                 for i, tuple in enumerate(clamped_valid_par_solutions[layer_index - 1])]
+    #             ) -
+    #             ( pulp.lpDot(layer_binary_variables[layer_index].values(),
+    #                 valid_tot_par_solutions[layer_index]) / layers_info[layer_index]["och"] ) >= 0,
+    #             f"ich_constraint_layer_{layer_index}"
+    #         )
+    #     else:
+    #         prob_min += (
+    #             ( pulp.lpDot(layer_binary_variables[layer_index - 1].values(),
+    #                 valid_tot_par_solutions[layer_index - 1]) / layers_info[layer_index - 1]["ich"] ) - 
+    #             ( pulp.lpDot(layer_binary_variables[layer_index].values(),
+    #                 valid_tot_par_solutions[layer_index]) / layers_info[layer_index]["och"] ) >= 0,
+    #             f"ich_constraint_layer_{layer_index}"
+    #         )
     
     # prob_min.solve()
     prob_min.writeLP(prj_root + "/parallel_ops2.lp")
@@ -1194,9 +1194,7 @@ def ilp(io_dict, off_chip_storage, model, file_name, board="ULTRA96v2", generate
     NUM_PORTS = (board_res["bram"] + board_res["uram"])
     NUM_DSP = board_res["dsp"]
     # NUM_DSP = int(NUM_DSP * 1.1)
-    # NUM_PORTS = int(NUM_PORTS * 0.85)
-    NUM_PORTS = 780
-    NUM_DSP = 1700
+    NUM_PORTS = int(NUM_PORTS * 0.85)
 
     valid_par_solutions = generate_architectures(layers_info, NUM_DSP)
     layer_par, model_II, n_variables, n_constraints, time_spent = parallelismILP(layers_info, valid_par_solutions, NUM_DSP, NUM_PORTS, prj_root=prj_root)
