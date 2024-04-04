@@ -48,6 +48,7 @@ cp ${NN2FPGA_ROOT}/scripts/imagenet.py ${PRJ_ROOT}/overlay/imagenet.py
 
 if [ ${DYNAMIC_INIT} = 1 ]; then
     cp ${PRJ_ROOT}/npy/uram_${TOP_NAME}.npy ${PRJ_ROOT}/overlay/uram.npy
+	# cp /home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/work/notable_bitstream/mobilenet_ZCU102_20240313/parameters.npy ${PRJ_ROOT}/overlay/uram.npy
 fi
 
 # upload bitstream to sdcard

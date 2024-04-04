@@ -7,7 +7,7 @@ import sys
 import os
 import numpy as np
 
-from boards import kria_inference, ultra96_inference, zcu102_inference
+from boards import hw_inference, ZCU102PowerSensor
 from datasets import cifar10_dataloader, coco_dataloader, vw_dataloader, imagenet_dataloader
 from coco import postprocess as coco_postprocess
 from cifar10 import postprocess as cifar10_postprocess
@@ -75,8 +75,8 @@ if __name__ == "__main__":
     overlay = Overlay('./overlay/design_1.bit')
     
     print("Loaded overlay", flush=True)
-    Clocks._instance.PL_CLK_CTRLS[0].DIVISOR0 = 15
-    dma = overlay.axi_dma_0
+    Clocks._instance.PL_CLK_CTRLS[0].DIVISOR0 = 7
+    
     if (sel_uram_storage == 1):
         print("Loading URAM", flush=True)
         dma_uram = overlay.axi_dma_1
@@ -87,6 +87,7 @@ if __name__ == "__main__":
         dma_uram.sendchannel.wait()
     print("Loaded URAM", flush=True)
 
+    dma = overlay.axi_dma_0
     if (off_chip_memory):
         network = overlay.Network_0
     else:
@@ -97,23 +98,32 @@ if __name__ == "__main__":
 
     #################################Inference##################################
 
+    board = {}
     if (sel_board == "ULTRA96v2"):
-        inference = ultra96_inference
-    if (sel_board == "KRIA"):
-        inference = kria_inference
-    if (sel_board == "ZCU102"):
-        inference = zcu102_inference
+        rails = pynq.get_rails()
+        board["sensor"] = rails["INT"].power
+        board["sensor_name"] = "INT_power"
 
-    inference(
+    if (sel_board == "KRIA"):
+        rails = pynq.get_rails()
+        board["sensor"] = rails["power1"].power
+        board["sensor_name"] = "power1_power"
+    
+    if (sel_board == "ZCU102"):
+        board["sensor"] = ZCU102PowerSensor("INT_power", "W")
+        board["sensor_name"] = "INT_power"
+
+
+    hw_inference(
         test_loader,
         in_buffer,
         out_buffer,
         dma,
         batch_size,
-        off_chip_memory,
-        network,
+        64,
         postprocess,
-        sel_uram_storage
+        board,
+        1
     )
 
     if (sel_uram_storage == 1):
