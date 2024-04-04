@@ -130,7 +130,7 @@ int main(int argc, char** argv) {
       // data and then convert it to ap_uint<8>, to remove the small error given
       // by directly transform an unsigned int into a 8 bit fixed point value.
       float data_f = (float)data / float((1 << c_act_width) - 1);
-      ap_ufixed<c_act_width, 0, AP_RND_ZERO, AP_SAT> data_uf = data_f;
+      t_inp_1_part data_uf = data_f;
       ap_uint<c_act_width> data_u;
       data_u.range(c_act_width - 1, 0) = data_uf.range(c_act_width - 1, 0);
       send_data.range(c_act_width * (s_par + 1) - 1, c_act_width * s_par) =
