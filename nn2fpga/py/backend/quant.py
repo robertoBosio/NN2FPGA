@@ -193,12 +193,15 @@ def weights_quant(model, io_dict):
                         for weight_name in io_dict[layer_out_name]["weights_name"]
                     ]    
                 )
-                is_bias = any(
-                    [
-                        net_name == bias_name.replace(".", "_") 
-                        for bias_name in io_dict[layer_out_name]["bias_name"]
-                    ]    
-                )
+                if ("bias_name" in io_dict[layer_out_name].keys()):
+                    is_bias = any(
+                        [
+                            net_name == bias_name.replace(".", "_") 
+                            for bias_name in io_dict[layer_out_name]["bias_name"]
+                        ]    
+                    )
+                else:
+                    is_bias = False
                 # if "bias_name" in io_dict[layer_out_name].keys():
                 #     is_not_bias = net_name in io_dict[layer_out_name]["bias_name"]
 
