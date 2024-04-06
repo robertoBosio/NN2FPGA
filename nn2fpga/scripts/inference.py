@@ -29,11 +29,10 @@ if __name__ == "__main__":
 
     supported_boards = ["KRIA", "ULTRA96v2", "ZCU102"]
     supported_datasets = ["cifar10", "vw", "coco", "imagenet"]
-    supported_uram_storage = [0, 1]
 
-    if (len(sys.argv) < 3):
+    if (len(sys.argv) < 4):
         print(
-            "Wrong number of arguments: inference.py board dataset uram_storage"
+            "Wrong number of arguments: inference.py board dataset input_scale_factor frequency\n"
         )
         sys.exit(0)
 
@@ -47,14 +46,25 @@ if __name__ == "__main__":
         print(f"Error: selected {sel_dataset}, allowed dataset selection: {supported_datasets}")
         sys.exit(0)
 
-    sel_uram_storage = int(sys.argv[3])
-    if (sel_uram_storage not in supported_uram_storage):
-        print(f"Error: selected {sel_uram_storage}, allowed uram_storage selection: {supported_uram_storage}")
+    # Check that the input scale factor must be a positive integer number
+    try:
+        scale_factor = int(sys.argv[3])
+        if scale_factor <= 0:
+            raise ValueError
+    except ValueError:
+        print("Error: input scale factor must be a positive integer number")
+        sys.exit(0)
+    
+    # Check that the frequency must be a positive integer number
+    try:
+        frequency = int(sys.argv[4])
+        if frequency <= 0:
+            raise ValueError
+    except ValueError:
+        print("Error: frequency (MHz) must be a positive integer number")
         sys.exit(0)
 
-    off_chip_memory = False
-
-    batch_size = 400
+    batch_size = 10000
 
     if (sel_dataset == "cifar10"):
         dataloader = cifar10_dataloader
@@ -70,49 +80,46 @@ if __name__ == "__main__":
         postprocess = imagenet_postprocess
 
     test_loader, buffer_dim = dataloader(batch_size)
-
-    print("Loading overlay", flush=True)
-    overlay = Overlay('./overlay/design_1.bit')
     
-    print("Loaded overlay", flush=True)
-    Clocks._instance.PL_CLK_CTRLS[0].DIVISOR0 = 7
-    
-    if (sel_uram_storage == 1):
-        print("Loading URAM", flush=True)
-        dma_uram = overlay.axi_dma_1
-        uram_vector = np.load("overlay/uram.npy")
-        uram_buffer = allocate(shape=(uram_vector.shape[0], ), dtype=np.int8)
-        uram_buffer[:] = uram_vector[:]
-        dma_uram.sendchannel.transfer(uram_buffer)
-        dma_uram.sendchannel.wait()
-    print("Loaded URAM", flush=True)
-
-    dma = overlay.axi_dma_0
-    if (off_chip_memory):
-        network = overlay.Network_0
-    else:
-        network = None
-
-    in_buffer = allocate(shape=(batch_size*buffer_dim[0], ), dtype=np.int8)
-    out_buffer = allocate(shape=(batch_size, buffer_dim[1], ), dtype=np.int8)
-
-    #################################Inference##################################
-
+    # Board aware section
     board = {}
+    pl_divisor = 10
     if (sel_board == "ULTRA96v2"):
         rails = pynq.get_rails()
         board["sensor"] = rails["INT"].power
         board["sensor_name"] = "INT_power"
+        pl_divisor = 1500 // frequency
 
     if (sel_board == "KRIA"):
         rails = pynq.get_rails()
         board["sensor"] = rails["power1"].power
         board["sensor_name"] = "power1_power"
+        pl_divisor = 1000 // frequency
     
     if (sel_board == "ZCU102"):
         board["sensor"] = ZCU102PowerSensor("INT_power", "W")
         board["sensor_name"] = "INT_power"
+        pl_divisor = 1500 // frequency
 
+    print("Loading overlay", flush=True)
+    overlay = Overlay('./overlay/design_1.bit')
+    
+    print("Loaded overlay", flush=True)
+    print(f"Setting PL clock with divisor: {pl_divisor}", flush=True)
+    Clocks._instance.PL_CLK_CTRLS[0].DIVISOR0 = pl_divisor
+    
+    print("Loading params", flush=True)
+    dma_params = overlay.axi_dma_1
+    params_vector = np.load("overlay/uram.npy")
+    params_buffer = allocate(shape=(params_vector.shape[0], ), dtype=np.int8)
+    params_buffer[:] = params_vector[:]
+    dma_params.sendchannel.transfer(params_buffer)
+    dma_params.sendchannel.wait()
+    print("Loaded params", flush=True)
+
+    dma = overlay.axi_dma_0
+    in_buffer = allocate(shape=(batch_size*buffer_dim[0], ), dtype=np.int8)
+    out_buffer = allocate(shape=(batch_size, buffer_dim[1], ), dtype=np.int8)
 
     hw_inference(
         test_loader,
@@ -120,13 +127,9 @@ if __name__ == "__main__":
         out_buffer,
         dma,
         batch_size,
-        64,
+        scale_factor,
         postprocess,
         board,
-        1
     )
 
-    if (sel_uram_storage == 1):
-        del uram_buffer
-
-    del in_buffer, out_buffer
+    del in_buffer, out_buffer, params_buffer

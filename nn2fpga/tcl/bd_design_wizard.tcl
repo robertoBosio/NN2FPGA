@@ -722,11 +722,12 @@ Port;FD4A0000;FD4AFFFF;1|FPD;DPDMA;FD4C0000;FD4CFFFF;1|FPD;DDR_XMPU5_CFG;FD05000
   set_property -dict [list \
     CONFIG.CLKOUT1_JITTER {157.690} \
     CONFIG.CLKOUT1_PHASE_ERROR {219.953} \
-    CONFIG.CLKOUT1_REQUESTED_OUT_FREQ {225.000} \
+    CONFIG.CLKOUT1_REQUESTED_OUT_FREQ {250.000} \
     CONFIG.MMCM_CLKFBOUT_MULT_F {48.375} \
     CONFIG.MMCM_CLKOUT0_DIVIDE_F {5.375} \
     CONFIG.MMCM_DIVCLK_DIVIDE {4} \
-    CONFIG.PRIM_SOURCE {Global_buffer} \
+#    CONFIG.PRIM_SOURCE {Global_buffer} \
+    CONFIG.PRIM_SOURCE {No_buffer} \
     CONFIG.RESET_PORT {resetn} \
     CONFIG.RESET_TYPE {ACTIVE_LOW} \
   ] $clk_wiz_0
@@ -770,10 +771,11 @@ Port;FD4A0000;FD4AFFFF;1|FPD;DPDMA;FD4C0000;FD4CFFFF;1|FPD;DDR_XMPU5_CFG;FD05000
   connect_bd_intf_net -intf_net zynq_ultra_ps_e_0_M_AXI_HPM0_FPD [get_bd_intf_pins ps8_0_axi_periph/S00_AXI] [get_bd_intf_pins zynq_ultra_ps_e_0/M_AXI_HPM0_FPD]
 
   # Create port connections
-  connect_bd_net -net rst_ps8_0_214M_peripheral_aresetn [get_bd_pins ${topName}_0/ap_rst_n] [get_bd_pins axi_dma_0/axi_resetn] [get_bd_pins ps8_0_axi_periph/ARESETN] [get_bd_pins ps8_0_axi_periph/M00_ARESETN] [get_bd_pins ps8_0_axi_periph/S00_ARESETN] [get_bd_pins rst_ps8_0_214M/peripheral_aresetn] [get_bd_pins clk_wiz_0/resetn]
+  connect_bd_net -net rst_ps8_0_214M_peripheral_aresetn [get_bd_pins ${topName}_0/ap_rst_n] [get_bd_pins axi_dma_0/axi_resetn] [get_bd_pins ps8_0_axi_periph/ARESETN] [get_bd_pins ps8_0_axi_periph/M00_ARESETN] [get_bd_pins ps8_0_axi_periph/S00_ARESETN] [get_bd_pins rst_ps8_0_214M/peripheral_aresetn]
   connect_bd_net -net zynq_ultra_ps_e_0_pl_clk0 [get_bd_pins zynq_ultra_ps_e_0/pl_clk0] [get_bd_pins clk_wiz_0/clk_in1]
   connect_bd_net -net clk_wiz_0_clk_out1 [get_bd_pins clk_wiz_0/clk_out1] [get_bd_pins zynq_ultra_ps_e_0/maxihpm0_fpd_aclk] [get_bd_pins zynq_ultra_ps_e_0/saxihp0_fpd_aclk] [get_bd_pins zynq_ultra_ps_e_0/saxihp1_fpd_aclk] [get_bd_pins ps8_0_axi_periph/ACLK] [get_bd_pins ps8_0_axi_periph/M00_ACLK] [get_bd_pins ${topName}_0/ap_clk] [get_bd_pins axi_dma_0/s_axi_lite_aclk] [get_bd_pins ps8_0_axi_periph/S00_ACLK] [get_bd_pins axi_dma_0/m_axi_mm2s_aclk] [get_bd_pins axi_dma_0/m_axi_s2mm_aclk] [get_bd_pins rst_ps8_0_214M/slowest_sync_clk]
-  connect_bd_net -net zynq_ultra_ps_e_0_pl_resetn0 [get_bd_pins rst_ps8_0_214M/ext_reset_in] [get_bd_pins zynq_ultra_ps_e_0/pl_resetn0]
+  connect_bd_net -net zynq_ultra_ps_e_0_pl_resetn0 [get_bd_pins rst_ps8_0_214M/ext_reset_in] [get_bd_pins zynq_ultra_ps_e_0/pl_resetn0] [get_bd_pins clk_wiz_0/resetn]
+  connect_bd_net [get_bd_pins clk_wiz_0/locked] [get_bd_pins rst_ps8_0_214M/dcm_locked]
   if {${uramStorage} == 1} {
     connect_bd_net -net rst_ps8_0_214M_peripheral_aresetn [get_bd_pins axi_dma_1/axi_resetn] [get_bd_pins ps8_0_axi_periph/M01_ARESETN]
     connect_bd_net -net clk_wiz_0_clk_out1 [get_bd_pins axi_dma_1/m_axi_mm2s_aclk] [get_bd_pins axi_dma_1/s_axi_lite_aclk] [get_bd_pins ps8_0_axi_periph/M01_ACLK] [get_bd_pins zynq_ultra_ps_e_0/saxihp2_fpd_aclk]

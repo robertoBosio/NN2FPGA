@@ -160,26 +160,28 @@ def hw_inference(
         np_features = (np.asarray(torch.permute(features, (0, 2, 3, 1))).flatten() * scale_factor).astype(np.int8)
         in_buffer[:] = np_features[:]
         
-        with recorder.record(0.01):
-            start = time.time()    
-            dma.recvchannel.transfer(out_buffer)
-            dma.sendchannel.transfer(in_buffer)
+        # with recorder.record(0.01):
+        recorder.reset()
+        recorder.record(0.01)
+        start = time.time()    
+        dma.recvchannel.transfer(out_buffer)
+        dma.sendchannel.transfer(in_buffer)
 
-            dma.sendchannel.wait()
-
-            dma.recvchannel.wait()
-
-            end = time.time()
+        dma.sendchannel.wait()
+        dma.recvchannel.wait()
+        end = time.time()
+        recorder.stop()
 
         accuracy, accuracy_batch = postprocess(out_buffer, results, accuracy, batch_size)
         batch_time = end - start
         total_time += batch_time
         batch_power = recorder.frame[board["sensor_name"]].mean()
+        batch_power_points = len(recorder.frame[board["sensor_name"]])
         batch_energy = batch_power * batch_time
         mean_power += batch_power
         total_energy += batch_energy
         
-        print(f"Batch {batch} time: {batch_time:.2f}s, power: {batch_power:.2f}W", flush=True)
+        print(f"Batch {batch} time: {batch_time:.2f}s, mean power: {batch_power:.2f}W on {batch_power_points} points.", flush=True)
         
         if (batch == tot_batches - 1):
             break 
@@ -195,13 +197,13 @@ def hw_inference(
         fd.write(f"Fps: {(batch_size * tot_batches / total_time)}\n")
         fd.write(f"Accuracy: {(accuracy / (batch_size * tot_batches))}\n")
 
-    print("Total time:", total_time, "seconds")
+    print(f"\nTotal time: {total_time:.2f} seconds.")
     print(f"Mean power: {mean_power:.2f} W")
     print(f"Total energy: {total_energy:.2f} J")
-    print("Batch size %d" % batch_size)
-    print('images nums: {} .'.format(batch_size * tot_batches))
-    print('fps: {} .'.format(batch_size * tot_batches / total_time))
-    print('Accuracy: {} .'.format(accuracy / (batch_size * tot_batches)))
+    print(f"Batch size {batch_size}")
+    print(f'Tot images: {batch_size * tot_batches}')
+    print(f"FPS: {batch_size * tot_batches / total_time:.2f}")
+    print(f'Accuracy: {accuracy / (batch_size * tot_batches):.4f}')
     
     end_exe = time.time()
     print(f"Total execution time: {end_exe - start_exe:.2f} seconds")
