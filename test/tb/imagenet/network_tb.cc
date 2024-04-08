@@ -8,8 +8,8 @@
 #include "params.h"
 #include "cmdlineparser.h"
 #include "nn2fpga/debug.h"
-#include <opencv2/opencv.hpp>
-#include <opencv2/imgproc/imgproc.hpp>
+// #include <opencv2/opencv.hpp>
+// #include <opencv2/imgproc/imgproc.hpp>
 
 #define READ_WIDTH 8
 #define READ_BYTES 1
@@ -35,105 +35,29 @@ std::vector<std::string> getDirectories(const std::string& path) {
     return directories;
 }
 
-// Sort and fill hash table function
-void sortAndFillHashTable(const std::string& path, std::unordered_map<std::string, int>& hashTable) {
-    std::vector<std::string> directories = getDirectories(path);
-
-    // Sort the directories by name
-    std::sort(directories.begin(), directories.end());
-
-    // Fill the hash table with directory names and their positions
-    for (int i = 0; i < directories.size(); ++i) {
-        hashTable[directories[i]] = i;
-    }
-}
-
 bool directoryExists(const std::string &path) {
     struct stat info;
     return stat(path.c_str(), &info) == 0 && S_ISDIR(info.st_mode);
 }
 
-void
-printFlattenedMatToFile(const cv::Mat& mat, const std::string& outputFilePath)
+template<typename T>
+std::vector<T>
+readBinaryFile(const std::string& filename)
 {
-  if (mat.empty()) {
-    std::cerr << "Input matrix is empty!" << std::endl;
-    return;
+  std::ifstream file(filename, std::ios::binary);
+  if (!file) {
+    std::cerr << "Failed to open file: " << filename << std::endl;
+    return std::vector<T>();
   }
-
-  // Open the file for writing
-  std::ofstream outputFile(outputFilePath);
-
-  if (!outputFile.is_open()) {
-    std::cerr << "Unable to open the output file!" << std::endl;
-    return;
+  std::vector<T> array_fromfile;
+  T value;
+  while (file.read(reinterpret_cast<char*>(&value), sizeof(T))) {
+    array_fromfile.push_back(value);
   }
-  
-  int rows = mat.rows;
-  int cols = mat.cols;
-  int channels = mat.channels();
-  std::cout << channels << "x" << rows << "x" << cols << std::endl;
-
-  // Write matrix values to the file using nested loops
-  for (int k = 0; k < channels; ++k) {
-    for (int i = 0; i < rows; ++i) {
-      for (int j = 0; j < cols; ++j) {
-        outputFile << std::setprecision(32) << mat.at<cv::Vec3f>(i, j)[k]
-                   << '\n';
-      }
-    }
-  }
-
-  // Close the file
-  outputFile.close();
+  file.close();
+  return array_fromfile;
 }
 
-cv::Mat opencv_transform(cv::Mat image) {
-    // Resize the shorter side to 256 pixels while maintaining the aspect ratio
-
-    // Convert to tensor
-    cv::cvtColor(image, image, cv::COLOR_BGR2RGB);  // Convert BGR to RGB
-
-    // Convert to NumPy array and normalize
-    image.convertTo(image, CV_32FC3, 1.0 / 255.0);
-    // image /= 255.0;  // Assuming the original image values are in the range [0, 255]
-
-    int h = image.rows;
-    int w = image.cols;
-    std::cout << "#### Resizing image" << std::endl;
-    std::cout << "#### Original size: " << h << "x" << w << std::endl;
-    int new_h, new_w;
-
-    if (h < w) {
-        new_h = 256;
-        new_w = static_cast<int>(w * (256.0 / h));
-    } else {
-        new_w = 256;
-        new_h = static_cast<int>(h * (256.0 / w));
-    }
-    std::cout << "#### New Size: " << new_h << "x" << new_w << std::endl;
-
-    // cv::resize(image, image, cv::Size(new_w, new_h), 0, 0, cv::INTER_AREA);
-    cv::resize(image, image, cv::Size(new_w, new_h), cv::INTER_LINEAR);
-
-    // Center crop to (224, 224)
-    h = image.rows;
-    w = image.cols;
-    int i = (h - 224) / 2;
-    int j = (w - 224) / 2;
-    std::cout << "#### Extracting region of interest" << std::endl;
-    cv::Rect roi(j, i, 224, 224);
-    image = image(roi);
-
-    // Normalize the image
-    std::cout << "#### Normalizing image" << std::endl;
-    cv::Scalar mean(0.485, 0.456, 0.406);
-    cv::Scalar std(0.229, 0.224, 0.225);
-    cv::divide(image - mean, std, image); // Element-wise division
-
-    printFlattenedMatToFile(image, "/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/tmp/logs/image_preprocessed_opencv.txt");
-    return image;
-}
 
 int main(int argc, char** argv) {
   sda::utils::CmdLineParser parser;
@@ -211,97 +135,52 @@ int main(int argc, char** argv) {
   
   std::cout << "Allocated " << c_index * c_batch << " ap_uint<64> for activations." << std::endl;
   std::cout << "Allocated " << CLASSES * c_batch << " ap_uint<8> for output results." << std::endl;
-  // std::string path = "/tools/datasets/Imagenet/train/n01440764/";
-  // std::string path = "/tools/datasets/Imagenet/train/n01440764/";
-  std::string path = "/home-ssd/datasets/Imagenet/train/n01440764/";
-  // std::string path = "/home/filippo/workspace/NN2FPGA/test/tb/imagenet/images/n15075141/";
-  std::cout << "Taking images from " << path << std::endl;
-  sortAndFillHashTable("/tools/datasets/Imagenet/train/", pathToLabelHashTable);
 
 #ifndef CSIM
 	if (argc < 3) {
 		return EXIT_FAILURE;
 	}
 #endif /* CSIM */
+  
+  std::string command = "python3 preprocess.py 1";
+  system(command.c_str());
 
-
+  std::vector<float> images = readBinaryFile<float>("/tmp/images_preprocessed.bin");
+  std::vector<int> labels = readBinaryFile<int>("/tmp/labels_preprocessed.bin");
+  std::vector<float> expected_results = readBinaryFile<float>("/tmp/results_preprocessed.bin");
   int mem_activations_p = 0;
-  int s_batch = 0;
-  DIR *dir;
-  struct dirent *ent;
-  std::cout << "OPENING DIRECTORY" << std::endl;
-  typedef ap_ufixed<8,0> t_transform;
-  float mean[3] = {0.485, 0.456, 0.406};
-  float std[3] = {0.229, 0.224, 0.225};
-  if ((dir = opendir (path.c_str())) != NULL) {
-    /* print all the files and directories within directory */
-    std::cout << "OPENED DIRECTORY" << std::endl;
-    while ((ent = readdir (dir)) != NULL) {
-        printf ("%s\n", ent->d_name);
-        if (strcmp(ent->d_name, ".") == 0 || strcmp(ent->d_name, "..") == 0){
-            printf("Image not found\n");
-            continue;
-        }
+  for (int i = 0; i < c_batch; i++) {
+    ap_uint<c_width_act_stream> send_data = 0;
+    unsigned int s_bytes = 0;
+    // for (auto itt = it->begin(); itt != it->end(); itt++) {
+    for (auto it = 0; it < c_produce_stream_ich * c_produce_stream_ih * c_produce_stream_iw; it++) {
 
-        // Retrieving the correct label for the image.
-        size_t lastSlashPos = path.find_last_of("/\\");
-        if (lastSlashPos != std::string::npos) {
-          auto it = pathToLabelHashTable.find(path.substr(lastSlashPos + 1));
-          if (it != pathToLabelHashTable.end()) {
-            correct_labels[s_batch] = it->second;
-          }
-        }
-
-        std::string file_path = path + ent->d_name;
-        std::cout << "path: " << file_path << std::endl;
-        cv::Mat img;
-        img = cv::imread(file_path);
-        auto result_ocv = opencv_transform(img);
-
-        // Iterate over elements of result_ocv per channel
-        unsigned int s_bytes = 0;
-        ap_uint<64> s_data = 0;
-        std::cout << "sending image with rows: " << result_ocv.rows << " cols: " << result_ocv.cols << std::endl;
-        for (int i = 0; i < result_ocv.rows; i++) {
-          for (int j = 0; j < result_ocv.cols; j++) {
-            cv::Vec3f pixel = result_ocv.at<cv::Vec3f>(i, j);
-            for (int c = 0; c < 3; c++) {
-              int s_par = (s_bytes % c_data_per_packet);
-              ap_fixed<c_act_width, 3, AP_RND_CONV, AP_SAT> tmp2 = pixel[c];
-              s_data.range(c_act_width * (s_par + 1) - 1, c_act_width * s_par) =
-                tmp2.range(c_act_width - 1, 0);
-
-              if (s_par == (c_data_per_packet - 1)) {
-                mem_activations[mem_activations_p++] = s_data;
-                s_data = 0;
-              }
-              s_bytes++;
-            }
-          }
-        }
-
+      int s_par = (s_bytes % c_data_per_packet);
+      float data_f = images[i * c_produce_stream_ich * c_produce_stream_ih * c_produce_stream_iw + it];
+      t_inp_1_part data_uf = data_f;
+      ap_uint<c_act_width> data_u;
+      data_u.range(c_act_width - 1, 0) = data_uf.range(c_act_width - 1, 0);
+      send_data.range(c_act_width * (s_par + 1) - 1, c_act_width * s_par) =
+        data_u;
+      if (s_par == c_data_per_packet - 1){
+        mem_activations[mem_activations_p++] = send_data;
+        send_data = 0;
+      }
+      s_bytes++;
+    }
+    
     // TODO: Change arguments to -w 0 after first run in CSIM, to remove the
     // warning of not empty stream at the end of the simulation
 #ifdef CSIM
-  std::cout << "STARTING CSIM" << std::endl;
+  std::cout << "Starting inference" << std::endl;
   inference_time = networkSim(argc,
                               argv,
                               projPath,
                               c_index,
                               CLASSES,
-                              &mem_activations[c_index * s_batch],
-                              &mem_outputs[s_batch * CLASSES]);
+                              &mem_activations[i * c_index],
+                              &mem_outputs[i * CLASSES]);
 #endif /* CSIM */
-
-        s_batch++;
-        if (s_batch == c_batch)
-            break;
-    }
-    closedir (dir);
-  } else {
-    /* could not open directory */
-    perror ("");
-    return EXIT_FAILURE;
   }
 
 #ifndef CSIM
@@ -314,26 +193,32 @@ int main(int argc, char** argv) {
                               mem_outputs);
 
 #endif
-  
-  float correct = 0;
+
+  unsigned int correct = 0;
   for (int image = 0; image < c_batch; image++) {
     t_out_mem max_value = INT32_MIN;
     int max_index = 0;
     std::cout << image << " image" << std::endl;
     for (int g = 0; g < CLASSES; g++) {
-      t_out_mem data = mem_outputs[g + image * CLASSES];
-      std::cout << g << ": " << data << std::endl;
+      auto data = mem_outputs[g + image * CLASSES];
+      t_out_mem expected_data = expected_results[g + image * CLASSES];
+      ap_int<c_act_width> data_int[2];
+      data_int[0].range(c_act_width - 1, 0) = data.range(c_act_width - 1, 0);
+      data_int[1].range(c_act_width - 1, 0) = expected_data.range(c_act_width - 1, 0);
+      std::cout << data << "\t(" << data_int[0] << ")\t" << expected_data
+                << "\t(" << data_int[1] << ")" << std::endl;
       if (data > max_value) {
         max_value = data;
         max_index = g;
       }
     }
     std::cout << "COMPUTED LABEL " << max_index << " -------- ";
-    std::cout << "EXPECTED LABEL " << (correct_labels[image])
+    std::cout << "EXPECTED LABEL " << (ap_int<8>)(labels[image])
               << std::endl;
-    if (max_index == correct_labels[image])
-      correct++;
     results[image] = max_index;
+    if (max_index == labels[image]) {
+      correct++;
+    }
   }
 
   std::cout << "ACCURACY " << correct / (float)(c_batch) << std::endl;

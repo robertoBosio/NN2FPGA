@@ -8,7 +8,7 @@ import os
 import numpy as np
 
 from boards import hw_inference, ZCU102PowerSensor
-from datasets import cifar10_dataloader, coco_dataloader, vw_dataloader, imagenet_dataloader
+from datasets import cifar10_dataloader, coco_dataloader, vw_dataloader, imagenet_dataloader, cifar10_4bit_dataloader
 from coco import postprocess as coco_postprocess
 from cifar10 import postprocess as cifar10_postprocess
 from vw import postprocess as vw_postprocess
@@ -69,13 +69,16 @@ if __name__ == "__main__":
     if (sel_dataset == "cifar10"):
         dataloader = cifar10_dataloader
         postprocess = cifar10_postprocess
-    if (sel_dataset == "vw"):
+    elif (sel_dataset == "cifar10_4bit"):
+        dataloader = cifar10_4bit_dataloader
+        postprocess = cifar10_postprocess
+    elif (sel_dataset == "vw"):
         dataloader = vw_dataloader
         postprocess = vw_postprocess
-    if (sel_dataset == "coco"):
+    elif (sel_dataset == "coco"):
         dataloader = coco_dataloader
         postprocess = coco_postprocess
-    if (sel_dataset == "imagenet"):
+    elif (sel_dataset == "imagenet"):
         dataloader = imagenet_dataloader
         postprocess = imagenet_postprocess
 

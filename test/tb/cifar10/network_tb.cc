@@ -2,6 +2,15 @@
 #include <iostream>
 #include <string>
 #include <cstring>
+#include <string>
+#include <fstream>
+#include <sstream>
+#include <cstdlib>
+#include <vector>
+#include <algorithm>
+#include <iterator>
+#include <iomanip>
+#include <unistd.h>
 #include <sys/stat.h>
 #include "network_sim.h"
 #include "params.h"
@@ -16,6 +25,24 @@
 bool directoryExists(const std::string &path) {
     struct stat info;
     return stat(path.c_str(), &info) == 0 && S_ISDIR(info.st_mode);
+}
+
+template<typename T>
+std::vector<T>
+readBinaryFile(const std::string& filename)
+{
+  std::ifstream file(filename, std::ios::binary);
+  if (!file) {
+    std::cerr << "Failed to open file: " << filename << std::endl;
+    return std::vector<T>();
+  }
+  std::vector<T> array_fromfile;
+  T value;
+  while (file.read(reinterpret_cast<char*>(&value), sizeof(T))) {
+    array_fromfile.push_back(value);
+  }
+  file.close();
+  return array_fromfile;
 }
 
 int main(int argc, char** argv) {
@@ -108,45 +135,34 @@ int main(int argc, char** argv) {
 	}
 #endif /* CSIM */
 
-  auto dataset = cifar::read_dataset<std::vector, std::vector, char, char>(cifarPath + "data/cifar-10-batches-bin/");
-  int s_batch = 0;
-  int mem_activations_p = 0;
-  for (auto it = dataset.test_images.begin(); it != dataset.test_images.end();
-       ++it) {
+  std::string command = "python3 preprocess.py 1";
+  system(command.c_str());
 
+  std::vector<float> images = readBinaryFile<float>("/tmp/images_preprocessed.bin");
+  std::vector<int> labels = readBinaryFile<int>("/tmp/labels_preprocessed.bin");
+  std::vector<float> expected_results = readBinaryFile<float>("/tmp/results_preprocessed.bin");
+
+  int mem_activations_p = 0;
+  for (int i = 0; i < c_batch; i++) {
     ap_uint<c_width_act_stream> send_data = 0;
     unsigned int s_bytes = 0;
-    for (auto itt = it->begin(); itt != it->end(); itt++) {
+    for (auto it = 0; it < c_produce_stream_ich * c_produce_stream_ih * c_produce_stream_iw; it++) {
 
       int s_par = (s_bytes % c_data_per_packet);
-      unsigned int data = (ap_uint<8>)(*itt);
-      if (s_bytes < 10){
-        std::cout << data << " ";
-      } else if (s_bytes == 10){
-        std::cout << std::endl;
-      }
-
-      // To be consistent with training, we need to use a float to normalize
-      // data and then convert it to ap_uint<8>, to remove the small error given
-      // by directly transform an unsigned int into a 8 bit fixed point value.
-      float data_f = (float)data / float((1 << c_act_width) - 1);
+      float data_f = images[i * c_produce_stream_ich * c_produce_stream_ih *
+                              c_produce_stream_iw +
+                            it];
       t_inp_1_part data_uf = data_f;
       ap_uint<c_act_width> data_u;
       data_u.range(c_act_width - 1, 0) = data_uf.range(c_act_width - 1, 0);
       send_data.range(c_act_width * (s_par + 1) - 1, c_act_width * s_par) =
         data_u;
 
-      // std::cout << data_u << " ";
-      // if (s_par == c_par - 1)
-        // std::cout << std::endl;
-
-      if (s_par == c_data_per_packet - 1){
+      if (s_par == c_data_per_packet - 1) {
         mem_activations[mem_activations_p++] = send_data;
         send_data = 0;
       }
       s_bytes++;
-      if (s_bytes == n_bytes)
-        break;
     }
     
     // TODO: Change arguments to -w 0 after first run in CSIM, to remove the
@@ -158,13 +174,9 @@ int main(int argc, char** argv) {
                               projPath,
                               c_index,
                               CLASSES,
-                              &mem_activations[c_index * s_batch],
-                              &mem_outputs[s_batch * CLASSES]);
+                              &mem_activations[i * c_index],
+                              &mem_outputs[i * CLASSES]);
 #endif /* CSIM */
-
-    s_batch++;
-    if (s_batch == c_batch)
-      break;
   }
 
 #ifndef CSIM
@@ -178,37 +190,31 @@ int main(int argc, char** argv) {
 
 #endif
 
+  unsigned int correct = 0;
   for (int image = 0; image < c_batch; image++) {
     t_out_mem max_value = INT32_MIN;
     int max_index = 0;
     std::cout << image << " image" << std::endl;
     for (int g = 0; g < CLASSES; g++) {
       auto data = mem_outputs[g + image * CLASSES];
-      ap_int<c_act_width> data_int;
-      data_int.range(c_act_width - 1, 0) = data.range(c_act_width - 1, 0);
-      std::cout << data << "\t" << data_int << std::endl;
+      t_out_mem expected_data = expected_results[g + image * CLASSES];
+      ap_int<c_act_width> data_int[2];
+      data_int[0].range(c_act_width - 1, 0) = data.range(c_act_width - 1, 0);
+      data_int[1].range(c_act_width - 1, 0) = expected_data.range(c_act_width - 1, 0);
+      std::cout << data << "\t(" << data_int[0] << ")\t" << expected_data
+                << "\t(" << data_int[1] << ")" << std::endl;
       if (data > max_value) {
         max_value = data;
         max_index = g;
       }
     }
     std::cout << "COMPUTED LABEL " << max_index << " -------- ";
-    std::cout << "EXPECTED LABEL " << (ap_int<8>)(dataset.test_labels[image])
+    std::cout << "EXPECTED LABEL " << (ap_int<8>)(labels[image])
               << std::endl;
     results[image] = max_index;
-  }
-
-  int s_labels = 0;
-  float correct = 0;
-  for (auto it = dataset.test_labels.begin(); it != dataset.test_labels.end();
-       ++it) {
-    if ((int)(*it) == results[s_labels])
+    if (max_index == labels[image]) {
       correct++;
-
-    s_labels++;
-
-    if (s_labels == (c_batch))
-      break;
+    }
   }
 
   std::cout << "ACCURACY " << correct / (float)(c_batch) << std::endl;

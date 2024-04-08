@@ -57,7 +57,7 @@ scp -r ${PRJ_ROOT}/overlay ${device}:${path}
 
 # execute kernel
 #cat ./host.py | ssh root@192.168.3.1 'python3 -'
-ssh ${device} "cd ${path} && source /etc/profile && python3 ${path}overlay/inference.py $1 $2 64 100"
+ssh ${device} "cd ${path} && source /etc/profile && python3 ${path}overlay/inference.py $1 $2 32 100"
 
 # cleanup
 scp ${device}:${path}overlay/results.txt ${PRJ_ROOT}/${res_file}

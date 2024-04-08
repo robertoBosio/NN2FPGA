@@ -69,25 +69,24 @@ class ImageNet(Dataset):
             return len(self.samples)
     
     def __getitem__(self, idx):
-            x = Image.open(self.samples[idx]).convert("RGB")
-            x = self.transform(x)
-            return x, self.targets[idx]
+        x = Image.open(self.samples[idx]).convert("RGB")
+        x = self.transform(x)
+        return torch.tensor(x), torch.tensor(self.targets[idx])
 
 def get_dataset(dataset, cifar=10, sample_size=None):
-    print('#### Loading dataset..')
     if dataset == 'cifar10':
 
         transforms_sel = cifar_transform
         BASE_DIR = "/home-ssd/datasets/cifar10/"
         train_args = {
             'train': True,
-            'download': True,
+            'download': False,
             'transform': transforms_sel(is_training=True),
             'root': BASE_DIR
         }
         val_args = {
             'train': False,
-            'download': True,
+            'download': False,
             'transform': transforms_sel(is_training=False),
             'root': BASE_DIR
         }
@@ -102,6 +101,33 @@ def get_dataset(dataset, cifar=10, sample_size=None):
         input_shape = (1, 3, 32, 32)
         train_dataset = dataset(**train_args)
         eval_dataset = dataset(**val_args)    
+    
+    elif dataset == 'cifar10_4bit':
+
+        transforms_sel = cifar_transform_4bit
+        BASE_DIR = "/home-ssd/datasets/cifar10/"
+        train_args = {
+            'train': True,
+            'download': False,
+            'transform': transforms_sel(is_training=True),
+            'root': BASE_DIR
+        }
+        val_args = {
+            'train': False,
+            'download': False,
+            'transform': transforms_sel(is_training=False),
+            'root': BASE_DIR
+        }
+        
+        if cifar == 10:
+            dataset = torchvision.datasets.CIFAR10
+        elif cifar == 100:
+            dataset = torchvision.datasets.CIFAR100
+        
+        input_shape = (1, 3, 32, 32)
+        train_dataset = dataset(**train_args)
+        eval_dataset = dataset(**val_args)    
+    
     elif dataset == 'ToyADMOS_train':
         print('#### Selected ToyADMOS train!')
         BASE_DIR = "/home/datasets/tinyML/anomaly_detection/ToyCar"
@@ -158,8 +184,8 @@ def get_dataset(dataset, cifar=10, sample_size=None):
             eval_dataset.append(ToyADMOSDataset_test(machine_data, machine_labels))
         input_shape = (1, 640, 1, 1)
         train_dataset = []
+
     elif dataset == 'imagenet':
-        print('#### Selected ImageNet !')
         IMG_SIZE = 256
         BASE_DIR = "/home-ssd/datasets/Imagenet/"
         transforms_sel = imagenet_transform
@@ -179,6 +205,7 @@ def get_dataset(dataset, cifar=10, sample_size=None):
         input_shape = (1, 3, IMG_SIZE, IMG_SIZE)
         train_dataset = dataset(**train_args)
         eval_dataset = dataset(**val_args)
+    
     elif dataset == 'vww':
         print('#### Selected VWW!')
         IMG_SIZE = 96

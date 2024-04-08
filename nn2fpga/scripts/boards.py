@@ -160,7 +160,6 @@ def hw_inference(
         np_features = (np.asarray(torch.permute(features, (0, 2, 3, 1))).flatten() * scale_factor).astype(np.int8)
         in_buffer[:] = np_features[:]
         
-        # with recorder.record(0.01):
         recorder.reset()
         recorder.record(0.01)
         start = time.time()    
@@ -177,6 +176,8 @@ def hw_inference(
         total_time += batch_time
         batch_power = recorder.frame[board["sensor_name"]].mean()
         batch_power_points = len(recorder.frame[board["sensor_name"]])
+        # batch_power = 0
+        # batch_power_points = 0
         batch_energy = batch_power * batch_time
         mean_power += batch_power
         total_energy += batch_energy

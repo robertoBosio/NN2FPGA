@@ -178,7 +178,6 @@ def inference_imagenet():
     with torch.no_grad():
         for images, labels in train_dataset:
             np_images = images.numpy()
-            # Add a new axis to the image to make it a batch of 1
             np_images = np.expand_dims(np_images, axis=0)
 
             inferred_model = execute_onnx_and_make_model(inferred_model, {'global_in': np_images})
@@ -195,40 +194,13 @@ def inference_imagenet():
             # if (total % 10 == 0):
             #     print(f"Images: {total}\tAccuracy on CIFAR-10: {100 * correct / total:.2f}%")
             break
-
-    # images = image_from_file("/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/tmp/logs/image_preprocessed_opencv.txt")
-
-    # mean = [0.485, 0.456, 0.406]
-    # std = [0.229, 0.224, 0.225]
-    # func = np.vectorize(float_to_fixed_point)
-    # images = func(images, 8, 8)
-    # with open(f"tmp/logs/image_premean.txt", 'w') as f:
-    #     for r in range(224):
-    #         for c in range(224):
-    #             for ch in range(3):
-    #                 print(images[ch][r][c], file=f) 
-
-    # img_transposed = np.transpose(images, (1, 2, 0))
-    # normalized_arr = (img_transposed - mean) / std
-    # images = np.transpose(normalized_arr, (2, 0, 1))
-
-    # images = np.float32(images)
-    # images = np.expand_dims(images, 0)
-
-    # inferred_model = execute_onnx_and_make_model(inferred_model, {'global_in': images})
     
     # print_weights_tensor('DequantizeLinear_71_out0', inferred_model, ich_ops=8, och_ops=2) 
     # print_bias_tensor('DequantizeLinear_18_out0', inferred_model) 
-    # print_acts_tensor('DequantizeLinear_107_out0', inferred_model, ow_ops=4, och_ops=2) 
-    # print_acts_tensor('DequantizeLinear_108_out0', inferred_model, ow_ops=4, och_ops=4) 
     print_acts_tensor('DequantizeLinear_106_out0', inferred_model, ow_ops=1, och_ops=3) 
-    print_acts_tensor('global_in', inferred_model, ow_ops=1, och_ops=3) 
-    print_acts_tensor('global_out', inferred_model, ow_ops=1, och_ops=1) 
-    # print_acts_tensor('global_out', inferred_model, ow_ops=1, och_ops=1) 
-    # BFS(inferred_model)
 
 def inference_cifar10():
-    onnx_path = "../test/onnx/resnet8_a4w4b32.onnx"
+    onnx_path = "../test/onnx/resnet8.onnx"
     onnx_model = ModelWrapper(onnx_path)
     cleanup_model(onnx_model)
     inferred_model = onnx_model.transform(infer_shapes.InferShapes())
@@ -238,89 +210,46 @@ def inference_cifar10():
     # hook the intermediate tensors with their name
     os.system(f"mkdir -p tmp/logs/{log_name}")
 
-    # CIFAR-10 dataset loading
-    transform = transforms.Compose([
-        transforms.Resize((32, 32)),
-        transforms.ToTensor(),
-    ])
-    batch_size = 1
-    cifar10_dataset = torchvision.datasets.CIFAR10(root="/home-ssd/datasets/cifar10/", train=False, download=False, transform=transform)
-    cifar10_loader = DataLoader(cifar10_dataset, batch_size=batch_size, shuffle=True)
+    train_dataset, eval_dataset, input_shape = get_dataset("cifar10_4bit")
     
     correct = 0
     total = 0
     outputs = 0
     with torch.no_grad():
-        for images, labels in cifar10_loader:
-            # func = np.vectorize(float_to_fixed_point)
-            # new_input = func(images.numpy())
+        for images, labels in eval_dataset:
             np_images = images.numpy()
-            # Add a new axis to the image to make it a batch of 1
             np_images = np.expand_dims(np_images, axis=0)
 
-            # inferred_model = execute_onnx_and_make_model(inferred_model, {'global_in': np_images})
-            outputs = execute_onnx(inferred_model, {'global_in': images.numpy()})
-            outputs = outputs['global_out']
-            outputs = np.squeeze(outputs)
-            predictions = np.argmax(outputs)
-            # print(outputs)
-            # print(f"Expected: {labels[0].item()}, computed: {predictions}")
-            total += 1
-            # for i in outputs:
-            #     print(i)
-            correct += (predictions == labels[0].item())
-            if (total % 10 == 0):
-                print(f"Images: {total * batch_size}\tAccuracy on CIFAR-10: {100 * correct / total:.2f}%")
-
-    # images = image_from_file("/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/tmp/logs/image_preprocessed_opencv.txt")
-
-    # mean = [0.485, 0.456, 0.406]
-    # std = [0.229, 0.224, 0.225]
-    # func = np.vectorize(float_to_fixed_point)
-    # images = func(images, 8, 8)
-    # with open(f"tmp/logs/image_premean.txt", 'w') as f:
-    #     for r in range(224):
-    #         for c in range(224):
-    #             for ch in range(3):
-    #                 print(images[ch][r][c], file=f) 
-
-    # img_transposed = np.transpose(images, (1, 2, 0))
-    # normalized_arr = (img_transposed - mean) / std
-    # images = np.transpose(normalized_arr, (2, 0, 1))
-
-    # images = np.float32(images)
-    # images = np.expand_dims(images, 0)
-
-    # inferred_model = execute_onnx_and_make_model(inferred_model, {'global_in': images})
+            inferred_model = execute_onnx_and_make_model(inferred_model, {'inp.1': np_images})
+            break
     
+    print_acts_tensor('DequantizeLinear_25_out0', inferred_model, ow_ops=4, och_ops=4) 
 
-    # for tensor in inferred_model.get_all_tensor_names():
-    #     print(tensor)
-    
-    # for node in inferred_model.graph.node:
-    #     # if node.name == "/conv1/output_quant/export_handler/Quant":
-    #     print(f"Node Name: {node.name}")
-    #     print(f"Op Type: {node.op_type}")
-    #     print("Input Names:")
-    #     for input_name in node.input:
-    #         print(f"  {input_name}")
-    #     print("Output Names:")
-    #     for output_name in node.output:
-    #         print(f"  {output_name}")
-    #     print("\nNode Attributes:")
-    #     for attr in node.attribute:
-    #         print(f"  {attr.name}: {attr}")
-    
-    # print_weights_tensor('DequantizeLinear_71_out0', inferred_model, ich_ops=8, och_ops=2) 
-    # print_bias_tensor('DequantizeLinear_18_out0', inferred_model) 
-    # print_acts_tensor('DequantizeLinear_107_out0', inferred_model, ow_ops=4, och_ops=2) 
-    # print_acts_tensor('DequantizeLinear_108_out0', inferred_model, ow_ops=4, och_ops=4) 
-    # print_acts_tensor('DequantizeLinear_106_out0', inferred_model, ow_ops=1, och_ops=3) 
-    # print_acts_tensor('global_in', inferred_model, ow_ops=1, och_ops=3) 
-    # print_acts_tensor('global_out', inferred_model, ow_ops=1, och_ops=1) 
-    # print_acts_tensor('global_out', inferred_model, ow_ops=1, och_ops=1) 
-    # BFS(inferred_model)
+def inference_cifar10_4bit():
+    onnx_path = "../test/onnx/resnet8_a4w4b32.onnx"
+    onnx_model = ModelWrapper(onnx_path)
+    cleanup_model(onnx_model)
+    inferred_model = onnx_model.transform(infer_shapes.InferShapes())
+    inferred_model = inferred_model.transform(InferDataTypes())
+    log_name = "resnet8_4bit"
 
+    # hook the intermediate tensors with their name
+    os.system(f"mkdir -p tmp/logs/{log_name}")
+
+    train_dataset, eval_dataset, input_shape = get_dataset("cifar10_4bit")
+    
+    correct = 0
+    total = 0
+    outputs = 0
+    with torch.no_grad():
+        for images, labels in eval_dataset:
+            np_images = images.numpy()
+            np_images = np.expand_dims(np_images, axis=0)
+
+            inferred_model = execute_onnx_and_make_model(inferred_model, {'global_in': np_images})
+            break
+    
+    print_acts_tensor('DequantizeLinear_25_out0', inferred_model, ow_ops=4, och_ops=4) 
 
 if __name__ == '__main__':
     inference_cifar10()
