@@ -65,8 +65,18 @@ int main(int argc, char** argv) {
   parser.addSwitch("--upload_weights", "-w", "input upload weights flag", "1");
   parser.addSwitch("--xclbin_file", "-x", "input binary file string", "");
   parser.addSwitch("--device_id", "-d", "device index", "0");
-  parser.parse(argc, argv);
+  parser.addSwitch("--onnx_path", "-o", "onnx absolute path", "");
+  parser.addSwitch("--dataset", "-dt", "dataset name", "");
+	parser.parse(argc, argv);
+  
+  /* Onnx full path */
+  std::string onnx_path = parser.value("onnx_path");
+  std::cout << "ONNX path: " << onnx_path << std::endl;
 
+  /* Dataset name */
+  std::string dataset = parser.value("dataset");
+  std::cout << "Dataset: " << dataset << std::endl;
+ 
   /* Images per batch */
   const unsigned int c_batch = stoi(parser.value("n_images"));
   
@@ -142,8 +152,21 @@ int main(int argc, char** argv) {
 	}
 #endif /* CSIM */
   
-  std::string command = "python3 preprocess.py 1";
-  system(command.c_str());
+  std::string command = "python3 preprocess.py " + std::to_string(c_batch) + " " + onnx_path + " " + dataset;
+  int status = system(command.c_str());
+
+  if (status < 0)
+    std::cout << "Error: " << strerror(errno) << ".\n";
+  else {
+    if (WIFEXITED(status)) {
+      if (WEXITSTATUS(status) != 0){
+        std::cout << "ONNX inference failed.\n";
+        return -1;
+      }
+    } else {
+      std::cout << "Program exited abnormaly.\n";
+    }
+  }
 
   std::vector<float> images = readBinaryFile<float>("/tmp/images_preprocessed.bin");
   std::vector<int> labels = readBinaryFile<int>("/tmp/labels_preprocessed.bin");
@@ -195,6 +218,7 @@ int main(int argc, char** argv) {
 #endif
 
   unsigned int correct = 0;
+  bool passed = true;
   for (int image = 0; image < c_batch; image++) {
     t_out_mem max_value = INT32_MIN;
     int max_index = 0;
@@ -207,13 +231,14 @@ int main(int argc, char** argv) {
       data_int[1].range(c_act_width - 1, 0) = expected_data.range(c_act_width - 1, 0);
       std::cout << data << "\t(" << data_int[0] << ")\t" << expected_data
                 << "\t(" << data_int[1] << ")" << std::endl;
+      passed &= (data == expected_data);
       if (data > max_value) {
         max_value = data;
         max_index = g;
       }
     }
     std::cout << "COMPUTED LABEL " << max_index << " -------- ";
-    std::cout << "EXPECTED LABEL " << (ap_int<8>)(labels[image])
+    std::cout << "CORRECT LABEL " << (ap_int<8>)(labels[image])
               << std::endl;
     results[image] = max_index;
     if (max_index == labels[image]) {
@@ -226,7 +251,8 @@ int main(int argc, char** argv) {
   std::cout << "AVG LATENCY: " << (inference_time.count() * 1000000) / c_batch
             << " us" << std::endl;
   
+  std::cout << "######## TEST " << (passed ? "PASSED" : "FAILED") << " ########" << std::endl;
   free(mem_activations);
   free(mem_outputs);
-  return 0;
+  return (passed ? 0 : -1);
 }

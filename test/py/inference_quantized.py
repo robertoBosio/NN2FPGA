@@ -157,7 +157,7 @@ def image_from_file(file_path):
     return array_3d
 
 def inference_imagenet():
-    onnx_path = "../test/onnx/mobilenet_v2_a8w8b32.onnx"
+    onnx_path = "../test/onnx/mobilenet_v2_a8w8b16_71.734.onnx"
     onnx_model = ModelWrapper(onnx_path)
     cleanup_model(onnx_model)
     inferred_model = onnx_model.transform(infer_shapes.InferShapes())
@@ -176,7 +176,7 @@ def inference_imagenet():
     total = 0
     outputs = 0
     with torch.no_grad():
-        for images, labels in train_dataset:
+        for images, labels in eval_dataset:
             np_images = images.numpy()
             np_images = np.expand_dims(np_images, axis=0)
 
@@ -197,7 +197,8 @@ def inference_imagenet():
     
     # print_weights_tensor('DequantizeLinear_71_out0', inferred_model, ich_ops=8, och_ops=2) 
     # print_bias_tensor('DequantizeLinear_18_out0', inferred_model) 
-    print_acts_tensor('DequantizeLinear_106_out0', inferred_model, ow_ops=1, och_ops=3) 
+    print_acts_tensor('DequantizeLinear_127_out0', inferred_model, ow_ops=4, och_ops=4) 
+    print_acts_tensor('global_out', inferred_model, ow_ops=1, och_ops=1) 
 
 def inference_cifar10():
     onnx_path = "../test/onnx/resnet8.onnx"
@@ -210,7 +211,7 @@ def inference_cifar10():
     # hook the intermediate tensors with their name
     os.system(f"mkdir -p tmp/logs/{log_name}")
 
-    train_dataset, eval_dataset, input_shape = get_dataset("cifar10_4bit")
+    train_dataset, eval_dataset, input_shape = get_dataset("cifar10")
     
     correct = 0
     total = 0
@@ -223,7 +224,7 @@ def inference_cifar10():
             inferred_model = execute_onnx_and_make_model(inferred_model, {'inp.1': np_images})
             break
     
-    print_acts_tensor('DequantizeLinear_25_out0', inferred_model, ow_ops=4, och_ops=4) 
+    print_acts_tensor('/layer1/layer1.0/relu/act_quant/export_handler/Quant_output_0', inferred_model, ow_ops=4, och_ops=4) 
 
 def inference_cifar10_4bit():
     onnx_path = "../test/onnx/resnet8_a4w4b32.onnx"
@@ -252,4 +253,4 @@ def inference_cifar10_4bit():
     print_acts_tensor('DequantizeLinear_25_out0', inferred_model, ow_ops=4, och_ops=4) 
 
 if __name__ == '__main__':
-    inference_cifar10()
+    inference_imagenet()

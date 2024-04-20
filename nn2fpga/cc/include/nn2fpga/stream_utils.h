@@ -265,7 +265,7 @@ consume_stream(hls::stream<din_wrap_t> dinStream[ow_ops],
 }
 
 #ifndef __SYNTHESIS__
-template<typename data_t, int CH, int W, int H, int ch_step, int w_step>
+template<typename data_t, int CH, int H, int W, int ch_step, int w_step>
 void
 act_tensor_hook(hls::stream<data_t> dinStream[w_step],
             hls::stream<data_t> doutStream[w_step],

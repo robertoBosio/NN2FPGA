@@ -9,10 +9,48 @@ import backend.quant
 from backend.layers.quant import get_quant_type, get_quant_constant
 from backend.layers import weights
 
+def chain_builder(node):
+    """ Builds the DSPs chain for the accumulation process """
+    
+    # Computing Packing guard bits for accumulation process
+    if node["och_pack"] > 1:
+        a_d_bits = node["weight_quant"]["bits"]
+        b_bits = node["input_quant"]["bits"]
+    else:
+        a_d_bits = node["input_quant"]["bits"]
+        b_bits = node["weight_quant"]["bits"]
+
+    end_simd_bit = 27 - 1 - a_d_bits
+
+    # number of partial results which must be padded in the 27-bits word
+    n_partial = node["och_pack"] * node["ow_pack"] // 2
+    
+    if (n_partial == 0):
+        n_partial = 1
+    guard_bits = (end_simd_bit - (a_d_bits + b_bits) * n_partial) // n_partial
+
+    op_group = 1 if (node["depth"] == 1) else node["ich_ops"]
+
+    # Computing the number of DSP chains needed for the accumulation process. 
+    # We must ensure that the accumulator will not overflow. As example, with
+    # 2 guard bits, the maximum number of sums without requiring an additional
+    # bit is 7.
+    max_acc = (2 ** (guard_bits + 1)) - 1
+    dsp_chains = int(np.ceil(node["kernel"] * op_group / max_acc))
+    log2_dsp_chains = int(math.ceil(np.log2(dsp_chains)))
+
+    # Mask selects where the partial results needs to be accumulated. It is used
+    # to avoid using a modulo operation inside the convolution.
+    mask = (1 << log2_dsp_chains) - 1
+    n_acc = 2 ** log2_dsp_chains 
+
+    print(f"simd: {n_acc}, max_acc {max_acc}, guard_bits {guard_bits}, mask: {mask} with {node['kernel'] * op_group} adds.")
+    return n_acc, mask, guard_bits
+
 def info(io_dict, node, node_name, init_info, tensors_info):
 
-    attributes = getattr(node, "attribute" )
-    inputs = getattr(node, "input" )
+    attributes = getattr(node, "attribute")
+    inputs = getattr(node, "input")
     input_shape = tensors_info[node.input[0]].tensor_type.shape
     output_shape = tensors_info[node.output[0]].tensor_type.shape
 
@@ -52,9 +90,8 @@ def info(io_dict, node, node_name, init_info, tensors_info):
     fw       = getattr(attributes[kernel_index], 'ints')[1]
     stride   = getattr(attributes[strides_index], 'ints')[0]
     pad      = getattr(attributes[pads_index], 'ints')[0]
-    is_1x1   = (fh == 1) and (fw == 1)
-    kernel   = fh*fw
-    img_ch   = ich*och
+    kernel   = fh * fw
+    img_ch   = ich * och
     relu     = False
     add      = False
     in_scale_factor = [None]
@@ -67,39 +104,27 @@ def info(io_dict, node, node_name, init_info, tensors_info):
     else:
         group = getattr(attributes[group_index], 'i')
 
-    if (group == och):
-        depth = 1
-    else:
-        depth = 0
+    # Mark depthwise convolutions
+    depth = (group == och)
 
-    if depth == 0:
-        total    = 1/(oh*ow*och*ich)
-        total_log = 2*oh*ow*och*ich*fh*fw
-    else:
-        total    = 1/(oh*ow*och)
-        total_log = 2*oh*ow*och*fh*fw
+    # Total number of window operations
+    total = oh * ow * och * (ich / group) 
 
     io_dict[node_name]["depth"] = depth
+    io_dict[node_name]["group"] = group
     io_dict[node_name]["ich"]    = ich
     io_dict[node_name]["ih"]     = ih
     io_dict[node_name]["iw"]     = iw
     io_dict[node_name]["och"]    = och
-    io_dict[node_name]["och_1x1"] = och
     io_dict[node_name]["oh"]     = oh
     io_dict[node_name]["ow"]     = ow
     io_dict[node_name]["fh"]     = fh
     io_dict[node_name]["fw"]     = fw
     io_dict[node_name]["stride"] = stride
-    if is_1x1:
-        io_dict[node_name]["pad"]    = 0
-    else:
-        io_dict[node_name]["pad"]    = pad
-    io_dict[node_name]["is_1x1"] = is_1x1
+    io_dict[node_name]["pad"]    = pad
     io_dict[node_name]["total"]  = total
-    io_dict[node_name]["total_log"]  = total_log
     io_dict[node_name]["kernel"] = kernel
     io_dict[node_name]["img_ch"] = img_ch
-    # Reuse is generic
     io_dict[node_name]["reuse"]  = 1
     io_dict[node_name]["relu"]   = relu
     io_dict[node_name]["add"]    = add
@@ -123,11 +148,21 @@ def info(io_dict, node, node_name, init_info, tensors_info):
     io_dict[node_name]["ow_ops"] = 1
     io_dict[node_name]["ow_ops_out"] = 1
     io_dict[node_name]["weights_name"] = [weight_name]
+    io_dict[node_name]["has_forward"] = False
     io_dict[node_name]["merge_1x1"] = False
-    io_dict[node_name]["has_bias"] = False 
+
+    # Supported quantizations for a convolutional layer
+    io_dict[node_name]["input_quant"] = None            # Input quantization
+    io_dict[node_name]["conv_output_quant"] = None      # Convolution output quantization
+    io_dict[node_name]["output_quant"] = None           # After-merge output quantization
+    
     if 'bias_name' in locals():
         io_dict[node_name]["bias_name"] = [bias_name]
         io_dict[node_name]["has_bias"] = True
+    else:
+        io_dict[node_name]["bias_name"] = None
+        io_dict[node_name]["has_bias"] = False 
+
 
     return io_dict
 
@@ -135,12 +170,7 @@ def get_input_name(node):
     return node["input"][0]
 
 def get_add_name(node):
-    has_bias = node["has_bias"]
-    if (has_bias):
-        add_name = node["input"][3]
-    else:
-        add_name = node["input"][2]
-    return add_name
+    return node["input"][1]
 
 def get_forward_name(node):
     return node["output"][1]
@@ -152,18 +182,19 @@ def get_output_name(node):
     return node["output"][0]
 
 def parse_comp(name, node, streaming_params=False):
-    input_name  = node["input"][0]
+    input_name  = get_input_name(node)
     input_type_name = input_name.replace("_skip", "")
-    weight_name = node["input"][1]
+    weight_name = f"{name}_weight"
 
     # If no batchnorm merge then there is no bias
     has_bias = node["has_bias"]
     if (has_bias):
-        bias_name = node["input"][2]
+        bias_name = f"{name}_bias"
 
     if (node["merge_1x1"]):
-        weight_1x1_name = node["input"][3]
-        bias_1x1_name = node["input"][4]
+        weight_1x1_name = f"{name}_merge_weight"
+        if node["merge_node"]["has_bias"]:
+            bias_1x1_name = f"{name}_merge_bias"
 
     if (node["add"]):
         add_name = get_add_name(node)
@@ -178,7 +209,6 @@ def parse_comp(name, node, streaming_params=False):
         forward_name = get_forward_name(node)
     if (node["merge_1x1"]):
         output_1x1_name = get_merge_1x1_name(node)
-        output_1x1_type_name = output_1x1_name.replace("_skip", "")
 
     block = {}
     block["func"] = "conv_comp_wrap"
@@ -188,7 +218,6 @@ def parse_comp(name, node, streaming_params=False):
     if (node["pad"] == 0) and (node["ow_ops"] == 1):
         block["template"].append("t_%s_lb_struct" % input_type_name)
         block["template"].append("t_%s_lb" % input_type_name)
-        # block["template"].append("t_%s_vector" % input_type_name)
         block["template"].append("t_%s_reduce" % input_type_name)
     else:
         block["template"].append("t_%s_window_struct" % input_type_name)
@@ -206,8 +235,6 @@ def parse_comp(name, node, streaming_params=False):
 
     if (node["add"]):
         block["template"].append("t_%s_struct" % add_type_name)
-        # TODO: add case of 1x1 forward
-        # block["template"].append("t_%s_vector" % add_type_name)
         block["template"].append("t_%s_vector" % add_type_name)
         block["template"].append(f"t_{add_base_type_name}")
     else:
@@ -220,11 +247,10 @@ def parse_comp(name, node, streaming_params=False):
     else:
         block["template"].append("std::nullptr_t")
 
-    if (node["in_scale_factor"][0] is not None):
+    if (node["input_quant"] is not None):
         block["template"].append("t_%s_mod" % input_type_name)
     else:
         block["template"].append("t_%s" % input_type_name)
-        # block["template"].append("std::nullptr_t")
 
     if (node["merge_1x1"]):
         block["template"].append("t_%s_1x1" % input_type_name)
@@ -252,8 +278,14 @@ def parse_comp(name, node, streaming_params=False):
     block["template"].append("t_%s_struct" % output_type_name)
     block["template"].append("t_%s_vector" % output_type_name)
     block["template"].append("t_%s" % output_type_name)
-    block["template"].append("t_%s_clip" % output_type_name)
-    block["template"].append("t_%s_mask" % output_type_name)
+    if (node["conv_output_quant"] is not None):
+        block["template"].append("t_%s_conv_quant" % output_type_name)
+    else:
+        block["template"].append("std::nullptr_t")
+    if (node["add"] and node["add_node"]["output_quant"] is not None):
+        block["template"].append("t_%s_add_quant" % output_type_name)
+    else:
+        block["template"].append("std::nullptr_t")
     if (node["merge_1x1"]):
         block["template"].append("t_%s_struct" % output_1x1_name)
         block["template"].append("t_%s" % output_1x1_name)
@@ -310,58 +342,15 @@ def parse_comp(name, node, streaming_params=False):
     # PACKING: providing info on quantization from template because
     # ap_fixed methods are not available at compile time and the
     # synthesizer gives an error
-    if (node["in_scale_factor"][0] is not None):
-        abits, aibits = get_quant_constant(node["in_signed"][0], node["in_bits"][0], node["in_scale_factor"][0])
-    else:
-        abits, aibits = get_quant_constant(node["actsigned"][0], node["actbits"][0], node["actscale"][0])
+    abits, aibits = get_quant_constant(node["input_quant"]["signed"], node["input_quant"]["bits"], node["input_quant"]["scale_factor"])
+    wbits, wibits = get_quant_constant(node["weight_quant"]["signed"], node["weight_quant"]["bits"], node["weight_quant"]["scale_factor"])
 
-    # Computing Packing guard bits for accumulation process
-    if node["och_pack"] > 1:
-        a_d_bits = node["wbits"][0]
-    else:
-        if (node["in_scale_factor"][0] is not None):
-            a_d_bits = node["in_bits"][0]
-        else:
-            a_d_bits = node["actbits"][0]
-
-    if node["och_pack"] > 1:
-        if (node["in_scale_factor"][0] is not None):
-            b_bits = node["in_bits"][0]
-        else:
-            b_bits = node["actbits"][0]
-    else:
-        b_bits = node["wbits"][0]
-
-    end_simd_bit = 27 - 1 - a_d_bits
-
-    # number of partial results which must be padded in the 27-bits word
-    n_partial = node["och_pack"] * node["ow_pack"] // 2
+    n_acc, mask, guard_bits = chain_builder(node)
     
-    if (n_partial == 0):
-        n_partial = 1
-    guard_bits = (end_simd_bit - (a_d_bits + b_bits) * n_partial) // n_partial
-
-    # simd = int(np.log2(node["kernel"])/guard_bits) + (0 != (np.log2(node["kernel"]) - int(np.log2(node["kernel"]))))
-    op_group = 1 if (node["depth"] == 1) else node["ich_ops"]
-
-    # Computing the number of DSP chains needed for the accumulation process. 
-    # We must ensure that the accumulator will not overflow. As example, with
-    # 2 guard bits, the maximum number of sums without requiring an additional
-    # bit is 7.
-    max_acc = (2 ** (guard_bits + 1)) - 1
-    dsp_chains = int(np.ceil(node["kernel"] * op_group / max_acc))
-    log2_dsp_chains = int(math.ceil(np.log2(dsp_chains)))
-
-    # Mask selects where the partial results needs to be accumulated. It is used
-    # to avoid using a modulo operation inside the convolution.
-    mask = (1 << log2_dsp_chains) - 1
-    n_acc = 2 ** log2_dsp_chains 
-    print(f"simd: {n_acc}, max_acc {max_acc}, guard_bits {guard_bits}, mask: {mask} for {name} with {node['kernel'] * op_group} adds.")
     block["template"].append({"name": f"{abits}", "comment": "act bits"})
     block["template"].append({"name": f"{aibits}", "comment": "act integer bits"})
-    abits, aibits = get_quant_constant(node["wsigned"][0], node["wbits"][0], node["wscale"][0])
-    block["template"].append({"name": f"{abits}", "comment": "weight bits"})
-    block["template"].append({"name": f"{aibits}", "comment": "weight integer bits"})
+    block["template"].append({"name": f"{wbits}", "comment": "weight bits"})
+    block["template"].append({"name": f"{wibits}", "comment": "weight integer bits"})
     block["template"].append({"name": f"{guard_bits}", "comment": "guard bits"})
     block["template"].append({"name": f"{n_acc}", "comment": "accumulators in parallel"})
     block["template"].append({"name": f"{mask}", "comment": "mask bits"})
@@ -371,97 +360,67 @@ def parse_comp(name, node, streaming_params=False):
     # ap_fixed methods are not available at compile time and the
     # synthesizer gives an error.
 
-    n_acc = 1
-    mask = 0
     if (node["merge_1x1"]):
-        # Computing Packing guard bits for accumulation process
-        if (node["in_scale_factor"][1] is not None):
-            abits, aibits = get_quant_constant(node["in_signed"][1], node["in_bits"][1], node["in_scale_factor"][1])
-        else:
-            abits, aibits = get_quant_constant(node["actsigned"][0], node["actbits"][0], node["actscale"][0])
-
-        if node["och_pack"] > 1:
-            a_d_bits = node["wbits"][1]
-        else:
-            if (node["in_scale_factor"][1] is not None):
-                a_d_bits = node["in_bits"][1]
-            else:
-                a_d_bits = node["actbits"][0]
-
-        if node["och_pack"] > 1:
-            if (node["in_scale_factor"][1] is not None):
-                b_bits = node["in_bits"][1]
-            else:
-                b_bits = node["actbits"][0]
-        else:
-            b_bits = node["wbits"][1]
-
-        end_simd_bit = 27 - 1 - a_d_bits
-        # number of partial results which must be padded in the 27-bits word
-        n_partial = node["och_pack"] * node["ow_pack"] // 2
-        if (n_partial == 0):
-            n_partial = 1
-        guard_bits = (end_simd_bit - (a_d_bits + b_bits)*n_partial)//n_partial
-        op_group = 1 if (node["depth"] == 1) else node["ich_ops"]
-        max_acc = (2 ** (guard_bits + 1)) - 1
-        dsp_chains = int(np.ceil(op_group / max_acc))
-        log2_dsp_chains = int(math.ceil(np.log2(dsp_chains)))
-
-        # Mask selects where the partial results needs to be accumulated. It is used
-        # to avoid using a modulo operation inside the convolution.
-        mask = (1 << log2_dsp_chains) - 1
-        n_acc = 2 ** log2_dsp_chains 
-    
+        abits, aibits = get_quant_constant(node["merge_node"]["input_quant"]["signed"], node["merge_node"]["input_quant"]["bits"], node["merge_node"]["input_quant"]["scale_factor"])
+        wbits, wibits = get_quant_constant(node["merge_node"]["weight_quant"]["signed"], node["merge_node"]["weight_quant"]["bits"], node["merge_node"]["weight_quant"]["scale_factor"])
+        n_acc, mask, guard_bits = chain_builder(node["merge_node"])
     else:
         abits = 0
         aibits = 0
+        wbits = 0
+        wibits = 0
         guard_bits = 2
+        n_acc = 1
+        mask = 0
 
     block["template"].append({"name": f"{abits}", "comment": "act bits 1x1"})
     block["template"].append({"name": f"{aibits}", "comment": "act integer bits 1x1"})
-
-    if (node["merge_1x1"]):
-        abits, aibits = get_quant_constant(node["wsigned"][1], node["wbits"][1], node["wscale"][1])
-    else:
-        abits = 0
-        aibits = 0
-    block["template"].append({"name": f"{abits}", "comment": "weight bits 1x1"})
-    block["template"].append({"name": f"{aibits}", "comment": "weight integer bits 1x1"})
+    block["template"].append({"name": f"{wbits}", "comment": "weight bits 1x1"})
+    block["template"].append({"name": f"{wibits}", "comment": "weight integer bits 1x1"})
     block["template"].append({"name": f"{guard_bits}", "comment": "guard bits 1x1"})
     block["template"].append({"name": f"{n_acc}", "comment": "accumulators in parallel 1x1"})
     block["template"].append({"name": f"{mask}", "comment": "mask bits 1x1"})
-    ####################################################################################
     
     width_stream = 8
     block["template"].append({"name" : node["shift_cycles"], "comment" : "shift cycles"})
     block["template"].append({"name" : width_stream, "comment" : "width stream"})
-    wbits, aibits = get_quant_constant(node["wsigned"][0], node["wbits"][0], node["wscale"][0])
+    block["template"].append({"name" : int(np.ceil(node["weight_quant"]["bits"] / width_stream)), "comment" : "weight reads per data"})
+    
     if (node["has_bias"]):
-        block["template"].append({"name" : int(np.ceil(node["bbits"]/width_stream)), "comment" : "bias reads per data"})
+        block["template"].append({"name" : int(np.ceil(node["bias_quant"]["bits"] / width_stream)), "comment" : "bias reads per data"})
     else:
         block["template"].append({"name" : 0, "comment" : "bias reads per data"})
-    block["template"].append({"name" : int(np.ceil(wbits/width_stream)), "comment" : "weight reads per data"})
+    
+    if (node["merge_1x1"]):
+        block["template"].append({"name" : int(np.ceil(node["merge_node"]["weight_quant"]["bits"] / width_stream)), "comment" : "weight reads per data 1x1"})
+        if (node["merge_node"]["has_bias"]):
+            block["template"].append({"name" : int(np.ceil(node["merge_node"]["bias_quant"]["bits"] / width_stream)), "comment" : "bias reads per data 1x1"})
+        else:
+            block["template"].append({"name" : 0, "comment" : "bias reads per data 1x1"})
+    else:
+        block["template"].append({"name" : 0, "comment" : "weight reads per data 1x1"})
+        block["template"].append({"name" : 0, "comment" : "bias reads per data 1x1"})
+    
     block["template"].append("c_%s_relu" % name)
-    block["template"].append({"name" : f"{node['depth']}", "comment" : "depth"})
-
-    if (node["in_scale_factor"][0] is not None):
-        actscale = node["in_scale_factor"][0]
-        actbits = node["in_bits"][0]
+    if (node["depth"]):
+        block["template"].append({"name" : "1", "comment" : "depth"})
     else:
-        actscale = node["actscale"][0]
-        actbits = node["actbits"][0]
+        block["template"].append({"name" : "0", "comment" : "depth"})
 
-    if (node["depth"] == 1):
-        acc_bits = actbits + node["wbits"][0] + math.ceil(math.log2(node["kernel"]))
+    # Computing accumulator bits for worst case scenario
+    actbits = node["input_quant"]["bits"]
+    actscale = node["input_quant"]["scale_factor"]
+    if (node["depth"]):
+        acc_bits = actbits + node["weight_quant"]["bits"] + math.ceil(math.log2(node["kernel"]))
     else:
-        acc_bits = actbits + node["wbits"][0] + math.ceil(math.log2(node["kernel"]*node["ich"]))
+        acc_bits = actbits + node["weight_quant"]["bits"] + math.ceil(math.log2(node["kernel"] * node["ich"]))
+
     if (has_bias):
         acc_bits += 1
     if (node["add"]):
         acc_bits += 1
-    # acc_bits += 1
 
-    acc_type = get_quant_type(True, acc_bits, actscale+node["wscale"][0], acc_reg=True)
+    acc_type = get_quant_type(True, acc_bits, actscale + node["weight_quant"]["scale_factor"], acc_reg=True)
     block["defines"] = {}
     block["defines"]["t_%s_acc" % output_name] = ["type", acc_type]
     block["defines"]["t_%s_acc_struct" % output_name] = [
@@ -469,12 +428,6 @@ def parse_comp(name, node, streaming_params=False):
         [["data", "t_%s_acc" % output_name], ["last", "bool"]]
     ]
 
-    output_type = get_quant_type(node["signed"][0], node["bits"][0], node["scale_factor"][0])
-    output_type_clip = get_quant_type(node["clip_signed"][0], node["clip_bits"][0], node["clip_factor"][0])
-    output_type_mask = get_quant_type(node["mask_signed"][0], node["mask_bits"][0], node["mask_factor"][0])
-
-    # TODO: check type declaration
-    # input window type declaration
     input_reduce_type = "std::array<t_%s, %0d>" % (input_name, node["line_ops"])
     block["defines"]["t_%s_reduce" % input_name] = ["type", input_reduce_type]
     input_window_type = "std::array<t_%s_reduce, %0d>" % (input_name, node["fh"]*(node["fw"]+(node["ow_ops"]-1)*node["stride"]))
@@ -493,60 +446,60 @@ def parse_comp(name, node, streaming_params=False):
         block["defines"]["t_%s_vector" % forward_name] = ["type", input_reduce_type]
         block["defines"]["t_%s_struct" % forward_name] = [
             "struct",
-            # [["data", "std::array<t_%s_reduce, 1>" % input_name], ["last", "bool"]]
             [["data", "std::array<t_%s_reduce, 1>" % input_name]]
         ]
+        block["defines"][f"t_{forward_name}"] = ["alias", f"t_{input_name}"]
 
-    # Output type declaration
-    output_ops = node["ops_out"]
+
+    # Output type declarations
+    output_type = get_quant_type(node["output_quant"]["signed"], node["output_quant"]["bits"], node["output_quant"]["scale_factor"])
     block["defines"]["t_%s" % output_name] = ["type", output_type]
+    
+    if (node["conv_output_quant"] is not None):
+        output_type_mask = get_quant_type(node["conv_output_quant"]["signed"], node["conv_output_quant"]["bits"], node["conv_output_quant"]["scale_factor"])
+        block["defines"]["t_%s_conv_quant" % output_name] = ["type", output_type_mask]
+
+    if (node["add"] and node["add_node"]["output_quant"] is not None):
+        output_type_clip = get_quant_type(node["add_node"]["output_quant"]["signed"], node["add_node"]["output_quant"]["bits"],  node["add_node"]["output_quant"]["scale_factor"])
+        block["defines"]["t_%s_add_quant" % output_name] = ["type", output_type_clip]
+    
+    output_ops = node["ops_out"]
     output_vector_type = "std::array<t_%s, %0d>" % (output_name, output_ops)
     block["defines"]["t_%s_vector" % output_name] = ["type", output_vector_type]
     block["defines"]["t_%s_struct" % output_name] = [
         "struct",
         [["data", "std::array<t_%s_vector, 1>" % output_name], ["last", "bool"]]
     ]
-    block["defines"]["t_%s_clip" % output_name] = ["type", output_type_clip]
-    block["defines"]["t_%s_mask" % output_name] = ["type", output_type_mask]
 
     if (node["merge_1x1"]):
-        output_type_1x1 = get_quant_type(node["signed"][1], node["bits"][1], node["scale_factor"][1])
-        # TODO: implement array of signed values for multi-output conv
+        output_type_1x1 = get_quant_type(node["merge_node"]["output_quant"]["signed"], node["merge_node"]["output_quant"]["bits"], node["merge_node"]["output_quant"]["scale_factor"])
         block["defines"]["t_%s" % output_1x1_name] = ["type", output_type_1x1]
         output_vector_type = "std::array<t_%s, %0d>" % (output_1x1_name, node["ops_out"])
         block["defines"]["t_%s_vector" % output_1x1_name] = ["type", output_vector_type]
         block["defines"]["t_%s_struct" % output_1x1_name] = [
             "struct",
-            # [["data", "std::array<t_%s_vector, 1>" % output_1x1_name], ["last", "bool"]]
             [["data", "std::array<t_%s_vector, 1>" % output_1x1_name]]
         ]
 
-    if (node["in_scale_factor"][0] is not None):
-        input_type_mod = get_quant_type(node["in_signed"][0], node["in_bits"][0], node["in_scale_factor"][0])
-        block["defines"]["t_%s_mod" % input_name] = ["type", input_type_mod]
+    # Input type declarations
+    input_type_mod = get_quant_type(node["input_quant"]["signed"], node["input_quant"]["bits"], node["input_quant"]["scale_factor"])
+    block["defines"]["t_%s_mod" % input_name] = ["type", input_type_mod]
 
     if (node["merge_1x1"]):
 
-        if (node["in_scale_factor"][1] is not None):
-            input_1x1_type = get_quant_type(node["in_signed"][1], node["in_bits"][1], node["in_scale_factor"][1])
-        else:
-            input_1x1_type = f"t_{input_type_name}"
-        block["defines"]["t_%s_1x1" % input_name] = ["type", input_1x1_type]
+        input_type_mod_1x1 = get_quant_type(node["merge_node"]["input_quant"]["signed"], node["merge_node"]["input_quant"]["bits"], node["merge_node"]["input_quant"]["scale_factor"])
+        block["defines"]["t_%s_1x1" % input_name] = ["type", input_type_mod_1x1]
 
-        if (node["in_scale_factor"][1] is not None):
-            if (node["depth"] == 1):
-                acc_bits = node["in_bits"][1] + node["wbits"][1]
-            else:
-                acc_bits = node["in_bits"][1] + node["wbits"][1] + math.ceil(math.log2(node["ich"]))
-            acc_bits += 1
-            acc_type_1x1 = get_quant_type(True, acc_bits, node["in_scale_factor"][1]+node["wscale"][1])
+        # Computing accumulator bits for worst case scenario
+        actbits = node["merge_node"]["input_quant"]["bits"]
+        actscale = node["merge_node"]["input_quant"]["scale_factor"]
+        if (node["depth"]):
+            acc_bits = actbits + node["merge_node"]["weight_quant"]["bits"]
         else:
-            if (node["depth"] == 1):
-                acc_bits = node["actbits"][0] + node["wbits"][1]
-            else:
-                acc_bits = node["actbits"][0] + node["wbits"][1] + math.ceil(math.log2(node["ich"]))
+            acc_bits = actbits + node["merge_node"]["weight_quant"]["bits"] + math.ceil(math.log2(node["ich"]))
+        if (node["merge_node"]["has_bias"]):
             acc_bits += 1
-            acc_type_1x1 = get_quant_type(True, acc_bits, node["actscale"][0]+node["wscale"][1])
+        acc_type_1x1 = get_quant_type(True, acc_bits, actscale + node["merge_node"]["weight_quant"]["scale_factor"], acc_reg=True)
 
         block["defines"]["t_%s_acc" % output_1x1_name] = ["type", acc_type_1x1]
         block["defines"]["t_%s_acc_struct" % output_1x1_name] = [
@@ -559,7 +512,7 @@ def parse_comp(name, node, streaming_params=False):
     block["defines"]["c_%s_ich" % name]            = ["const", node["ich"]]
     block["defines"]["c_%s_och" % name]            = ["const", node["och"]]
     if (node["merge_1x1"]):
-        block["defines"]["c_%s_och_1x1" % name]        = ["const", node["och_1x1"]]
+        block["defines"]["c_%s_och_1x1" % name]        = ["const", node["merge_node"]["och"]]
     else:
         block["defines"]["c_%s_och_1x1" % name]        = ["const", node["och"]]
     block["defines"]["c_%s_iw" % name]             = ["const", node["iw"]]
@@ -697,9 +650,7 @@ def parse_comp(name, node, streaming_params=False):
         declare["type"] = f"t_{bias_name}_mem"
         declare["is_array"] = True
         declare["is_const"] = False
-        # size = bias_node["values"].shape
         declare["size"] = weights.mem_shape_calc(node, node["fh"], node["fw"], True)
-        # declare["init"] = bias_node["values"]
         declare["form"] = "float"
         block["declare"].append(declare)
     
@@ -709,21 +660,17 @@ def parse_comp(name, node, streaming_params=False):
         declare["type"] = f"t_{weight_1x1_name}_mem"
         declare["is_array"] = True
         declare["is_const"] = False
-        # size = weight_node_1x1["values"].shape
         declare["size"] = weights.mem_shape_calc(node, 1, 1, False)
-        # declare["init"] = weight_node_1x1["values"]
         declare["form"] = "float"
         block["declare"].append(declare)
     
-    if (has_bias and node["merge_1x1"]):
+    if (node["merge_1x1"] and node["merge_node"]["has_bias"]):
         declare = {}
         declare["name"] = f"static c_{bias_1x1_name}"
         declare["type"] = f"t_{bias_1x1_name}_mem"
         declare["is_array"] = True
         declare["is_const"] = False
-        # size = bias_node_1x1["values"].shape
         declare["size"] = weights.mem_shape_calc(node, 1, 1, True)
-        # declare["init"] = bias_node_1x1["values"]
         declare["form"] = "float"
         block["declare"].append(declare)
 
@@ -748,7 +695,7 @@ def parse_comp(name, node, streaming_params=False):
     block["pragma"] = []
    
     # Binding memory to URAM storage
-    if node["uram_storage"]:
+    if node["weight_quant"]["uram_storage"]:
         pragma = {}
         pragma["name"] = "bind_storage"
         options = [
@@ -761,7 +708,7 @@ def parse_comp(name, node, streaming_params=False):
     
     if (node["merge_1x1"]):
         pragma = {}
-        if (node["uram_storage_1x1"]):
+        if (node["merge_node"]["weight_quant"]["uram_storage"]):
             pragma["name"] = "bind_storage"
             options = [
                 ["variable", f"c_{weight_1x1_name}"],
@@ -842,7 +789,7 @@ def parse_comp(name, node, streaming_params=False):
         pragma["options"] = options
         block["pragma"].append(pragma)
     
-    if (has_bias and node["merge_1x1"]):
+    if (node["merge_1x1"] and node["merge_node"]["has_bias"]):
         pragma = {}
         pragma["name"] = "array_reshape"
         options = [
@@ -877,14 +824,8 @@ def parse_comp(name, node, streaming_params=False):
         block["pragma"].append(pragma)
 
     # Dimension of the stream in output of the conv, covers a burst over och, ow_ops_out may be wrong
-    # if node["adjust_out"]:
-    #     depth = 3
-    # else:
     depth = int(node["och"] / node["ops_out"]) * node["ow_ops_out"] + 1
-    # depth = int(node["och"] / node["ops_out"]) + 1
-    # TODO: Modified to reduce bram usage but slowing down arch
-    # depth = 2
-
+    
     pragma = {}
     pragma["name"] = "stream"
     pragma_name = "s_%s" % (output_name)

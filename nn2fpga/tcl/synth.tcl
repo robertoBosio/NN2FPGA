@@ -48,19 +48,17 @@ if {${SIMD_DSP} == 1} {
 }
 
 if {${DATASET} != "cifar10"} {
-  puts ${PRJ_ROOT}/Vitis_Libraries/vision/L1/include/common/
+  puts ${PRJ_FULL_ROOT}/Vitis_Libraries/vision/L1/include/common/
 
-  add_files -cflags " -DCSIM -Icc/include -I${NN2FPGA_ROOT}/cc/include -I${TB_ROOT}/common/cmdparser -I${TB_ROOT}/common/logger -I${PRJ_ROOT}/Vitis_Libraries/vision/L1/include/" \
+  add_files -cflags " -DCSIM -Icc/include -I${NN2FPGA_ROOT}/cc/include -I${TB_ROOT}/common/cmdparser -I${TB_ROOT}/common/logger -I${PRJ_FULL_ROOT}/Vitis_Libraries/vision/L1/include/" \
     -tb ${TB_ROOT}/${DATASET}/network_tb.cc
 } else {
-  add_files -cflags " -DCSIM -Icc/include -I${NN2FPGA_ROOT}/cc/include -I${TB_ROOT}/common/cmdparser -I${TB_ROOT}/common/logger -I${TB_ROOT}/${DATASET}/include -I${PRJ_ROOT}/cc/include" \
+  add_files -cflags " -DCSIM -Icc/include -I${NN2FPGA_ROOT}/cc/include -I${TB_ROOT}/common/cmdparser -I${TB_ROOT}/common/logger -I${TB_ROOT}/${DATASET}/include -I${PRJ_FULL_ROOT}/cc/include" \
     -tb ${TB_ROOT}/${DATASET}/network_tb.cc
-  # add_files -cflags " -DCSIM -Icc/include -I${NN2FPGA_ROOT}/cc/include -I${TB_ROOT}/common/cmdparser -I${TB_ROOT}/common/logger -I${TB_ROOT}/${DATASET}/include -I${PRJ_ROOT}/cc/include" \
-  #   -tb ${TB_ROOT}/${DATASET}/network_tb.cc
 }
 add_files -tb ${TB_ROOT}/${DATASET}/preprocess.py
 add_files -tb ${TB_ROOT}/../py/utils
-add_files -tb ${PRJ_ROOT}/npy
+add_files -tb ${PRJ_FULL_ROOT}/npy
 
 if {${CSIM} == 1} {
   puts "CSIM: selected dataset is ${DATASET}"

@@ -506,10 +506,7 @@ def write_templated_converted(filename, dict, prj_root):
              
 
 
-def write(io_dict, model, file_name, dynamic_init, off_chip_storage, prj_root="/tmp"):
-
-    parsed_write, parsed_const = parse_all_main(io_dict, model, off_chip_storage)
-    parsed_write = parsed_write + parsed_const
+def write(io_dict, model, file_name, parsed_write, dynamic_init, off_chip_storage, prj_root="/tmp"):
 
     init(file_name, parsed_write, prj_root=prj_root)
     body(file_name, parsed_write, prj_root=prj_root)

@@ -72,8 +72,9 @@ def info(io_dict, node, node_name, init_info, tensors_info):
     io_dict[node_name]["ops"] = 1
     io_dict[node_name]["in_ops"] = 1
     io_dict[node_name]["ich_ops"] = 1
-    io_dict[node_name]["total"] = 1/(oh*ow*och)
-    io_dict[node_name]["total_log"] = 2*oh*ow*och*fh*fw
+    io_dict[node_name]["total"] = oh * ow * och
+    io_dict[node_name]["input_quant"] = None
+    io_dict[node_name]["output_quant"] = None
 
     return io_dict
 
@@ -91,8 +92,6 @@ def parse(name, node):
     input_type_name = input_name.replace("_skip", "")
     output_name = get_output_name(node)
     output_type_name = output_name.replace("_skip", "")
-
-    signed = node["signed"]
 
     block = {}
     block["func"] = "pool_op"
@@ -142,7 +141,7 @@ def parse(name, node):
     block["args"].append("s_%s" % output_name)
 
     block["defines"] = {}
-    output_type = get_quant_type(node["signed"], node["bits"][0], node["scale_factor"][0])
+    output_type = get_quant_type(node["output_quant"]["signed"], node["output_quant"]["bits"], node["output_quant"]["scale_factor"])
     block["defines"]["t_%s" % output_type_name] = ["type", output_type]
     output_vector_type = "std::array<t_%s, %s>" % (output_type_name, node["ops"])
     block["defines"]["t_%s_vector" % output_type_name] = ["type", output_vector_type]
@@ -169,17 +168,10 @@ def parse(name, node):
     if node["pool"] == 1:
         block["defines"]["t_%s_acc" % name]            = ["type", output_type]
     else:
-        # acc_bits = node["actbits"][0] + math.ceil(math.log2(node["fh"]*node["fw"]))
-        # acc_type = get_quant_type(True, acc_bits, node["actscale"][0], acc_reg=True)
-        acc_ibits = (2 ** (node["actbits"][0] + node["actscale"][0]) - 1)
-        acc_ibits = math.ceil(math.log2(acc_ibits * node["fh"] * node["fw"]))
-        if (node["actsigned"][0][0] == 1):
-            acc_ibits += 1
-            div_type = get_quant_type(True, 32, -(32 - acc_ibits))
-            acc_type = get_quant_type(True, acc_ibits - node["actscale"][0], node["actscale"][0], acc_reg=True)
-        else:
-            div_type = get_quant_type(False, 32, -(32 - acc_ibits))
-            acc_type = get_quant_type(False, acc_ibits - node["actscale"][0], node["actscale"][0], acc_reg=True)
+        acc_bits = node['input_quant']["bits"] + math.ceil(math.log2(node["fh"] * node["fw"]))
+        acc_ibits = node['input_quant']["bits"] + node['input_quant']["scale_factor"] + math.ceil(math.log2(node["fh"] * node["fw"]))
+        div_type = get_quant_type(node["input_quant"]["signed"], 32, -(32 - acc_ibits))
+        acc_type = get_quant_type(node["input_quant"]["signed"], acc_bits, node["input_quant"]["scale_factor"], acc_reg=True)
         block["defines"]["t_%s_acc" % name]        = ["type", acc_type]
         block["defines"]["t_%s_div" % name]        = ["type", div_type]
 
@@ -211,51 +203,14 @@ def parse(name, node):
 
     block["pragma"] = []
     pragma = {}
-    pragma["name"] = "aggregate"
-    options = [
-        ["variable", "s_%s" % output_name],
-    ]
-    pragma["options"] = options
-
-    # TODO: removed to test without pragma
-    # block["pragma"].append(pragma)
-
-    pragma = {}
-    pragma["name"] = "array_reshape"
-    options = [
-        ["variable", "s_%s" % output_name],
-        ["type", "cyclic"],
-        ["factor", node["ops"]//(8*8//node["bits"][0])],
-    ]
-    pragma["options"] = options
-
-    # TODO: removed to test without pragma
-    # block["pragma"].append(pragma)
-
-    pragma = {}
     pragma["name"] = "stream"
     options = [
         ["variable", "s_%s" % output_name],
-        ["depth", node["och"]//node["ops"]],
+        ["depth", node["och"] // node["ops"]],
         ["type", "fifo"],
     ]
     pragma["options"] = options
 
     block["pragma"].append(pragma)
-
-    # FIX: Adding pragma to bind storage to SRL
-    # if the depth of the fifo is small enough to
-    # not justify the use of BRAM
-    if (node["och"]//node["ops"] < 64):
-        pragma = {}
-        pragma["name"] = "bind_storage"
-        options = [
-            ["variable", "s_%s" % output_name],
-            ["impl", "SRL"],
-            ["type", "fifo"]
-        ]
-        pragma["options"] = options
-
-        block["pragma"].append(pragma)
 
     return block

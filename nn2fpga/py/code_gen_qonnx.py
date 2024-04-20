@@ -36,11 +36,11 @@ def main():
 
     onnx_path = str(os.environ.get("ONNX_FULL_PATH"))
 
-    if "PRJ_ROOT" not in os.environ:
+    if "PRJ_FULL_ROOT" not in os.environ:
         print("PROJECT ROOT NOT DEFINED")
         sys.exit(1)
 
-    PRJ_ROOT = str(os.environ.get("PRJ_ROOT"))
+    PRJ_ROOT = str(os.environ.get("PRJ_FULL_ROOT"))
 
     dynamic_init = False
     if "DYNAMIC_INIT" in os.environ:

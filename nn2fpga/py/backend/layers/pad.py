@@ -28,6 +28,7 @@ def info(io_dict, node, node_name, tensors_info, init_info):
     io_dict[node_name]["oh"]     = oh
     io_dict[node_name]["ow"]     = ow
     io_dict[node_name]["pad"]    = pad
+    io_dict[node_name]["type"]   = "pad"
 
     return io_dict
 

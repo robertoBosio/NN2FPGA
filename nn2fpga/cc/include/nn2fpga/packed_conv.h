@@ -42,12 +42,12 @@ quant_stream(t_acc i_acc)
 
   t_acc s_acc = i_acc;
 
-  if (c_relu == 1) {
-    s_acc = relu_op<t_acc>(s_acc);
-  }
-
   if constexpr (std::is_same<t_output_clip, std::nullptr_t>::value == false) {
     s_acc = t_output_clip(s_acc);
+  }
+
+  if (c_relu == 1) {
+    s_acc = relu_op<t_acc>(s_acc);
   }
 
   if constexpr (std::is_same<t_output_mask, std::nullptr_t>::value == false) {
@@ -70,20 +70,23 @@ quant_and_add_stream(t_acc i_acc, t_add i_add)
   
   t_acc s_acc = i_acc;
 
+  // Post convolution quantization
   if constexpr (std::is_same<t_output_clip, std::nullptr_t>::value == false) {
     s_acc = t_output_clip(s_acc);
   }
   
   s_acc += i_add;
+
+  // Post addition quantization
+  if constexpr (std::is_same<t_output_mask, std::nullptr_t>::value == false) {
+    s_acc = t_output_mask(s_acc);
+  }
   
   if constexpr (c_relu == 1) {
     s_acc = relu_op<t_acc>(s_acc);
   }
 
-  if constexpr (std::is_same<t_output_mask, std::nullptr_t>::value == false) {
-    s_acc = t_output_mask(s_acc);
-  }
-
+  // Post activation quantization
   return t_output(s_acc);
 }
 
@@ -3849,8 +3852,10 @@ template<typename t_input_struct, // input activation struct type
          const int c_mask_1x1,
          const int c_data_to_shift,
          const int c_stream_bits,
-         const int c_read_bias,
          const int c_read_weight,
+         const int c_read_bias,
+         const int c_read_weight_1x1,
+         const int c_read_bias_1x1,
          const int c_relu,
          const int c_depth>
 void
@@ -4012,8 +4017,8 @@ conv_comp_wrap(
       for (auto s_ch = 0; s_ch < c_ch_weight; s_ch++) {
         for (auto s_ops = 0; s_ops < c_och_ops * c_ich_ops; s_ops++) {
 #pragma HLS pipeline off
-          ap_uint<c_read_weight * c_stream_bits> unpacked_data = 0;
-          for (auto s_read = 0; s_read < c_read_weight; s_read++) {
+          ap_uint<c_read_weight_1x1 * c_stream_bits> unpacked_data = 0;
+          for (auto s_read = 0; s_read < c_read_weight_1x1; s_read++) {
 #pragma HLS pipeline off
 
             packed_data = p_in[0].read();
@@ -4036,8 +4041,8 @@ conv_comp_wrap(
       for (auto s_ch = 0; s_ch < c_loops_bias_1x1; s_ch++) {
         for (auto s_ops = 0; s_ops < c_bias_ops; s_ops++) {
 #pragma HLS pipeline off
-          ap_uint<c_read_bias * c_stream_bits> unpacked_data = 0;
-          for (auto s_read = 0; s_read < c_read_bias; s_read++) {
+          ap_uint<c_read_bias_1x1 * c_stream_bits> unpacked_data = 0;
+          for (auto s_read = 0; s_read < c_read_bias_1x1; s_read++) {
 #pragma HLS pipeline off
 
             packed_data = p_in[0].read();

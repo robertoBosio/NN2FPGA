@@ -5,29 +5,14 @@ import qonnx
 from onnx import numpy_helper
 import numpy as np
 
-def info(io_dict, tensors_info, model):
-
+def info(io_dict, graph_output_name):
 
     node_name = "consume_stream"
 
-    graph_output_name = model.graph.output[0].name
-    output_shape = tensors_info[graph_output_name].tensor_type.shape
-
-    graph_output_name = graph_output_name.replace(".", "_")
-
-    och      = getattr(output_shape, 'dim')[1].dim_value
-    oh       = getattr(output_shape, 'dim')[2].dim_value
-    ow       = getattr(output_shape, 'dim')[3].dim_value
-
     io_dict[node_name] = {}
-    io_dict[node_name]["input"] = [graph_input_name]
-    io_dict[node_name]["output"] = [graph_input_name]
-    io_dict[node_name]["is_constant"] = False
-    io_dict[node_name]["type"] = 'produce'
-
-    io_dict[node_name]["och"]    = och
-    io_dict[node_name]["oh"]     = oh
-    io_dict[node_name]["ow"]     = ow
+    io_dict[node_name]["input"] = [graph_output_name]
+    io_dict[node_name]["output"] = []
+    io_dict[node_name]["type"] = 'consume'
     io_dict[node_name]["ow_ops"]     = 1
 
     return io_dict

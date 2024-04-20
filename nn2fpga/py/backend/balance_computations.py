@@ -10,14 +10,39 @@ from backend.utils import extract_board_info
 from backend.ilp_utils import generate_valid_combinations
 from backend.ilp_utils import find_common_mult
 from backend.ilp_utils import find_max_commond_div
-from backend.graph import extract_connections
+from backend.graph import extract_connections, prev_layers, next_layers
 from backend.layers.weights import compute_bram_layer
 
+def packing_feature(operands_bitwidth, par):
+    """ Returns the number of operation that can be packed in a single DSP. 
+    
+    Arguments:
+        operand_bitwidth: Tuple containing information about the bitwidth of the operands.
+        par: Tuple containing the parallelization chosen for the layer in the format (och, ich, ow).
+
+    Returns:
+        int: The number of operations that can be packed in a single DSP.
+        tuple: The packing for each dimension.
+    """
+
+    operand_bits = max(operands_bitwidth)
+    if (operand_bits == 8):
+        if (par[2] % 2 == 0):
+            return 2, (1, 2)
+        elif (par[0] % 2 == 0):
+            return 2, (2, 1)
+    elif (operand_bits == 4):
+        if (par[0] % 2 == 0 and par[2] % 2 == 0):
+            return 4, (2, 2)
+        elif (par[2] % 2 == 0):
+            return 2, (1, 2)
+        elif (par[0] % 2 == 0):
+            return 2, (2, 1)
+    return 1, (1, 1)
 
 def layers_extractions(io_dict):
-    """ Extracts the information about the layers from the io_dict and stores it in a dictionary.""" 
+    """ Extracts useful layers information from the io_dict and stores it in a dictionary.""" 
     
-    total_computations = 0
     index = 0
     layers_info = []
     par_layers = ["conv", "pool"]
@@ -25,27 +50,34 @@ def layers_extractions(io_dict):
         if node_info["type"] in par_layers:
              
             kernel = node_info["fw"] * node_info["fh"]
-            total_computations += node_info["total_log"]
             depth = False
             merge_1x1 = False
-            bits = [0]
+            weight_bits = []
+            act_bits = []
             och_1x1 = node_info["och"]
             
             if node_info["type"] == "conv":
                 depth = node_info["depth"]
                 merge_1x1 = node_info["merge_1x1"]
-                bits = node_info["wbits"]
-                if (node_info["merge_1x1"]):
-                    och_1x1 = node_info["och_1x1"]
-
+                weight_bits.append(node_info["weight_quant"]["bits"])
+                act_bits.append(node_info["input_quant"]["bits"])
+                if (merge_1x1):
+                    och_1x1 = node_info["merge_node"]["och"]
+                    weight_bits.append(node_info["merge_node"]["weight_quant"]["bits"])
+                    act_bits.append(node_info["merge_node"]["input_quant"]["bits"])
+            else:
+                weight_bits.append(0)
+                act_bits.append(node_info["input_quant"]["bits"])
+            
             layers_info.append(
                 {
                     "type": node_info["type"],
                     "name": node_name,
-                    "total": 1 / node_info["total"],
+                    "total": node_info["total"],
                     "kernel": kernel,
                     "merge_1x1": merge_1x1,
-                    "bits": bits,
+                    "weight_bits": weight_bits,
+                    "act_bits": act_bits,
                     "ich" : node_info["ich"],
                     "och" : node_info["och"],
                     "iw" : node_info["iw"],
@@ -79,19 +111,18 @@ def generate_architectures(layers_info, NUM_DSP):
         # described in the graph optimization section of the paper. 
         if (layer["merge_1x1"]):
             max_och_par = math.gcd(layer["och"], layer["och_1x1"])
-
-        # Clipping the maximum parallelization to the available DSPs, since it is not
-        # possible that one layer uses all the DSPs, considering the packing
-        op_clip = (NUM_DSP / layer["kernel"]) * 2 
         
         if (layer["type"] == "pool"):
             max_ow_par = 1
         
-            
+        # Clipping the maximum parallelization to the available DSPs, since it is not
+        # possible that one layer uses all the DSPs, considering the packing
+        op_per_dsp, _ = packing_feature((layer["weight_bits"], layer["act_bits"]), (max_och_par, max_ich_par, max_ow_par))
+        op_clip = (NUM_DSP / layer["kernel"]) * op_per_dsp
+        
         valid_par_solutions.append(generate_valid_combinations(
             och=max_och_par, ich=max_ich_par, iw=max_ow_par, iw_clip=4, och_clip=20, op_clip=op_clip))
 
-        
     return valid_par_solutions
 
 def parallelismILP(layers_info, valid_par_solutions, NUM_DSP, NUM_PORTS, prj_root="/tmp"):
@@ -129,7 +160,8 @@ def parallelismILP(layers_info, valid_par_solutions, NUM_DSP, NUM_PORTS, prj_roo
     layers_info_unmerged = []
     for layer in [x for x in layers_info if x["type"] == "conv"]:
         layers_info_unmerged.append(layer.copy())
-        layers_info_unmerged[-1]["bits"] = layer["bits"][0]
+        layers_info_unmerged[-1]["weight_bits"] = layer["weight_bits"][0]
+        layers_info_unmerged[-1]["act_bits"] = layer["act_bits"][0]
         layers_info_unmerged[-1]["merge_1x1"] = False
         if layer["merge_1x1"]:
             layers_info_unmerged.append(
@@ -138,9 +170,10 @@ def parallelismILP(layers_info, valid_par_solutions, NUM_DSP, NUM_PORTS, prj_roo
                     "total": layer["total"],
                     "kernel": 1,
                     "merge_1x1": layer["merge_1x1"],
-                    "bits": layer["bits"][0],
+                    "weight_bits": layer["weight_bits"][1],
+                    "act_bits": layer["act_bits"][1],
                     "ich" : layer["ich"],
-                    "och" : layer["och"],
+                    "och" : layer["och_1x1"],
                     "depth": layer["depth"],
                     "index": layer["index"]
                 }
@@ -152,19 +185,10 @@ def parallelismILP(layers_info, valid_par_solutions, NUM_DSP, NUM_PORTS, prj_roo
     for layer in layers_info_unmerged:
         valid_dsp_solutions.append([])
         layer_par = valid_par_solutions[layer["index"]]
+        
         for single_par in layer_par:
-            dsp_used = np.prod(single_par) * layer["kernel"]
-
-            # Packing feature 
-            if (layer["bits"] == 8):
-                if (single_par[0] % 2 == 0 or single_par[2] % 2 == 0):
-                    dsp_used = np.prod(single_par) * layer["kernel"] / 2
-            elif (layer["bits"] == 4):
-                if (single_par[0] % 2 == 0 and single_par[2] % 2 == 0):
-                    dsp_used = np.prod(single_par) * layer["kernel"] / 4
-                elif (single_par[0] % 2 == 0 or single_par[2] % 2 == 0):
-                    dsp_used = np.prod(single_par) * layer["kernel"] / 2
-
+            op_per_dsp, _ = packing_feature((layer["weight_bits"], layer["act_bits"]), single_par)
+            dsp_used = (np.prod(single_par) * layer["kernel"]) / op_per_dsp
             valid_dsp_solutions[-1].append(dsp_used)
     
     # valid_bram_solutions stores the BRAMs used for each valid solution.
@@ -178,12 +202,11 @@ def parallelismILP(layers_info, valid_par_solutions, NUM_DSP, NUM_PORTS, prj_roo
             n_weights = layer["ich"] * layer["kernel"]
 
         for single_par in layer_par:
-            bram_used = compute_bram_layer(layer["bits"], n_weights, np.prod(single_par[:2]) * layer["kernel"])
+            bram_used = compute_bram_layer(layer["weight_bits"], n_weights, np.prod(single_par[:2]) * layer["kernel"])
             valid_bram_solutions[-1].append(bram_used)
 
     ####### Problem formulated as ILP #######
-    # Maximize throughput of worst layer
-    # prob = pulp.LpProblem("Parallel_ops", pulp.LpMaximize)
+    # Minimize latencies
     prob = pulp.LpProblem("Parallel_ops", pulp.LpMinimize)
     
     # Variables of the problem: for each layer each valid parallelization has a
@@ -195,13 +218,10 @@ def parallelismILP(layers_info, valid_par_solutions, NUM_DSP, NUM_PORTS, prj_roo
 
     var = pulp.LpVariable("slack", lowBound=0, cat="Integer")
     
-    # Objective function: maximize the parallelization of the heaviest layer.
-    # The decision variable "layer_binary_variables[worst_index][i]" select only
-    # one combination of ich and och for the worst layer. The multiplication
-    # between the two parameters represent the level of parallelization
+    # Objective function: minimize the maximum latency of the layers.
     prob += (
         var,
-        "Bottleneck_layer_parallelization"
+        "Minimization variable"
     )
 
     # Constraint: Only one binary variable per layer should be equal to 1
@@ -214,8 +234,7 @@ def parallelismILP(layers_info, valid_par_solutions, NUM_DSP, NUM_PORTS, prj_roo
         )
 
     # Constraint: The total number of DSPs used to achieve the chosen
-    # parallelization should be lower than the available ones. The number of
-    # DSPs used for each layer is computed as filter_size * och_par * ich_par
+    # parallelization should be lower than the available ones.
     constraints_counter += 1
     prob += (
         pulp.lpSum([pulp.lpDot(layer_binary_variables[layer['index']].values(),
@@ -223,35 +242,25 @@ def parallelismILP(layers_info, valid_par_solutions, NUM_DSP, NUM_PORTS, prj_roo
         f"DSP_constraint"
     )
 
-    # Constraint: The total number of memory ports used to achieve the chosen
-    # parallelization should be lower than the available ones. The number of
-    # ports used for each layer is computed as (filter_size * och_par * ich_par
-    # * bits) / bandwidth_mem.
-    # valid_par_solutions_mem = [[x[0] * x[1] for x in layer_sol] for layer_sol in valid_par_solutions]
+    # Constraint: The total number of BRAMs used to achieve the chosen
+    # parallelization should be lower than the available ones.
     constraints_counter += 1
     prob += (
-        # pulp.lpSum([layer["kernel"] * layer["bits"] / 72 *
-        #             pulp.lpDot(layer_binary_variables[layer['index']].values(),
-        #             valid_par_solutions_mem[layer['index']]) for layer in layers_info_unmerged]) <= NUM_PORTS,
-        # f"PORTS_constraint"
         pulp.lpSum([pulp.lpDot(layer_binary_variables[layer['index']].values(),
                     valid_bram_solutions[i]) for i, layer in enumerate(layers_info_unmerged)]) <= NUM_PORTS,
-        f"PORTS_constraint"
+        f"BRAM_constraint"
     )
     
-    # Constraints: The throughtput of each layer should be equal or bigger to
-    # the heaviest one. The throughtput of each layer is computed as the parallelism
-    # over the total number of iterations:
+    # Constraints: The latency of each layer should be equal or lower to the minimization variable.
     for layer_index in [x["index"] for x in layers_info]:
         constraints_counter += 1
         prob += (
             pulp.lpDot(layer_binary_variables[layer_index].values(),
                     valid_iter_solutions[layer_index]) <= var,
-            f"Throughtput_constraint_layer_{layer_index}"
+            f"Latency_constraint_layer_{layer_index}"
         )
 
-    # Constraints: The iteration done by a line_buffer should be always less
-    # than the one done by the heaviest layer, to avoid being a bottleneck
+    # Constraints: The latency of each line buffer should be equal or lower to the minimization variable.
     for layer_index in [x["index"] for x in layers_info]:
         constraints_counter += 1
         prob += (
@@ -260,37 +269,9 @@ def parallelismILP(layers_info, valid_par_solutions, NUM_DSP, NUM_PORTS, prj_roo
             f"Linebuffer_constraint_layer_{layer_index}"
         )
     
-    # Constraints: To avoid bottlenecks the write/read bandwidth of consecutive
-    # layers should be balanced. The write bandwidth is computed as (och_par *
-    # ich_par) / (ich). The read bandwidth is computed as (och_par * ich_par) /
-    # (och). For depthwise convolution the write bandwidth is ich_par.
-    # for layer_index in [x["index"] for x in layers_info[1:]]:
-    #     constraints_counter += 1
-    #     if layers_info[layer_index - 1]["depth"] or layers_info[layer_index - 1]["type"] == "pool":
-    #         prob += (
-    #             pulp.lpSum(
-    #                 [layer_binary_variables[layer_index - 1][i] * tuple[1] * tuple[2]
-    #                 for i, tuple in enumerate(valid_par_solutions[layer_index - 1])]
-    #             ) -
-    #             ( pulp.lpDot(layer_binary_variables[layer_index].values(),
-    #                 valid_tot_par_solutions[layer_index]) / layers_info[layer_index]["och"] ) >= 0,
-    #             f"ich_constraint_layer_{layer_index}"
-    #         )
-    #     else:
-    #         prob += (
-    #             ( pulp.lpDot(layer_binary_variables[layer_index - 1].values(),
-    #                 valid_tot_par_solutions[layer_index - 1]) / layers_info[layer_index - 1]["ich"] ) - 
-    #             ( pulp.lpDot(layer_binary_variables[layer_index].values(),
-    #                 valid_tot_par_solutions[layer_index]) / layers_info[layer_index]["och"] ) >= 0,
-    #             f"ich_constraint_layer_{layer_index}"
-    #         )
-    
-    prob.writeLP(prj_root + "/parallel_ops0.lp")
     start_time = time.time()
     prob.solve(PULP_CBC_CMD(timeLimit=10, msg=0))
-    # prob.solve(PULP_CBC_CMD(timeLimit=600, gapRel=0.1))
     end_time = time.time()
-    # prob.writeLP(prj_root + "/parallel_ops1.lp")
     if (prob.status == pulp.LpStatusInfeasible):
         print("Throughput problem unfeasible")
         exit(0)
@@ -312,7 +293,8 @@ def resourceILP(layers_info, model_II, valid_par_solutions, parallel_op, NUM_DSP
     layers_info_unmerged = []
     for layer in [x for x in layers_info if x["type"] == "conv"]:
         layers_info_unmerged.append(layer.copy())
-        layers_info_unmerged[-1]["bits"] = layer["bits"][0]
+        layers_info_unmerged[-1]["weight_bits"] = layer["weight_bits"][0]
+        layers_info_unmerged[-1]["act_bits"] = layer["act_bits"][0]
         layers_info_unmerged[-1]["merge_1x1"] = False
         if layer["merge_1x1"]:
             layers_info_unmerged.append(
@@ -321,9 +303,10 @@ def resourceILP(layers_info, model_II, valid_par_solutions, parallel_op, NUM_DSP
                     "total": layer["total"],
                     "kernel": 1,
                     "merge_1x1": layer["merge_1x1"],
-                    "bits": layer["bits"][0],
+                    "weight_bits": layer["weight_bits"][1],
+                    "act_bits": layer["act_bits"][1],
                     "ich" : layer["ich"],
-                    "och" : layer["och"],
+                    "och" : layer["och_1x1"],
                     "depth": layer["depth"],
                     "index": layer["index"]
                 }
@@ -369,18 +352,8 @@ def resourceILP(layers_info, model_II, valid_par_solutions, parallel_op, NUM_DSP
         valid_dsp_solutions.append([])
         layer_par = clamped_valid_par_solutions[layer["index"]]
         for single_par in layer_par:
-            dsp_used = np.prod(single_par) * layer["kernel"]
-            
-            # Packing feature 
-            if (layer["bits"] == 8):
-                if (single_par[0] % 2 == 0 or single_par[2] % 2 == 0):
-                    dsp_used = np.prod(single_par) * layer["kernel"] / 2
-            elif (layer["bits"] == 4):
-                if (single_par[0] % 2 == 0 and single_par[2] % 2 == 0):
-                    dsp_used = np.prod(single_par) * layer["kernel"] / 4
-                elif (single_par[0] % 2 == 0 or single_par[2] % 2 == 0):
-                    dsp_used = np.prod(single_par) * layer["kernel"] / 2
-            
+            op_per_dsp, _ = packing_feature((layer["weight_bits"], layer["act_bits"]), single_par)
+            dsp_used = (np.prod(single_par) * layer["kernel"]) / op_per_dsp
             valid_dsp_solutions[-1].append(dsp_used)
     
     # valid_bram_solutions stores the BRAMs used for each valid solution.
@@ -394,13 +367,13 @@ def resourceILP(layers_info, model_II, valid_par_solutions, parallel_op, NUM_DSP
             n_weights = layer["ich"] * layer["kernel"]
 
         for single_par in layer_par:
-            bram_used = compute_bram_layer(layer["bits"], n_weights, np.prod(single_par[:2]) * layer["kernel"])
+            bram_used = compute_bram_layer(layer["weight_bits"], n_weights, np.prod(single_par[:2]) * layer["kernel"])
             valid_bram_solutions[-1].append(bram_used)
     
     # Minimize resource usage
     prob_min = pulp.LpProblem("Resource_usage", pulp.LpMinimize)
     
-    # Objective function: minimize the BRAMs required to run the whole network.
+    # Objective function: minimize the BRAMs + DSPs required to run the whole network.
     prob_min += (
         pulp.lpSum([pulp.lpDot(layer_binary_variables[layer['index']].values(),
                     valid_bram_solutions[i]) for i, layer in enumerate(layers_info_unmerged)]) +
@@ -433,12 +406,9 @@ def resourceILP(layers_info, model_II, valid_par_solutions, parallel_op, NUM_DSP
     prob_min += (
         pulp.lpSum([pulp.lpDot(layer_binary_variables[layer['index']].values(),
                     valid_bram_solutions[i]) for i, layer in enumerate(layers_info_unmerged)]) <= NUM_PORTS,
-        f"PORTS_constraint"
+        f"BRAM_constraint"
     )
     
-    # Constraints: The throughtput of each layer should be equal or bigger to
-    # the heaviest one. The throughtput of each layer is computed as the parallelism
-    # over the total number of iterations:
     for layer_index in [x["index"] for x in layers_info]:
         prob_min += (
             pulp.lpDot(layer_binary_variables[layer_index].values(),
@@ -446,41 +416,13 @@ def resourceILP(layers_info, model_II, valid_par_solutions, parallel_op, NUM_DSP
             f"Throughtput_constraint_layer_{layer_index}"
         )
     
-    # Constraints: The iteration done by a line_buffer should be always less
-    # than the one done by the heaviest layer, to avoid being a bottleneck
     for layer_index in [x["index"] for x in layers_info]:
         prob_min += (
             ( pulp.lpDot(layer_binary_variables[layer_index].values(),
                 valid_iter_linebuffer[layer_index])) <= model_II,
-            f"linebuffer_constraint_layer_{layer_index}"
+            f"Linebuffer_constraint_layer_{layer_index}"
         )
     
-    # Constraints: To avoid bottlenecks the write/read bandwidth of consecutive
-    # layers should be balanced. The write bandwidth is computed as (och_par *
-    # ich_par) / (ich). The read bandwidth is computed as (och_par * ich_par) /
-    # (och). For depthwise convolution the write bandwidth is ich_par
-    # for layer_index in [x["index"] for x in layers_info[1:]]:
-    #     if layers_info[layer_index - 1]["depth"] or layers_info[layer_index - 1]["type"] == "pool":
-    #         prob_min += (
-    #             pulp.lpSum(
-    #                 [layer_binary_variables[layer_index - 1][i] * tuple[1] * tuple[2]
-    #                 for i, tuple in enumerate(clamped_valid_par_solutions[layer_index - 1])]
-    #             ) -
-    #             ( pulp.lpDot(layer_binary_variables[layer_index].values(),
-    #                 valid_tot_par_solutions[layer_index]) / layers_info[layer_index]["och"] ) >= 0,
-    #             f"ich_constraint_layer_{layer_index}"
-    #         )
-    #     else:
-    #         prob_min += (
-    #             ( pulp.lpDot(layer_binary_variables[layer_index - 1].values(),
-    #                 valid_tot_par_solutions[layer_index - 1]) / layers_info[layer_index - 1]["ich"] ) - 
-    #             ( pulp.lpDot(layer_binary_variables[layer_index].values(),
-    #                 valid_tot_par_solutions[layer_index]) / layers_info[layer_index]["och"] ) >= 0,
-    #             f"ich_constraint_layer_{layer_index}"
-    #         )
-    
-    # prob_min.solve()
-    prob_min.writeLP(prj_root + "/parallel_ops1.lp")
     prob_min.solve(PULP_CBC_CMD(msg=0))
     if (prob_min.status == pulp.LpStatusInfeasible):
         print("Resource problem unfeasible")
@@ -502,7 +444,8 @@ def balanceILP(layers_info, model_II, valid_par_solutions, parallel_op, NUM_PORT
     layers_info_unmerged = []
     for layer in [x for x in layers_info if x["type"] == "conv"]:
         layers_info_unmerged.append(layer.copy())
-        layers_info_unmerged[-1]["bits"] = layer["bits"][0]
+        layers_info_unmerged[-1]["weight_bits"] = layer["weight_bits"][0]
+        layers_info_unmerged[-1]["act_bits"] = layer["act_bits"][0]
         layers_info_unmerged[-1]["merge_1x1"] = False
         if layer["merge_1x1"]:
             layers_info_unmerged.append(
@@ -511,9 +454,10 @@ def balanceILP(layers_info, model_II, valid_par_solutions, parallel_op, NUM_PORT
                     "total": layer["total"],
                     "kernel": 1,
                     "merge_1x1": layer["merge_1x1"],
-                    "bits": layer["bits"][0],
+                    "weight_bits": layer["weight_bits"][1],
+                    "act_bits": layer["act_bits"][1],
                     "ich" : layer["ich"],
-                    "och" : layer["och"],
+                    "och" : layer["och_1x1"],
                     "depth": layer["depth"],
                     "index": layer["index"]
                 }
@@ -532,7 +476,7 @@ def balanceILP(layers_info, model_II, valid_par_solutions, parallel_op, NUM_PORT
         chosen_par = np.prod(parallel_op[layers_info[i]['name']][0:2])
         chosen_ow = parallel_op[layers_info[i]['name']][2]
         
-        # Do not choose combination which remove the packing feature over och.
+        # Do not choose combinations which remove the packing feature over och.
         packing_over_och = parallel_op[layers_info[i]
                                        ['name']][0] % 2 == 0 and chosen_ow % 2 != 0
         for combination in solution_set:
@@ -560,7 +504,7 @@ def balanceILP(layers_info, model_II, valid_par_solutions, parallel_op, NUM_PORT
             n_weights = layer["ich"] * layer["kernel"]
 
         for single_par in layer_par:
-            bram_used = compute_bram_layer(layer["bits"], n_weights, np.prod(single_par[:2]) * layer["kernel"])
+            bram_used = compute_bram_layer(layer["weight_bits"], n_weights, np.prod(single_par[:2]) * layer["kernel"])
             valid_bram_solutions[-1].append(bram_used)
     
     # valid_iter_linebuffer stores the line buffer number of iteration for each valid
@@ -589,10 +533,9 @@ def balanceILP(layers_info, model_II, valid_par_solutions, parallel_op, NUM_PORT
     prob_min += (
         pulp.lpSum([pulp.lpDot(layer_binary_variables[layer['index']].values(),
                     valid_bram_solutions[i]) for i, layer in enumerate(layers_info_unmerged)]) <= NUM_PORTS,
-        f"PORTS_constraint"
+        f"BRAM_constraint"
     )
     
-    # Constraint: Only one binary variable per layer should be equal to 1
     for layer_index in [x["index"] for x in layers_info]:
         ones = [1] * len(layer_binary_variables[layer_index])
         prob_min += (
@@ -600,43 +543,14 @@ def balanceILP(layers_info, model_II, valid_par_solutions, parallel_op, NUM_PORT
             f"One_choice_constraint_layer_{layer_index}"
         )
     
-    # Constraints: The iteration done by a line_buffer should be always less
-    # than the one done by the heaviest layer, to avoid being a bottleneck
     for layer_index in [x["index"] for x in layers_info]:
         prob_min += (
             ( pulp.lpDot(layer_binary_variables[layer_index].values(),
                 valid_iter_linebuffer[layer_index])) <= model_II,
-            f"linebuffer_constraint_layer_{layer_index}"
+            f"Linebuffer_constraint_layer_{layer_index}"
         )
     
-    # Constraints: To avoid bottlenecks the write/read bandwidth of consecutive
-    # layers should be balanced. The write bandwidth is computed as (och_par *
-    # ich_par) / (ich). The read bandwidth is computed as (och_par * ich_par) /
-    # (och). For depthwise convolution the write bandwidth is ich_par
-    # for layer_index in [x["index"] for x in layers_info[1:]]:
-    #     if layers_info[layer_index - 1]["depth"] or layers_info[layer_index - 1]["type"] == "pool":
-    #         prob_min += (
-    #             pulp.lpSum(
-    #                 [layer_binary_variables[layer_index - 1][i] * tuple[1] * tuple[2]
-    #                 for i, tuple in enumerate(clamped_valid_par_solutions[layer_index - 1])]
-    #             ) -
-    #             ( pulp.lpDot(layer_binary_variables[layer_index].values(),
-    #                 valid_tot_par_solutions[layer_index]) / layers_info[layer_index]["och"] ) >= 0,
-    #             f"ich_constraint_layer_{layer_index}"
-    #         )
-    #     else:
-    #         prob_min += (
-    #             ( pulp.lpDot(layer_binary_variables[layer_index - 1].values(),
-    #                 valid_tot_par_solutions[layer_index - 1]) / layers_info[layer_index - 1]["ich"] ) - 
-    #             ( pulp.lpDot(layer_binary_variables[layer_index].values(),
-    #                 valid_tot_par_solutions[layer_index]) / layers_info[layer_index]["och"] ) >= 0,
-    #             f"ich_constraint_layer_{layer_index}"
-    #         )
-    
-    # prob_min.solve()
-    prob_min.writeLP(prj_root + "/parallel_ops2.lp")
     prob_min.solve(PULP_CBC_CMD(msg=0))
-    
     if (prob_min.status == pulp.LpStatusInfeasible):
         print("Resource problem unfeasible")
         exit(0)
@@ -754,20 +668,12 @@ def print_report(layers_info, layer_par, n_variables, n_constraints, model_II, t
             ow_ops = layer_par[layer['name']][2]
             ich_ops = layer_par[layer['name']][1]
             och_ops = layer_par[layer['name']][0]
-            bits = layer["bits"][0]
+            bits = layer["weight_bits"][0]
             dsp = layer["kernel"] * och_ops * ich_ops * ow_ops
 
-            if bits == 8:
-                if (och_ops % 2 == 0 or ow_ops % 2 == 0):
-                    pack = "P"
-                    dsp = dsp // 2
-            elif bits == 4:
-                if (och_ops % 2 == 0 and ow_ops % 2 == 0):
-                    pack = "DP"
-                    dsp = dsp // 4
-                elif (och_ops % 2 == 0 or ow_ops % 2 == 0):
-                    pack = "P"
-                    dsp = dsp // 2
+            op_per_dsp, _ = packing_feature((layer["weight_bits"][0], layer["act_bits"][0]), layer_par[layer['name']])
+            pack = str(op_per_dsp)
+            dsp = dsp // op_per_dsp
 
             if layer["type"] == "pool":
                 dsp = 0
@@ -805,22 +711,15 @@ def print_report(layers_info, layer_par, n_variables, n_constraints, model_II, t
             table_data.append(row_data)
 
             if layer["merge_1x1"]:
-                bits = layer["bits"][0]
+                bits = layer["weight_bits"][1]
                 dsp = och_ops * ich_ops * ow_ops
                 iter = int(layer["total"] / (ich_ops * och_ops * ow_ops))
                 port = math.ceil(bits * och_ops * ich_ops / 72)
+
+                op_per_dsp, _ = packing_feature((layer["weight_bits"][1], layer["act_bits"][1]), layer_par[layer['name']])
+                pack = str(op_per_dsp)
+                dsp = dsp // op_per_dsp
                 
-                if bits == 8:
-                    if (och_ops % 2 == 0 or ow_ops % 2 == 0):
-                        pack = "P"
-                        dsp = dsp // 2
-                elif bits == 4:
-                    if (och_ops % 2 == 0 and ow_ops % 2 == 0):
-                        pack = "DP"
-                        dsp = dsp // 4
-                    elif (och_ops % 2 == 0 or ow_ops % 2 == 0):
-                        pack = "P"
-                        dsp = dsp // 2
                 weights = layer["ich"] * layer["och"] * layer["kernel"]
                 if layer["depth"]:
                     weights = layer["ich"] * layer["kernel"]
@@ -859,6 +758,7 @@ def print_report(layers_info, layer_par, n_variables, n_constraints, model_II, t
 def write_parallelism(io_dict, model, parallel_ops):
 
     io_connect = extract_connections(model, io_dict)
+    print(parallel_ops)
 
     for node_name, ops in parallel_ops.items():
         # The pool layer accept only parallelization over ich
@@ -872,29 +772,27 @@ def write_parallelism(io_dict, model, parallel_ops):
             io_dict[node_name]["ops"] = ops[0]
             io_dict[node_name]["ich_ops"] = ops[1]
             io_dict[node_name]["ow_ops"] = ops[2]
+            io_dict[node_name]["reuse"] = ops[2]
             io_dict[node_name]["ow_ops_out"] = ops[2]
-            io_dict[node_name]["ops_1x1"] = ops[0]
             io_dict[node_name]["line_ops"] = ops[1]
             io_dict[node_name]["dp"] = False
+            if io_dict[node_name]["merge_1x1"]:
+                io_dict[node_name]["merge_node"]["ops"] = ops[0]
+                io_dict[node_name]["merge_node"]["ich_ops"] = ops[1]
+                io_dict[node_name]["merge_node"]["ow_ops"] = ops[2]
+                io_dict[node_name]["merge_node"]["reuse"] = ops[2]
+
 
     # Propagating ops and ow_ops to input nodes to assign ops_out and ow_ops_out
     print("Starting backward propagation of ops and ow_ops")
     for name, node in io_dict.items():
         if "ops" in node:
-            input_name = io_dict[name]["input"][0]
 
-            # Check if the input tensor is an input of the model
-            # If it is, skip it
-            is_model_input = False
-            for input_graph_name in model.graph.input:
-                input_graph_name = input_graph_name.name.replace(".", "_")
-                if input_graph_name == input_name:
-                    is_model_input = True
-            
-            if is_model_input:
+            if (node["type"] == "produce"):
                 continue
 
-            input_node_name = io_connect[input_name][0][0]
+            input_node_name = prev_layers(io_dict, io_connect, name)[0]
+
             line_ops = node["line_ops"]
             ow_ops = node["ow_ops"]
             if "depth" in node:
@@ -923,7 +821,7 @@ def write_parallelism(io_dict, model, parallel_ops):
         if "ops" in node:
             output_name = io_dict[name]["output"][0]
             output_node_name = io_connect[output_name][1][0]
-            if output_node_name != "consume_stream":
+            if io_dict[output_node_name]["type"] != "consume":
                 ops_out = node["ops_out"]
                 io_dict[output_node_name]["in_ops"] = ops_out
             else:
@@ -959,9 +857,14 @@ def write_parallelism(io_dict, model, parallel_ops):
     print("Starting adaptation of tensor width between layers")
     for name, node in io_dict.items():
         if "ow_ops" in node:
-            output_name = io_dict[name]["output"][0]
-            output_node_name = io_connect[output_name][1][0]
-            if output_node_name != "consume_stream":
+            
+            output_node_name = next_layers(io_dict, io_connect, name)
+            if output_node_name is None:
+                continue
+            else:
+                output_node_name = output_node_name[0]
+            
+            if io_dict[output_node_name]["type"] != "consume":
                 next_node = io_dict[output_node_name]
                 print(f"Considering {name} -> {output_node_name}: {node['ow_ops']} -> {next_node['ow_ops']}")
 
@@ -1044,17 +947,15 @@ def write_parallelism(io_dict, model, parallel_ops):
     for name, node in io_dict.items():
         if node["type"] in line_buffer_layers:
             # check if the input tensor is produced by a produce_stream node
-            input_name = node["input"][0]
-            input_node_name = io_connect[input_name][0][0]
-            if io_dict[input_node_name]["type"] != "produce":
+            first_input_node_name = prev_layers(io_dict, io_connect, name)[0]
+            if io_dict[first_input_node_name]["type"] != "produce":
                 if "adjust_line_buffer" in node.keys():
-                    io_dict[input_node_name]["adjust_out"] = node["adjust_line_buffer"]
+                    io_dict[first_input_node_name]["adjust_out"] = node["adjust_line_buffer"]
                 else:
-                    io_dict[input_node_name]["adjust_out"] = False
+                    io_dict[first_input_node_name]["adjust_out"] = False
 
-            output_name = node["output"][0]
-            output_node_name = io_connect[output_name][1][0]
-            if output_node_name == "consume_stream":
+            first_output_node_name = next_layers(io_dict, io_connect, name)[0]
+            if first_output_node_name == "consume_stream":
                 io_dict[name]["adjust_out"] = False
     
     # Check for necessary bandwidth adjustements for the add stream
@@ -1064,19 +965,15 @@ def write_parallelism(io_dict, model, parallel_ops):
             if node["add"]:
 
                 # obtain ops parallelism for the add stream
-                if (node["add"]):
-                    if (node["has_bias"]):
-                        add_name = node["input"][3]
-                    else:
-                        add_name = node["input"][2]
-
-                add_node_name = io_connect[add_name][0][0]
-                if (io_dict[add_node_name]["merge_1x1"]):
-                    add_ops = io_dict[add_node_name]["ops_out"]
+                skip_producer_name = prev_layers(io_dict, io_connect, name)
+                skip_producer_name = skip_producer_name[1]
+                if (io_dict[skip_producer_name]["merge_1x1"]):
+                    add_ops = io_dict[skip_producer_name]["ops_out"]
                 else:
                     # ich_ops because it's a forward
-                    add_ops = io_dict[add_node_name]["ich_ops"]
-                ow_ops = io_dict[add_node_name]["ow_ops_out"]
+                    add_ops = io_dict[skip_producer_name]["ich_ops"]
+
+                ow_ops = io_dict[skip_producer_name]["ow_ops_out"]
                 node["add_ops"] = add_ops
 
                 if (node["add_ops"] % node["ops"] != 0) or (node["ow_ops"] != ow_ops):
@@ -1094,7 +991,19 @@ def write_parallelism(io_dict, model, parallel_ops):
                     node["adjust_add"] = False
             else:
                 node["adjust_add"] = False
+        
+    print("Assigning packing")
+    for name, node in io_dict.items():
+        if node["type"] == "conv":
+            _, packing = packing_feature((node["weight_quant"]["bits"], node["input_quant"]["bits"]), [node["ops"], node["ich_ops"], node["ow_ops"]])
+            node["och_pack"] = packing[0]
+            node["ow_pack"] = packing[1]
+            print(f"Assigning packing for {name}: {packing}")
 
+            if node["merge_1x1"]:
+                node["merge_node"]["och_pack"] = packing[0]
+                node["merge_node"]["ow_pack"] = packing[1]
+                print(f"Assigning packing for {name} (merge): {packing}")
     return io_dict
 
 def check_adjustments(io_dict, model):
@@ -1107,7 +1016,7 @@ def check_adjustments(io_dict, model):
             output_name = io_dict[name]["output"][0]
             output_node_name = io_connect[output_name][1][0]
 
-            if output_node_name != "consume_stream":
+            if io_dict[output_node_name]["type"] != "consume":
                 # Checking conv layers
                 if node["type"] == "conv" and node["depth"] == False:
                     if (node["ops"] > node["ops_out"]):

@@ -5,7 +5,7 @@ import qonnx
 from onnx import numpy_helper
 import numpy as np
 from backend.graph import *
-from backend.layers.conv import get_add_name
+# from backend.layers.conv import get_add_name
 
 def compute_out_quant(
         actscale=None,
@@ -165,6 +165,7 @@ def hw_quant(model, io_dict):
     return io_dict
 
 def weights_quant(model, io_dict):
+    """ Assign directly to convolutional layer the quantization of the weights and biases """
     
     io_connect = extract_connections(model, io_dict)
 

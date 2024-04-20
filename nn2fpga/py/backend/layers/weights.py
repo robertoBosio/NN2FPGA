@@ -109,11 +109,10 @@ def bram_consumption(weight_bits, weight_number, parallelism, WIDTH=36):
 
 def parse_on_chip_weights(
     node_info,
+    node_quant,
     pre_values,
-    bits = 8,
-    signed = 1,
-    narrow = 1,
-    dynamic_init = False
+    dynamic_init = False,
+    is_bias = False
 ):
 
     # Transforming a filter of dimension [och][ich][ih][iw] into one of
@@ -121,12 +120,19 @@ def parse_on_chip_weights(
     # computed in parallel
 
     dich = node_info["ich"]
-    dih  = node_info["ih"]
-    diw  = node_info["iw"]
+    dih  = node_info["fh"]
+    diw  = node_info["fw"]
     doch = node_info["och"]
     dops = node_info["ops"]
     dich_ops = node_info["ich_ops"]
-    scale_factor = 2**node_info["scale_factor"]
+
+    if node_info["depth"]:
+        doch = 1
+
+    scale_factor = 2 ** node_quant["scale_factor"]
+    signed = node_quant["signed"]
+    bits = node_quant["bits"]
+    narrow = node_quant["narrow"]
 
     narrow_h = 0
     if not signed and narrow:
@@ -145,9 +151,11 @@ def parse_on_chip_weights(
     assert doch_ops > 0
 
     values = np.zeros(
-        mem_shape_calc(node_info, node_info["ih"], node_info["iw"], node_info["is_bias"])
+        mem_shape_calc(node_info, node_info["fh"], node_info["fw"], is_bias)
     )
 
+    print(f"ops: {dops}, ich_ops: {dich_ops}, ich: {dich}, och: {doch}, depth: {node_info['depth']}")
+    print(f"shape: {values.shape}")
     # Reordering the weights based on the parallelism needed by the convolution
     for ich in range(dich_iter_ops):
         for och in range(doch_ops):
@@ -178,19 +186,21 @@ def parse_on_chip_weights(
 
 def parse_on_chip_biases(
     node_info,
+    node_quant,
     pre_values,
-    bits = 8,
-    signed = 1,
-    narrow = 1,
-    dynamic_init = False
+    dynamic_init = False,
+    is_bias = False
 ):
     """ Parse the biases and reorganize the data """
 
-    dich = node_info["ich"]
     doch = node_info["och"]
     dops = node_info["ops"]
     dich_ops = node_info["ich_ops"]
-    scale_factor = 2**node_info["scale_factor"]
+
+    scale_factor = 2**node_quant["scale_factor"]
+    bits = node_quant["bits"]
+    signed = node_quant["signed"]
+    narrow = node_quant["narrow"]
 
     narrow_h = 0
     if not signed and narrow:
@@ -204,7 +214,7 @@ def parse_on_chip_biases(
 
     parallelism = bias_ops_calc(dich_ops, dops, node_info["depth"])
 
-    values = np.zeros(mem_shape_calc(node_info, node_info["ih"], node_info["iw"], node_info["is_bias"]))
+    values = np.zeros(mem_shape_calc(node_info, node_info["ih"], node_info["iw"], is_bias))
     pre_values = np.squeeze(pre_values)
     
     # Reordering the weights based on the parallelism needed by the convolution
@@ -234,12 +244,12 @@ def pack_weights(
     """ Pack the weights in a single array """
 
     if (not is_bias):
-        values = np.swapaxes(values,0,1)
+        values = np.swapaxes(values, 0, 1)
     values = values.flatten()
 
     if bits >= 8:
-        bytes_num = int(bits/8)
-        new_values = np.zeros([values.shape[0]*bytes_num])
+        bytes_num = int(bits / 8)
+        new_values = np.zeros([values.shape[0] * bytes_num])
 
         for i in range(values.shape[0]):
             data = values[i]
@@ -251,8 +261,8 @@ def pack_weights(
 
             # Changing MSB to LSB order to ease hw reconstruction
             # of the original value
-            for j in range(bytes_num-1,-1,-1):
-                new_values[i*bytes_num+j] = data_bytes[bytes_num - 1 - j]
+            for j in range(bytes_num - 1, -1, -1):
+                new_values[i * bytes_num + j] = data_bytes[bytes_num - 1 - j]
             # for j in range(0, bytes_num):
             #     new_values[i*bytes_num+j] = data_bytes[j]
 
@@ -1111,90 +1121,85 @@ def on_chip_rom(
 
     return blocks
 
-def parse_const(io_dict, model, node):
+def parse_const(node, name):
     """ Parse the constants of the parameters """
 
     has_bias = node["has_bias"]
     blocks = []
     block = {}
-    io_connect = graph.extract_connections(model, io_dict)
     conv_node = node
-    weight_output_name = node["input"][1]
-    weight_node = io_dict[io_connect[weight_output_name][0][0]]
+    weight_node = node["weight_quant"]
+    weight_output_name = f"{name}_weight"
     bias_node = None
     weight_node_1x1 = None
     bias_node_1x1 = None
 
-    block["bytes_param"] = num_of_words(weight_node["bits"], weight_node["n_weights"], WIDTH_STREAM)
+    block["bytes_param"] = num_of_words(weight_node["bits"], np.prod(weight_node["values"].shape), WIDTH_STREAM)
     
     if (has_bias):
-        bias_output_name = node["input"][2]
-        bias_node = io_dict[io_connect[bias_output_name][0][0]]
+        bias_node = node["bias_quant"]
         bias_ops = bias_ops_calc(
             conv_node["ich_ops"],
             conv_node["ops"],
             conv_node["depth"]
         )
-        block["bytes_param"] += num_of_words(bias_node["bits"], bias_node["n_weights"], WIDTH_STREAM)
+        block["bytes_param"] += num_of_words(bias_node["bits"], np.prod(bias_node["values"].shape), WIDTH_STREAM)
+        bias_output_name = f"{name}_bias"
 
     if (node["merge_1x1"]):
-        weight_output_name_1x1 = node["input"][3]
-        weight_node_1x1 = io_dict[io_connect[weight_output_name_1x1][0][0]]
-        block["bytes_param"] += num_of_words(weight_node_1x1["bits"], weight_node_1x1["n_weights"], WIDTH_STREAM)
-        if (has_bias):
-            bias_output_name_1x1 = node["input"][4]
-            bias_node_1x1 = io_dict[io_connect[bias_output_name_1x1][0][0]]
-            block["bytes_param"] += num_of_words(bias_node_1x1["bits"], bias_node_1x1["n_weights"], WIDTH_STREAM)
+        weight_node_1x1 = node["merge_node"]["weight_quant"]
+        block["bytes_param"] += num_of_words(weight_node_1x1["bits"], np.prod(weight_node_1x1["values"].shape), WIDTH_STREAM)
+        weight_output_name_1x1 = f"{name}_merge_weight"
+        if (node["merge_node"]["has_bias"]):
+            bias_node_1x1 = node["merge_node"]["bias_quant"]
+            block["bytes_param"] += num_of_words(bias_node_1x1["bits"], np.prod(bias_node_1x1["values"].shape), WIDTH_STREAM)
+            bias_output_name_1x1 = f"{name}_merge_bias"
     
 
     # Recovering parameters values
-    pre_values_weights = weight_node["pre_values"]
+    pre_values_weights = weight_node["values"]
     if conv_node["depth"]:
         pre_values_weights = np.swapaxes(pre_values_weights, 0, 1)
 
     weight_node["values"] = parse_on_chip_weights(
+        node,
         weight_node,
         pre_values_weights,
-        weight_node["bits"],
-        weight_node["signed"],
-        weight_node["narrow"],
-        weight_node["dynamic_init"],
+        True,
+        False
     )
 
     if (bias_node is not None):
-        pre_values_biases = bias_node["pre_values"]
+        pre_values_biases = bias_node["values"]
         bias_node["values"] = parse_on_chip_biases(
+            node,
             bias_node,
             pre_values_biases,
-            bias_node["bits"],
-            bias_node["signed"],
-            bias_node["narrow"],
-            bias_node["dynamic_init"],
+            True,
+            True
         )
     
     if (weight_node_1x1 is not None):
-        pre_values_weights_1x1 = weight_node_1x1["pre_values"]
+        pre_values_weights_1x1 = weight_node_1x1["values"]
         if conv_node["depth"]:
             pre_values_weights_1x1 = np.swapaxes(pre_values_weights_1x1, 0, 1)
 
         weight_node_1x1["values"] = parse_on_chip_weights(
+            node["merge_node"],
             weight_node_1x1,
             pre_values_weights_1x1,
-            weight_node_1x1["bits"],
-            weight_node_1x1["signed"],
-            weight_node_1x1["narrow"],
-            weight_node_1x1["dynamic_init"],
+            True,
+            False
         )
 
     if (bias_node_1x1 is not None):
-        pre_values_biases_1x1 = bias_node_1x1["pre_values"]
+        pre_values_biases_1x1 = bias_node_1x1["values"]
         bias_node_1x1["values"] = parse_on_chip_biases(
+            node["merge_node"],
             bias_node_1x1,
             pre_values_biases_1x1,
-            bias_node_1x1["bits"],
-            bias_node_1x1["signed"],
-            bias_node_1x1["narrow"],
-            bias_node_1x1["dynamic_init"],
+            True,
+            True
         )
 
     ### Type defintions
@@ -1214,7 +1219,7 @@ def parse_const(io_dict, model, node):
         output_type_name = f"std::array<std::array<t_{weight_output_name_1x1}_mem, {conv_node['ops']}>, {conv_node['ich_ops']}>"
         block["defines"][f"t_{weight_output_name_1x1}"]      = ["type",  output_type_name]
         block["params"] = np.concatenate([block["params"], pack_weights(weight_node_1x1["values"], weight_node_1x1["bits"])])
-        if (has_bias):
+        if (node["merge_node"]["has_bias"]):
             block["defines"][f"t_{bias_output_name_1x1}_mem"]    = ["type", bias_node_1x1["data_type"]]
             output_type_name = f"std::array<std::array<t_{bias_output_name_1x1}_mem, {bias_ops}>, 1>"
             block["defines"][f"t_{bias_output_name_1x1}"]      = ["type",  output_type_name]
@@ -1229,7 +1234,7 @@ def parse_all(io_dict, model, prj_root="/tmp", board="KRIA", generate_report_fil
     to stream the parameters and the resource estimation of them. """
     
     io_connect = graph.extract_connections(model, io_dict)
-    graph, shift_cycles, tot_cycles, n_weights, fit = handle_streaming_params(io_dict, model, prj_root, board)
+    stream_graph, shift_cycles, tot_cycles, n_weights, fit = handle_streaming_params(io_dict, model, prj_root, board)
     
     # Saving which layer should be implemented in URAM
     for layer in n_weights:
@@ -1267,9 +1272,9 @@ def parse_all(io_dict, model, prj_root="/tmp", board="KRIA", generate_report_fil
                 "conv_node": node,
                 "name": name,
                 "shift_cycles": shift_cycles[name],
-                "connections": graph[name],
+                "connections": stream_graph[name],
                 "first": name == first_layer,
-                "last": not "out" in graph[name],
+                "last": not "out" in stream_graph[name],
                 "params" : tot_cycles
             }
             parsed_write += on_chip_rom(param_conv_node, WIDTH_STREAM)
@@ -1282,54 +1287,43 @@ def parse_all(io_dict, model, prj_root="/tmp", board="KRIA", generate_report_fil
 def handle_streaming_params(io_dict, model, prj_root, board="KRIA"):
     """ This function handles the generation of the graph of streaming parameters, the computation of the number of weights to shift for each conv. """
     
-    def next_layer(io_connect, node):
-        """ Return the name of the next layer from the io_connect dict """
-        if (io_connect[node["output"][0]][1] == []):
-            return None
-        return io_connect[node["output"][0]][1][0]
-    
     def build_graph(io_dict, io_connect, start_node_name):
         """ Build the graph to stream the weights and biases """
         allowed_types = ["conv"]
-        graph = {}
-        next_node = io_dict[start_node_name]
-        graph[start_node_name] = {}
-        graph[start_node_name]["in"] = "axi_to_stream"
+        stream_graph = {}
+        stream_graph[start_node_name] = {}
+        stream_graph[start_node_name]["in"] = "axi_to_stream"
+        next_node_name = start_node_name
 
-        while (next_layer(io_connect, next_node) != None):
-            next_node_name = next_layer(io_connect, next_node)
+        while (graph.next_layers(io_dict, io_connect, next_node_name) != None):
+            next_node_name = graph.next_layers(io_dict, io_connect, next_node_name)[0]
             next_node = io_dict[next_node_name]
 
             if (next_node["type"] in allowed_types):
-                graph[start_node_name]["out"] = next_node_name
-                graph[next_node_name] = {}
-                graph[next_node_name]["in"] = start_node_name
+                stream_graph[start_node_name]["out"] = next_node_name
+                stream_graph[next_node_name] = {}
+                stream_graph[next_node_name]["in"] = start_node_name
                 start_node_name = next_node_name
 
-        graph[start_node_name]["out"] = "null"
-        return graph
+        stream_graph[start_node_name]["out"] = "null"
+        return stream_graph
      
     board_res = utils.extract_board_info(board, prj_root)
     io_connect = graph.extract_connections(model, io_dict)
     uram_storage = board_res["uram"] > 0
     
-    # Check if there is URAM storage
-    BANDWIDTH = 72 
+    # Creating a new dictionary with all the information about parameters
     n_weights = []
     for name, node in io_dict.items():
-        if ('const' == node["type"]):
-            w_par = node["ops"] * node ["ich_ops"] * node["kernel"]
-            w_par_bits = w_par * node["bits"]
-            n_mem = math.ceil(w_par_bits / BANDWIDTH)
+        if ('conv' == node["type"]):
+
             n_weights.append(
                 {
                     "name": name,
-                    "n_weights": node['n_weights'],
-                    "value": ((node["n_weights"] * node["bits"] / 8) / n_mem),
-                    "par": w_par,
-                    "bits": node['bits'],
-                    "is_bias": node["is_bias"],
-                    "uram_storage": False,
+                    "n_weights": np.prod(node["weight_quant"]["values"].shape),
+                    "par": node["ops"] * node["ich_ops"] * node["kernel"],
+                    "bits": node['weight_quant']['bits'],
+                    "is_bias": False,
                     "ow": node["ow"],
                     "oh": node["oh"],
                     "ich": node["ich"],
@@ -1337,28 +1331,89 @@ def handle_streaming_params(io_dict, model, prj_root, board="KRIA"):
                     "iw": node["iw"],
                     "ih": node["ih"],
                     "ops": node["ops"],
-                    "ich_ops": node["ich_ops"]
+                    "ich_ops": node["ich_ops"],
+                    "quant_node": node["weight_quant"]
                 }
             )
+
+            if (node["has_bias"]):
+                n_weights.append(
+                    {
+                        "name": f"{name} (bias)",
+                        "n_weights": np.prod(node["bias_quant"]["values"].shape),
+                        "par": 1,
+                        "bits": node['bias_quant']['bits'],
+                        "is_bias": True,
+                        "ow": node["ow"],
+                        "oh": node["oh"],
+                        "ich": node["ich"],
+                        "och": node["och"],
+                        "iw": node["iw"],
+                        "ih": node["ih"],
+                        "ops": node["ops"],
+                        "ich_ops": node["ich_ops"],
+                        "quant_node": node["bias_quant"]
+                    }
+                )
+
+            if (node["merge_1x1"]):
+                n_weights.append(
+                    {
+                        "name": f"{name} (merge)",
+                        "n_weights": np.prod(node["merge_node"]["weight_quant"]["values"].shape),
+                        "par": node["ops"] * node["ich_ops"],
+                        "bits": node["merge_node"]['weight_quant']['bits'],
+                        "is_bias": False,
+                        "ow": node["ow"],
+                        "oh": node["oh"],
+                        "ich": node["ich"],
+                        "och": node["och"],
+                        "iw": node["iw"],
+                        "ih": node["ih"],
+                        "ops": node["ops"],
+                        "ich_ops": node["ich_ops"],
+                        "quant_node": node["merge_node"]["weight_quant"]
+                    }
+                )
+
+                if (node["merge_node"]["has_bias"]):
+                    n_weights.append(
+                        {
+                            "name": f"{name} (merge, bias)",
+                            "n_weights": np.prod(node["merge_node"]["bias_quant"]["values"].shape),
+                            "par": 1,
+                            "bits": node["merge_node"]['bias_quant']['bits'],
+                            "is_bias": True,
+                            "ow": node["ow"],
+                            "oh": node["oh"],
+                            "ich": node["ich"],
+                            "och": node["och"],
+                            "iw": node["iw"],
+                            "ih": node["ih"],
+                            "ops": node["ops"],
+                            "ich_ops": node["ich_ops"],
+                            "quant_node": node["merge_node"]["bias_quant"]
+                        }
+                    )
 
     # Compute the number of weights and biases for each layer 
     read_cycles_per_layer = {}
     for name, node in io_dict.items():
         if (node["type"] == "conv"):
-            weight_node = io_dict[io_connect[node["input"][1]][0][0]]
-            read_cycles_per_layer[name] = num_of_words(weight_node["bits"], weight_node["n_weights"], WIDTH_STREAM)
+            weight_node = node["weight_quant"]
+            read_cycles_per_layer[name] = num_of_words(weight_node["bits"], np.prod(weight_node["values"].shape), WIDTH_STREAM)
             
             if (node["has_bias"]):
-                bias_node = io_dict[io_connect[node["input"][2]][0][0]]
-                read_cycles_per_layer[name] += num_of_words(bias_node["bits"], bias_node["n_weights"], WIDTH_STREAM)
+                bias_node = node["bias_quant"]
+                read_cycles_per_layer[name] += num_of_words(bias_node["bits"], np.prod(bias_node["values"].shape), WIDTH_STREAM)
             
             if (node["merge_1x1"]):
-                weight_node_1x1 = io_dict[io_connect[node["input"][3]][0][0]]
-                read_cycles_per_layer[name] += num_of_words(weight_node_1x1["bits"], weight_node_1x1["n_weights"], WIDTH_STREAM)
+                weight_node_1x1 = node["merge_node"]["weight_quant"]
+                read_cycles_per_layer[name] += num_of_words(weight_node_1x1["bits"], np.prod(weight_node_1x1["values"].shape), WIDTH_STREAM)
                 
-                if (node["has_bias"]):
-                    bias_node_1x1 = io_dict[io_connect[node["input"][4]][0][0]]
-                    read_cycles_per_layer[name] += num_of_words(bias_node_1x1["bits"], bias_node_1x1["n_weights"], WIDTH_STREAM)
+                if (node["merge_node"]["has_bias"]):
+                    bias_node_1x1 = node["merge_node"]["bias_quant"]
+                    read_cycles_per_layer[name] += num_of_words(bias_node_1x1["bits"], np.prod(bias_node_1x1["values"].shape), WIDTH_STREAM)
 
 
     # Save the number of weights to shift for each layer 
@@ -1370,10 +1425,13 @@ def handle_streaming_params(io_dict, model, prj_root, board="KRIA"):
 
     fit = sorted_bind_storage(n_weights, board_res, uram_storage)
 
-    # Searching for the first and last layer names.
-    # PAY ATTENTION: this is a temporary solution, it should be improved
-    # as it is assuming sorted layers
-    first_layer = [name for name, layer in io_dict.items() if layer["type"] == "conv"][0]
+    # Searching for the first layer name.
+    for name, node in io_dict.items():
+        if (node["type"] == "conv"):
+            input_layers = graph.prev_layers(io_dict, io_connect, name)
+            if io_dict[input_layers[0]]["type"] == "produce":
+                first_layer = name
+                break
     
     # Building a graph based only on parameters streaming
     graph_streaming = build_graph(io_dict, io_connect, first_layer)
@@ -1392,14 +1450,18 @@ def sorted_bind_storage(dict_layers, board_res, uram_storage=False):
     # bits.
     SIZE_URAM = (288 * 1024)
 
-    
-    bandwidth_uram = 72
+    # Bandwidth of the memory interface (both BRAM and URAM) 
+    BANDWIDTH = 72
 
     used_uram = 0 
     used_bram = 0 
     fit = True
+
+    for node in dict_layers:
+        node["sort_metric"] = math.ceil(node["par"] * node["bits"] / BANDWIDTH)
+
     # Sort in descending order
-    n_weights = sorted(dict_layers, key=lambda item: item["value"], reverse=True).copy()
+    n_weights = sorted(dict_layers, key=lambda item: item["sort_metric"], reverse=True).copy()
     for node in n_weights:
         # Number of weights needed in parallel for each clock cycle, which is
         # computed as the number of filter needed to achieved the parallelism
@@ -1409,11 +1471,11 @@ def sorted_bind_storage(dict_layers, board_res, uram_storage=False):
             tot_bram = 0
             tot_uram = 0
             w_par = node["par"]
-            wpp_uram = bandwidth_uram / node["bits"]
+            wpp_uram = BANDWIDTH / node["bits"]
             ports_uram = w_par // wpp_uram
             lpm = node["n_weights"] // node["par"]
 
-            tot_uram = math.ceil(lpm / (SIZE_URAM / bandwidth_uram)) * ports_uram
+            tot_uram = math.ceil(lpm / (SIZE_URAM / BANDWIDTH)) * ports_uram
             tot_bram = compute_bram_layer(node["bits"], node["n_weights"], node["par"], True)
             
             # wasted_uram = n_uram * SIZE_URAM - (node['n_weights'] * node["bits"])
@@ -1427,15 +1489,15 @@ def sorted_bind_storage(dict_layers, board_res, uram_storage=False):
             elif ((fit_bram and fit_uram and tot_uram < tot_bram) or not fit_bram):
                 used_uram += tot_uram
                 # print(f"produce_stream_{node['ich']}_{node['och']}_{node['ow']}_{node['oh']}_{node['iw']}_{node['ih']} P:{w_par} of {node['bits']}b. {node['n_weights']}. {tot_uram}U {tot_bram}B.")
-                node["uram_storage"] = True
                 node["mems"] = tot_uram
+                node["quant_node"]["uram_storage"] = True
             else:
                 used_bram += tot_bram
                 # print(f"produce_stream_{node['ich']}_{node['och']}_{node['ow']}_{node['oh']}_{node['iw']}_{node['ih']} P:{w_par} of {node['bits']}b. {node['n_weights']}. {tot_bram}B {tot_uram}U.")
                 node["mems"] = tot_bram
-                node["uram_storage"] = False
+                node["quant_node"]["uram_storage"] = False
         else:
-            node["uram_storage"] = False
+            node["quant_node"]["uram_storage"] = False
             node["mems"] = 0
 
     return fit    
@@ -1452,19 +1514,18 @@ def print_report(weights_layer_dict, fit, generate_report_file="tmp.rpt"):
         table_data = []
 
         #header row
-        header = ["Layer name", "Bias", "Parallelism", "Weight bits", "N. of weights", "BRAM", "URAM"]
+        header = ["Layer name", "Parallelism", "Bits", "Length", "BRAM", "URAM"]
         table_data.append(header)
         tot_bram = 0
         tot_uram = 0
         for layer in weights_layer_dict:
             row = []
-            name = f"produce_stream_{layer['ich']}_{layer['och']}_{layer['ow']}_{layer['oh']}_{layer['iw']}_{layer['ih']}"
+            name = f"{layer['name']}"
             row.append(name)
-            row.append(layer["is_bias"])
             row.append(layer["par"])
             row.append(layer["bits"])
             row.append(layer["n_weights"])
-            if layer["uram_storage"]:
+            if layer["quant_node"]["uram_storage"]:
                 row.append("0")
                 row.append(layer["mems"])
                 tot_uram += layer["mems"]
@@ -1474,7 +1535,7 @@ def print_report(weights_layer_dict, fit, generate_report_file="tmp.rpt"):
                 tot_bram += layer["mems"]
             table_data.append(row)
         
-        footer = ["Totals", "", "", "", "", tot_bram, tot_uram]
+        footer = ["Totals", "", "", "", tot_bram, tot_uram]
         table_data.append(footer)
 
         # Print the tabulated data to the file

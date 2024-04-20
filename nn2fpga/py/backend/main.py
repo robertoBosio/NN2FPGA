@@ -135,7 +135,6 @@ def handle_parameters(io_dict, model, board, off_chip_storage, prj_root, generat
     if off_chip_storage: 
         block = weights.parse_main(io_dict)
     else:
-        io_connect = graph.extract_connections(model, io_dict)
         graph_streaming, shift_cycles, tot_cycles, n_weights, fit = weights.handle_streaming_params(io_dict, model, prj_root, board)
         for name, node in io_dict.items():
             if 'conv' == node["type"]:
@@ -143,19 +142,6 @@ def handle_parameters(io_dict, model, board, off_chip_storage, prj_root, generat
                 node["shift_params_connections"] = graph_streaming[name]
         weights.print_report(n_weights, fit, generate_report_file)
         block = weights.generate_axitostandard_stream(tot_cycles)
-        
-        for name, node in io_dict.items():
-            if (node["type"] == "conv"):
-                weight_node = io_connect[node["input"][1]][0][0]
-                for elem in n_weights:
-                    if elem["name"] == weight_node:
-                        node["uram_storage"] = elem["uram_storage"]
-                
-                if (node["merge_1x1"]):
-                    weight_node_1x1 = io_connect[node["input"][3]][0][0]
-                    for elem in n_weights:
-                        if elem["name"] == weight_node_1x1:
-                            node["uram_storage_1x1"] = elem["uram_storage"]
 
         # Adding declaration of the stream input and pragma interface
         block["stream_input"].append({"name" : "i_data_params", "type" : "t_params_axi_stream"})
@@ -216,7 +202,7 @@ def parse_all_main(io_dict, model, off_chip_storage=False):
                 parsed_write.append(pad.parse(name, node))
 
             parsed_write = parsed_write + conv.parse(name, node, off_chip_storage)
-            parsed_const = parsed_const + weights.parse_const(io_dict, model, node)
+            parsed_const = parsed_const + weights.parse_const(node, name)
             last_node = node
 
         if 'pool' == node["type"]:
@@ -326,3 +312,4 @@ def write(
     parsed_write = parsed_write + parsed_const
 
     defines(parsed_write, prj_root=prj_root)
+    return parsed_write

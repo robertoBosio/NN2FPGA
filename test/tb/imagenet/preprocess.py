@@ -14,16 +14,15 @@ from qonnx.transformation.infer_datatypes import InferDataTypes
 from qonnx.util.cleanup import cleanup_model
 from utils.datasets import get_dataset
 
-def process_image(n_images):
+def process_image(n_images, onnx_path, dataset):
     
-    onnx_path = "/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/test/onnx/mobilenet_v2_a8w8b16_71.734.onnx"
     onnx_model = ModelWrapper(onnx_path)
     cleanup_model(onnx_model)
     inferred_model = onnx_model.transform(infer_shapes.InferShapes())
     inferred_model = inferred_model.transform(InferDataTypes())
     
     batch_size = 1
-    train_dataset, eval_dataset, input_shape = get_dataset("imagenet")
+    train_dataset, eval_dataset, input_shape = get_dataset(dataset)
 
     counter = 0
     # remove /tmp/images_preprocessed.bin if it exists
@@ -65,5 +64,8 @@ def process_image(n_images):
                     break
 
 if __name__ == "__main__":
+    print(sys.argv)
     n_images = sys.argv[1]
-    process_image(n_images)
+    onnx_path = sys.argv[2]
+    dataset = sys.argv[3]
+    process_image(n_images, onnx_path, dataset)

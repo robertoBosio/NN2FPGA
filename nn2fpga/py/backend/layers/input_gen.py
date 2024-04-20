@@ -6,20 +6,16 @@ from onnx import numpy_helper
 import numpy as np
 from backend.layers.quant import get_quant_type
 
-def info(io_dict, tensors_info, model, graph_input_name, transform=False):
-
-
+def info(io_dict, tensors_info, graph_input_name, transform=False):
+    """ Generate a specific layer block for the input layer. """
+    
     node_name = "produce_stream"
-
     input_shape = tensors_info[graph_input_name].tensor_type.shape
-
     graph_input_name = graph_input_name.replace(".", "_")
 
     ich      = getattr(input_shape, 'dim')[1].dim_value
     ih       = getattr(input_shape, 'dim')[2].dim_value
     iw       = getattr(input_shape, 'dim')[3].dim_value
-    # print(ich, ih, iw)
-    # exit(0)
 
     io_dict[node_name] = {}
     io_dict[node_name]["input"] = [graph_input_name]
@@ -38,18 +34,11 @@ def info(io_dict, tensors_info, model, graph_input_name, transform=False):
     return io_dict
 
 def parse(name, node):
-
-     
-    vitis_flow = False
-    if "VITIS_FLOW" in os.environ:
-        if int(os.environ.get("VITIS_FLOW")) == 1:
-            vitis_flow = True
     
     input_name  = node["input"][0]
     input_type_name = input_name.replace("_skip", "")
     output_name = node["output"][0]
     output_type_name = output_name.replace("_skip", "")
-    signed = node["signed"]
 
     block = {}
     block["func"] = "produce_stream"
@@ -87,7 +76,7 @@ def parse(name, node):
     ### Defines for testbench 
     block["defines"]["c_act_width"] = [
         "const",
-        node["bits"][0]
+        node["output_quant"]["bits"]
     ]
 
     #### Version with fixed width but using only part of the input
@@ -101,10 +90,10 @@ def parse(name, node):
     # ops_packet = 1
     # useful_bits = width_stream
     
-    #### Verion with fixed width and using all the input with modulo index
+    #### Version with fixed width and using all the input with modulo index
     width_stream = 64
     useful_bits = width_stream
-    act_per_packet = width_stream // node["bits"][0]
+    act_per_packet = width_stream // node["output_quant"]["bits"]
 
     block["defines"]["c_data_per_packet"] = [
         "const",
@@ -135,7 +124,7 @@ def parse(name, node):
         f"ap_axiu<{width_stream}, 0, 0, 0>"
     ]
 
-    output_type = get_quant_type(node["signed"], node["bits"][0], node["scale_factor"][0])
+    output_type = get_quant_type(node["output_quant"]["signed"], node["output_quant"]["bits"], node["output_quant"]["scale_factor"])
 
     block["defines"]["t_%s_part" % input_type_name] = [
         "type",
