@@ -150,6 +150,7 @@ def info(io_dict, node, node_name, init_info, tensors_info):
     io_dict[node_name]["weights_name"] = [weight_name]
     io_dict[node_name]["has_forward"] = False
     io_dict[node_name]["merge_1x1"] = False
+    io_dict[node_name]["start_comp_layer"] = False
 
     # Supported quantizations for a convolutional layer
     io_dict[node_name]["input_quant"] = None            # Input quantization

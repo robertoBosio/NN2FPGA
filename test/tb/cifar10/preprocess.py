@@ -55,7 +55,7 @@ def process_image(n_images, onnx_path, dataset):
                 np_images = np.expand_dims(images.numpy(), axis=0)
 
                 outputs = execute_onnx(inferred_model, {'inp.1': np_images})
-                outputs = outputs['36']
+                outputs = outputs['132']
                 outputs = np.squeeze(outputs)
                 f_res.write(outputs.astype(np.float32).tobytes())
 

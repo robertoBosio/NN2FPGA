@@ -86,6 +86,7 @@ def layers_extractions(io_dict):
                     "oh" : node_info["oh"],
                     "depth": depth,
                     "index": index,
+                    "produce": node_info["start_comp_layer"],
                     "och_1x1": och_1x1
                 }
             )
@@ -142,16 +143,22 @@ def parallelismILP(layers_info, valid_par_solutions, NUM_DSP, NUM_PORTS, prj_roo
     # valid_iter_linebuffer stores the line buffer number of iteration for each valid
     # solution and it is useful to linearize the constraint of the line buffer
     valid_iter_linebuffer = []
+    valid_iter_produce = []
     for par_sol, layer in zip(valid_par_solutions, layers_info):
         valid_iter_linebuffer.append([])
         layer_iter =  layer["ich"] * layer["iw"] * layer["ih"]
         for single_par in par_sol:
             valid_iter_linebuffer[-1].append(layer_iter // (single_par[1] * single_par[2]))
+        
+        if (layer["produce"]):
+            valid_iter_produce.append([])
+            for single_par in par_sol:
+                valid_iter_produce[-1].append(layer_iter // single_par[1])
     
     valid_iter_solutions = []
     for layer, layer_par in zip(layers_info, valid_par_solutions):
         valid_iter_solutions.append([])
-        layer_iter =  layer["total"]
+        layer_iter = layer["total"]
         for single_par in layer_par:
             valid_iter_solutions[-1].append(layer_iter // np.prod(single_par))
 
@@ -269,6 +276,16 @@ def parallelismILP(layers_info, valid_par_solutions, NUM_DSP, NUM_PORTS, prj_roo
             f"Linebuffer_constraint_layer_{layer_index}"
         )
     
+    # Constraint: the latency of the produce stream should be equal or lower to the minimization variable.
+    for layer_index in [x["index"] for x in layers_info]:
+        if (layers_info[layer_index]["produce"]):
+            constraints_counter += 1
+            prob += (
+                pulp.lpDot(layer_binary_variables[layer_index].values(),
+                        valid_iter_produce[layer_index]) <= var,
+                f"Produce_constraint_layer_{layer_index}"
+            )
+    
     start_time = time.time()
     prob.solve(PULP_CBC_CMD(timeLimit=10, msg=0))
     end_time = time.time()
@@ -336,6 +353,7 @@ def resourceILP(layers_info, model_II, valid_par_solutions, parallel_op, NUM_DSP
     # solution and it is useful to linearize the constraint of the line buffer
     valid_iter_solutions = []
     valid_iter_linebuffer = []
+    valid_iter_produce = []
     for layer, layer_par in zip(layers_info, clamped_valid_par_solutions):
         valid_iter_solutions.append([])
         valid_iter_linebuffer.append([])
@@ -344,6 +362,11 @@ def resourceILP(layers_info, model_II, valid_par_solutions, parallel_op, NUM_DSP
         for single_par in layer_par:
             valid_iter_solutions[-1].append(layer_iter // np.prod(single_par))
             valid_iter_linebuffer[-1].append(line_iter // (single_par[1] * single_par[2]))
+        
+        if (layer["produce"]):
+            valid_iter_produce.append([])
+            for single_par in layer_par:
+                valid_iter_produce[-1].append(line_iter // single_par[1])
     
     # valid_dsp_solutions stores the DSPs used for each valid solution
     # considering the possible packing 
@@ -422,6 +445,14 @@ def resourceILP(layers_info, model_II, valid_par_solutions, parallel_op, NUM_DSP
                 valid_iter_linebuffer[layer_index])) <= model_II,
             f"Linebuffer_constraint_layer_{layer_index}"
         )
+    
+    for layer_index in [x["index"] for x in layers_info]:
+        if (layers_info[layer_index]["produce"]):
+            prob_min += (
+                pulp.lpDot(layer_binary_variables[layer_index].values(),
+                        valid_iter_produce[layer_index]) <= model_II,
+                f"Produce_constraint_layer_{layer_index}"
+            )
     
     prob_min.solve(PULP_CBC_CMD(msg=0))
     if (prob_min.status == pulp.LpStatusInfeasible):
@@ -511,6 +542,7 @@ def balanceILP(layers_info, model_II, valid_par_solutions, parallel_op, NUM_PORT
     # solution and it is useful to linearize the constraint of the line buffer
     valid_iter_solutions = []
     valid_iter_linebuffer = []
+    valid_iter_produce = []
     for layer, layer_par in zip(layers_info, clamped_valid_par_solutions):
         valid_iter_solutions.append([])
         valid_iter_linebuffer.append([])
@@ -519,6 +551,11 @@ def balanceILP(layers_info, model_II, valid_par_solutions, parallel_op, NUM_PORT
         for single_par in layer_par:
             valid_iter_solutions[-1].append(layer_iter // np.prod(single_par))
             valid_iter_linebuffer[-1].append(line_iter // (single_par[1] * single_par[2]))
+
+        if (layer["produce"]):
+            valid_iter_produce.append([])
+            for single_par in layer_par:
+                valid_iter_produce[-1].append(line_iter // single_par[1])
     
     # Minimize resource usage
     prob_min = pulp.LpProblem("Balance_parallelization", pulp.LpMinimize)
@@ -549,6 +586,14 @@ def balanceILP(layers_info, model_II, valid_par_solutions, parallel_op, NUM_PORT
                 valid_iter_linebuffer[layer_index])) <= model_II,
             f"Linebuffer_constraint_layer_{layer_index}"
         )
+    
+    for layer_index in [x["index"] for x in layers_info]:
+        if (layers_info[layer_index]["produce"]):
+            prob_min += (
+                pulp.lpDot(layer_binary_variables[layer_index].values(),
+                        valid_iter_produce[layer_index]) <= model_II,
+                f"Produce_constraint_layer_{layer_index}"
+            )
     
     prob_min.solve(PULP_CBC_CMD(msg=0))
     if (prob_min.status == pulp.LpStatusInfeasible):
@@ -1102,7 +1147,7 @@ def ilp(io_dict, off_chip_storage, model, file_name, board="ULTRA96v2", generate
 
     NUM_PORTS = (board_res["bram"] + board_res["uram"])
     NUM_DSP = board_res["dsp"]
-    # NUM_DSP = int(NUM_DSP * 1.1)
+    NUM_DSP = 1800
     NUM_PORTS = int(NUM_PORTS * 0.85)
 
     valid_par_solutions = generate_architectures(layers_info, NUM_DSP)

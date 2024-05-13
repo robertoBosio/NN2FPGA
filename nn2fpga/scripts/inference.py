@@ -2,6 +2,7 @@ import pynq
 from pynq import Overlay
 from pynq import allocate
 from pynq import Clocks
+from pynq import PL
 
 import sys
 import os
@@ -27,6 +28,7 @@ def print_sorted_nested_dict(dictionary, indent=0):
 if __name__ == "__main__":
     # Uploading all data
 
+    PL.reset()
     supported_boards = ["KRIA", "ULTRA96v2", "ZCU102"]
     supported_datasets = ["cifar10", "vw", "coco", "imagenet"]
 
@@ -64,7 +66,7 @@ if __name__ == "__main__":
         print("Error: frequency (MHz) must be a positive integer number")
         sys.exit(0)
 
-    batch_size = 10000
+    batch_size = 400
 
     if (sel_dataset == "cifar10"):
         dataloader = cifar10_dataloader

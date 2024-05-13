@@ -811,7 +811,7 @@ conv_comp(hls::stream<t_input_struct> i_input[1],
 
   /* We want to use chain of DSPs and not balance the expressions, we are not
    * interested in short pipeline, more on resources */
-#pragma HLS expression_balance off
+//#pragma HLS expression_balance off
   // The output ow_ops must be greater or equal and a multliples of ow_ops
   static_assert(c_ow_ops_out >= c_ow_ops, "c_ow_ops_out >= c_ow_ops");
   static_assert(c_ow_ops_out % c_ow_ops == 0, "c_ow_ops_out % c_ow_ops == 0");
@@ -1440,7 +1440,7 @@ conv_comp_onchip_OW_OPS_OUT(
 
   /* We want to use chain of DSPs and not balance the expressions, we are not
    * interested in short pipeline, more on resources */
-#pragma HLS expression_balance off
+//#pragma HLS expression_balance off
 
   const auto c_och_depth = (c_depth == 1) ? 1 : c_och;
   const auto c_o_index = c_oh * c_ow / c_ow_ops_out;
@@ -2048,7 +2048,7 @@ conv_comp_onchip_ICH(
 
   /* We want to use chain of DSPs and not balance the expressions, we are not
    * interested in short pipeline, more on resources */
-#pragma HLS expression_balance off
+//#pragma HLS expression_balance off
 
   const auto c_och_depth = (c_depth == 1) ? 1 : c_och;
   const auto c_o_index = c_oh * c_ow / c_ow_ops_out;
@@ -2656,7 +2656,7 @@ conv_comp_onchip_OCH(
 
   /* We want to use chain of DSPs and not balance the expressions, we are not
    * interested in short pipeline, more on resources */
-#pragma HLS expression_balance off
+//#pragma HLS expression_balance off
 
   const auto c_och_depth = (c_depth == 1) ? 1 : c_och;
   const auto c_o_index = c_oh * c_ow / c_ow_ops_out;
@@ -3264,7 +3264,7 @@ conv_comp_onchip(
 
   /* We want to use chain of DSPs and not balance the expressions, we are not
    * interested in short pipeline, more on resources */
-#pragma HLS expression_balance off
+//#pragma HLS expression_balance off
 
   const auto c_och_depth = (c_depth == 1) ? 1 : c_och;
   const auto c_o_index = c_oh * c_ow / c_ow_ops_out;

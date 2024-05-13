@@ -13,6 +13,7 @@ source /opt/xilinx/xrt/setup.sh
 
 export LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu/:$LD_LIBRARY_PATH
 export LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libc.so.6:/usr/lib/x86_64-linux-gnu/libudev.so.1
+export XILINXD_LICENSE_FILE=/home-ssd/roberto
 
 # Must be run on gandalf
 # sudo sshfs -o allow_other roberto@smaug:/home-ssd/datasets/ /tools/datasets/

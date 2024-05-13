@@ -1159,9 +1159,13 @@ def dag_sorting(model, io_dict):
         if used:
             level += 1
     
+    # Assigning to layers attach to produce nodes a boolean flag
+    # Will be used in balance computation to recognize layers that 
+    # have a produce node to consider.
     for layer_name, layer_info in io_dict.items():
         if "layer_index" in layer_info.keys():
-            print(f"{layer_name}: {layer_info['layer_index']}")
+            if layer_info['layer_index'] == 1:
+                layer_info['start_comp_layer'] = True
 
     return io_dict
 

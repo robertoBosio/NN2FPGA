@@ -6,6 +6,12 @@ set NN2FPGA_ROOT [lindex [lindex $argv 2] 0]
 set CMD_ARGS [lreplace [lindex $argv 2] 0 0]
 source "${NN2FPGA_ROOT}/tcl/settings.tcl"
 
+source "/home-ssd/roberto/Documents/hls-llvm-simd/scripts/SILVIA.tcl"
+set SILVIA::ROOT "/home-ssd/roberto/Documents/hls-llvm-simd"
+set SILVIA::LLVM_ROOT "${SILVIA::ROOT}/llvm-project/install"
+set SILVIA::PASSES [list [dict create OP "muladd" INLINE 1 MAX_CHAIN_LEN 3] [dict create OP "mul" INLINE 1]]
+set SILVIA::DEBUG 1
+
 set impl_sel "solution_0"
 set PRJ_NAME ${TOP_NAME}_${BOARD}
 
@@ -17,11 +23,11 @@ if {${CSIM} == 1} {
   set PRJ_NAME ${PRJ_NAME}
 }
 
-delete_project ${PRJ_NAME}_ip
+#delete_project ${PRJ_NAME}_ip
 open_project ${PRJ_NAME}_ip
 set_top ${TOP_NAME}
 
-open_solution solution_1
+open_solution solution_nopack
 set_part ${FPGA_PART}
 
 if {${SIMD_DSP} == 1} {
@@ -87,10 +93,11 @@ config_interface -m_axi_latency 1
 # MOD done to reduce LUT usage with a small performance degradation
 config_compile -pipeline_style stp -enable_auto_rewind=false
 
-csynth_design
+#csynth_design
+SILVIA::csynth_design
 
-# export_design -flow syn
-export_design
+export_design -flow syn
+#export_design
 
 if {${COSIM} == 1} {
   cosim_design -trace_level all
