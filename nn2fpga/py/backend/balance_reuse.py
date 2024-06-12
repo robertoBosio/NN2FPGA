@@ -51,7 +51,7 @@ def reuse_number(layers_info, clamp=16):
     prob = pulp.LpProblem("Reuse weights", pulp.LpMaximize)
 
     choices = pulp.LpVariable.dicts(
-        "Layers weights resue.",
+        "Layers weights reuse.",
         range(num_divisors),
         cat="Binary"
     )

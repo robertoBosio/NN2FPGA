@@ -18,14 +18,20 @@ set script_folder [_tcl::get_script_folder]
 ################################################################
 # Check if script is running in correct Vivado version.
 ################################################################
-set scripts_vivado_version 2022.2
+set scripts_vivado_version ${VIVADO_VERSION}
 set current_vivado_version [version -short]
+
+if {${VIVADO_VERSION} == 2023.2 || ${VIVADO_VERSION} == 2023.1} {
+   set MPSOC_VERSION 3.5
+} else {
+   set MPSOC_VERSION 3.4
+}
 
 if { [string first $scripts_vivado_version $current_vivado_version] == -1 } {
    puts ""
    catch {common::send_gid_msg -ssname BD::TCL -id 2041 -severity "ERROR" "This script was generated using Vivado <$scripts_vivado_version> and is being run in <$current_vivado_version> of Vivado. Please run the script in Vivado <$scripts_vivado_version> then open the design in Vivado <$current_vivado_version>. Upgrade the design by running \"Tools => Report => Report IP Status...\", then run write_bd_tcl to create an updated script."}
 
-   return 1
+#   return 1
 }
 
 ################################################################
@@ -125,7 +131,7 @@ if { $bCheckIPs == 1 } {
 xilinx.com:hls:${TOP_NAME}:1.0\
 xilinx.com:ip:axi_dma:7.1\
 xilinx.com:ip:proc_sys_reset:5.0\
-xilinx.com:ip:zynq_ultra_ps_e:3.4\
+xilinx.com:ip:zynq_ultra_ps_e:${MPSOC_VERSION}\
 "
 
    set list_ips_missing ""
@@ -158,7 +164,7 @@ if { $bCheckIPsPassed != 1 } {
 
 # Procedure to create entire design; Provide argument to make
 # procedure reusable. If parentCell is "", will use root.
-proc create_root_design { parentCell topName uramStorage objectDetection } {
+proc create_root_design { parentCell topName uramStorage objectDetection mpsocVersion } {
 
   variable script_folder
   variable design_name
@@ -242,7 +248,7 @@ proc create_root_design { parentCell topName uramStorage objectDetection } {
   set rst_ps8_0_214M [ create_bd_cell -type ip -vlnv xilinx.com:ip:proc_sys_reset:5.0 rst_ps8_0_214M ]
   
   # Create instance: zynq_ultra_ps_e_0, and set properties
-  set zynq_ultra_ps_e_0 [ create_bd_cell -type ip -vlnv xilinx.com:ip:zynq_ultra_ps_e:3.4 zynq_ultra_ps_e_0 ]
+  set zynq_ultra_ps_e_0 [ create_bd_cell -type ip -vlnv xilinx.com:ip:zynq_ultra_ps_e:${mpsocVersion} zynq_ultra_ps_e_0 ]
   set_property -dict [list \
     CONFIG.PSU_BANK_0_IO_STANDARD {LVCMOS18} \
     CONFIG.PSU_BANK_1_IO_STANDARD {LVCMOS18} \
@@ -727,23 +733,16 @@ Port;FD4A0000;FD4AFFFF;1|FPD;DPDMA;FD4C0000;FD4CFFFF;1|FPD;DDR_XMPU5_CFG;FD05000
     ] $zynq_ultra_ps_e_0
   }
     
-  if {${uramStorage} == 1} {
-    set_property -dict [list \
-      CONFIG.PSU__CRL_APB__PL0_REF_CTRL__ACT_FREQMHZ {214.285721} \
-      CONFIG.PSU__CRL_APB__PL0_REF_CTRL__DIVISOR0 {7} \
-    ] $zynq_ultra_ps_e_0
-  } else {
-    set_property -dict [list \
-      CONFIG.PSU__CRL_APB__PL0_REF_CTRL__ACT_FREQMHZ {214.285721} \
-      CONFIG.PSU__CRL_APB__PL0_REF_CTRL__DIVISOR0 {7} \
-    ] $zynq_ultra_ps_e_0
-  }
+   set_property -dict [list \
+   CONFIG.PSU__CRL_APB__PL0_REF_CTRL__ACT_FREQMHZ {187.5} \
+   CONFIG.PSU__CRL_APB__PL0_REF_CTRL__DIVISOR0 {8} \
+   ] $zynq_ultra_ps_e_0
 
   # Create interface connections
   connect_bd_intf_net -intf_net ${topName}_0_o_outp1 [get_bd_intf_pins ${topName}_0/o_outp1] [get_bd_intf_pins axi_dma_0/S_AXIS_S2MM]
   connect_bd_intf_net -intf_net axi_dma_0_M_AXIS_MM2S [get_bd_intf_pins ${topName}_0/i_inp_1] [get_bd_intf_pins axi_dma_0/M_AXIS_MM2S]
   if {${uramStorage} == 1} {
-    connect_bd_intf_net -intf_net axi_dma_1_M_AXIS_MM2S [get_bd_intf_pins ${topName}_0/i_data_weights] [get_bd_intf_pins axi_dma_1/M_AXIS_MM2S]
+    connect_bd_intf_net -intf_net axi_dma_1_M_AXIS_MM2S [get_bd_intf_pins ${topName}_0/i_data_params] [get_bd_intf_pins axi_dma_1/M_AXIS_MM2S]
   }
   connect_bd_intf_net -intf_net axi_dma_0_M_AXI_MM2S [get_bd_intf_pins axi_dma_0/M_AXI_MM2S] [get_bd_intf_pins zynq_ultra_ps_e_0/S_AXI_HP0_FPD]
   if {${uramStorage} == 1} {
@@ -795,6 +794,6 @@ Port;FD4A0000;FD4AFFFF;1|FPD;DPDMA;FD4C0000;FD4CFFFF;1|FPD;DDR_XMPU5_CFG;FD05000
 # MAIN FLOW
 ##################################################################
 
-create_root_design "" ${TOP_NAME} ${URAM_STORAGE} ${OBJECT_DETECTION}
+create_root_design "" ${TOP_NAME} ${DYNAMIC_INIT} ${OBJECT_DETECTION} ${MPSOC_VERSION}
 
 

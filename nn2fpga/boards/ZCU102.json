@@ -1,0 +1,13 @@
+{
+    "resource": [
+        {
+            "bottom_left" : "X0Y0",
+            "upper_right" : "X0Y3",
+            "uram": 0,
+            "bram": 910,
+            "dsp": 2520,
+            "lut": 274080,
+            "ff": 548160
+        }
+    ]
+}

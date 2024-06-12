@@ -8,18 +8,208 @@ import backend.layers.conv as conv
 import backend.layers.gemm as gemm
 import backend.layers.pool as pool
 import backend.layers.input_gen as input_gen
+import backend.layers.output_gen as output_gen
 import backend.layers.quant as quant
 import backend.layers.detect as detect
 import backend.layers.non_max_suppression as non_max_suppression
 import backend.layers.concat as concat
 import backend.layers.upsample as upsample
+import backend.layers.pad as pad
+
+def sanitize_string(string):
+    return string.replace(".", "_")
+
+def next_layers(io_dict, io_connect, layer_name):
+    """Return the layers connected in output to the current layer. """ 
+
+    next_layers = []
+    output_net_name = io_dict[layer_name]["output"]
+
+    for net in output_net_name:
+        if net in io_connect.keys():
+            next_layers.extend(io_connect[net][1])
+    
+    if len(next_layers) == 0:
+        return None
+    return next_layers
+
+def prev_layers(io_dict, io_connect, layer_name):
+    """Return the layers connected in input to the current layer without considering weights and biases. """ 
+
+    prev_layers = []
+    input_net_name = io_dict[layer_name]["input"]
+
+    for net in input_net_name:
+        if net in io_connect.keys():
+            prev_layers.extend(io_connect[net][0])
+
+    if len(prev_layers) == 0:
+        return None
+    return prev_layers
+
+def remove_and_bypass_layer(io_dict, io_connect, layer_name, forward=True):
+    """Remove and bypass a layer from the io_dict dictionary. 
+    :param forward: if True attach the input layer to the output net, otherwise attach the output layer to the input net.
+    
+    """ 
+
+    output_net_name = io_dict[layer_name]["output"][0]
+    input_net_name = io_dict[layer_name]["input"][0]
+
+    input_layer_names = prev_layers(io_dict, io_connect, layer_name)
+    output_layer_names = next_layers(io_dict, io_connect, layer_name)
+
+    if input_layer_names is None or output_layer_names is None:
+        print(f"Error in remove_and_bypass_layer of \"{layer_name}\"")
+        exit(-1)
+
+    # Bypassing the layer by connecting input/output layers to different nets
+    if len(input_layer_names) == 1 and forward:
+        index = io_dict[input_layer_names[0]]["output"].index(input_net_name)
+        io_dict[input_layer_names[0]]["output"][index] = output_net_name[:]
+
+        print(f"Connected node {input_layer_names[0]} to net {output_net_name}")
+    elif len(output_layer_names) == 1 and not forward:
+        index = io_dict[output_layer_names[0]]["input"].index(output_net_name)
+        io_dict[output_layer_names[0]]["input"][index] = input_net_name[:]
+        print(f"Connected net {input_net_name} to node {output_layer_names[0]}")
+    else:
+        print(f"Error in remove_and_bypass_layer of \"{layer_name}\": multiple input layers.")
+        exit(-1)
+        
+    del io_dict[layer_name]
+
+    return io_dict
+
+def compute_depth_stream(io_dict, io_connect, net_name, starting_name, ops="ops"):
+
+    # Look backward from long branch to compute the receptive field
+    net_receptive_field = [0, 0]
+
+    other_net = net_name
+    layer_output = io_connect[other_net][1][0]
+    node = io_dict[layer_output]
+    starting_node = io_dict[starting_name]
+
+    # coordinates of the last pixel needed for the convolution that does the add operation.
+    # We need to compute the receptive field of this pixel, in order to retrieve the depth
+    # needed by the skip connection.
+    width_end_p = (node["fw"] + (node["ow_ops"] - 1) * node["stride"]) - node["pad"]
+    height_end_p = node["fh"] - node["pad"]
+    depth_end_p = 1 if node["depth"] else (node["och"])
+
+    # Throughput of the conv filling the skip buffer
+    if ops == "ops":
+        # Downsample throughput
+        skip_throughput = (starting_node["ich_ops"] * starting_node["ops"]) / starting_node["ich"]
+    else: 
+        # Forward throughput
+        skip_throughput = (starting_node["ich_ops"] * starting_node["ops"]) / starting_node["och"]
+    
+    print(f"skip_throughput: {skip_throughput}") 
+    if starting_node["depth"]:
+        start_throughput = starting_node["ich_ops"]
+    else:
+        start_throughput = starting_node["ich_ops"] * starting_node["ops"] / starting_node["ich"]
+
+    sum_of_latencies = 0
+    strides = []
+    paddings = []
+    kernel_shapes = []
+    while layer_output != starting_name:
+
+        node = io_dict[layer_output]
+
+        net_receptive_field[0] += node["fh"]
+        net_receptive_field[1] += node["fw"]
+
+        # NOTE: not a perfect model of latency, but it's a good approximation
+        # The previous conv is writing och pixels in burst, for each pixel we need och/ops cycles
+        if node["depth"]:
+            node_latency = node["ich"] / node["ich_ops"]
+        else:
+            node_latency = (node["ich"] / node["ich_ops"]) * (node["och"] / node["ops"])
+
+        other_net = io_dict[layer_output]["input"][0]
+        layer_output = io_connect[other_net][0][0]
+
+        ### Alternative version
+        strides.append(node["stride"])
+        paddings.append(node["pad"])
+        kernel_shapes.append([node["fh"], node["fw"], 1 if node["depth"] else node["ich"]])
+        sum_of_latencies += node_latency
+
+    width_start_p = width_end_p * np.prod(strides)    
+    for l in range(len(strides)):
+        strides_formula = 1
+        for i in range(0, l):
+            strides_formula = strides_formula * strides[i]
+        width_start_p = width_start_p - ((1 + paddings[l] - kernel_shapes[l][1]) * strides_formula)
+    
+    # No strides for the height
+    height_start_p = height_end_p
+    for l in range(len(strides)):
+        strides_formula = 1
+        height_start_p = height_start_p - ((1 + paddings[l] - kernel_shapes[l][0]) * strides_formula)
+    
+    depth_start_p = starting_node["ich"]
+
+    print(f"start pixel coordinates: ({height_start_p}, {width_start_p}, {depth_start_p})")
+    print(f"end pixel coordinates: ({height_end_p}, {width_end_p}, {depth_end_p})")
+
+    # Compute time to calculate all the pixels in the receptive field
+    skip_depth = 0
+    skip_depth += (height_start_p - 1) * starting_node["iw"] * starting_node["ich"]
+    skip_depth += (width_start_p - 1) * starting_node["ich"]
+    skip_depth = skip_depth / start_throughput
+    print(f"Time to produce receptive field: {skip_depth} cc")
+
+    # Add the latency of the layers in the convolutional path
+    skip_depth += sum_of_latencies
+    print(f"Time to shift data to last pixel until the add: {skip_depth} cc")
+
+    # Compute number of pixels should be stored in the skip buffer
+    skip_depth = skip_depth * skip_throughput
+    print(f"Data produced by the other branch in the meanwhile: {skip_depth}")
+
+    # Divide the skip depth by the number of parallel connections, 
+    # considering the fact that ow_ops pixel are computed in parallel
+    skip_depth //= (starting_node["ow_ops_out"] / starting_node["ow_ops"]) 
+
+    depth = 0
+    depth += int(starting_node["ich"] / starting_node[ops]) * (net_receptive_field[1] - 1)
+    depth += starting_node["iw"] * int(starting_node["ich"] / starting_node[ops]) * (net_receptive_field[0] - 1) - starting_node["ich"]
+
+    print(f"skip depth: {skip_depth} ow_ops_out: {starting_node['ow_ops_out']} ow_ops: {starting_node['ow_ops']} and depth: {depth}")
+    if depth < 0:
+        depth = node["och"]
+
+    return int(skip_depth)
+
+def compute_buffers(model, io_dict):
+    
+    io_connect = extract_connections(model, io_dict)
+
+    # compute depth for all merged layers
+    for name, node in io_dict.items():
+        if node["type"] == "conv":
+            if node["merge_1x1"]:
+                net_name = io_dict[name]["output"][-1]
+                depth = compute_depth_stream(io_dict, io_connect, net_name, name)
+                io_dict[name]["depth_1x1"] = depth
+            if node["has_forward"]:
+                net_name = io_dict[name]["output"][-1]
+                depth = compute_depth_stream(io_dict, io_connect, net_name, name, "ich_ops")
+                io_dict[name]["depth_forward"] = depth
+
+    return io_dict
 
 def compute_branch_length(io_dict, io_connect, layer_name, forward=False):
     branch_length = 0
     branch_found = False
     analyze_layer = layer_name
     if forward:
-        print("////////////////////// FORWARD PROPAGATION //////////////////////")
+        print("////////////////////// FORWARD PROPAGATION  //////////////////////")
     else:
         print("////////////////////// BACKWARD PROPAGATION //////////////////////")
     print("Checking conv layers", layer_name)
@@ -107,27 +297,21 @@ def net_distance(io_dict, io_connect):
     return net_levels 
 
 def extract_connections(model, io_dict):
+    """ Extracts the connections between the layers. """
 
     io_connect = {}
 
-    graph_input_name = model.graph.input[0].name
-    graph_input_name = graph_input_name.replace(".", "_")
-
-    graph_output_name = model.graph.output[0].name
-    graph_output_name = graph_output_name.replace(".", "_")
+    graph_input_name = sanitize_string(model.graph.input[0].name)
+    graph_output_name = sanitize_string(model.graph.output[0].name)
 
     # This list is storing metadata of the connections between the output 
     # streams and the producers
     for node_name, io_info in io_dict.items():
         for output_name in io_info["output"]:
 
-            is_graph_input = output_name == graph_input_name
-
             # Done to recognize vector connections
             output_name = output_name.split("[")[0]
-
             io_connect.setdefault(output_name, [[], []])
-
             io_connect[output_name][0].append(node_name)
 
     # Adding to the previous list the connections to the consumers
@@ -136,16 +320,17 @@ def extract_connections(model, io_dict):
     for node_name, io_info in io_dict.items():
         for input_name in io_info["input"]:
         
-            is_produce_stream = "produce_stream" == node_name
+            is_produce_stream = ("produce_stream" == node_name)
             if (not is_produce_stream) and (input_name in io_connect.keys()):
                     io_connect[input_name][1].append(node_name)
 
-    io_connect[graph_output_name][1] = ["consume_stream"]
+    # if graph_output_name in io_connect.keys():
+    #     io_connect[graph_output_name][1] = ["consume_stream"]
 
     return io_connect
 
-
 def extract_tensors_info(model):
+    """ Extracts the information about the tensors in the model. """
 
     tensors_info = {}
 
@@ -162,7 +347,7 @@ def extract_tensors_info(model):
 
     return tensors_info
 
-def graph_info(model, init_info, object_detection=False, anchors=None, enable_ws=True):
+def graph_info(model, init_info, object_detection=False, anchors=None, transform=False):
 
     tensors_info = extract_tensors_info(
         model
@@ -171,52 +356,39 @@ def graph_info(model, init_info, object_detection=False, anchors=None, enable_ws
     # The dictionary reports all the layers which have a different input output
     # structure with respect to the original 1 input stream - 1 output stream
     # architecture
-    
     io_dict = {}
-    
-    # Listing for each layer the input and outputs taking into account the
-    # quantization process
     
     # Declaring input stream management as a specific node
     # of the network
-    io_dict = input_gen.info(
-        io_dict,
-        tensors_info,
-        model,
-        enable_ws
-    )
-
-    graph_output_name = model.graph.output[0].name
-    graph_output_name = graph_output_name.replace(".", "_")
+    for graph_input_name in model.graph.input:
+        io_dict = input_gen.info(
+            io_dict,
+            tensors_info,
+            graph_input_name.name,
+            transform=transform
+        )
+    
+    graph_output_name = sanitize_string(model.graph.output[0].name)
 
     cut_name = []
     for node in model.graph.node:
 
-        node_name = node.name
-        node_name = node_name.replace(".", "_")
+        node_name = sanitize_string(node.name)
+        
+        if node_name in io_dict.keys():
+            node_name = node_name + "_1"
 
         io_dict[node_name] = {}
         io_dict[node_name]["input"] = []
         io_dict[node_name]["output"] = []
 
         for input in node.input:
-
-            input_name = input
-            input_name = input_name.replace(".", "_")
+            input_name = sanitize_string(input)
             io_dict[node_name]["input"].append(input_name)
-            node_name_comp = node_name.lower()
-            # Not including the weights parameters
-            # if ('conv' in node_name_comp):
-            #     break
 
         for output in node.output:
-            output_name = output
-            output_name = output_name.replace(".", "_")
-
+            output_name = sanitize_string(output)
             io_dict[node_name]["output"].append(output_name)
-
-        io_dict[node_name]["has_forward"] = False
-        io_dict[node_name]["merge_1x1"] = False
 
         if 'conv' in node.op_type.lower():
             io_dict = conv.info(
@@ -225,9 +397,22 @@ def graph_info(model, init_info, object_detection=False, anchors=None, enable_ws
                 node_name,
                 init_info,
                 tensors_info,
-                enable_ws
             )
+
             # Save last layer name if it is a recognized layer
+            last_layer_name = node_name
+            continue
+
+        # If you detect a pad layer store the output name and do not generate a layer
+        if 'pad' in node.op_type.lower():
+            io_dict = pad.info(
+                io_dict,
+                node,
+                node_name,
+                tensors_info,
+                init_info
+            )
+
             last_layer_name = node_name
             continue
 
@@ -238,8 +423,8 @@ def graph_info(model, init_info, object_detection=False, anchors=None, enable_ws
                 node_name,
                 init_info,
                 tensors_info,
-                enable_ws
             )
+
             last_layer_name = node_name
             continue
 
@@ -250,21 +435,23 @@ def graph_info(model, init_info, object_detection=False, anchors=None, enable_ws
                 node_name,
                 init_info,
                 tensors_info,
-                enable_ws
             )
-            # Save last layer name if it is a recognized layer
+
             last_layer_name = node_name
             continue
 
         if 'relu' in node.op_type.lower():
             io_dict[node_name]["type"] = "relu"
-            # Save last layer name if it is a recognized layer
+            io_dict[node_name]["output_quant"] = None
+            
             last_layer_name = node_name
             continue
 
         if 'add' in node.op_type.lower() and cut_name == []:
             io_dict[node_name]["type"] = "add"
-            # Save last layer name if it is a recognized layer
+            io_dict[node_name]["output_quant"] = None
+            io_dict[node_name]["input_quant"] = None
+            
             last_layer_name = node_name
             continue
 
@@ -276,12 +463,13 @@ def graph_info(model, init_info, object_detection=False, anchors=None, enable_ws
                 init_info,
                 tensors_info
             )
-            # Save last layer name if it is a recognized layer
+            
             last_layer_name = node_name
             continue
         
-        if 'flatten' in node.op_type.lower():
+        if 'flatten' in node.op_type.lower() or 'reshape' in node.op_type.lower():
             io_dict[node_name]["type"] = "flatten"
+
             last_layer_name = node_name
             continue
 
@@ -293,7 +481,7 @@ def graph_info(model, init_info, object_detection=False, anchors=None, enable_ws
                 init_info,
                 tensors_info
             )
-            # Save last layer name if it is a recognized layer
+            
             last_layer_name = node_name
             continue
         
@@ -305,7 +493,7 @@ def graph_info(model, init_info, object_detection=False, anchors=None, enable_ws
                 init_info,
                 tensors_info
             )
-            # Save last layer name if it is a recognized layer
+            
             last_layer_name = node_name
             continue
         
@@ -326,7 +514,6 @@ def graph_info(model, init_info, object_detection=False, anchors=None, enable_ws
         io_dict.pop(node_name)
 
     # check if the last layer output is the graph output
-    print(cut_name)
     assert (len(cut_name) < 2 or object_detection)
     if len(cut_name) > 0:
         assert (len(cut_name) == len(anchors))
@@ -334,14 +521,19 @@ def graph_info(model, init_info, object_detection=False, anchors=None, enable_ws
     if object_detection:
         concat_net = None
         for i, layer_name in enumerate(cut_name):
-            io_dict = detect.info(io_dict, i, anchors[i], layer_name, len(cut_name), ws)
+            io_dict = detect.info(io_dict, i, anchors[i], layer_name, len(cut_name), io_dict[layer_name]["ow_ops"])
         io_dict = non_max_suppression.info(io_dict, graph_output_name, len(cut_name), anchors, cut_name)
     elif len(cut_name) == 1:
-        graph_output_name = model.graph.output[0].name
-        graph_output_name = graph_output_name.replace(".", "_")
         if io_dict[last_layer_name]["output"][0] != graph_output_name:
             io_dict[last_layer_name]["output"][0] = graph_output_name
     
+    
+    # Add a sink node to the graph
+    io_dict = output_gen.info(
+        io_dict,
+        graph_output_name
+    )
+
     return io_dict
 
 def rename_nodes(io_dict):
@@ -353,6 +545,7 @@ def rename_nodes(io_dict):
             
         new_node_name = "node_" + node["type"] + "_%0d" % n_node
         new_io_dict[new_node_name] = node
+        print(f"Renamed {node_name} to {new_node_name}")
 
         n_node += 1
 
@@ -362,38 +555,80 @@ def rename_edges(model, io_dict):
 
     io_connect = extract_connections(model, io_dict)
 
-    n_net = 0
+    n_net = 1
     rename_dict = {}
-    for net_name, layers in io_connect.items():
-        layer_in_name = layers[0][0]
-        layer_out_name = layers[1][0]
-
-        in_type = io_dict[layer_in_name]["type"]
-
-        no_skip_name = net_name.replace("_skip", "")
-        if no_skip_name in rename_dict.keys():
-            new_net_name = rename_dict[no_skip_name] + "_skip"
-        else:
-            new_net_name = "net_" + in_type + "_%0d" % n_net
-
-        rename_dict[net_name.split("[")[0]] = new_net_name
-
-        # Done to recognize vector connections
-        vector_less_name = []
-        for output_name in io_dict[layer_in_name]["output"]:
-            vector_less_name.append(output_name.split("[")[0])
-
-        in_pos = vector_less_name.index(net_name)
-        io_dict[layer_in_name]["output"][in_pos] = new_net_name 
-        # In this way splits are handled with the layer merging them
-
-        if len(net_name.split("[")) > 1:
-            io_dict[layer_in_name]["output"][in_pos] += "[" + net_name.split("[")[1]
-
-        if layer_out_name != "consume_stream":
-            out_pos = io_dict[layer_out_name]["input"].index(net_name)
-            io_dict[layer_out_name]["input"][out_pos] = new_net_name 
-
+    
+    # Rename the input and output nodes of the graph
+    # They should have a unique name for the testbench
+    for graph_input_name in model.graph.input:
+        graph_input_name = graph_input_name.name.replace(".", "_")
+        rename_dict[graph_input_name] = "inp_%0d" % n_net
         n_net += 1
+
+    for graph_output_name in model.graph.output:
+        graph_output_name = graph_output_name.name.replace(".", "_")
+        rename_dict[graph_output_name] = "out_%0d" % n_net
+        n_net += 1
+
+    # for name, node in io_dict.items():
+    #     for i, input_name in enumerate(node["input"]):
+    #         if input_name in rename_dict.keys():
+    #             io_dict[name]["input"][i] = rename_dict[input_name]
+
+    #     for i, output_name in enumerate(node["output"]):
+    #         if output_name in rename_dict.keys():
+    #             io_dict[name]["output"][i] = rename_dict[output_name]
+
+    # for net_name, layers in io_connect.items():
+        
+    #     layer_in_name = layers[0][0]
+    #     layer_out_name = layers[1][0]
+
+    #     in_type = io_dict[layer_in_name]["type"]
+
+    #     no_skip_name = net_name.replace("_skip", "")
+    #     if no_skip_name in rename_dict.keys():
+    #         new_net_name = rename_dict[no_skip_name] + "_skip"
+    #         print(f"Renamed {net_name} to {new_net_name}")
+    #     else:
+    #         new_net_name = "net_" + in_type + "_%0d" % n_net
+    #         print(f"Renamed {net_name} to {new_net_name}")
+
+    #     rename_dict[net_name.split("[")[0]] = new_net_name
+
+    #     # Done to recognize vector connections
+    #     vector_less_name = []
+    #     for output_name in io_dict[layer_in_name]["output"]:
+    #         vector_less_name.append(output_name.split("[")[0])
+
+    #     in_pos = vector_less_name.index(net_name)
+    #     io_dict[layer_in_name]["output"][in_pos] = new_net_name 
+    #     # In this way splits are handled with the layer merging them
+
+    #     if len(net_name.split("[")) > 1:
+    #         io_dict[layer_in_name]["output"][in_pos] += "[" + net_name.split("[")[1]
+
+    #     out_pos = io_dict[layer_out_name]["input"].index(net_name)
+    #     io_dict[layer_out_name]["input"][out_pos] = new_net_name 
+
+    #     n_net += 1
+    
+    for node in io_dict.values():
+        input_nets = node["input"]
+        output_nets = node["output"]
+
+        for i, input_name in enumerate(input_nets):
+            if input_name not in rename_dict.keys():
+                rename_dict[input_name] = f"net_{n_net}"
+                n_net += 1
+    
+            node["input"][i] = rename_dict[input_name]
+        
+        for i, output_name in enumerate(output_nets):
+            if output_name not in rename_dict.keys():
+                rename_dict[output_name] = f"net_{n_net}"
+                n_net += 1
+
+            node["output"][i] = rename_dict[output_name]
 
     return io_dict

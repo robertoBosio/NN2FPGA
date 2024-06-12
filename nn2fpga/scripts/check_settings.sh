@@ -1,8 +1,6 @@
 #! /bin/bash 
-
-if [ ! -d $PRJ_ROOT ]; then 
-  echo "ERROR: $PRJ_ROOT does not exist." 
-  exit 1
+if [ ! -d $PRJ_ROOT ]; then
+    mkdir -p $PRJ_ROOT 
 fi
 
 if [ ! -d $PRJ_ROOT/cc/src ]; then 

@@ -62,3 +62,7 @@ dependencies:
     - triton==2.0.0
     - typing-extensions==4.4.0
     - urllib3==1.26.13
+    - librosa
+    - PyYAML
+    - tqdm
+    - matplotlib

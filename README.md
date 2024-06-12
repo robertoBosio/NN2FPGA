@@ -42,4 +42,10 @@ For more information, please refer to the [paper]() where we implemented Resnet-
 # TODO 
 - [ ] Clean the C++ headers from unused functions.
 - [ ] Remove unused Python libraries.
+- [ ] Correct double quantization behaviour
+- [ ] Support 32 bit biases
+- [ ] Insert bandwidth adjust down on och
+- [ ] Consider fifos in BRAM ILP
+- [ ] Find a solution for Vitis HLS 2023.2 bug of static memory and bind_storage
+- [ ] Find a solution for Vitis HLS 2023.2 bug collapsing pipeline pragmas
 - [ ] Add support for object detection and segmentation. (On-going)

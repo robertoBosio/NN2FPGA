@@ -1,10 +1,5 @@
-import os
-import sys
-#import onnx
-import qonnx
-from onnx import numpy_helper
-import numpy as np
 from backend.utils import write_func
+import math
 
 def dma_func(
     input_name,
@@ -82,13 +77,16 @@ def fill_uram_layer(parsed_write):
 
     for layer in parsed_write:
         if layer["func"] != "load_uram":
-            if "uram_input" in layer.keys():
+            if layer["dynamic_init"]:
                 # block["template"] = block["template"] + [layer["template"][0]]
                 block["args"] = block["args"] + layer["uram_input"]
                 block["mux_data"][layer["uram_input"][0]] = layer["uram_total"]
                 block["bits_data"][layer["uram_input"][0]] = layer["bits"]
                 block["index_data"][layer["uram_input"][0]] = layer["index"]
-                block["ops_data"][layer["uram_input"][0]] = layer["ops"]
+                if int(8 / layer["bits"]) == 0:
+                    block["ops_data"][layer["uram_input"][0]] = layer["ops"]*layer["ich_ops"]
+                else:
+                    block["ops_data"][layer["uram_input"][0]] = math.ceil(layer["ops"]*layer["ich_ops"]/int(8/layer["bits"]))
     
     return block
 
@@ -96,7 +94,7 @@ def init(uram_layer, network_name, prj_root="/tmp"):
 
 
     libraries = [
-        "%s.h" % network_name,
+        "params.h",
         "ap_int.h",
         "hls_stream.h",
         "nn2fpga/weights_utils.h"

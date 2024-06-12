@@ -1,0 +1,22 @@
+{
+    "resource": [
+        {
+            "bottom_left" : "X0Y0",
+            "upper_right" : "X0Y3",
+            "uram": 0,
+            "bram": 0,
+            "dsp": 576,
+            "lut": 44160,
+            "ff": 88320
+        },
+        {
+            "bottom_left" : "X1Y0",
+            "upper_right" : "X2Y3",
+            "uram": 64,
+            "bram": 144,
+            "dsp": 672,
+            "lut": 72960,
+            "ff": 145920
+        }
+    ]
+}

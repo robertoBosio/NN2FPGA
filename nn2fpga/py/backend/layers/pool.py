@@ -5,8 +5,9 @@ import qonnx
 from onnx import numpy_helper
 import numpy as np
 from backend.layers.quant import get_quant_type
+import math
 
-def info(io_dict, node, node_name, init_info, tensors_info, enable_ws):
+def info(io_dict, node, node_name, init_info, tensors_info):
 
     attributes = getattr(node, "attribute" )
     input_shape = tensors_info[node.input[0]].tensor_type.shape
@@ -39,7 +40,7 @@ def info(io_dict, node, node_name, init_info, tensors_info, enable_ws):
         stride = attr_dict["strides"][0]
         pad    = attr_dict["pads"][0]
 
-    adaptive |= (fh == iw) and (fw == ih) and (stride == 1) and (pad == 0)
+    adaptive |= (fh == iw) and (fw == ih) and (pad == 0)
 
     in_scale_factor = 0
 
@@ -65,33 +66,55 @@ def info(io_dict, node, node_name, init_info, tensors_info, enable_ws):
     io_dict[node_name]["actscale"] = []
     io_dict[node_name]["is_adaptive"] = adaptive
     io_dict[node_name]["actbits"] = []
-    io_dict[node_name]["enable_ws"] = enable_ws
-    io_dict[node_name]["ws"] = 1
-    io_dict[node_name]["ws_out"] = 1
+    io_dict[node_name]["actsigned"] = []
+    io_dict[node_name]["ow_ops"] = 1
+    io_dict[node_name]["ow_ops_out"] = 1
     io_dict[node_name]["ops"] = 1
     io_dict[node_name]["in_ops"] = 1
+    io_dict[node_name]["ich_ops"] = 1
+    io_dict[node_name]["total"] = oh * ow * och
+    io_dict[node_name]["input_quant"] = None
+    io_dict[node_name]["output_quant"] = None
+    io_dict[node_name]["start_comp_layer"] = False
 
     return io_dict
 
-def parse(name, node):
-
+def get_input_name(node):
     input_name  = node["input"][0]
-    input_type_name = input_name.replace("_skip", "")
-    output_name = node["output"][0]
-    output_type_name = output_name.replace("_skip", "")
+    if node["adjust_line_buffer"]:
+        input_name = input_name + "_adj"
+    return input_name
 
-    signed = node["signed"]
+def get_output_name(node):
+    return node["output"][0]
+
+def parse(name, node):
+    input_name = get_input_name(node)
+    input_type_name = input_name.replace("_skip", "")
+    output_name = get_output_name(node)
+    output_type_name = output_name.replace("_skip", "")
 
     block = {}
     block["func"] = "pool_op"
 
     # Template parameters
     block["template"] = []
-    block["template"].append("t_%s_struct" % input_type_name)
-    block["template"].append("t_%s_vector" % input_type_name)
+    if (node["is_adaptive"]):
+        block["template"].append("t_%s_struct" % input_type_name)
+        block["template"].append("t_%s" % input_type_name)
+    # elif (node["pad"] == 0):
+    #     block["template"].append("t_%s_lb_struct" % input_type_name)
+    #     block["template"].append("t_%s_lb" % input_type_name)
+    else:
+        block["template"].append("t_%s_window_struct" % input_type_name)
+        block["template"].append("t_%s_window" % input_type_name)
     block["template"].append("t_%s_struct" % output_type_name)
     block["template"].append("t_%s" % output_type_name)
     block["template"].append("t_%s_acc" % name)
+    if node["pool"] == 0:
+        block["template"].append("t_%s_div" % name)
+    else:
+        block["template"].append(f"t_{name}_acc")
     block["template"].append("c_%s_ich" % name)
     block["template"].append("c_%s_och" % name)
     block["template"].append("c_%s_iw" % name)
@@ -103,26 +126,23 @@ def parse(name, node):
     block["template"].append("c_%s_stride" % name)
     block["template"].append("c_%s_pad" % name)
     block["template"].append("c_%s_pool" % name)
-    block["template"].append("c_%s_ws" % name)
-    block["template"].append("c_%s_ws_out" % name)
+    block["template"].append("c_%s_ow_ops" % name)
+    # block["template"].append("c_%s_ow_ops_out" % name)
     block["template"].append("c_%s_ops" % name)
-    if (node["is_adaptive"]):
-        block["template"].append("c_%s_in_ops" % name)
-    # block["template"].append("c_ws")
-    # block["template"].append("c_%s_in_scale_factor" % name)
+    block["template"].append("c_%s_in_ops" % name)
 
     block["args"] = []
     if (node["is_adaptive"]):
         block["args"].append("s_%s" % input_name)
     else:
-        if node["pad"] == 0:
-            block["args"].append("s_%s_pre_pad" % input_name)
-        else:
-            block["args"].append("s_%s_compute" % input_name)
+        # if node["pad"] == 0:
+        #     block["args"].append("s_%s_pre_pad" % input_name)
+        # else:
+        block["args"].append("s_%s_compute" % input_name)
     block["args"].append("s_%s" % output_name)
 
     block["defines"] = {}
-    output_type = get_quant_type(node["signed"], node["bits"][0], node["scale_factor"][0])
+    output_type = get_quant_type(node["output_quant"]["signed"], node["output_quant"]["bits"], node["output_quant"]["scale_factor"])
     block["defines"]["t_%s" % output_type_name] = ["type", output_type]
     output_vector_type = "std::array<t_%s, %s>" % (output_type_name, node["ops"])
     block["defines"]["t_%s_vector" % output_type_name] = ["type", output_vector_type]
@@ -131,11 +151,31 @@ def parse(name, node):
         [["data", "std::array<t_%s_vector, 1>" % output_type_name], ["last", "bool"]]
     ]
 
+    input_reduce_type = "std::array<t_%s, %0d>" % (input_name, node["ich_ops"])
+    block["defines"]["t_%s_reduce" % input_name] = ["type", input_reduce_type]
+    input_window_type = "std::array<t_%s_reduce, %0d>" % (input_name, node["fh"]*(node["fw"]+(node["ow_ops"]-1)*node["stride"]))
+    block["defines"]["t_%s_window" % input_name] = ["type", input_window_type]
+    block["defines"]["t_%s_window_struct" % input_name] = [
+        "struct",
+        [["data", "t_%s_window" % input_name], ["last", "bool"]]
+    ]
+    input_lb_type = "std::array<t_%s_reduce, %0d>" % (input_name, 1)
+    block["defines"]["t_%s_lb" % input_name] = ["type", input_lb_type]
+    block["defines"]["t_%s_lb_struct" % input_name] = [
+        "struct",
+        [["data", "t_%s_lb" % input_name], ["last", "bool"]]
+    ]
+
     if node["pool"] == 1:
         block["defines"]["t_%s_acc" % name]            = ["type", output_type]
     else:
-        acc_type = get_quant_type(True, 32, node["actscale"][0], acc_reg=True)
-        block["defines"]["t_%s_acc" % name]            = ["type", acc_type]
+        acc_bits = node['input_quant']["bits"] + math.ceil(math.log2(node["fh"] * node["fw"]))
+        acc_ibits = node['input_quant']["bits"] + node['input_quant']["scale_factor"] + math.ceil(math.log2(node["fh"] * node["fw"]))
+        div_type = get_quant_type(node["input_quant"]["signed"], 32, -(32 - acc_ibits))
+        acc_type = get_quant_type(node["input_quant"]["signed"], acc_bits, node["input_quant"]["scale_factor"], acc_reg=True)
+        block["defines"]["t_%s_acc" % name]        = ["type", acc_type]
+        block["defines"]["t_%s_div" % name]        = ["type", div_type]
+
     block["defines"]["c_%s_ich" % name]            = ["const", node["ich"]]
     block["defines"]["c_%s_och" % name]            = ["const", node["och"]]
     block["defines"]["c_%s_iw" % name]             = ["const", node["iw"]]
@@ -147,8 +187,8 @@ def parse(name, node):
     block["defines"]["c_%s_stride" % name]         = ["const", node["stride"]]
     block["defines"]["c_%s_pad" % name]            = ["const", node["pad"]]
     block["defines"]["c_%s_pool" % name]           = ["const", node["pool"]]
-    block["defines"]["c_%s_ws" % name]             = ["const", node["ws"]]
-    block["defines"]["c_%s_ws_out" % name]         = ["const", node["ws_out"]]
+    block["defines"]["c_%s_ow_ops" % name]         = ["const", node["ow_ops"]]
+    # block["defines"]["c_%s_ow_ops_out" % name]     = ["const", node["ow_ops_out"]]
     block["defines"]["c_%s_ops" % name]            = ["const", node["ops"]]
     block["defines"]["c_%s_in_ops" % name]         = ["const", node["in_ops"]]
 
@@ -158,20 +198,20 @@ def parse(name, node):
     declare["name"] = "s_%s" % output_name
     declare["type"] = "t_%s_struct" % output_name
     declare["is_array"] = True
-    declare["dim"] = 1
+    declare["dim"] = node["ow_ops"]
 
     block["declare"].append(declare)
 
+    block["pragma"] = []
     pragma = {}
     pragma["name"] = "stream"
     options = [
         ["variable", "s_%s" % output_name],
-        ["depth", node["och"]],
+        ["depth", node["och"] // node["ops"]],
         ["type", "fifo"],
     ]
     pragma["options"] = options
 
-    block["pragma"] = []
     block["pragma"].append(pragma)
 
     return block
