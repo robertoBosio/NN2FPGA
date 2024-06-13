@@ -33,6 +33,6 @@ To deploy the bitstream on the FPGA, it is required to run the following command
 ```bash
 make deploy TOP_NAME=${TOP_NAME} BOARD=${BOARD} ONNX_PATH=../test/onnx/${TOP_NAME}.onnx DATASET=cifar10 
 ```
-Supported boards are `ULTRA96v2,`KRIA KV260`and ZCU102.
+Supported boards are `ULTRA96v2`,`KRIA KV260`and `ZCU102`.
 Right now the framework is fully working for classification datasets, but we are extending it to object detection and segmentation.
 
