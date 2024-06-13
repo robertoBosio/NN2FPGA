@@ -77,10 +77,10 @@ def get_dataset(dataset, cifar=10, sample_size=None):
     if dataset == 'cifar10':
 
         transforms_sel = cifar_transform
-        BASE_DIR = "/home-ssd/datasets/cifar10/"
+        BASE_DIR = "../../../datasets/cifar10/"
         train_args = {
             'train': True,
-            'download': False,
+            'download': True,
             'transform': transforms_sel(is_training=True),
             'root': BASE_DIR
         }
