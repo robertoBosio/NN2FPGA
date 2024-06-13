@@ -6,11 +6,6 @@ set NN2FPGA_ROOT [lindex [lindex $argv 2] 0]
 set CMD_ARGS [lreplace [lindex $argv 2] 0 0]
 source "${NN2FPGA_ROOT}/tcl/settings.tcl"
 
-source "/home-ssd/roberto/Documents/hls-llvm-simd/scripts/SILVIA.tcl"
-set SILVIA::ROOT "/home-ssd/roberto/Documents/hls-llvm-simd"
-set SILVIA::LLVM_ROOT "${SILVIA::ROOT}/llvm-project/install"
-set SILVIA::PASSES [list [dict create OP "muladd" INLINE 1 MAX_CHAIN_LEN 3] [dict create OP "mul" INLINE 1]]
-set SILVIA::DEBUG 1
 
 set impl_sel "solution_0"
 set PRJ_NAME ${TOP_NAME}_${BOARD}

@@ -55,6 +55,7 @@ dependencies:
     - sigtools==2.0.3
     - six==1.16.0
     - sympy==1.11.1
+    - tabulate
     - toposort==1.7
     - torch==1.13.0
     - torchaudio==0.13.0
