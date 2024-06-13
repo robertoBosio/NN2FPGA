@@ -2,7 +2,7 @@
 ## Introduction
 NN2FPGA is a framework which generates quantized convolution neural networs accelerators in C++ for AMD FPGAs.
 The main goal of this project is to provide a tool targeting embedded FPGAs keeping state-of-the-art performance.
-Tha main addition to the state-of-the-art is the support for resnet-like models with specific optimizations for the skip connections and optimal resource allocation using BIP algorithm.
+The main addition to the state-of-the-art is the support for resnet-like models with specific optimizations for the skip connections and optimal resource allocation using BIP algorithm.
 
 The project is completely open-source, and it is released under the MIT license.
 We would be happy to receive contributions from the community.
