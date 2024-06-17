@@ -15,6 +15,7 @@ from cifar10 import postprocess as cifar10_postprocess
 from vw import postprocess as vw_postprocess
 from imagenet import postprocess as imagenet_postprocess
 
+
 def print_sorted_nested_dict(dictionary, indent=0):
     for key in sorted(dictionary.keys()):
         value = dictionary[key]
@@ -40,12 +41,14 @@ if __name__ == "__main__":
 
     sel_board = sys.argv[1]
     if (sel_board not in supported_boards):
-        print(f"Error: selected {sel_board}, allowed board selection: {supported_boards}")
+        print(
+            f"Error: selected {sel_board}, allowed board selection: {supported_boards}")
         sys.exit(0)
 
     sel_dataset = sys.argv[2]
     if (sel_dataset not in supported_datasets):
-        print(f"Error: selected {sel_dataset}, allowed dataset selection: {supported_datasets}")
+        print(
+            f"Error: selected {sel_dataset}, allowed dataset selection: {supported_datasets}")
         sys.exit(0)
 
     # Check that the input scale factor must be a positive integer number
@@ -56,7 +59,7 @@ if __name__ == "__main__":
     except ValueError:
         print("Error: input scale factor must be a positive integer number")
         sys.exit(0)
-    
+
     # Check that the frequency must be a positive integer number
     try:
         frequency = int(sys.argv[4])
@@ -85,7 +88,7 @@ if __name__ == "__main__":
         postprocess = imagenet_postprocess
 
     test_loader, buffer_dim = dataloader(batch_size)
-    
+
     # Board aware section
     board = {}
     pl_divisor = 10
@@ -100,7 +103,7 @@ if __name__ == "__main__":
         board["sensor"] = rails["power1"].power
         board["sensor_name"] = "power1_power"
         pl_divisor = 1000 // frequency
-    
+
     if (sel_board == "ZCU102"):
         board["sensor"] = ZCU102PowerSensor("INT_power", "W")
         board["sensor_name"] = "INT_power"
@@ -108,11 +111,11 @@ if __name__ == "__main__":
 
     print("Loading overlay", flush=True)
     overlay = Overlay('./overlay/design_1.bit')
-    
+
     print("Loaded overlay", flush=True)
     print(f"Setting PL clock with divisor: {pl_divisor}", flush=True)
     Clocks._instance.PL_CLK_CTRLS[0].DIVISOR0 = pl_divisor
-    
+
     print("Loading params", flush=True)
     dma_params = overlay.axi_dma_1
     params_vector = np.load("overlay/uram.npy")

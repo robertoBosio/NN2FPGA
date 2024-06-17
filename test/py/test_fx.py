@@ -30,6 +30,7 @@ os.environ.setdefault('NUM_WORKERS', '4')
 os.environ.setdefault('WBITS', '8')
 os.environ.setdefault('ABITS', '8')
 
+
 def main():
 
     root_dir = os.environ['ROOT_DIR']
@@ -59,11 +60,11 @@ def main():
     os.makedirs(ckpt_dir, exist_ok=True)
     os.makedirs(onnx_dir, exist_ok=True)
 
-
-    train_dataset, eval_dataset, input_shape = get_dataset(dataset, cifar=cifar)
+    train_dataset, eval_dataset, input_shape = get_dataset(
+        dataset, cifar=cifar)
 
     eval_loader = torch.utils.data.DataLoader(eval_dataset, batch_size=eval_batch_size, shuffle=False,
-                                            num_workers=num_workers)
+                                              num_workers=num_workers)
 
     # if 'cuda' in device:
     #     model = torch.nn.DataParallel(model)
@@ -72,7 +73,7 @@ def main():
     # exit(-1)
     print('#### Building model..')
     device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
-    model = resnet8(weight_bits=Wbits,act_bits=Abits).to('cuda:0')
+    model = resnet8(weight_bits=Wbits, act_bits=Abits).to('cuda:0')
     # model = MobileNetV1(num_filters=8, num_classes=2).to(device)
     # model = QuantizedCifar10Net().to(device)
     # model = Autoencoder(input_shape[1], weight_bits=Wbits, act_bits=Abits).to('cuda:0')
@@ -89,16 +90,19 @@ def main():
         # hook the intermediate tensors with their name
         os.system("mkdir -p tmp/logs/%s" % (log_name))
         os.system("rm -rf tmp/logs/%s/feature.txt" % (log_name))
+
         def get_activation(name):
             def hook(module, input, output):
                 with open("tmp/logs/%s/feature.txt" % (log_name), "a+") as f:
-                    f.write(str(name) + " " + str(input[0].shape) + " " + str(output[0].shape) + "\n")
+                    f.write(
+                        str(name) + " " + str(input[0].shape) + " " + str(output[0].shape) + "\n")
                     f.write("input" + "\n")
                     try:
                         for hh in range(input[0].shape[2]):
                             for ww in range(input[0].shape[3]):
                                 for cc in range(input[0].shape[1]):
-                                    f.write(str(input[0][0][cc][hh][ww].detach().cpu().numpy()) + " ")
+                                    f.write(
+                                        str(input[0][0][cc][hh][ww].detach().cpu().numpy()) + " ")
                                 f.write("\n")
                     except:
                         f.write("input" + "\n")
@@ -109,7 +113,8 @@ def main():
                         for hh in range(output[0].shape[1]):
                             for ww in range(output[0].shape[2]):
                                 for cc in range(output[0].shape[0]):
-                                    f.write(str(output[0][cc][hh][ww].detach().cpu().numpy()) + " ")
+                                    f.write(
+                                        str(output[0][cc][hh][ww].detach().cpu().numpy()) + " ")
                                 f.write("\n")
                     except:
                         f.write("output" + "\n")
@@ -119,32 +124,37 @@ def main():
         def get_activation_quant(name):
             def hook(module, input, output):
                 with open("tmp/logs/%s/feature.txt" % (log_name), "a+") as f:
-                    f.write(str(name) + " " + str(input[0].shape) + " " + str(output[0].shape) + "\n")
+                    f.write(
+                        str(name) + " " + str(input[0].shape) + " " + str(output[0].shape) + "\n")
                     f.write("input" + "\n")
                     for hh in range(input[0].shape[2]):
                         for ww in range(input[0].shape[3]):
                             for cc in range(input[0].shape[1]):
-                                f.write(str(input[0].value[0][cc][hh][ww].detach().cpu().numpy()) + " ")
+                                f.write(
+                                    str(input[0].value[0][cc][hh][ww].detach().cpu().numpy()) + " ")
                             f.write("\n")
 
                     f.write("output" + "\n")
                     for hh in range(output[0].shape[2]):
                         for ww in range(output[0].shape[3]):
                             for cc in range(output[0].shape[1]):
-                                f.write(str(output[0][0][cc][hh][ww].detach().cpu().numpy()) + " ")
+                                f.write(
+                                    str(output[0][0][cc][hh][ww].detach().cpu().numpy()) + " ")
                             f.write("\n")
             return hook
 
         def get_weight_quant(name):
             def hook(module, input, output):
                 with open("tmp/logs/%s/feature.txt" % (log_name), "a+") as f:
-                    f.write(str(name) + " " + str(input[0].shape) + " " + str(output[0].shape) + "\n")
+                    f.write(
+                        str(name) + " " + str(input[0].shape) + " " + str(output[0].shape) + "\n")
                     f.write("input" + "\n")
                     for hh in range(input[0].shape[3]):
                         for ww in range(input[0].shape[2]):
                             for cc in range(input[0].shape[1]):
                                 for occ in range(output[0].shape[0]):
-                                    f.write(str(input[0][occ][cc][hh][ww].detach().cpu().numpy()) + " ")
+                                    f.write(
+                                        str(input[0][occ][cc][hh][ww].detach().cpu().numpy()) + " ")
                                 f.write("\n")
 
                     f.write("output" + "\n")
@@ -152,22 +162,26 @@ def main():
                         for cc in range(output[0].shape[1]):
                             for hh in range(output[0].shape[2]):
                                 for ww in range(output[0].shape[3]):
-                                    f.write(str(output[0][occ][cc][hh][ww].detach().cpu().numpy()) + " ")
+                                    f.write(
+                                        str(output[0][occ][cc][hh][ww].detach().cpu().numpy()) + " ")
                             f.write("\n")
             return hook
 
         def get_bias_quant(name):
             def hook(module, input, output):
                 with open("tmp/logs/%s/feature.txt" % (log_name), "a+") as f:
-                    f.write(str(name) + " " + str(input[0].shape) + " " + str(output[0].shape) + "\n")
+                    f.write(
+                        str(name) + " " + str(input[0].shape) + " " + str(output[0].shape) + "\n")
                     f.write("input" + "\n")
                     for occ in range(output[0].shape[0]):
-                        f.write(str(input[0][occ].detach().cpu().numpy()) + " ")
+                        f.write(
+                            str(input[0][occ].detach().cpu().numpy()) + " ")
                         f.write("\n")
 
                     f.write("output" + "\n")
                     for occ in range(output[0].shape[0]):
-                        f.write(str(output[0][occ].detach().cpu().numpy()) + " ")
+                        f.write(
+                            str(output[0][occ].detach().cpu().numpy()) + " ")
                         f.write("\n")
             return hook
 
@@ -187,7 +201,6 @@ def main():
                 module.register_forward_hook(get_weight_quant(name))
             if name == "conv1.bias_quant":
                 module.register_forward_hook(get_bias_quant(name))
-            
 
         model.eval()
         with torch.no_grad():
@@ -196,13 +209,14 @@ def main():
                     inputs, targets = inputs.to(device), targets.to(device)
                     # normalize the input using the same mean and std of training set
                     outputs = model(inputs)
-                    outputs = outputs.view(outputs.size(0),-1)
+                    outputs = outputs.view(outputs.size(0), -1)
 
                     _, predicted = outputs.max(1)
                     total += targets.size(0)
                     correct += predicted.eq(targets).sum().item()
 
-                    tepoch.set_postfix({"Acc": f"{100.0 * correct / total:.2f}%"})
+                    tepoch.set_postfix(
+                        {"Acc": f"{100.0 * correct / total:.2f}%"})
                     exit()
 
         acc = 100. * correct / total
@@ -214,24 +228,26 @@ def main():
         # model.to('cpu')
         dummy_input = torch.randn(input_shape, device=device)
         accuracy_str = f'{acc:.2f}'.replace('.', '_')
-        exported_model = export_onnx_qcdq(model, args=dummy_input, export_path=onnx_dir + "/%s_bnfuse.onnx" % (log_name), opset_version=13)
+        exported_model = export_onnx_qcdq(
+            model, args=dummy_input, export_path=onnx_dir + "/%s_bnfuse.onnx" % (log_name), opset_version=13)
         best_acc = acc
         return best_acc
         # model.to(device)
 
     best_acc = 0  # best test accuracy
     print("#### Merge BN..")
-    #model = merge_conv_bn(model)
+    # model = merge_conv_bn(model)
     fuse_layers(model)
-    replace_layers(model,torch.nn.BatchNorm2d ,torch.nn.Identity())
+    replace_layers(model, torch.nn.BatchNorm2d, torch.nn.Identity())
     print("#### Loading pretrain model..")
-    ckpt = torch.load(os.path.join(ckpt_dir, f'checkpoint_quant_bnfuse_fx.t7'), map_location=device)
+    ckpt = torch.load(os.path.join(
+        ckpt_dir, f'checkpoint_quant_bnfuse_fx.t7'), map_location=device)
     model.load_state_dict(ckpt['model_state_dict'])
     model.to(device)
     print('#### Testing..')
     best_acc = test(best_acc)
     print('#### Finished Testing .. with best_acc: %f' % (best_acc))
 
-   
+
 if __name__ == '__main__':
     main()

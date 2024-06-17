@@ -9,6 +9,7 @@ from PIL import Image
 from coco import CocoDetection
 from coco import preproc as coco_preproc
 
+
 class ImageNet(Dataset):
     def __init__(self, root, train, transform=None, sample_size=None):
         self.samples = []
@@ -33,21 +34,23 @@ class ImageNet(Dataset):
                 sample_path = os.path.join(syn_folder, sample)
                 self.samples.append(sample_path)
                 self.targets.append(class_id)
-        
+
         if sample_size is not None:
             # Randomly sample a subset of the dataset and targets
             assert len(self.samples) == len(self.targets)
-            indices = np.random.choice(len(self.samples), sample_size, replace=False)
+            indices = np.random.choice(
+                len(self.samples), sample_size, replace=False)
             self.samples = [self.samples[i] for i in indices]
             self.targets = [self.targets[i] for i in indices]
 
     def __len__(self):
-            return len(self.samples)
-    
+        return len(self.samples)
+
     def __getitem__(self, idx):
-            x = Image.open(self.samples[idx]).convert("RGB")
-            x = self.transform(x)
-            return x, self.targets[idx]
+        x = Image.open(self.samples[idx]).convert("RGB")
+        x = self.transform(x)
+        return x, self.targets[idx]
+
 
 def cifar10_dataloader(batch_size):
     CIFAR10_DIRECTORY = '/home/datasets/cifar10'
@@ -87,6 +90,7 @@ def cifar10_dataloader(batch_size):
 
     return test_loader, buffer_dim
 
+
 def cifar10_4bit_dataloader(batch_size):
     CIFAR10_DIRECTORY = '/home/datasets/cifar10'
 
@@ -100,7 +104,8 @@ def cifar10_4bit_dataloader(batch_size):
         download=True,
         transform=torchvision.transforms.Compose([
             torchvision.transforms.ToTensor(),
-            transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
+            transforms.Normalize((0.4914, 0.4822, 0.4465),
+                                 (0.2023, 0.1994, 0.2010)),
             lambda x: x.float(),
         ])
     )
@@ -125,6 +130,7 @@ def cifar10_4bit_dataloader(batch_size):
     ]
 
     return test_loader, buffer_dim
+
 
 def coco_dataloader(batch_size):
     COCO_DIRECTORY = '/home/datasets/coco/'
@@ -170,6 +176,7 @@ def coco_dataloader(batch_size):
 
     return test_loader, buffer_dim
 
+
 def vw_dataloader(batch_size):
     IMAGE_SIZE = 96
     BASE_DIR = os.path.join("/home/datasets/vw", 'vw_coco2014_96')
@@ -183,13 +190,15 @@ def vw_dataloader(batch_size):
     dataset = torchvision.datasets.ImageFolder
 
     dataset = dataset(**train_args)
-    loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=False)
+    loader = torch.utils.data.DataLoader(
+        dataset, batch_size=batch_size, shuffle=False)
     buffer_dim = [
         3*IMAGE_SIZE*IMAGE_SIZE,
         2
     ]
 
     return loader, buffer_dim
+
 
 def imagenet_dataloader(batch_size):
     IMAGENET_DIRECTORY = '/home/datasets/Imagenet/'
@@ -198,11 +207,12 @@ def imagenet_dataloader(batch_size):
         print("IMAGENET Dataset not present")
         exit(0)
 
-    transform=torchvision.transforms.Compose([
+    transform = torchvision.transforms.Compose([
         torchvision.transforms.Resize(256),
         torchvision.transforms.CenterCrop(224),
         torchvision.transforms.ToTensor(),
-        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[
+                             0.229, 0.224, 0.225])
     ])
 
     args = {

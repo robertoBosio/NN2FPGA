@@ -1,55 +1,58 @@
 import os
 import sys
-#import onnx
+# import onnx
 import qonnx
 from onnx import numpy_helper
 import numpy as np
 from backend.graph import *
 # from backend.layers.conv import get_add_name
 
+
 def compute_out_quant(
-        actscale=None,
-        wscale=None,
-        scale_factor=None,
-        clip_factor=None,
-        mask_factor=None,
-        signed=False
-    ):
+    actscale=None,
+    wscale=None,
+    scale_factor=None,
+    clip_factor=None,
+    mask_factor=None,
+    signed=False
+):
 
-        if (actscale is not None):
-            off = -1*(actscale + wscale)
-        else:
-            off = 0
+    if (actscale is not None):
+        off = -1*(actscale + wscale)
+    else:
+        off = 0
 
-        diff_scale = off + scale_factor
+    diff_scale = off + scale_factor
 
-        reduced_clip = -1 * (clip_factor - scale_factor)
-        reduced_clip = reduced_clip + 7
-        reduced_clip = int(2**reduced_clip)-1
-        # TODO: Add bit width to generalize this computation
-        if signed and reduced_clip > 127:
-            reduced_clip = 127
+    reduced_clip = -1 * (clip_factor - scale_factor)
+    reduced_clip = reduced_clip + 7
+    reduced_clip = int(2**reduced_clip)-1
+    # TODO: Add bit width to generalize this computation
+    if signed and reduced_clip > 127:
+        reduced_clip = 127
 
-        reduced_mask = (mask_factor - scale_factor)
-        # reduced_mask = 0xff-(int(2**reduced_mask)-1)
+    reduced_mask = (mask_factor - scale_factor)
+    # reduced_mask = 0xff-(int(2**reduced_mask)-1)
 
-        return diff_scale, reduced_clip, reduced_mask
+    return diff_scale, reduced_clip, reduced_mask
+
 
 def compute_in_quant(
-        actscale=None,
-        in_scale_factor=None
-    ):
+    actscale=None,
+    in_scale_factor=None
+):
 
-        diff_scale =  in_scale_factor - actscale
+    diff_scale = in_scale_factor - actscale
 
-        reduced_clip = diff_scale
-        reduced_clip = reduced_clip + 7
-        reduced_clip = int(2**reduced_clip)-1
+    reduced_clip = diff_scale
+    reduced_clip = reduced_clip + 7
+    reduced_clip = int(2**reduced_clip)-1
 
-        return diff_scale, reduced_clip
+    return diff_scale, reduced_clip
+
 
 def hw_quant(model, io_dict):
-    
+
     io_connect = extract_connections(model, io_dict)
 
     for net_name, layers in io_connect.items():
@@ -75,9 +78,9 @@ def hw_quant(model, io_dict):
             if is_out_conv:
                 is_weight = any(
                     [
-                        net_name == weight_name.replace(".", "_") 
+                        net_name == weight_name.replace(".", "_")
                         for weight_name in io_dict[layer_out_name]["weights_name"]
-                    ]    
+                    ]
                 )
                 # if "bias_name" in io_dict[layer_out_name].keys():
                 #     is_not_bias = net_name in io_dict[layer_out_name]["bias_name"]
@@ -88,7 +91,7 @@ def hw_quant(model, io_dict):
                 in_bits = io_dict[layer_in_name]["bits"]
                 in_signed = io_dict[layer_in_name]["signed"]
 
-                # Multiple outputs from previous layer in case of skip 
+                # Multiple outputs from previous layer in case of skip
                 # connections
                 in_net_names = io_dict[layer_in_name]["output"]
                 scale_index0 = in_net_names.index(net_name)
@@ -97,7 +100,7 @@ def hw_quant(model, io_dict):
                 bits_index0 = in_net_names.index(net_name)
                 bits0 = in_bits[bits_index0]
                 signed0 = in_signed[bits_index0]
-                
+
                 # TODO: check for pointwise convolutions not at the end
                 # if (io_dict[layer_out_name]["iw"] % 2) == 0:
                 #     #TODO: Generalize to other bit widths
@@ -105,7 +108,7 @@ def hw_quant(model, io_dict):
                 # else:
                 #     ow_ops_partial = 1
                 ow_ops_partial = io_dict[layer_out_name]["ow_ops"]
-                
+
                 # Admitting packing on ow only if the number of ops is a multiple
                 # of the packing factor
                 bits_packing = 16 // bits0
@@ -118,11 +121,11 @@ def hw_quant(model, io_dict):
                 if ow_pack_partial > 2:
                     ow_pack_partial = 2
                 # ow_pack_partial = 1
-                
+
                 och_pack_partial = bits_packing // ow_pack_partial
                 if och_pack_partial > 2:
                     och_pack_partial = 2
-                
+
                 if signed0 and ow_pack_partial > 1:
                     # print("##### Layer: %s, signed, reducing och_pack" % (layer_out_name))
                     # print(signed0)
@@ -134,16 +137,18 @@ def hw_quant(model, io_dict):
                     io_dict[layer_out_name]["ow_pack"] = ow_pack_partial
                 else:
                     io_dict[layer_out_name]["ow_pack"] = 1
-                
+
                 if (io_dict[layer_out_name]["ops"] % och_pack_partial) == 0:
                     io_dict[layer_out_name]["och_pack"] = och_pack_partial
                 else:
                     io_dict[layer_out_name]["och_pack"] = 1
                 # io_dict[layer_out_name]["och_pack"] = 1
-                
-                print("##### Layer: %s, ow_pack: %0d" % (layer_out_name,io_dict[layer_out_name]["ow_pack"]))
-                print("##### Layer: %s, och_pack: %0d" % (layer_out_name,io_dict[layer_out_name]["och_pack"]))
-                print("##### Layer: %s, bits: %0d" % (layer_out_name,bits0))
+
+                print("##### Layer: %s, ow_pack: %0d" %
+                      (layer_out_name, io_dict[layer_out_name]["ow_pack"]))
+                print("##### Layer: %s, och_pack: %0d" %
+                      (layer_out_name, io_dict[layer_out_name]["och_pack"]))
+                print("##### Layer: %s, bits: %0d" % (layer_out_name, bits0))
 
                 io_dict[layer_out_name]["actscale"].append(scale_factor0)
                 io_dict[layer_out_name]["actbits"].append(bits0)
@@ -164,9 +169,10 @@ def hw_quant(model, io_dict):
 
     return io_dict
 
+
 def weights_quant(model, io_dict):
     """ Assign directly to convolutional layer the quantization of the weights and biases """
-    
+
     io_connect = extract_connections(model, io_dict)
 
     for net_name, layers in io_connect.items():
@@ -190,16 +196,16 @@ def weights_quant(model, io_dict):
             if is_out_conv:
                 is_weight = any(
                     [
-                        net_name == weight_name.replace(".", "_") 
+                        net_name == weight_name.replace(".", "_")
                         for weight_name in io_dict[layer_out_name]["weights_name"]
-                    ]    
+                    ]
                 )
                 if ("bias_name" in io_dict[layer_out_name].keys()):
                     is_bias = any(
                         [
-                            net_name == bias_name.replace(".", "_") 
+                            net_name == bias_name.replace(".", "_")
                             for bias_name in io_dict[layer_out_name]["bias_name"]
-                        ]    
+                        ]
                     )
                 else:
                     is_bias = False
@@ -224,9 +230,10 @@ def weights_quant(model, io_dict):
 
     return io_dict
 
+
 def merge_quant(model, io_dict, init_info, flag_mod, inherit_quant=False, safe_merge=True):
     """Merging consecutive quantizations"""
-    
+
     quant_info = extract_quant_info(
         model,
         io_dict,
@@ -270,7 +277,7 @@ def merge_quant(model, io_dict, init_info, flag_mod, inherit_quant=False, safe_m
                     single_quant = len(quant_info[output]["seq_out"]) < 2
                     if (len(quant_info[output]["others"]) == 0) and single_quant:
                         for j, new_output in enumerate(quant_info[output]["seq_out"]):
-                            
+
                             print(f"##### Merging {output} into {name}")
                             new_node_name = quant_info[output][new_output]
                             new_scale = quant_info[output]["seq_scale"][j]
@@ -326,7 +333,8 @@ def merge_quant(model, io_dict, init_info, flag_mod, inherit_quant=False, safe_m
                             new_node["seq_mask_signed"].append(new_mask_signed)
                             new_node["seq_mask_bits"].append(new_mask_bits)
 
-                        new_node["removed"].append(quant_info[output]["seq"][0])
+                        new_node["removed"].append(
+                            quant_info[output]["seq"][0])
                         remove_node.append(output)
                     else:
                         keep_elem.append(i)
@@ -342,7 +350,8 @@ def merge_quant(model, io_dict, init_info, flag_mod, inherit_quant=False, safe_m
                 new_node["seq"].append(quant_info[name]["seq"][i])
                 new_node["seq_scale"].append(quant_info[name]["seq_scale"][i])
                 new_node["seq_bits"].append(quant_info[name]["seq_bits"][i])
-                new_node["seq_signed"].append(quant_info[name]["seq_signed"][i])
+                new_node["seq_signed"].append(
+                    quant_info[name]["seq_signed"][i])
                 new_node["seq_out"].append(quant_info[name]["seq_out"][i])
                 new_clip = quant_info[name]["seq_clip"][i]
                 new_clip_signed = quant_info[name]["seq_clip_signed"][i]
@@ -358,9 +367,11 @@ def merge_quant(model, io_dict, init_info, flag_mod, inherit_quant=False, safe_m
                 new_node["seq_clip"].append(new_clip)
                 new_node["seq_mask"].append(quant_info[name]["seq_mask"][i])
                 new_node["seq_clip_signed"].append(new_clip_signed)
-                new_node["seq_mask_signed"].append(quant_info[name]["seq_mask_signed"][i])
+                new_node["seq_mask_signed"].append(
+                    quant_info[name]["seq_mask_signed"][i])
                 new_node["seq_clip_bits"].append(new_clip_bits)
-                new_node["seq_mask_bits"].append(quant_info[name]["seq_mask_bits"][i])
+                new_node["seq_mask_bits"].append(
+                    quant_info[name]["seq_mask_bits"][i])
 
             quant_info[name] = new_node
 
@@ -369,8 +380,8 @@ def merge_quant(model, io_dict, init_info, flag_mod, inherit_quant=False, safe_m
 
             if len(remove_node) > 0:
                 break
-        
-        # If there are other nodes attached to this quantization it should not 
+
+        # If there are other nodes attached to this quantization it should not
         # be removed from database
         if len(remove_node) > 0:
             for output in remove_node:
@@ -381,17 +392,17 @@ def merge_quant(model, io_dict, init_info, flag_mod, inherit_quant=False, safe_m
     remove_node = []
     for name, node in io_dict.items():
         if "quant" in name.lower():
-            new_output  = []
-            new_scale   = []
-            new_bits   = []
-            new_signed   = []
-            new_clip   = []
-            new_mask   = []
-            new_clip_signed   = []
-            new_mask_signed   = []
-            new_clip_bits   = []
-            new_mask_bits   = []
-            # The quant_info database is already selecting the point where 
+            new_output = []
+            new_scale = []
+            new_bits = []
+            new_signed = []
+            new_clip = []
+            new_mask = []
+            new_clip_signed = []
+            new_mask_signed = []
+            new_clip_bits = []
+            new_mask_bits = []
+            # The quant_info database is already selecting the point where
             # quant layers can be merged, for this reason only the changed layers
             # should be updated
             input_name = node["input"][0]
@@ -445,8 +456,8 @@ def merge_quant(model, io_dict, init_info, flag_mod, inherit_quant=False, safe_m
 
     return io_dict, (flag_mod or len(remove_node) > 0)
 
-def extract_quant_info(model, io_dict, init_info):
 
+def extract_quant_info(model, io_dict, init_info):
 
     quant_info = {}
 
@@ -459,40 +470,40 @@ def extract_quant_info(model, io_dict, init_info):
 
             # Saving connections and scale factors for all the quantizations
             # From the node input array retrieve the scale factor
-            scale_name   = io_dict[node_name]["input"][1]
-            scale_info   = init_info[scale_name]
+            scale_name = io_dict[node_name]["input"][1]
+            scale_info = init_info[scale_name]
             scale_factor = numpy_helper.to_array(scale_info)
             scale_factor = np.log2(scale_factor)
 
             # From the node input array retrieve the bits
-            bits_name   = io_dict[node_name]["input"][3]
-            bits_info   = init_info[bits_name]
-            bits        = int(numpy_helper.to_array(bits_info))
-            
+            bits_name = io_dict[node_name]["input"][3]
+            bits_info = init_info[bits_name]
+            bits = int(numpy_helper.to_array(bits_info))
+
             signed = node["signed"]
             if node["signed"] is list:
                 signed = signed[0]
-            
+
             clip = node["clip"]
             if clip is list:
                 clip = clip[0]
-            
+
             mask = node["mask"]
             if mask is list:
                 mask = mask[0]
-            
+
             clip_signed = node["clip_signed"]
             if clip_signed is list:
                 clip_signed = clip_signed[0]
-            
+
             mask_signed = node["mask_signed"]
             if mask_signed is list:
                 mask_signed = mask_signed[0]
-            
+
             clip_bits = node["clip_bits"]
             if clip_bits is list:
                 clip_bits = clip_bits[0]
-            
+
             mask_bits = node["mask_bits"]
             if mask_bits is list:
                 mask_bits = mask_bits[0]
@@ -547,4 +558,3 @@ def extract_quant_info(model, io_dict, init_info):
                     quant_info[input]["others_signed"].append(node_name)
 
     return quant_info
-

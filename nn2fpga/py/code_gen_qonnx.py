@@ -7,6 +7,7 @@ from qonnx.core.datatype import DataType
 from qonnx.transformation.infer_datatypes import InferDataTypes
 from qonnx.util.cleanup import cleanup_model
 
+
 def main():
 
     if "TOP_NAME" not in os.environ:
@@ -15,7 +16,8 @@ def main():
 
     top_name = str(os.environ.get("TOP_NAME"))
 
-    allowed_boards = ["PYNQ", "ZC706", "ULTRA96v2", "KRIA", "ZCU102", "U280", "U250", "U55C"]
+    allowed_boards = ["PYNQ", "ZC706", "ULTRA96v2",
+                      "KRIA", "ZCU102", "U280", "U250", "U55C"]
 
     if "BOARD" not in os.environ:
         print("BOARD PLATFORM NOT DEFINED")
@@ -71,15 +73,15 @@ def main():
     # onnx_path = "./onnx/Brevonnx_resnet_final_fx.onnx"
     # onnx_path = "./onnx/Brevonnx_resnet8_final_fx.onnx"
     # onnx_path = "./onnx/2layer.onnx"
-    #onnx_path = "./onnx/CNV_2W2A.onnx"
+    # onnx_path = "./onnx/CNV_2W2A.onnx"
     onnx_model = ModelWrapper(onnx_path)
     cleanup_model(onnx_model)
     inferred_model = onnx_model.transform(infer_shapes.InferShapes())
     inferred_model = inferred_model.transform(InferDataTypes())
-    #write_network( inferred_model , off_chip_storage = False 1)
+    # write_network( inferred_model , off_chip_storage = False 1)
     inferred_model.set_tensor_datatype("global_in", DataType["UINT8"])
-    #assert inferred_model.check_all_tensor_shapes_specified(), "There are still tensors that are not specified"
-    
+    # assert inferred_model.check_all_tensor_shapes_specified(), "There are still tensors that are not specified"
+
     if "BOARD" not in os.environ:
         print("BOARD PLATFORM NOT DEFINED")
         print("ALLOWED OPTIONS: ", end="")
@@ -92,35 +94,35 @@ def main():
 
     if object_detection:
         # anchors = [5,5, 6,13, 10,8, 16,12, 13,27, 27,19, 42,31, 69,51, 136,110]
-        anchors = [9,10, 21,18, 51,38]
+        anchors = [9, 10, 21, 18, 51, 38]
         # divide anchors in group of 6 elements
         anchors = [anchors[i:i+6] for i in range(0, len(anchors), 6)]
-        
+
     else:
         anchors = []
-    
+
     if 'DATASET' in os.environ:
         dataset = os.environ['DATASET']
     else:
         dataset = 'cifar10'
-    
+
     transform = bool(int(os.environ['TRANSFORM']))
     generate_report_file = f"{PRJ_ROOT}/generate_{top_name}_{board}.rpt"
     generate_log_file = f"{PRJ_ROOT}/generate_{top_name}_{board}.log"
-    
+
     # If the file generate_report_file exists, delete it
     if os.path.exists(generate_report_file):
         os.remove(generate_report_file)
-    
+
     # If the file generate_report_file exists, delete it
     if os.path.exists(generate_log_file):
         os.remove(generate_log_file)
 
     write_network(
         inferred_model,
-        file_name = top_name,
+        file_name=top_name,
         off_chip_storage=off_chip_storage,
-        board=board, 
+        board=board,
         dynamic_init=dynamic_init,
         uram_storage=uram_storage,
         object_detection=object_detection,
@@ -130,6 +132,7 @@ def main():
         generate_log_file=generate_log_file,
         transform=transform
     )
+
 
 if __name__ == '__main__':
     main()

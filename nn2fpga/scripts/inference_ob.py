@@ -6,28 +6,26 @@
 # In[20]:
 
 
+import torch
+from IPython.display import display
+import dac_sdc
+import pynq
+from datetime import datetime
+import cv2
+from matplotlib import pyplot
+from PIL import Image
+import numpy as np
+import time
+import math
 import sys
 import os
 
 sys.path.append(os.path.abspath("../common"))
 
-import math
-import time
-import numpy as np
-from PIL import Image
-from matplotlib import pyplot
-import cv2
-from datetime import datetime
-
-import pynq
-import dac_sdc
-from IPython.display import display
 
 team_name = 'overlay'
 dac_sdc.BATCH_SIZE = 1
 team = dac_sdc.Team(team_name)
-
-import torch
 
 
 # **Your team directory where you can access your bitstream, notebook, and any other files you submit, is available as `team.team_dir`.**
@@ -40,7 +38,7 @@ print(bitfile)
 overlay = pynq.Overlay(bitfile)
 print("Loaded overlay")
 dma = overlay.axi_dma_0
-#print(overlay.__dict__)
+# print(overlay.__dict__)
 print("Loading URAM")
 dma_uram = overlay.axi_dma_1
 uram_vector = np.load("uram.npy")
@@ -49,29 +47,34 @@ uram_buffer = pynq.allocate(shape=(uram_vector.shape[0], ), dtype=np.uint8)
 uram_buffer[:] = uram_vector[:]
 dma_uram.sendchannel.transfer(uram_buffer)
 
-Y_AXIS=64
-X_AXIS=64
+Y_AXIS = 64
+X_AXIS = 64
 
 # In[18]:
 
 
-#in_buffer = pynq.allocate(shape=(dac_sdc.BATCH_SIZE, 360, 640, 3), dtype=np.uint8, cacheable = 1)
-in_buffer = pynq.allocate(shape=(dac_sdc.BATCH_SIZE, Y_AXIS, X_AXIS, 3), dtype=np.uint8, cacheable = 1)
-out_buffer = pynq.allocate(shape=(3000), dtype=np.uint16, cacheable = 1)
+# in_buffer = pynq.allocate(shape=(dac_sdc.BATCH_SIZE, 360, 640, 3), dtype=np.uint8, cacheable = 1)
+in_buffer = pynq.allocate(
+    shape=(dac_sdc.BATCH_SIZE, Y_AXIS, X_AXIS, 3), dtype=np.uint8, cacheable=1)
+out_buffer = pynq.allocate(shape=(3000), dtype=np.uint16, cacheable=1)
+
 
 def dma_transfer():
     dma.recvchannel.transfer(out_buffer)
-    dma.sendchannel.transfer(in_buffer)  
+    dma.sendchannel.transfer(in_buffer)
     dma_uram.sendchannel.wait()
     print("Shifted uram")
     dma.sendchannel.wait()
     dma.recvchannel.wait()
 
+
 def scale_boxes(img1_shape, boxes, img0_shape, ratio_pad=None):
     # Rescale boxes (xyxy) from img1_shape to img0_shape
     if ratio_pad is None:  # calculate from img0_shape
-        gain = min(img1_shape[0] / img0_shape[0], img1_shape[1] / img0_shape[1])  # gain  = old / new
-        pad = (img1_shape[1] - img0_shape[1] * gain) / 2, (img1_shape[0] - img0_shape[0] * gain) / 2  # wh padding
+        gain = min(img1_shape[0] / img0_shape[0],
+                   img1_shape[1] / img0_shape[1])  # gain  = old / new
+        pad = (img1_shape[1] - img0_shape[1] * gain) / \
+            2, (img1_shape[0] - img0_shape[0] * gain) / 2  # wh padding
     else:
         gain = ratio_pad[0][0]
         pad = ratio_pad[1]
@@ -81,6 +84,7 @@ def scale_boxes(img1_shape, boxes, img0_shape, ratio_pad=None):
     boxes[..., :4] /= gain
     clip_boxes(boxes, img0_shape)
     return boxes
+
 
 def clip_boxes(boxes, shape):
     # Clip boxes (xyxy) to image shape (height, width)
@@ -92,6 +96,7 @@ def clip_boxes(boxes, shape):
     else:  # np.array (faster grouped)
         boxes[..., [0, 2]] = boxes[..., [0, 2]].clip(0, shape[1])  # x1, x2
         boxes[..., [1, 3]] = boxes[..., [1, 3]].clip(0, shape[0])  # y1, y2
+
 
 def intersection_over_union(boxes_preds, boxes_labels, box_format="midpoint"):
     """
@@ -141,6 +146,7 @@ def intersection_over_union(boxes_preds, boxes_labels, box_format="midpoint"):
 
     return intersection / (box1_area + box2_area - intersection + 1e-6)
 
+
 def xyxy2xywh(x):
     # Convert nx4 boxes from [x1, y1, x2, y2] to [x, y, w, h] where xy1=top-left, xy2=bottom-right
     y = x.clone() if isinstance(x, torch.Tensor) else np.copy(x)
@@ -149,6 +155,7 @@ def xyxy2xywh(x):
     y[..., 2] = x[..., 2] - x[..., 0]  # width
     y[..., 3] = x[..., 3] - x[..., 1]  # height
     return y
+
 
 def non_max_suppression_custom(
         prediction,
@@ -167,16 +174,19 @@ def non_max_suppression_custom(
          list of detections, on (n,6) tensor per image [xyxy, conf, cls]
     """
 
-    if isinstance(prediction, (list, tuple)):  # YOLOv5 model in validation model, output = (inference_out, loss_out)
+    # YOLOv5 model in validation model, output = (inference_out, loss_out)
+    if isinstance(prediction, (list, tuple)):
         prediction = prediction[0]  # select only inference output
 
-    prediction = xywh2xyxy(np.asarray(prediction))  # center_x, center_y, width, height) to (x1, y1, x2, y2)
+    # center_x, center_y, width, height) to (x1, y1, x2, y2)
+    prediction = xywh2xyxy(np.asarray(prediction))
     output = nms_custom(prediction.tolist(), iou_thres, 0)
 
-    if len(output) > 0: 
+    if len(output) > 0:
         return [torch.stack(output)]
     else:
         return []
+
 
 def nms_custom(bboxes, iou_threshold, threshold, box_format="corners"):
     """
@@ -195,7 +205,7 @@ def nms_custom(bboxes, iou_threshold, threshold, box_format="corners"):
 
     assert type(bboxes) == list
 
-    #bboxes = [box for box in bboxes if box[4] > threshold]
+    # bboxes = [box for box in bboxes if box[4] > threshold]
     bboxes = sorted(bboxes, key=lambda x: x[4], reverse=True)
     bboxes_after_nms = []
 
@@ -218,6 +228,7 @@ def nms_custom(bboxes, iou_threshold, threshold, box_format="corners"):
 
     return bboxes_after_nms
 
+
 def letterbox(im, new_shape=(640, 640), color=(114, 114, 114), auto=True, scaleFill=False, scaleup=True, stride=32):
     # Resize and pad image while meeting stride-multiple constraints
     shape = im.shape[:2]  # current shape [height, width]
@@ -232,13 +243,15 @@ def letterbox(im, new_shape=(640, 640), color=(114, 114, 114), auto=True, scaleF
     # Compute padding
     ratio = r, r  # width, height ratios
     new_unpad = int(round(shape[1] * r)), int(round(shape[0] * r))
-    dw, dh = new_shape[1] - new_unpad[0], new_shape[0] - new_unpad[1]  # wh padding
+    dw, dh = new_shape[1] - new_unpad[0], new_shape[0] - \
+        new_unpad[1]  # wh padding
     if auto:  # minimum rectangle
         dw, dh = np.mod(dw, stride), np.mod(dh, stride)  # wh padding
     elif scaleFill:  # stretch
         dw, dh = 0.0, 0.0
         new_unpad = (new_shape[1], new_shape[0])
-        ratio = new_shape[1] / shape[1], new_shape[0] / shape[0]  # width, height ratios
+        ratio = new_shape[1] / shape[1], new_shape[0] / \
+            shape[0]  # width, height ratios
 
     dw /= 2  # divide padding into 2 sides
     dh /= 2
@@ -247,8 +260,10 @@ def letterbox(im, new_shape=(640, 640), color=(114, 114, 114), auto=True, scaleF
         im = cv2.resize(im, new_unpad, interpolation=cv2.INTER_LINEAR)
     top, bottom = int(round(dh - 0.1)), int(round(dh + 0.1))
     left, right = int(round(dw - 0.1)), int(round(dw + 0.1))
-    im = cv2.copyMakeBorder(im, top, bottom, left, right, cv2.BORDER_CONSTANT, value=color)  # add border
+    im = cv2.copyMakeBorder(im, top, bottom, left, right,
+                            cv2.BORDER_CONSTANT, value=color)  # add border
     return im, ratio, (dw, dh)
+
 
 def xywh2xyxy(x):
     # Convert nx4 boxes from [x, y, w, h] to [x1, y1, x2, y2] where xy1=top-left, xy2=bottom-right
@@ -259,24 +274,27 @@ def xywh2xyxy(x):
     y[..., 3] = (x[..., 1] + x[..., 3] / 2).astype(np.int32)  # bottom right y
     return y
 
+
 def preproc(img):
     # Resize the image (this is part of your runtime)
-    #im = np.asarray(cv2.resize(img, (640,360), interpolation = cv2.INTER_LINEAR))
-    im = np.asarray(cv2.resize(img, (Y_AXIS,X_AXIS), interpolation = cv2.INTER_LINEAR))
-    im = im[:,:,::-1]  # HWC to CHW, BGR to RGB
+    # im = np.asarray(cv2.resize(img, (640,360), interpolation = cv2.INTER_LINEAR))
+    im = np.asarray(cv2.resize(img, (Y_AXIS, X_AXIS),
+                    interpolation=cv2.INTER_LINEAR))
+    im = im[:, :, ::-1]  # HWC to CHW, BGR to RGB
 
     im = np.ascontiguousarray(im)  # contiguous
     print(im.shape)
     return im
 
+
 def postproc(pred, shape, orig_shape):
-                
+
     start = time.time()
     pred = non_max_suppression_custom(pred)
     if len(pred) > 0:
         pred = pred[0]
     end = time.time()
-    #print("Image postproc non max suppr: %f" % (end-start))
+    # print("Image postproc non max suppr: %f" % (end-start))
 
     object_locations = []
 
@@ -288,14 +306,15 @@ def postproc(pred, shape, orig_shape):
             det = det.numpy().astype(int)
             det[0] = det[0] - (det[0]/(det[2]/2))
             det[1] = det[1] - (det[1]/(det[3]/2))
-            object_locations.append({"type":int(det[5]), "x":int(det[0]), "y":int(det[1]), "width":int(det[2]), "height":int(det[3])})
+            object_locations.append({"type": int(det[5]), "x": int(det[0]), "y": int(
+                det[1]), "width": int(det[2]), "height": int(det[3])})
     return object_locations
-        
+
 
 def my_callback(rgb_imgs):
-    
+
     object_locations_by_image = {}
-    
+
     start = time.time()
     img_list = []
     for i, (img_path, img) in enumerate(rgb_imgs):
@@ -319,10 +338,11 @@ def my_callback(rgb_imgs):
         pred = pred[:, :6]
 
         # Save to dictionary by image filename
-        object_locations_by_image[img_path.name] = postproc(pred, (X_AXIS,Y_AXIS), img.shape)
+        object_locations_by_image[img_path.name] = postproc(
+            pred, (X_AXIS, Y_AXIS), img.shape)
         end = time.time()
-        #print(object_locations_by_image[img_path.name])
-        #print("Image postproc: %f" % (end-start))
+        # print(object_locations_by_image[img_path.name])
+        # print("Image postproc: %f" % (end-start))
     else:
         print("No object detected")
         object_locations_by_image[img_path.name] = []
@@ -346,7 +366,3 @@ del out_buffer
 
 
 # In[ ]:
-
-
-
-

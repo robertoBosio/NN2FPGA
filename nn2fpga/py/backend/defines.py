@@ -4,6 +4,7 @@ import onnx
 from onnx import numpy_helper
 import numpy
 
+
 def write(
     model,
     tensors_info,
@@ -19,7 +20,7 @@ def write(
     additional_ports,
     parallel_ops,
     read_width,
-    reuse, 
+    reuse,
     prj_root="/tmp"
 ):
 
@@ -60,9 +61,9 @@ def write(
 
             fd.write("\n")
 
-            c_ich    = getattr(input_shape, 'dim')[1].dim_value
-            c_ih     = getattr(input_shape, 'dim')[2].dim_value
-            c_iw     = getattr(input_shape, 'dim')[3].dim_value
+            c_ich = getattr(input_shape, 'dim')[1].dim_value
+            c_ih = getattr(input_shape, 'dim')[2].dim_value
+            c_iw = getattr(input_shape, 'dim')[3].dim_value
 
             fd.write("const int c_%s_ich    = %d;\n" % (input_name, c_ich))
             fd.write("const int c_%s_ih     = %d;\n" % (input_name, c_ih))
@@ -80,13 +81,13 @@ def write(
 
             fd.write("\n")
 
-            c_och    = getattr(output_shape, 'dim')[1].dim_value
+            c_och = getattr(output_shape, 'dim')[1].dim_value
             if len(getattr(output_shape, 'dim')) > 2:
-                c_oh     = getattr(output_shape, 'dim')[2].dim_value
-                c_ow     = getattr(output_shape, 'dim')[3].dim_value
+                c_oh = getattr(output_shape, 'dim')[2].dim_value
+                c_ow = getattr(output_shape, 'dim')[3].dim_value
             else:
-                c_oh     = 1
-                c_ow     = 1
+                c_oh = 1
+                c_ow = 1
 
             fd.write("const int c_%s_och = %d;\n" % (output_name, c_och))
             fd.write("const int c_%s_oh  = %d;\n" % (output_name, c_oh))
@@ -95,27 +96,28 @@ def write(
             fd.write("\n")
 
     def write_weights(weight_shape, weight_name, node_name, write_file=False):
-        
-        
+
         keys = list(weight_shape.keys())
-        #print(keys)
+        # print(keys)
         weight_shape_n = numpy_helper.to_array(weight_shape[keys[1]]).shape
         scale_factor = numpy_helper.to_array(weight_shape[keys[2]])
         scale_factor_shift = numpy.log2(scale_factor)
-        c_och    = weight_shape_n[0]
-        c_ich    = weight_shape_n[1]
+        c_och = weight_shape_n[0]
+        c_ich = weight_shape_n[1]
         if (len(weight_shape_n) > 2):
-            c_ih     = weight_shape_n[2]
-            c_iw     = weight_shape_n[3]
+            c_ih = weight_shape_n[2]
+            c_iw = weight_shape_n[3]
         else:
-            c_ih     = 1
-            c_iw     = 1
+            c_ih = 1
+            c_iw = 1
 
         if (write_file):
-            
-            fd.write("const int c_%s_ops  = %d;\n" % (node_name, parallel_ops[node_name]))
+
+            fd.write("const int c_%s_ops  = %d;\n" %
+                     (node_name, parallel_ops[node_name]))
             fd.write("const int c_%s_bw   = 4;\n" % (weight_name))
-            fd.write("const int c_%s_reuse = %0d;\n" % (weight_name, reuse[node_name]))
+            fd.write("const int c_%s_reuse = %0d;\n" %
+                     (weight_name, reuse[node_name]))
 
             fd.write("\n")
 
@@ -149,11 +151,16 @@ def write(
             fd.write("const int c_%s_ich = %d;\n" % (weight_name, c_ich))
             fd.write("const int c_%s_ih  = %d;\n" % (weight_name, c_ih))
             fd.write("const int c_%s_iw  = %d;\n" % (weight_name, c_iw))
-            fd.write("const int c_%s_ops = %0d;\n" % (weight_name, parallel_ops[node_name]))
-            fd.write("const int c_%s_index = %0d;\n" % (weight_name, c_ih*c_iw)) 
-            fd.write("const int c_%s_iter  = %0d;\n" % (weight_name, c_och*c_ich/parallel_ops[node_name] + 1))
-            fd.write("const float c_%s_scale = %f;\n" % (weight_name, scale_factor))
-            fd.write("const int c_%s_scale_shift = %d;\n" %  (weight_name, scale_factor_shift))
+            fd.write("const int c_%s_ops = %0d;\n" %
+                     (weight_name, parallel_ops[node_name]))
+            fd.write("const int c_%s_index = %0d;\n" %
+                     (weight_name, c_ih*c_iw))
+            fd.write("const int c_%s_iter  = %0d;\n" %
+                     (weight_name, c_och*c_ich/parallel_ops[node_name] + 1))
+            fd.write("const float c_%s_scale = %f;\n" %
+                     (weight_name, scale_factor))
+            fd.write("const int c_%s_scale_shift = %d;\n" %
+                     (weight_name, scale_factor_shift))
             fd.write("\n")
 
     def write_relu(fd, node, write_file=False):
@@ -168,8 +175,8 @@ def write(
         output_shape = tensors_info[node.output[0]].tensor_type.shape
 
         c_ich = getattr(output_shape, 'dim')[1].dim_value
-        c_ih  = getattr(output_shape, 'dim')[2].dim_value
-        c_iw  = getattr(output_shape, 'dim')[3].dim_value
+        c_ih = getattr(output_shape, 'dim')[2].dim_value
+        c_iw = getattr(output_shape, 'dim')[3].dim_value
 
         if (write_file):
             fd.write("\n")
@@ -191,8 +198,8 @@ def write(
         output_shape = tensors_info[node.output[0]].tensor_type.shape
 
         c_ich = getattr(output_shape, 'dim')[1].dim_value
-        c_ih  = getattr(output_shape, 'dim')[2].dim_value
-        c_iw  = getattr(output_shape, 'dim')[3].dim_value
+        c_ih = getattr(output_shape, 'dim')[2].dim_value
+        c_iw = getattr(output_shape, 'dim')[3].dim_value
 
         if (write_file):
             fd.write("\n")
@@ -226,24 +233,24 @@ def write(
         output_name = output_name.lower().replace("onnx::", "")
         output_shape = tensors_info[node.output[0]].tensor_type.shape
 
-        attributes = getattr(node, "attribute" )
+        attributes = getattr(node, "attribute")
 
-        c_ich    = getattr(input_shape, 'dim')[1].dim_value
-        c_ih     = getattr(input_shape, 'dim')[2].dim_value
-        c_iw     = getattr(input_shape, 'dim')[3].dim_value
-        c_och    = getattr(output_shape, 'dim')[1].dim_value
-        c_oh     = getattr(output_shape, 'dim')[2].dim_value
-        c_ow     = getattr(output_shape, 'dim')[3].dim_value
+        c_ich = getattr(input_shape, 'dim')[1].dim_value
+        c_ih = getattr(input_shape, 'dim')[2].dim_value
+        c_iw = getattr(input_shape, 'dim')[3].dim_value
+        c_och = getattr(output_shape, 'dim')[1].dim_value
+        c_oh = getattr(output_shape, 'dim')[2].dim_value
+        c_ow = getattr(output_shape, 'dim')[3].dim_value
         if ('adaptive' in node_name):
-            c_fh     = c_oh
-            c_fw     = c_ow
+            c_fh = c_oh
+            c_fw = c_ow
             c_stride = 1
-            c_pad    = 0
+            c_pad = 0
         else:
-            c_fh     = getattr(attributes[0], 'ints')[0]
-            c_fw     = getattr(attributes[0], 'ints')[1]
+            c_fh = getattr(attributes[0], 'ints')[0]
+            c_fw = getattr(attributes[0], 'ints')[1]
             c_stride = getattr(attributes[2], 'ints')[0]
-            c_pad    = getattr(attributes[1], 'ints')[0]
+            c_pad = getattr(attributes[1], 'ints')[0]
 
         if (write_file):
             fd.write("\n")
@@ -283,14 +290,14 @@ def write(
         output_name = output_name.lower().replace("onnx::", "")
         output_shape = tensors_info[node.output[0]].tensor_type.shape
 
-        attributes = getattr(node, "attribute" )
+        attributes = getattr(node, "attribute")
 
-        c_ich    = getattr(input_shape, 'dim')[1].dim_value
-        c_ih     = getattr(input_shape, 'dim')[2].dim_value
-        c_iw     = getattr(input_shape, 'dim')[3].dim_value
-        c_och    = getattr(output_shape, 'dim')[1].dim_value
-        c_oh     = getattr(output_shape, 'dim')[2].dim_value
-        c_ow     = getattr(output_shape, 'dim')[3].dim_value
+        c_ich = getattr(input_shape, 'dim')[1].dim_value
+        c_ih = getattr(input_shape, 'dim')[2].dim_value
+        c_iw = getattr(input_shape, 'dim')[3].dim_value
+        c_och = getattr(output_shape, 'dim')[1].dim_value
+        c_oh = getattr(output_shape, 'dim')[2].dim_value
+        c_ow = getattr(output_shape, 'dim')[3].dim_value
         # c_pad    = getattr(attributes[1], 'ints')[0]
 
         if (write_file):
@@ -322,7 +329,7 @@ def write(
         input_name = node.input[0].replace(".", "_")
         input_name = input_name.lower().replace("onnx::", "")
         input_shape = tensors_info[node.input[0]].tensor_type.shape
-         
+
         weight_name = node.input[1].replace(".", "_")
         weight_name = weight_name.lower().replace("onnx::", "")
         weight_shape = weights_info[node.input[1]]
@@ -330,7 +337,8 @@ def write(
         if (node.name in skip_connections_info.keys()):
             # If it is greater than 2 it means is a producer
             if (len(skip_connections_info[node.name]) > 1):
-                skip_name = skip_connections_info[node.name][1].replace(".", "_")
+                skip_name = skip_connections_info[node.name][1].replace(
+                    ".", "_")
                 skip_name = skip_name.lower().replace("onnx::", "")
 
                 if (write_file):
@@ -389,35 +397,35 @@ def write(
 
         write_weights(weight_shape, weight_name, node_name, write_file)
 
-        attributes = getattr(node, "attribute" )
+        attributes = getattr(node, "attribute")
 
-        c_ich     = getattr(input_shape, 'dim')[1].dim_value
+        c_ich = getattr(input_shape, 'dim')[1].dim_value
         # TODO: Generalize the case to not 1, 1 input features w, h
         if gemm is None:
-            c_ih      = getattr(input_shape, 'dim')[2].dim_value
-            c_iw      = getattr(input_shape, 'dim')[3].dim_value
+            c_ih = getattr(input_shape, 'dim')[2].dim_value
+            c_iw = getattr(input_shape, 'dim')[3].dim_value
         else:
-            c_ih      = 1
-            c_iw      = 1
+            c_ih = 1
+            c_iw = 1
 
-        c_och     = getattr(output_shape, 'dim')[1].dim_value
+        c_och = getattr(output_shape, 'dim')[1].dim_value
         if gemm is None:
-            c_oh      = getattr(output_shape, 'dim')[2].dim_value
-            c_ow      = getattr(output_shape, 'dim')[3].dim_value
+            c_oh = getattr(output_shape, 'dim')[2].dim_value
+            c_ow = getattr(output_shape, 'dim')[3].dim_value
         else:
-            c_oh      = 1
-            c_ow      = 1
+            c_oh = 1
+            c_ow = 1
 
         if gemm is None:
-            c_fh      = getattr(attributes[2], 'ints')[0]
-            c_fw      = getattr(attributes[2], 'ints')[1]
-            c_stride  = getattr(attributes[4], 'ints')[0]
-            c_pad     = getattr(attributes[3], 'ints')[0]
+            c_fh = getattr(attributes[2], 'ints')[0]
+            c_fw = getattr(attributes[2], 'ints')[1]
+            c_stride = getattr(attributes[4], 'ints')[0]
+            c_pad = getattr(attributes[3], 'ints')[0]
         else:
-            c_fh      = 1
-            c_fw      = 1
-            c_stride  = 1
-            c_pad     = 0
+            c_fh = 1
+            c_fw = 1
+            c_stride = 1
+            c_pad = 0
 
         c_l_split = 2
         if node.name in conv_relu:
@@ -441,15 +449,19 @@ def write(
             fd.write("const int c_%s_fw     = %d;\n" % (node_name, c_fw))
             fd.write("const int c_%s_fh     = %d;\n" % (node_name, c_fh))
             fd.write("const int c_%s_relu   = %d;\n" % (node_name, c_relu))
-            fd.write("const int c_%s_a_split  = %d;\n" % (output_name, c_split))
+            fd.write("const int c_%s_a_split  = %d;\n" %
+                     (output_name, c_split))
             fd.write("const int c_%s_stride = %d;\n" % (node_name, c_stride))
             fd.write("const int c_%s_pad    = %d;\n" % (node_name, c_pad))
             if 'activation_scale' in locals():
-                fd.write("const float c_%s_scale = %f;\n" % (node_name, activation_scale)) 
-                fd.write("const int c_%s_scale_shift = %d;\n" % (node_name, activation_scale_shift)) 
-                                                
+                fd.write("const float c_%s_scale = %f;\n" %
+                         (node_name, activation_scale))
+                fd.write("const int c_%s_scale_shift = %d;\n" %
+                         (node_name, activation_scale_shift))
+
             if (not off_chip_storage):
-                fd.write("const int c_%s_split  = %d;\n" % (node_name, c_l_split))
+                fd.write("const int c_%s_split  = %d;\n" %
+                         (node_name, c_l_split))
 
             fd.write("\n")
 
@@ -515,4 +527,3 @@ def write(
         write_body(fd, model, write_file=True)
 
         write_footer(fd)
-

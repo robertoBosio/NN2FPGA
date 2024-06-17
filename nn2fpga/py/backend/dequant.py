@@ -3,6 +3,7 @@ from quant_dorefa import weight_quantize_fn
 import numpy as np
 import torch
 
+
 def dequant(weights):
     wact = weight_quantize_fn(w_bit=8)
     wact.export = False

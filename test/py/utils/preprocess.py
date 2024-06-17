@@ -12,15 +12,16 @@ import torchvision.transforms as transforms
 from tqdm import tqdm
 import numpy
 
+
 def cifar_transform(is_training=True):
     if is_training:
-      transform_list = [transforms.RandomHorizontalFlip(),
-                        transforms.Pad(padding=4, padding_mode='reflect'),
-                        transforms.RandomCrop(32, padding=0),
-                        transforms.ToTensor(),
-                        lambda x: x * 255.0 / 256.0,
-                        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])]
-                        # transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)), ]
+        transform_list = [transforms.RandomHorizontalFlip(),
+                          transforms.Pad(padding=4, padding_mode='reflect'),
+                          transforms.RandomCrop(32, padding=0),
+                          transforms.ToTensor(),
+                          lambda x: x * 255.0 / 256.0,
+                          transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])]
+        # transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)), ]
     else:
         transform_list = [
             transforms.Resize((32, 32)),
@@ -31,32 +32,35 @@ def cifar_transform(is_training=True):
 
     return transform_list
 
+
 def cifar_transform_4bit(is_training=True):
     if is_training:
-      transform_list = [transforms.RandomHorizontalFlip(),
-                        transforms.Pad(padding=4, padding_mode='reflect'),
-                        transforms.RandomCrop(32, padding=0),
-                        transforms.ToTensor(),
-                        lambda x: x * 255.0 / 256.0,
-                        transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)), ]
+        transform_list = [transforms.RandomHorizontalFlip(),
+                          transforms.Pad(padding=4, padding_mode='reflect'),
+                          transforms.RandomCrop(32, padding=0),
+                          transforms.ToTensor(),
+                          lambda x: x * 255.0 / 256.0,
+                          transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)), ]
     else:
         transform_list = [
             transforms.ToTensor(),
-            transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
+            transforms.Normalize((0.4914, 0.4822, 0.4465),
+                                 (0.2023, 0.1994, 0.2010)),
         ]
 
     transform_list = transforms.Compose(transform_list)
 
     return transform_list
 
+
 def fft_transform_train(file_list, param):
     def list_to_vector_array(file_list,
-                            msg="calc...",
-                            n_mels=64,
-                            frames=5,
-                            n_fft=1024,
-                            hop_length=512,
-                            power=2.0):
+                             msg="calc...",
+                             n_mels=64,
+                             frames=5,
+                             n_fft=1024,
+                             hop_length=512,
+                             power=2.0):
         """
         convert the file_list to a vector array.
         file_to_vector_array() is iterated, and the output vector array is concatenated.
@@ -83,13 +87,16 @@ def fft_transform_train(file_list, param):
                                                     hop_length=hop_length,
                                                     power=power)
             if idx == 0:
-                dataset = numpy.zeros((vector_array.shape[0] * len(file_list), dims), float)
-            dataset[vector_array.shape[0] * idx: vector_array.shape[0] * (idx + 1), :] = vector_array
+                dataset = numpy.zeros(
+                    (vector_array.shape[0] * len(file_list), dims), float)
+            dataset[vector_array.shape[0] * idx: vector_array.shape[0]
+                    * (idx + 1), :] = vector_array
 
         return dataset
 
     return list_to_vector_array(file_list, "calc...", param["n_mels"],
-    param["frames"], param["n_fft"], param["hop_length"], param["power"])
+                                param["frames"], param["n_fft"], param["hop_length"], param["power"])
+
 
 def fft_transform_test(target_dir, param):
     machine_id_list = com.get_machine_id_list_for_test(target_dir)
@@ -97,7 +104,8 @@ def fft_transform_test(target_dir, param):
     anomaly = []
     print(machine_id_list)
     for id_str in machine_id_list:
-        test_files, y_true = com.test_file_list_generator(target_dir, id_str, True)
+        test_files, y_true = com.test_file_list_generator(
+            target_dir, id_str, True)
         dataset.append(fft_transform_train(test_files, param))
         anomaly.append(y_true)
     return dataset, anomaly
@@ -158,14 +166,16 @@ def get_imagenet_iter_dali(type, image_dir, batch_size, num_threads, device_id, 
                                     data_dir=image_dir + '/train',
                                     crop=crop, world_size=world_size, local_rank=local_rank)
         pip_train.build()
-        dali_iter_train = DALIClassificationIterator(pip_train, size=pip_train.epoch_size("Reader") // world_size, auto_reset=True)
+        dali_iter_train = DALIClassificationIterator(
+            pip_train, size=pip_train.epoch_size("Reader") // world_size, auto_reset=True)
         return dali_iter_train
     elif type == 'val':
         pip_val = HybridValPipe(batch_size=batch_size, num_threads=num_threads, device_id=local_rank,
                                 data_dir=image_dir + '/val',
                                 crop=crop, size=val_size, world_size=world_size, local_rank=local_rank)
         pip_val.build()
-        dali_iter_val = DALIClassificationIterator(pip_val, size=pip_val.epoch_size("Reader") // world_size, auto_reset=True)
+        dali_iter_val = DALIClassificationIterator(
+            pip_val, size=pip_val.epoch_size("Reader") // world_size, auto_reset=True)
         return dali_iter_val
 
 
@@ -176,7 +186,8 @@ def get_imagenet_iter_torch(type, image_dir, batch_size, num_threads, device_id,
             transforms.RandomResizedCrop(crop, scale=(0.08, 1.25)),
             transforms.RandomHorizontalFlip(),
             transforms.ToTensor(),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[
+                                 0.229, 0.224, 0.225]),
         ])
         dataset = datasets.ImageFolder(image_dir + '/train', transform)
         dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=num_threads,
@@ -186,12 +197,14 @@ def get_imagenet_iter_torch(type, image_dir, batch_size, num_threads, device_id,
             transforms.Resize(val_size),
             transforms.CenterCrop(crop),
             transforms.ToTensor(),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[
+                                 0.229, 0.224, 0.225]),
         ])
         dataset = datasets.ImageFolder(image_dir + '/val', transform)
         dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=False, num_workers=num_threads,
                                                  pin_memory=True)
     return dataloader
+
 
 def vww_transform(is_training=True, IMAGE_SIZE=128):
     if is_training:
@@ -207,7 +220,8 @@ def vww_transform(is_training=True, IMAGE_SIZE=128):
             # lambda x: x / 255.0,
             # normalize between 0 and 1
             # transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5,0.5,0.5])
-            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[
+                                 0.229, 0.224, 0.225])
         ])
     else:
         return transforms.Compose([
@@ -222,8 +236,10 @@ def vww_transform(is_training=True, IMAGE_SIZE=128):
             # lambda x: x / 255.0,
             # normalize between 0 and 1
             # transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5,0.5,0.5])
-            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[
+                                 0.229, 0.224, 0.225])
         ])
+
 
 def imagenet_transform(is_training=True, IMAGE_SIZE=256, center_crop_shape=224):
     if is_training:
@@ -234,12 +250,14 @@ def imagenet_transform(is_training=True, IMAGE_SIZE=256, center_crop_shape=224):
             transforms.Resize(IMAGE_SIZE),
             transforms.CenterCrop(center_crop_shape),
             transforms.ToTensor(),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[
+                                 0.229, 0.224, 0.225])
         ])
     else:
         return transforms.Compose([
             transforms.Resize(IMAGE_SIZE),
             transforms.CenterCrop(center_crop_shape),
             transforms.ToTensor(),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[
+                                 0.229, 0.224, 0.225])
         ])

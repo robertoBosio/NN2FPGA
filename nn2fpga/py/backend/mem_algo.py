@@ -3,6 +3,7 @@ import sys
 import onnx
 from onnx import numpy_helper
 
+
 def round_robin(
     fd,
     ports,
@@ -10,7 +11,7 @@ def round_robin(
     read_width
 ):
     burst_size = 4096
-    maximum_reads = max([ports_info[name][4] for name in ports]) 
+    maximum_reads = max([ports_info[name][4] for name in ports])
 
     fd.write(
         "\tfor (uint32_t s_iter = 0; s_iter < %0d; s_iter++) {\n" %
@@ -58,14 +59,12 @@ def round_robin(
     fd.write(
         "\t\ts_read_address[s_sel] = (c_address_end[s_sel] >= s_read) "
     )
-    
+
     fd.write(
         "? s_read : c_address_start[s_sel];\n"
     )
-    
 
     fd.write("\t};\n")
-
 
 
 def write(
@@ -126,13 +125,12 @@ def write(
         )
 
         pass
-    
+
     def write_footer(fd):
         # End of main file
         fd.write("\n")
         fd.write("}\n")
         pass
-
 
     write_header(fd)
     write_body(fd)

@@ -4,6 +4,7 @@ import pulp
 import math
 from backend.ilp_utils import find_divisors
 
+
 def reuse_number(layers_info, clamp=16):
 
     DELTA = 1
@@ -42,7 +43,8 @@ def reuse_number(layers_info, clamp=16):
     def happiness(choice, divisor, layer_info):
         return choice * divisor * layer_info[1]
 
-    all_divisors, layers_divisors, layers_offset, layers_name = find_divisors(layers_info)
+    all_divisors, layers_divisors, layers_offset, layers_name = find_divisors(
+        layers_info)
 
     num_divisors = len(all_divisors)
 
@@ -101,15 +103,16 @@ def reuse_number(layers_info, clamp=16):
 
     reuse = {}
     for i, name in enumerate(layers_name):
-        # Returning the layers name together with the computed number of 
+        # Returning the layers name together with the computed number of
         # operations that should be executed in parallel
         offset = layers_offset[i]
         for k in range(layers_divisors[i]):
             data = int(choices[offset+k].value())
             if (data == 1):
                 reuse[name] = all_divisors[offset+k]
-    
+
     return reuse
+
 
 def ilp(io_dict):
 

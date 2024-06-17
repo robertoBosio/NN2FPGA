@@ -5,6 +5,7 @@ from torch.utils.data import Dataset
 import os
 import numpy as np
 
+
 def postprocess(out_buffer, results, accuracy, batch_size):
     predicted = np.argmax(np.asarray(out_buffer[:]), axis=-1)
     accuracy_batch = np.equal(predicted, results)

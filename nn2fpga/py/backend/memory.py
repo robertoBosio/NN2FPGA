@@ -3,6 +3,7 @@ import sys
 import onnx
 from onnx import numpy_helper
 
+
 def write(
     additional_ports,
     additional_ports_info,
@@ -61,7 +62,8 @@ def write(
 
             fd.write("void f_%s (\n" % (name))
             fd.write("\thls::stream<t_%s> i_data[c_%s_bw],\n" % (name, name))
-            fd.write("\thls::stream<t_%s> o_data[c_%s_index] \n" % (name, name))
+            fd.write(
+                "\thls::stream<t_%s> o_data[c_%s_index] \n" % (name, name))
             fd.write(") {\n")
             fd.write("\tnn2fpga::produce_stream< \n")
             fd.write("\t\tap_int<READ_WIDTH>, \n")
@@ -87,8 +89,8 @@ def write(
         for name in additional_ports:
             fd.write(
                 "\thls::stream<t_%s> s_%s[c_%s_index],\n" % (
-                    name, 
-                    name, 
+                    name,
+                    name,
                     name
                 )
             )
@@ -143,12 +145,11 @@ def write(
             fd.write("\n")
 
         pass
-    
+
     def write_footer(fd):
         # End of main file
         fd.write("}\n")
         pass
-
 
     with open(prj_root + "/cc/src/memory_management.cc", "w+") as fd:
         write_header(fd)

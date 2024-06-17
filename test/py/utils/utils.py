@@ -1,5 +1,10 @@
+from brevitas.export.onnx.qonnx.manager import QONNXManager
+from brevitas.export import export_onnx_qcdq
+from typing import Iterable
+import onnx
 import os
 import sys
+
 
 def io_shape(io):
     input_shapes = [
@@ -7,13 +12,18 @@ def io_shape(io):
     ]
 
 
-import onnx
-from typing import Iterable
-
-
 def print_tensor_data(initializer: onnx.TensorProto) -> None:
 
-    if initializer.data_type == onnx.TensorProto.DataType.FLOAT:
+
+    # ABLATION 18
+random_input = torch.randn(1, 256, 14, 14)
+model = Ablation_18(weight_bits=8)
+out = model(random_input)
+exported_model = export_onnx_qcdq(
+    model, args=random_input, export_path="resnet18_ablation" + ".onnx", opset_version=13)
+# #export with qonnx
+Q
+   if initializer.data_type == onnx.TensorProto.DataType.FLOAT:
         print(initializer.float_data)
     elif initializer.data_type == onnx.TensorProto.DataType.INT32:
         print(initializer.int32_data)
@@ -38,7 +48,7 @@ def dims_prod(dims: Iterable) -> int:
     return prod
 
 
-def output_shape_quant() :
+def output_shape_quant():
 
     model = onnx.load('./onnx/Brevonnx_resnet_final.onnx')
     onnx.checker.check_model(model)
@@ -46,7 +56,7 @@ def output_shape_quant() :
     graph_def = model.graph
 
     initializers = graph_def.initializer
-    
+
     # Modify initializer
     for initializer in initializers:
         # Data type:
@@ -58,9 +68,9 @@ def output_shape_quant() :
         print("Tensor value before modification:")
         print_tensor_data(initializer)
         # Replace the value with new value.
-        #if initializer.data_type == onnx.TensorProto.DataType.FLOAT:
-            #for i in range(dims_prod(initializer.dims)):
-                #initializer.float_data[i] = 2
+        # if initializer.data_type == onnx.TensorProto.DataType.FLOAT:
+           #for i in range(dims_prod(initializer.dims)):
+               #initializer.float_data[i] = 2
         print("Tensor value after modification:")
         print_tensor_data(initializer)
         # If we want to change the data type and dims, we need to create new tensors from scratch.
@@ -79,7 +89,8 @@ def output_shape_quant() :
             for attribute in node.attribute:
                 print(attribute)
             # Add epislon for the BN nodes.
-            epsilon_attribute = onnx.helper.make_attribute("output_shape", node.input[0])
+            epsilon_attribute = onnx.helper.make_attribute(
+                "output_shape", node.input[0])
             node.attribute.extend([epsilon_attribute])
             # node.attribute.pop() # Pop an attribute if necessary.
             print("Attributes after adding:")
@@ -119,4 +130,4 @@ def output_shape_quant() :
 
 if __name__ == "__main__":
 
-    main() 
+    main()

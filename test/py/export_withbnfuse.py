@@ -1,25 +1,24 @@
+from brevitas.core.scaling import ScalingImplType
+from brevitas.core.restrict_val import RestrictValueType
+import brevitas
+from utils.bar_show import progress_bar
+from utils.preprocess import *
+from models.resnet_brevitas_int import *
+from utils.convbn_merge import merge_conv_bn
+import torchvision
 import os
 import time
 import argparse
 from datetime import datetime
-#import onnx
-#import onnxoptimizer
+# import onnx
+# import onnxoptimizer
 import torch
 import torch.optim as optim
 import torch.backends.cudnn as cudnn
 from torch.utils.tensorboard import SummaryWriter
 from brevitas.nn import QuantConv2d, QuantReLU, QuantMaxPool2d, QuantIdentity
 cudnn.benchmark = True
-import torchvision
-from torch.utils.tensorboard import SummaryWriter
-from utils.convbn_merge import merge_conv_bn
 
-from models.resnet_brevitas_int import *
-from utils.preprocess import *
-from utils.bar_show import progress_bar
-import brevitas
-from brevitas.core.restrict_val import RestrictValueType
-from brevitas.core.scaling import ScalingImplType
 
 # Training settings
 parser = argparse.ArgumentParser(description='brevitas_resnet implementation')
@@ -51,9 +50,10 @@ cfg.ckpt_dir = os.path.join(cfg.root_dir, 'ckpt', cfg.pretrain_dir)
 os.makedirs(cfg.log_dir, exist_ok=True)
 os.makedirs(cfg.ckpt_dir, exist_ok=True)
 
-val=1
+val = 1
 print_onnx = 1
 writer = SummaryWriter()
+
 
 def main():
     if cfg.cifar == 10:
@@ -67,30 +67,32 @@ def main():
 
     print('===> Preparing data ..')
     train_dataset = dataset(root=cfg.data_dir, train=True, download=True,
-                          transform=cifar_transform(is_training=True))
+                            transform=cifar_transform(is_training=True))
     train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=cfg.train_batch_size, shuffle=True,
-                                             num_workers=cfg.num_workers)
+                                               num_workers=cfg.num_workers)
 
     eval_dataset = dataset(root=cfg.data_dir, train=False, download=True,
-                         transform=cifar_transform(is_training=False))
+                           transform=cifar_transform(is_training=False))
     eval_loader = torch.utils.data.DataLoader(eval_dataset, batch_size=cfg.eval_batch_size, shuffle=False,
-                                            num_workers=cfg.num_workers)
+                                              num_workers=cfg.num_workers)
 
     print('===> Building ResNet..')
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    model = resnet20(wbit=cfg.Wbits,abit=cfg.Abits).to('cuda:0')
+    model = resnet20(wbit=cfg.Wbits, abit=cfg.Abits).to('cuda:0')
 
     if device == 'cuda':
         model = torch.nn.DataParallel(model)
         cudnn.benchmark = True
-        #print("no cuda")
+        # print("no cuda")
 
-    optimizer = torch.optim.SGD(model.parameters(), lr=cfg.lr, momentum=0.9, weight_decay=cfg.wd)
+    optimizer = torch.optim.SGD(
+        model.parameters(), lr=cfg.lr, momentum=0.9, weight_decay=cfg.wd)
     # optimizer = torch.optim.Adam(model.parameters(),lr=cfg.lr,weight_decay=cfg.wd)
-    lr_schedu = optim.lr_scheduler.MultiStepLR(optimizer, [90, 150, 200], gamma=0.1)
+    lr_schedu = optim.lr_scheduler.MultiStepLR(
+        optimizer, [90, 150, 200], gamma=0.1)
     criterion = torch.nn.CrossEntropyLoss()
     summary_writer = SummaryWriter(cfg.log_dir)
-    
+
     if cfg.pretrain:
         ckpt = torch.load(os.path.join(cfg.ckpt_dir, f'checkpoint.t7'))
         model.load_state_dict(ckpt['model_state_dict'])
@@ -106,14 +108,14 @@ def main():
     def train(epoch):
         print('\nEpoch: %d' % epoch)
         model.train()
-        train_loss, correct, total = 0, 0 ,0
+        train_loss, correct, total = 0, 0, 0
 
         for batch_idx, (inputs, targets) in enumerate(train_loader):
             inputs, targets = inputs.to('cuda:0'), targets.to('cuda:0')
             optimizer.zero_grad()
             outputs = model(inputs)
             loss = criterion(outputs, targets)
-            writer.add_scalar("loss/train",loss,epoch)
+            writer.add_scalar("loss/train", loss, epoch)
             loss.backward()
             optimizer.step()
 
@@ -125,17 +127,17 @@ def main():
             progress_bar(batch_idx, len(train_loader), 'Loss: %.3f | Acc: %.3f%% (%d/%d)'
                          % (train_loss / (batch_idx + 1), 100. * correct / total, correct, total))
 
-            if batch_idx % cfg.log_interval == 0:  #every log_interval mini_batches...
-                summary_writer.add_scalar('Loss/train', train_loss / (batch_idx + 1), epoch * len(train_loader) + batch_idx)
-                summary_writer.add_scalar('Accuracy/train', 100. * correct / total, epoch * len(train_loader) + batch_idx)
-                summary_writer.add_scalar('learning rate', optimizer.param_groups[0]['lr'], epoch * len(train_loader) + batch_idx)
+            if batch_idx % cfg.log_interval == 0:  # every log_interval mini_batches...
+                summary_writer.add_scalar(
+                    'Loss/train', train_loss / (batch_idx + 1), epoch * len(train_loader) + batch_idx)
+                summary_writer.add_scalar(
+                    'Accuracy/train', 100. * correct / total, epoch * len(train_loader) + batch_idx)
+                summary_writer.add_scalar(
+                    'learning rate', optimizer.param_groups[0]['lr'], epoch * len(train_loader) + batch_idx)
                 # for tag, value in model.named_parameters():
                 #     tag = tag.replace('.', '/')
                 #     summary_writer.add_histogram(tag, value.detach(), global_step=epoch * len(train_loader) + batch_idx)
                 #     summary_writer.add_histogram(tag + '/grad', value.grad.detach(), global_step=epoch * len(train_loader) + batch_idx)
-
-
-
 
     def test(epoch):
         # pass
@@ -155,11 +157,13 @@ def main():
                 correct += predicted.eq(targets).sum().item()
 
                 progress_bar(batch_idx, len(eval_loader), 'Loss: %.3f | Acc: %.3f%% (%d/%d)'
-                    % (test_loss/(batch_idx+1), 100.*correct/total, correct, total))
+                             % (test_loss/(batch_idx+1), 100.*correct/total, correct, total))
 
                 if batch_idx % cfg.log_interval == 0:  # every log_interval mini_batches...
-                    summary_writer.add_scalar('Loss/test', test_loss / (batch_idx + 1), epoch * len(train_loader) + batch_idx)
-                    summary_writer.add_scalar('Accuracy/test', 100. * correct / total, epoch * len(train_loader) + batch_idx)
+                    summary_writer.add_scalar(
+                        'Loss/test', test_loss / (batch_idx + 1), epoch * len(train_loader) + batch_idx)
+                    summary_writer.add_scalar(
+                        'Accuracy/test', 100. * correct / total, epoch * len(train_loader) + batch_idx)
 
         acc = 100. * correct / total
         if acc > best_acc and retrain:
@@ -170,31 +174,29 @@ def main():
                 'acc': acc,
                 'epoch': epoch,
             }
-            torch.save(state, os.path.join(cfg.ckpt_dir, f'checkpoint_quant.t7'))
+            torch.save(state, os.path.join(
+                cfg.ckpt_dir, f'checkpoint_quant.t7'))
             best_acc = acc
-
-
 
     model.to('cuda:0')
     print(model)
-    #return 0
-    
-    if(val) :
+    # return 0
+
+    if (val):
         for epoch in range(start_epoch, start_epoch+1):
-            #train(epoch)
+            # train(epoch)
             test(epoch)
             lr_schedu.step(epoch)
         summary_writer.close()
-
 
     def calibrate_model(calibration_loader, quant_model):
         with torch.no_grad():
             # Put the model in training mode to collect statistics
             quant_model.train()
-            f#or i, (images, _) in enumerate(calibration_loader):
-             #   print(f'Calibration iteration {i}')
-             #   # Disable quantization while collecting statistics
-             #   DisableQuantInference().apply(quant_model, images)
+            f  # or i, (images, _) in enumerate(calibration_loader):
+            #   print(f'Calibration iteration {i}')
+            #   # Disable quantization while collecting statistics
+            #   DisableQuantInference().apply(quant_model, images)
             #  Put the model in inference mode to use those statistics
             quant_model.eval()
             bc = BiasCorrection(iterations=len(calibration_loader))
@@ -202,66 +204,60 @@ def main():
                 print(f'Bias correction iteration {i}')
                 # Apply bias correction
                 quant_model = bc.apply(quant_model, images)
-        quant_model.apply(finalize_collect_stats)    
+        quant_model.apply(finalize_collect_stats)
         return quant_model
-  
-    #change not hand-written
+
+    # change not hand-written
     print("\n------------------------ MERGE BN ---------------------\n")
     model = merge_conv_bn(model)
 
     model.to('cuda:0')
 
     post_quant = 0
-    if(post_quant) :
-        model = calibrate_model(train_loader,model)
-    if(val) :
-         test(start_epoch)
-         print("\n-------------------RETRAINING-----------------\n") 
-         retrain = 1
-         for epoch in range(start_epoch, start_epoch+1): 
-            if(not(post_quant)) :
+    if (post_quant):
+        model = calibrate_model(train_loader, model)
+    if (val):
+        test(start_epoch)
+        print("\n-------------------RETRAINING-----------------\n")
+        retrain = 1
+        for epoch in range(start_epoch, start_epoch+1):
+            if (not (post_quant)):
                 train(epoch)
             test(epoch)
             lr_schedu.step(epoch)
-         summary_writer.close()
+        summary_writer.close()
 
-
-
-    #print(model.module)
-
-
-
+    # print(model.module)
 
     model.to('cpu')
     dummy_input = torch.randn(10, 3, 32, 32, device="cpu")
     example_path = './onnx/'
-    path = example_path + 'Brevonnx_resnet_final.onnx'   
+    path = example_path + 'Brevonnx_resnet_final.onnx'
     os.makedirs(example_path, exist_ok=True)
-    from brevitas.export.onnx.qonnx.manager import QONNXManager 
-    QONNXManager.export(model.module, input_shape=(1, 3, 32, 32), export_path='onnx/Brevonnx_resnet_final.onnx')
+    from brevitas.export.onnx.qonnx.manager import QONNXManager
+    QONNXManager.export(model.module, input_shape=(
+        1, 3, 32, 32), export_path='onnx/Brevonnx_resnet_final.onnx')
     from qonnx.transformation import infer_shapes
     import onnx
     from utils.utils import output_shape_quant
-    #inferred_model = model.module.transform(infer_shapes.InferShapes())    
-    #output_shape_quant()    
+    # inferred_model = model.module.transform(infer_shapes.InferShapes())
+    # output_shape_quant()
     import onnx
     from onnx import helper, numpy_helper
-   
-    example_path = './onnx/'
-    path = example_path + 'Brevonnx_resnet_final.onnx'                                       
-    
-    #onnx.save(onnx_model, 'onnx/Brevonnx_resnet_final.onnx')                                                                        
-    if (print_onnx) :   
-        from qonnx.core.modelwrapper import ModelWrapper                                
-        from qonnx.transformation import infer_shapes 
 
-        
+    example_path = './onnx/'
+    path = example_path + 'Brevonnx_resnet_final.onnx'
+
+    # onnx.save(onnx_model, 'onnx/Brevonnx_resnet_final.onnx')
+    if (print_onnx):
+        from qonnx.core.modelwrapper import ModelWrapper
+        from qonnx.transformation import infer_shapes
+
         model = ModelWrapper(path)
         inferred_model = model.transform(infer_shapes.InferShapes())
-        for node in inferred_model.graph.node:                                               
+        for node in inferred_model.graph.node:
             print(node.name)
-            print(node)                                                        
-   
+            print(node)
 
 
 if __name__ == '__main__':

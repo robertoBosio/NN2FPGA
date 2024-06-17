@@ -4,10 +4,11 @@ import onnx
 from onnx import numpy_helper
 import numpy as np
 
+
 def write(
     additional_ports,
     additional_ports_info,
-    read_width, 
+    read_width,
     prj_root="/tmp"
 ):
 
@@ -59,7 +60,7 @@ def write(
         # )
 
         pass
-    
+
     def write_footer(fd):
         # End of main file
 
@@ -83,9 +84,7 @@ def write(
         fd.write("#endif")
         pass
 
-
     with open(prj_root + "/cc/include/memory_management.h", "w+") as fd:
         write_header(fd)
         write_body(fd)
         write_footer(fd)
-

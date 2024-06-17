@@ -41,4 +41,3 @@ class CommonUintActQuant(Uint8ActPerTensorFloatMaxInit):
     bit_width = None
     max_val = 6.0
     restrict_scaling_type = RestrictValueType.LOG_FP
-

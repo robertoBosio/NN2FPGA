@@ -4,6 +4,8 @@ from backend.layers.uram_download import *
 import numpy as np
 
 # Packing tensor for 128 bits parallel read
+
+
 def write_tb_declare(fd, variable, read_width=16, bits=8):
     # ap_int<128> arr[2] = {ap_int<128>("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF", 16), 0};
 
@@ -33,6 +35,7 @@ def write_tb_declare(fd, variable, read_width=16, bits=8):
 
     fd.write(";\n")
 
+
 def tb_declare(fd, layer_tb_declare):
 
     for variable in layer_tb_declare:
@@ -46,12 +49,12 @@ def init(file_name, parsed_write, prj_root="/tmp"):
         if "DYNAMIC_INIT" in os.environ:
             if int(os.environ.get("DYNAMIC_INIT")) == 1:
                 dynamic_init = True
-        
+
         vitis_flow = False
         if "VITIS_FLOW" in os.environ:
             if int(os.environ.get("VITIS_FLOW")) == 1:
                 vitis_flow = True
-        
+
         libraries = [
             "#include \"params.h\"",
             "#include \"nn2fpga/debug.h\"",
@@ -108,10 +111,11 @@ def init(file_name, parsed_write, prj_root="/tmp"):
 
         fd.write(") {\n")
 
+
 def declare_params_array(parsed_write):
 
     # Concatenating all the weights of the layers in a single array to be stored
-    # in a file 
+    # in a file
     concat_params = None
     for i, layer in enumerate(parsed_write):
         if "fake_func_params" == layer["func"]:
@@ -142,8 +146,9 @@ def declare_params_array(parsed_write):
         # param_declare["init"] = concat_params
         # param_declare["attribute"] = "aligned(4096)"
         param_declare["defines"] = {}
-        param_declare["defines"]["c_%s_dim" % (output_name)] = ["const", concat_params.shape[0]]
-    
+        param_declare["defines"]["c_%s_dim" % (output_name)] = [
+            "const", concat_params.shape[0]]
+
     dim = None
     if concat_params is not None:
         dim = concat_params.shape[0]
@@ -154,25 +159,31 @@ def declare_params_array(parsed_write):
 def body(file_name, parsed_write, prj_root="/tmp"):
     with open(prj_root + "/cc/include/%s_sim.h" % file_name, "a") as fd:
 
-        parsed_write, uram_declare, uram_dim, concat_weights = declare_params_array(parsed_write)
+        parsed_write, uram_declare, uram_dim, concat_weights = declare_params_array(
+            parsed_write)
         if uram_declare[0] is not None:
             print("\t", end="", file=fd)
-            write_defines(fd, uram_declare[0]["defines"], uram_declare[0]["name"])
+            write_defines(fd, uram_declare[0]
+                          ["defines"], uram_declare[0]["name"])
             tb_declare(fd, uram_declare)
-            fd.write(f"\tposix_memalign((void**)&{uram_declare[0]['name']}, 4096, {uram_dim} * sizeof({uram_declare[0]['type']}));\n")
-            fd.write(f"\tstd::ifstream file_weights(prj_root + \"npy/{file_name}_weights.bin\", std::ios::binary);\n")
+            fd.write(
+                f"\tposix_memalign((void**)&{uram_declare[0]['name']}, 4096, {uram_dim} * sizeof({uram_declare[0]['type']}));\n")
+            fd.write(
+                f"\tstd::ifstream file_weights(prj_root + \"npy/{file_name}_weights.bin\", std::ios::binary);\n")
             fd.write(f"\tif (!file_weights.is_open()) {{\n")
-            fd.write(f"\t\tstd::cerr << \"Error: unable to open the parameters file.\" << std::endl;\n")
+            fd.write(
+                f"\t\tstd::cerr << \"Error: unable to open the parameters file.\" << std::endl;\n")
             fd.write(f"\t\texit(-1);\n")
             fd.write(f"\t}}\n")
-            fd.write(f"\tfile_weights.read(reinterpret_cast<char*>({uram_declare[0]['name']}), {uram_dim} * sizeof({uram_declare[0]['type']}));\n")
+            fd.write(
+                f"\tfile_weights.read(reinterpret_cast<char*>({uram_declare[0]['name']}), {uram_dim} * sizeof({uram_declare[0]['type']}));\n")
             fd.write(f"\tfile_weights.close();\n\n")
 
         for layer in parsed_write:
             if 'tb_declare' in layer.keys():
                 if len(layer["tb_declare"]) > 0:
                     tb_declare(fd, layer["tb_declare"])
-        
+
         # Alveo boards must follow the vitis flow
         vitis_flow = False
         if "VITIS_FLOW" in os.environ:
@@ -241,7 +252,8 @@ def body(file_name, parsed_write, prj_root="/tmp"):
         d_function["arguments"] = []
         d_function["arguments"].append(f"const t_{name}_st* c_{name}")
         d_function["arguments"].append(f"const unsigned int c_{name}_dim")
-        d_function["arguments"].append(f"hls::stream<t_{name}_axi_stream>& c_{name}_stream")
+        d_function["arguments"].append(
+            f"hls::stream<t_{name}_axi_stream>& c_{name}_stream")
         d_function["parameters"] = []
         d_function["parameters"].append(f"c_{name}")
         d_function["parameters"].append(f"c_{name}_dim")
@@ -251,9 +263,10 @@ def body(file_name, parsed_write, prj_root="/tmp"):
         d_function["template"].append(f"t_{name}_st")
         d_function["template"].append(f"t_{name}_axi_stream")
         connectivity.append(f"sp=mm2s_weights_1.c_{name}:DDR[0]")
-        connectivity.append(f"sc=mm2s_weights_1.c_{name}_stream:{file_name}_1.i_data_params")
+        connectivity.append(
+            f"sc=mm2s_weights_1.c_{name}_stream:{file_name}_1.i_data_params")
         write_templated_converted("mm2s_weights", d_function, prj_root)
-        
+
         # Defining memory to stream function to load activations
         for layer in parsed_write:
             if "produce_stream" == layer["func"]:
@@ -276,7 +289,7 @@ def body(file_name, parsed_write, prj_root="/tmp"):
                     mm2s_activations_layer["pragma"] = []
 
                     write_func(fd, mm2s_activations_layer)
-                    
+
                     # Wrap the templated function for the Vitis flow
                     d_function = {}
                     d_function["includes"] = []
@@ -285,7 +298,8 @@ def body(file_name, parsed_write, prj_root="/tmp"):
                     d_function["arguments"] = []
                     d_function["arguments"].append(f"const t_in_mem* {name}")
                     d_function["arguments"].append(f"const unsigned int n_inp")
-                    d_function["arguments"].append(f"hls::stream<t_{name}>& c_{name}_stream")
+                    d_function["arguments"].append(
+                        f"hls::stream<t_{name}>& c_{name}_stream")
                     d_function["parameters"] = []
                     d_function["parameters"].append(f"{name}")
                     d_function["parameters"].append(f"n_inp")
@@ -295,11 +309,13 @@ def body(file_name, parsed_write, prj_root="/tmp"):
                     d_function["template"].append(f"t_in_mem")
                     d_function["template"].append(f"t_{name}")
                     connectivity.append(f"sp=mm2s_activations_1.{name}:DDR[0]")
-                    connectivity.append(f"sc=mm2s_activations_1.c_{name}_stream:{file_name}_1.i_inp_1")
-                    write_templated_converted("mm2s_activations", d_function, prj_root)
+                    connectivity.append(
+                        f"sc=mm2s_activations_1.c_{name}_stream:{file_name}_1.i_inp_1")
+                    write_templated_converted(
+                        "mm2s_activations", d_function, prj_root)
 
-        fd.write("\tauto start = std::chrono::high_resolution_clock::now();\n\n");
-        
+        fd.write("\tauto start = std::chrono::high_resolution_clock::now();\n\n")
+
         # Calling the kernel
         fd.write("\t%s(\n" % file_name)
 
@@ -317,7 +333,7 @@ def body(file_name, parsed_write, prj_root="/tmp"):
 
         fd.write("\t);\n\n")
         fd.write("\tauto end = std::chrono::high_resolution_clock::now();\n\n")
-        
+
         # Defining stream to memory function to store results
         for layer in parsed_write:
             if "consume_stream" == layer["func"]:
@@ -348,7 +364,8 @@ def body(file_name, parsed_write, prj_root="/tmp"):
                     d_function["arguments"] = []
                     d_function["arguments"].append(f"t_out_mem* o_{name}")
                     d_function["arguments"].append(f"const unsigned int n_out")
-                    d_function["arguments"].append(f"hls::stream<t_o_{name}>& c_{name}_stream")
+                    d_function["arguments"].append(
+                        f"hls::stream<t_o_{name}>& c_{name}_stream")
                     d_function["parameters"] = []
                     d_function["parameters"].append(f"o_{name}")
                     d_function["parameters"].append(f"n_out")
@@ -357,46 +374,60 @@ def body(file_name, parsed_write, prj_root="/tmp"):
                     d_function["template"] = []
                     d_function["template"].append(f"t_out_mem")
                     d_function["template"].append(f"t_o_{name}")
-                    write_templated_converted("s2mm_outputs", d_function, prj_root)
+                    write_templated_converted(
+                        "s2mm_outputs", d_function, prj_root)
                     connectivity.append(f"sp=s2mm_outputs_1.o_{name}:DDR[0]")
-                    connectivity.append(f"sc={file_name}_1.o_outp1:s2mm_outputs_1.c_{name}_stream")
+                    connectivity.append(
+                        f"sc={file_name}_1.o_outp1:s2mm_outputs_1.c_{name}_stream")
                     write_func(fd, s2mm_layer)
-        
+
         if (vitis_flow):
 
-            # Storing kernels name to start 
+            # Storing kernels name to start
             input_kernels = []
             weights_kernels = []
             output_kernels = []
 
             fd.write("#else\n")
 
-            #Opening the device and the xclbin
+            # Opening the device and the xclbin
             fd.write("\tsda::utils::CmdLineParser parser;\n")
-            fd.write("\tparser.addSwitch(\"--xclbin_file\", \"-x\", \"input binary file string\", \"\");\n")
-            fd.write("\tparser.addSwitch(\"--device_id\", \"-d\", \"device index\", \"0\");\n")
-            fd.write("\tparser.addSwitch(\"--n_images\", \"-n\", \"input number of images\", \"1\");\n")
-            fd.write("\tparser.addSwitch(\"--upload_weights\", \"-w\", \"input upload weights flag\", \"1\");\n")
+            fd.write(
+                "\tparser.addSwitch(\"--xclbin_file\", \"-x\", \"input binary file string\", \"\");\n")
+            fd.write(
+                "\tparser.addSwitch(\"--device_id\", \"-d\", \"device index\", \"0\");\n")
+            fd.write(
+                "\tparser.addSwitch(\"--n_images\", \"-n\", \"input number of images\", \"1\");\n")
+            fd.write(
+                "\tparser.addSwitch(\"--upload_weights\", \"-w\", \"input upload weights flag\", \"1\");\n")
             fd.write("\tparser.parse(argc, argv);\n")
             fd.write("\tstd::string binaryFile = parser.value(\"xclbin_file\");\n")
             fd.write("\tint device_index = stoi(parser.value(\"device_id\"));\n")
-            fd.write("\tint upload_weights_flag = stoi(parser.value(\"upload_weights\"));\n")
-            fd.write("\tstd::cout << \"Opening the device \" << device_index << std::endl;\n")
+            fd.write(
+                "\tint upload_weights_flag = stoi(parser.value(\"upload_weights\"));\n")
+            fd.write(
+                "\tstd::cout << \"Opening the device \" << device_index << std::endl;\n")
             fd.write("\tauto device = xrt::device(device_index);\n")
-            fd.write("\tstd::cout << \"Loading the xclbin \" << binaryFile << std::endl;\n")
+            fd.write(
+                "\tstd::cout << \"Loading the xclbin \" << binaryFile << std::endl;\n")
             fd.write("\tauto uuid = device.load_xclbin(binaryFile);\n")
             fd.write("\n")
 
-            # TODO: Implement support for more than one stream of activation 
+            # TODO: Implement support for more than one stream of activation
             # TODO: Implement support for activations that are not packed in ap_uint<64>
             for layer in parsed_write:
                 if "produce_stream" == layer["func"]:
                     if (len(layer["input"]) > 0):
-                        fd.write(f"\tauto mm2s_activations = xrt::kernel(device, uuid, \"mm2s_activations\");\n")
-                        fd.write("\tauto buff_activations = xrt::bo(device, (int*)inp_1, n_inp * 8, mm2s_activations.group_id(0));\n")
-                        fd.write("\tstd::cout << \"Synching h2d inp_1\" << std::endl;\n")
-                        fd.write("\tbuff_activations.sync(XCL_BO_SYNC_BO_TO_DEVICE);\n")
-                        fd.write("\tauto mm2s_a = xrt::run(mm2s_activations);\n")
+                        fd.write(
+                            f"\tauto mm2s_activations = xrt::kernel(device, uuid, \"mm2s_activations\");\n")
+                        fd.write(
+                            "\tauto buff_activations = xrt::bo(device, (int*)inp_1, n_inp * 8, mm2s_activations.group_id(0));\n")
+                        fd.write(
+                            "\tstd::cout << \"Synching h2d inp_1\" << std::endl;\n")
+                        fd.write(
+                            "\tbuff_activations.sync(XCL_BO_SYNC_BO_TO_DEVICE);\n")
+                        fd.write(
+                            "\tauto mm2s_a = xrt::run(mm2s_activations);\n")
                         fd.write("\tmm2s_a.set_arg(0, buff_activations);\n")
                         fd.write("\tmm2s_a.set_arg(1, n_inp);\n\n")
                         input_kernels.append("mm2s_a")
@@ -404,20 +435,27 @@ def body(file_name, parsed_write, prj_root="/tmp"):
             for layer in parsed_write:
                 if "axi_to_stream" == layer["func"]:
                     if (len(layer["stream_input"]) > 0):
-                        fd.write(f"\tauto mm2s_weights = xrt::kernel(device, uuid, \"mm2s_weights\");\n")
-                        fd.write("\tauto buff_weights = xrt::bo(device, (int*)%s, %s, mm2s_weights.group_id(0));\n" % (uram_declare[0]["name"], uram_dim))
-                        fd.write("\tstd::cout << \"Synching h2d %s\" << std::endl;\n" % uram_declare[0]["name"])
-                        fd.write("\tbuff_weights.sync(XCL_BO_SYNC_BO_TO_DEVICE);\n")
+                        fd.write(
+                            f"\tauto mm2s_weights = xrt::kernel(device, uuid, \"mm2s_weights\");\n")
+                        fd.write("\tauto buff_weights = xrt::bo(device, (int*)%s, %s, mm2s_weights.group_id(0));\n" %
+                                 (uram_declare[0]["name"], uram_dim))
+                        fd.write(
+                            "\tstd::cout << \"Synching h2d %s\" << std::endl;\n" % uram_declare[0]["name"])
+                        fd.write(
+                            "\tbuff_weights.sync(XCL_BO_SYNC_BO_TO_DEVICE);\n")
                         fd.write("\tauto mm2s_w = xrt::run(mm2s_weights);\n")
                         fd.write("\tmm2s_w.set_arg(0, buff_weights);\n")
-                        fd.write(f"\tmm2s_w.set_arg(1, {uram_declare[0]['name']}_dim);\n\n")
+                        fd.write(
+                            f"\tmm2s_w.set_arg(1, {uram_declare[0]['name']}_dim);\n\n")
                         weights_kernels.append("mm2s_w")
 
             for layer in parsed_write:
                 if "consume_stream" == layer["func"]:
                     if (len(layer["output"]) > 0):
-                        fd.write(f"\tauto s2mm_output = xrt::kernel(device, uuid, \"s2mm_outputs\");\n")
-                        fd.write("\tauto buff_output = xrt::bo(device, (int*)o_outp1, n_out, s2mm_output.group_id(0));\n")
+                        fd.write(
+                            f"\tauto s2mm_output = xrt::kernel(device, uuid, \"s2mm_outputs\");\n")
+                        fd.write(
+                            "\tauto buff_output = xrt::bo(device, (int*)o_outp1, n_out, s2mm_output.group_id(0));\n")
                         fd.write("\tauto s2mm_o = xrt::run(s2mm_output);\n")
                         fd.write("\ts2mm_o.set_arg(0, buff_output);\n")
                         fd.write("\ts2mm_o.set_arg(1, n_out);\n\n")
@@ -425,15 +463,16 @@ def body(file_name, parsed_write, prj_root="/tmp"):
 
             for ker in output_kernels:
                 fd.write(f"\t{ker}.start();\n")
-            
-            fd.write("\n\tauto start = std::chrono::high_resolution_clock::now();\n\n");
+
+            fd.write(
+                "\n\tauto start = std::chrono::high_resolution_clock::now();\n\n")
 
             if (len(weights_kernels) > 0):
                 fd.write("\tif (upload_weights_flag) {\n")
                 for ker in weights_kernels:
                     fd.write(f"\t\t{ker}.start();\n")
                 fd.write("\t}\n")
-            
+
             for ker in input_kernels:
                 fd.write(f"\t{ker}.start();\n")
 
@@ -441,33 +480,35 @@ def body(file_name, parsed_write, prj_root="/tmp"):
 
             for ker in output_kernels:
                 fd.write(f"\t{ker}.wait();\n")
-            
-            fd.write("\n\tauto end = std::chrono::high_resolution_clock::now();\n\n")
+
+            fd.write(
+                "\n\tauto end = std::chrono::high_resolution_clock::now();\n\n")
 
             fd.write("\tstd::cout << \"Synching d2h o_outp1\" << std::endl;\n")
             fd.write("\tbuff_output.sync(XCL_BO_SYNC_BO_FROM_DEVICE);\n")
             fd.write("\n")
-            
+
             fd.write("#endif /* CSIM */\n\n")
-    
+
         if uram_declare[0] is not None:
             fd.write(f"\tfree({uram_declare[0]['name']});\n")
         fd.write("\treturn (end - start);\n")
-    
+
     # Write the .npy file containting the wieghts
     if concat_weights is not None:
         os.system(f"mkdir -p {prj_root}/npy/")
         np.save(f"{prj_root}/npy/uram_{file_name}.npy", concat_weights)
-        
+
         concat_weights_uint8 = concat_weights.astype(np.uint8)
         # concat_weights_uint8.tofile(f"{prj_root}/npy/{file_name}_weights.bin")
         with open(f"{prj_root}/npy/{file_name}_weights.bin", "wb") as file:
             file.write(concat_weights_uint8.tobytes())
-    
+
     with open(prj_root + "/%s_link.cfg" % file_name, "w+") as fd:
         fd.write("[connectivity]\n")
         for conn in connectivity:
             fd.write(conn + "\n")
+
 
 def footer(file_name, parsed_write, prj_root="/tmp"):
     with open(prj_root + "/cc/include/%s_sim.h" % file_name, "a") as fd:
@@ -478,6 +519,8 @@ def footer(file_name, parsed_write, prj_root="/tmp"):
 # With vitis it is not possible to have templated function as kernel, so we need
 # to create a wrapper
 # TODO: integrate extern C++ in the write_func
+
+
 def write_templated_converted(filename, dict, prj_root):
     with open(f"{prj_root}/cc/src/{filename}.cc", "w") as fd:
         for inc in dict["includes"]:
@@ -489,7 +532,7 @@ def write_templated_converted(filename, dict, prj_root):
                 fd.write(f"\t\t{arg}\n")
             else:
                 fd.write(f"\t\t{arg},\n")
-        fd.write("\t) {\n\n") 
+        fd.write("\t) {\n\n")
         fd.write(f"\t\t{dict['function_name']}<")
         for i, temp in enumerate(dict["template"]):
             if (i == len(dict["template"]) - 1):
@@ -503,7 +546,6 @@ def write_templated_converted(filename, dict, prj_root):
             else:
                 fd.write(f"{par}, ")
         fd.write("\n\t}\n}")
-             
 
 
 def write(io_dict, model, file_name, parsed_write, dynamic_init, off_chip_storage, prj_root="/tmp"):
@@ -511,4 +553,3 @@ def write(io_dict, model, file_name, parsed_write, dynamic_init, off_chip_storag
     init(file_name, parsed_write, prj_root=prj_root)
     body(file_name, parsed_write, prj_root=prj_root)
     footer(file_name, parsed_write, prj_root=prj_root)
-

@@ -2,9 +2,10 @@ import os
 import sys
 import json
 
+
 def extract_board_info(board, prj_root):
     """ Read the board json file and returns a dictionary with the available resources"""
-    
+
     # Remove the part before NN2FPGA from the path
     file_path = prj_root.split("NN2FPGA")[0]
     file_path = f"{file_path}/NN2FPGA/nn2fpga/boards/{board}.json"
@@ -13,14 +14,15 @@ def extract_board_info(board, prj_root):
     with open(file_path) as f:
         board_dict = json.load(f)
 
-    # Right now consider the board as a monolithic block 
-    board_res = {"uram" : 0, "bram" : 0, "dsp" : 0, "lut" : 0, "ff" : 0}
+    # Right now consider the board as a monolithic block
+    board_res = {"uram": 0, "bram": 0, "dsp": 0, "lut": 0, "ff": 0}
     for block in board_dict['resource']:
         for res in block.keys():
             if res in board_res:
                 board_res[res] += block[res]
-    
+
     return board_res
+
 
 def write_func(fd, info):
 
@@ -44,7 +46,7 @@ def write_func(fd, info):
             fd.write("\n")
     fd.write("\t(\n")
     for i, arg in enumerate(info["args"]):
-        fd.write("\t\t%s" %arg)
+        fd.write("\t\t%s" % arg)
         if i < len(info["args"])-1:
             fd.write(",\n")
         else:
@@ -56,12 +58,13 @@ def write_func(fd, info):
 def body(file_path, parsed_write, prj_root="/tmp"):
 
     with open(file_path, "a") as fd:
-        
+
         for layer in parsed_write:
 
             write_func(fd, layer)
 
         fd.write("}\n")
+
 
 def write_const(fd, values, i, dims, form="int"):
 
@@ -77,7 +80,8 @@ def write_const(fd, values, i, dims, form="int"):
                 fd.write(",")
             write_const(fd, values[j, ...], i+1, dims, form)
         fd.write("}")
-    
+
+
 def write_declare(fd, variable):
     if ("is_pointer" not in variable.keys()):
         variable["is_pointer"] = False
@@ -86,7 +90,7 @@ def write_declare(fd, variable):
     is_not_stream = 'is_const' in variable.keys()
     if "is_stream" in variable.keys():
         is_not_stream = not variable["is_stream"]
-    
+
     fd.write("\t")
     type_name = variable["type"]
     if not is_not_stream:
@@ -110,7 +114,7 @@ def write_declare(fd, variable):
 
         if ("attribute" in variable.keys()):
             fd.write(" __attribute__((%s))" % variable["attribute"])
-        
+
         if (variable["is_const"]):
             fd.write(" = ")
             form = "int"
@@ -119,7 +123,8 @@ def write_declare(fd, variable):
                 form = variable["form"]
 
             if variable["is_array"]:
-                write_const(fd, variable["init"], 0, len(variable["init"].shape), form)
+                write_const(fd, variable["init"], 0, len(
+                    variable["init"].shape), form)
             else:
                 if form == "float":
                     fd.write("%0.16f" % variable["init"])
@@ -128,15 +133,15 @@ def write_declare(fd, variable):
                 else:
                     fd.write("%s" % variable["init"])
 
-        # For non const variables with a starting value. 
+        # For non const variables with a starting value.
         if ("init_value" in variable.keys()):
             fd.write(" = %s" % variable["init_value"])
 
-
     fd.write(";\n")
 
+
 def write_pragma(fd, pragma):
-    
+
     name = pragma["name"]
     options = pragma["options"]
     fd.write(
@@ -155,10 +160,11 @@ def write_pragma(fd, pragma):
 
     fd.write("\n")
 
+
 def declare(file_path, parsed_write, ap_ctrl=None, inline=False, prj_root="/tmp"):
-    
+
     with open(file_path, "a") as fd:
-        
+
         if inline:
             # Adding inline option to put the module in dataflow
             pragma = {}
@@ -188,9 +194,11 @@ def declare(file_path, parsed_write, ap_ctrl=None, inline=False, prj_root="/tmp"
 
         fd.write("\n")
 
+
 def write_defines(fd, values, layer_name):
 
-    fd.write(f"\n/************************* {layer_name} *************************/\n")
+    fd.write(
+        f"\n/************************* {layer_name} *************************/\n")
     for name, value in values.items():
 
         if value[0] == 'const':
@@ -230,4 +238,3 @@ def write_defines(fd, values, layer_name):
                     value[1],
                 )
             )
-    

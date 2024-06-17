@@ -1,6 +1,7 @@
 from torch import nn
 import torch
 
+
 def quantize_tensor(x, bit_width=8, scale=-9.0):
     # Quantize the input tensor
     x = (x * 2**scale)
@@ -33,8 +34,8 @@ def detect_lut(nc, anchors, ch, input_shape, stride=32, bit_width=8, scale=-9.0)
         # Write the output to a file
         val_list.append(
             [y[0][0, 0, ...].tolist()[0],
-            y[0][0, 0, ...].tolist()[2],
-            y[0][0, 0, ...].tolist()[4]])
+             y[0][0, 0, ...].tolist()[2],
+             y[0][0, 0, ...].tolist()[4]])
 
     print(len(val_list))
 
@@ -50,8 +51,8 @@ def detect_lut(nc, anchors, ch, input_shape, stride=32, bit_width=8, scale=-9.0)
         # Write the output to a file
         val_list.append(
             [y[0][0, 0, ...].tolist()[0],
-            y[0][0, 0, ...].tolist()[2],
-            y[0][0, 0, ...].tolist()[4]])
+             y[0][0, 0, ...].tolist()[2],
+             y[0][0, 0, ...].tolist()[4]])
 
     print(len(val_list))
     anchor_grid = []
@@ -60,10 +61,10 @@ def detect_lut(nc, anchors, ch, input_shape, stride=32, bit_width=8, scale=-9.0)
         anchor_grid_values_x = data[..., :, 0].unique().tolist()
         anchor_grid_values_y = data[..., :, 1].unique().tolist()
         anchor_grid.append([anchor_grid_values_x, anchor_grid_values_y])
-    
+
     # print("anchor_grid: ", anchor_grid)
     # exit()
-    
+
     grid_h = []
     grid_w = []
     for data in detect.grid:
@@ -84,7 +85,8 @@ def detect_lut(nc, anchors, ch, input_shape, stride=32, bit_width=8, scale=-9.0)
         f.write("#include <ap_int.h>\n")
         f.write("#include \"hls_vector.h\"\n")
         f.write("\n")
-        f.write("const hls::vector<ap_fixed<32, 16>, 3> detect_lut[%0d] = {\n" % int(2**bit_width))
+        f.write("const hls::vector<ap_fixed<32, 16>, 3> detect_lut[%0d] = {\n" % int(
+            2**bit_width))
         # write the lut values
         for i in range(len(val_list)):
             # for each field of the val_list row
@@ -98,7 +100,7 @@ def detect_lut(nc, anchors, ch, input_shape, stride=32, bit_width=8, scale=-9.0)
 
             f.write("}")
             # write comma to file
-            if i < (len(val_list)-1): 
+            if i < (len(val_list)-1):
                 f.write(",")
             f.write("\n")
 
@@ -132,7 +134,8 @@ def detect_lut(nc, anchors, ch, input_shape, stride=32, bit_width=8, scale=-9.0)
             # for each value in anchor_grid_values
             for i in range(len(anchor_grid_values_x)):
                 # write the values in the form of hls::vector
-                f.write("\t\t{%d, %d}" % (anchor_grid_values_x[i], anchor_grid_values_y[i]))
+                f.write("\t\t{%d, %d}" %
+                        (anchor_grid_values_x[i], anchor_grid_values_y[i]))
                 if i < (len(anchor_grid_values_x)-1):
                     # write comma to file
                     f.write(", ")
@@ -152,6 +155,7 @@ def detect_lut(nc, anchors, ch, input_shape, stride=32, bit_width=8, scale=-9.0)
         f.write("\n")
         f.write("#endif\n")
 
+
 class Detect(nn.Module):
     # YOLOv5 Detect head for detection models
     stride = None  # strides computed during build
@@ -165,7 +169,8 @@ class Detect(nn.Module):
         self.nl = len(anchors)  # number of detection layers
         self.na = len(anchors[0]) // 2  # number of anchors
         self.grid = [torch.empty(0) for _ in range(self.nl)]  # init grid
-        self.anchor_grid = [torch.empty(0) for _ in range(self.nl)]  # init anchor grid
+        self.anchor_grid = [torch.empty(0)
+                            for _ in range(self.nl)]  # init anchor grid
         self.register_buffer(
             "anchors", torch.tensor(anchors).float().view(self.nl, -1, 2)
         )  # shape(nl,na,2)
@@ -184,7 +189,8 @@ class Detect(nn.Module):
 
             if not self.training:  # inference
                 if self.dynamic or self.grid[i].shape[2:4] != x[i].shape[2:4]:
-                    self.grid[i], self.anchor_grid[i] = self._make_grid(nx, ny, i)
+                    self.grid[i], self.anchor_grid[i] = self._make_grid(
+                        nx, ny, i)
 
                 xy, wh, conf = x[i].sigmoid().split((2, 2, self.nc + 1), 4)
                 # xy = (xy * 2 + self.grid[i]) * self.stride[i]  # xy
@@ -208,7 +214,8 @@ class Detect(nn.Module):
         d = self.anchors[i].device
         t = self.anchors[i].dtype
         shape = 1, self.na, ny, nx, 2  # grid shape
-        y, x = torch.arange(ny, device=d, dtype=t), torch.arange(nx, device=d, dtype=t)
+        y, x = torch.arange(ny, device=d, dtype=t), torch.arange(
+            nx, device=d, dtype=t)
         yv, xv = (
             torch.meshgrid(y, x)
         )  # torch>=0.7 compatibility
@@ -216,15 +223,17 @@ class Detect(nn.Module):
             torch.stack((xv, yv), 2).expand(shape) - 0.5
         )  # add grid offset, i.e. y = 2.0 * x - 0.5
         anchor_grid = (
-            (self.anchors[i] * self.stride[i]).view((1, self.na, 1, 1, 2)).expand(shape)
+            (self.anchors[i] * self.stride[i]
+             ).view((1, self.na, 1, 1, 2)).expand(shape)
         )
         return grid, anchor_grid
+
 
 # declare main function
 if __name__ == "__main__":
     detect_lut(
-        nc = 7,
-        anchors=[[2,2,5,4,11,8]],
+        nc=7,
+        anchors=[[2, 2, 5, 4, 11, 8]],
         ch=[208],
         input_shape=[1, 36, 25, 25],
         stride=[32],

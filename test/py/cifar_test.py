@@ -1,3 +1,7 @@
+from preprocessing import *
+from models.cifar_resnet_dorefa import *
+from tensorboardX import SummaryWriter
+import torchvision
 import os
 import time
 import argparse
@@ -8,13 +12,7 @@ import torch.optim as optim
 import torch.backends.cudnn as cudnn
 
 cudnn.benchmark = True
-import torchvision
 
-from tensorboardX import SummaryWriter
-
-from models.cifar_resnet_dorefa import *
-
-from preprocessing import *
 
 MODEL_SW = "RESNET20"
 # MODEL_SW = "TESTMODEL"
@@ -30,7 +28,8 @@ if (MODEL_SW == "RESNET20"):
     model_proto = resnet20
 
 # Training settings
-parser = argparse.ArgumentParser(description='DoReFa-Net pytorch implementation')
+parser = argparse.ArgumentParser(
+    description='DoReFa-Net pytorch implementation')
 
 parser.add_argument('--root_dir', type=str, default='./')
 parser.add_argument('--data_dir', type=str, default='./data')
@@ -70,108 +69,111 @@ os.environ["CUDA_VISIBLE_DEVICES"] = cfg.use_gpu
 
 
 def main():
-  if cfg.cifar == 10:
-    print('testing CIFAR-10 !')
-    dataset = torchvision.datasets.CIFAR10
-  elif cfg.cifar == 100:
-    print('training CIFAR-100 !')
-    dataset = torchvision.datasets.CIFAR100
-  else:
-    assert False, 'dataset unknown !'
+    if cfg.cifar == 10:
+        print('testing CIFAR-10 !')
+        dataset = torchvision.datasets.CIFAR10
+    elif cfg.cifar == 100:
+        print('training CIFAR-100 !')
+        dataset = torchvision.datasets.CIFAR100
+    else:
+        assert False, 'dataset unknown !'
 
-  print('==> Preparing data ..')
-  train_dataset = dataset(root=cfg.data_dir, train=True, download=True,
-                          transform=cifar_transform(is_training=True))
-  train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=cfg.train_batch_size, shuffle=True,
-                                             num_workers=cfg.num_workers)
+    print('==> Preparing data ..')
+    train_dataset = dataset(root=cfg.data_dir, train=True, download=True,
+                            transform=cifar_transform(is_training=True))
+    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=cfg.train_batch_size, shuffle=True,
+                                               num_workers=cfg.num_workers)
 
-  eval_dataset = dataset(root=cfg.data_dir, train=False, download=True,
-                         transform=cifar_transform(is_training=False))
-  eval_loader = torch.utils.data.DataLoader(eval_dataset, batch_size=cfg.eval_batch_size, shuffle=False,
-                                            num_workers=cfg.num_workers)
+    eval_dataset = dataset(root=cfg.data_dir, train=False, download=True,
+                           transform=cifar_transform(is_training=False))
+    eval_loader = torch.utils.data.DataLoader(eval_dataset, batch_size=cfg.eval_batch_size, shuffle=False,
+                                              num_workers=cfg.num_workers)
 
-  print('==> Building ResNet..')
-  if CUDA:
-    model = model_proto(wbits=cfg.Wbits, abits=cfg.Abits).cuda()
-  else:
-    model = model_proto(wbits=cfg.Wbits, abits=cfg.Abits)
+    print('==> Building ResNet..')
+    if CUDA:
+        model = model_proto(wbits=cfg.Wbits, abits=cfg.Abits).cuda()
+    else:
+        model = model_proto(wbits=cfg.Wbits, abits=cfg.Abits)
 
-  optimizer = torch.optim.SGD(model.parameters(), lr=cfg.lr, momentum=0.9, weight_decay=cfg.wd)
-  lr_schedu = optim.lr_scheduler.MultiStepLR(optimizer, [100, 150, 180], gamma=0.1)
-  if (CUDA):
-    criterion = torch.nn.CrossEntropyLoss().cuda()
-  else:
-    criterion = torch.nn.CrossEntropyLoss()
+    optimizer = torch.optim.SGD(
+        model.parameters(), lr=cfg.lr, momentum=0.9, weight_decay=cfg.wd)
+    lr_schedu = optim.lr_scheduler.MultiStepLR(
+        optimizer, [100, 150, 180], gamma=0.1)
+    if (CUDA):
+        criterion = torch.nn.CrossEntropyLoss().cuda()
+    else:
+        criterion = torch.nn.CrossEntropyLoss()
 
-  summary_writer = SummaryWriter(cfg.log_dir)
+    summary_writer = SummaryWriter(cfg.log_dir)
 
-  if cfg.pretrain:
-    model.load_state_dict(
-        torch.load(
-            cfg.pretrain_dir + "/checkpoint.t7",
-            map_location=torch.device('cpu')
+    if cfg.pretrain:
+        model.load_state_dict(
+            torch.load(
+                cfg.pretrain_dir + "/checkpoint.t7",
+                map_location=torch.device('cpu')
+            )
         )
-    )
 
-  # Training
-  def train(epoch):
-    print('\nEpoch: %d' % epoch)
-    model.train()
-
-    start_time = time.time()
-    for batch_idx, (inputs, targets) in enumerate(train_loader):
-      # outputs = model(inputs.cuda())
-      # loss = criterion(outputs, targets.cuda())
-      outputs = model(inputs)
-      loss = criterion(outputs, targets)
-
-      optimizer.zero_grad()
-      loss.backward()
-      optimizer.step()
-
-      if batch_idx % cfg.log_interval == 0:
-        step = len(train_loader) * epoch + batch_idx
-        duration = time.time() - start_time
-
-        print('%s epoch: %d step: %d cls_loss= %.5f (%d samples/sec)' %
-              (datetime.now(), epoch, batch_idx, loss.item(),
-               cfg.train_batch_size * cfg.log_interval / duration))
+    # Training
+    def train(epoch):
+        print('\nEpoch: %d' % epoch)
+        model.train()
 
         start_time = time.time()
-        summary_writer.add_scalar('cls_loss', loss.item(), step)
-        summary_writer.add_scalar('learning rate', optimizer.param_groups[0]['lr'], step)
+        for batch_idx, (inputs, targets) in enumerate(train_loader):
+            # outputs = model(inputs.cuda())
+            # loss = criterion(outputs, targets.cuda())
+            outputs = model(inputs)
+            loss = criterion(outputs, targets)
 
-  def test(epoch, prj_root="/tmp"):
-    # pass
-    model.eval()
-    correct = 0
-    model.show = True
-    with open("{}/log.txt".format(prj_root), "w+") as fd:
-        for batch_idx, (inputs, targets) in enumerate(eval_loader):
-          if (CUDA):
-            inputs, targets = inputs.cuda(), targets.cuda()
-          else:
-            inputs, targets = inputs, targets
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
 
-          outputs = model(inputs)
+            if batch_idx % cfg.log_interval == 0:
+                step = len(train_loader) * epoch + batch_idx
+                duration = time.time() - start_time
 
-          _, predicted = torch.max(outputs.data, 1)
+                print('%s epoch: %d step: %d cls_loss= %.5f (%d samples/sec)' %
+                      (datetime.now(), epoch, batch_idx, loss.item(),
+                       cfg.train_batch_size * cfg.log_interval / duration))
 
-          fd.write("%d %d\n" % (predicted[0], targets[0]))
+                start_time = time.time()
+                summary_writer.add_scalar('cls_loss', loss.item(), step)
+                summary_writer.add_scalar(
+                    'learning rate', optimizer.param_groups[0]['lr'], step)
 
-          correct += predicted.eq(targets.data).cpu().sum().item()
-          # break
+    def test(epoch, prj_root="/tmp"):
+        # pass
+        model.eval()
+        correct = 0
+        model.show = True
+        with open("{}/log.txt".format(prj_root), "w+") as fd:
+            for batch_idx, (inputs, targets) in enumerate(eval_loader):
+                if (CUDA):
+                    inputs, targets = inputs.cuda(), targets.cuda()
+                else:
+                    inputs, targets = inputs, targets
 
-        acc = 100. * correct / len(eval_dataset)
+                outputs = model(inputs)
 
-    print('%s------------------------------------------------------ '
-          'Precision@1: %.2f%% \n' % (datetime.now(), acc))
-    summary_writer.add_scalar('Precision@1', acc, global_step=epoch)
+                _, predicted = torch.max(outputs.data, 1)
 
-  test(0)
+                fd.write("%d %d\n" % (predicted[0], targets[0]))
 
-  summary_writer.close()
+                correct += predicted.eq(targets.data).cpu().sum().item()
+                # break
+
+            acc = 100. * correct / len(eval_dataset)
+
+        print('%s------------------------------------------------------ '
+              'Precision@1: %.2f%% \n' % (datetime.now(), acc))
+        summary_writer.add_scalar('Precision@1', acc, global_step=epoch)
+
+    test(0)
+
+    summary_writer.close()
 
 
 if __name__ == '__main__':
-  main()
+    main()

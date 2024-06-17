@@ -4,6 +4,8 @@ from backend.layers.uram_download import *
 import numpy as np
 
 # Packing tensor for 128 bits parallel read
+
+
 def write_tb_declare(fd, variable, read_width=16, bits=8):
     # ap_int<128> arr[2] = {ap_int<128>("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF", 16), 0};
 
@@ -33,12 +35,14 @@ def write_tb_declare(fd, variable, read_width=16, bits=8):
 
     fd.write(";\n")
 
+
 def tb_declare(fd, layer_tb_declare):
 
     for variable in layer_tb_declare:
         write_declare(fd, variable)
 
     fd.write("\n")
+
 
 def init(file_name, parsed_write, ap_ctrl, uram_dim, prj_root="/tmp"):
     with open(prj_root + "/cc/include/%s_platform.h" % file_name, "w+") as fd:
@@ -65,8 +69,8 @@ def init(file_name, parsed_write, ap_ctrl, uram_dim, prj_root="/tmp"):
             for layer in parsed_write:
                 if "memory_management" == layer["func"]:
                     for name in layer["stream_input"]:
-                        fd.write("\tconst size_t c_%s_dim,\n" %  name)
-                        fd.write("\tconst t_%s_st* c_%s,\n" %  (name, name))
+                        fd.write("\tconst size_t c_%s_dim,\n" % name)
+                        fd.write("\tconst t_%s_st* c_%s,\n" % (name, name))
 
             for layer in parsed_write:
                 if "consume_stream" == layer["func"]:
@@ -77,17 +81,20 @@ def init(file_name, parsed_write, ap_ctrl, uram_dim, prj_root="/tmp"):
             for layer in parsed_write:
                 if "produce_stream" == layer["func"]:
                     for name in layer["input"]:
-                        fd.write("\thls::stream<t_%s> &c_%s_stream,\n" % (name, name))
+                        fd.write("\thls::stream<t_%s> &c_%s_stream,\n" %
+                                 (name, name))
 
             for layer in parsed_write:
                 if "memory_management" == layer["func"]:
                     for name in layer["stream_input"]:
-                        fd.write("\thls::stream<t_%s_stream> &c_%s_stream,\n" %  (name, name))
+                        fd.write(
+                            "\thls::stream<t_%s_stream> &c_%s_stream,\n" % (name, name))
 
             for layer in parsed_write:
                 if "consume_stream" == layer["func"]:
                     for name in layer["output"]:
-                        fd.write("\thls::stream<t_o_%s> &c_%s_stream\n" % (name, name))
+                        fd.write("\thls::stream<t_o_%s> &c_%s_stream\n" %
+                                 (name, name))
         fd.write(");\n")
         fd.write("\n")
         fd.write("#endif /* __NETWORK_PLATFORM_SIM__ */")
@@ -98,7 +105,7 @@ def init(file_name, parsed_write, ap_ctrl, uram_dim, prj_root="/tmp"):
         if "VITIS_FLOW" in os.environ:
             if int(os.environ.get("VITIS_FLOW")) == 1:
                 vitis_flow = True
-        
+
         libraries = [
             "params.h",
             f"{file_name}.h"
@@ -123,27 +130,36 @@ def init(file_name, parsed_write, ap_ctrl, uram_dim, prj_root="/tmp"):
             for layer in parsed_write:
                 if "produce_stream" == layer["func"]:
                     for name in layer["input"]:
-                        pragmas.append("#pragma HLS INTERFACE s_axilite port = n_inp")
-                        pragmas.append("#pragma HLS INTERFACE m_axi port = i_%s bundle = mem_%s" % (name, name))
-                        connectivity.append(f"sp={file_name}_platform_1.i_{name}:DDR[0]")
+                        pragmas.append(
+                            "#pragma HLS INTERFACE s_axilite port = n_inp")
+                        pragmas.append(
+                            "#pragma HLS INTERFACE m_axi port = i_%s bundle = mem_%s" % (name, name))
+                        connectivity.append(
+                            f"sp={file_name}_platform_1.i_{name}:DDR[0]")
                         fd.write("\t\tconst size_t n_inp,\n")
                         fd.write("\t\tconst t_in_mem* i_%s,\n" % name)
 
             for layer in parsed_write:
                 if "memory_management" == layer["func"]:
                     for name in layer["stream_input"]:
-                        pragmas.append("#pragma HLS INTERFACE s_axilite port = c_%s_dim" % name)
-                        pragmas.append("#pragma HLS INTERFACE m_axi port = c_%s bundle = mem_%s" % (name, name))
-                        connectivity.append(f"sp={file_name}_platform_1.c_{name}:DDR[0]")
-                        fd.write("\t\tconst size_t c_%s_dim,\n" %  name)
-                        fd.write("\t\tconst t_%s_st* c_%s,\n" %  (name, name))
+                        pragmas.append(
+                            "#pragma HLS INTERFACE s_axilite port = c_%s_dim" % name)
+                        pragmas.append(
+                            "#pragma HLS INTERFACE m_axi port = c_%s bundle = mem_%s" % (name, name))
+                        connectivity.append(
+                            f"sp={file_name}_platform_1.c_{name}:DDR[0]")
+                        fd.write("\t\tconst size_t c_%s_dim,\n" % name)
+                        fd.write("\t\tconst t_%s_st* c_%s,\n" % (name, name))
 
             for layer in parsed_write:
                 if "consume_stream" == layer["func"]:
                     for name in layer["output"]:
-                        pragmas.append("#pragma HLS INTERFACE s_axilite port = n_out")
-                        pragmas.append("#pragma HLS INTERFACE m_axi port = o_%s bundle = mem_%s" % (name, name))
-                        connectivity.append(f"sp={file_name}_platform_1.o_{name}:DDR[0]")
+                        pragmas.append(
+                            "#pragma HLS INTERFACE s_axilite port = n_out")
+                        pragmas.append(
+                            "#pragma HLS INTERFACE m_axi port = o_%s bundle = mem_%s" % (name, name))
+                        connectivity.append(
+                            f"sp={file_name}_platform_1.o_{name}:DDR[0]")
                         fd.write("\t\tconst size_t n_out,\n")
                         fd.write("\t\tt_out_mem* o_%s\n" % name)
             pragmas.append("#pragma HLS INTERFACE s_axilite port = return")
@@ -152,20 +168,26 @@ def init(file_name, parsed_write, ap_ctrl, uram_dim, prj_root="/tmp"):
             for layer in parsed_write:
                 if "produce_stream" == layer["func"]:
                     for name in layer["input"]:
-                        pragmas.append("#pragma HLS INTERFACE axis port = c_%s_stream" % name)
-                        fd.write("\t\thls::stream<t_%s> &c_%s_stream,\n" % (name, name))
+                        pragmas.append(
+                            "#pragma HLS INTERFACE axis port = c_%s_stream" % name)
+                        fd.write("\t\thls::stream<t_%s> &c_%s_stream,\n" %
+                                 (name, name))
 
             for layer in parsed_write:
                 if "memory_management" == layer["func"]:
                     for name in layer["stream_input"]:
-                        pragmas.append("#pragma HLS INTERFACE axis port = c_%s_stream" % name)
-                        fd.write("\t\thls::stream<t_%s_stream> &c_%s_stream,\n" %  (name, name))
+                        pragmas.append(
+                            "#pragma HLS INTERFACE axis port = c_%s_stream" % name)
+                        fd.write(
+                            "\t\thls::stream<t_%s_stream> &c_%s_stream,\n" % (name, name))
 
             for layer in parsed_write:
                 if "consume_stream" == layer["func"]:
                     for name in layer["output"]:
-                        pragmas.append("#pragma HLS INTERFACE axis port = c_%s_stream" % name)
-                        fd.write("\t\thls::stream<t_o_%s> &c_%s_stream\n" % (name, name))
+                        pragmas.append(
+                            "#pragma HLS INTERFACE axis port = c_%s_stream" % name)
+                        fd.write("\t\thls::stream<t_o_%s> &c_%s_stream\n" %
+                                 (name, name))
 
         fd.write("\t\t) {\n\n")
         for pragma in pragmas:
@@ -176,14 +198,12 @@ def init(file_name, parsed_write, ap_ctrl, uram_dim, prj_root="/tmp"):
         fd.write("[connectivity]\n")
         for conn in connectivity:
             fd.write(conn + "\n")
-    
 
 
 def body(file_name, parsed_write, uram_dim, prj_root="/tmp"):
     with open(prj_root + "/cc/src/%s_platform.cc" % file_name, "a") as fd:
-        
-        
-        # Alveo boards must follow the vitis flow, which 
+
+        # Alveo boards must follow the vitis flow, which
         vitis_flow = False
         if "VITIS_FLOW" in os.environ:
             if int(os.environ.get("VITIS_FLOW")) == 1:
@@ -236,8 +256,10 @@ def body(file_name, parsed_write, uram_dim, prj_root="/tmp"):
                         mm2s_weights_layer["uram_input"] = []
                         mm2s_weights_layer["output"] = []
                         mm2s_weights_layer["template"] = []
-                        mm2s_weights_layer["template"].append("t_%s_st" % (name))
-                        mm2s_weights_layer["template"].append("t_%s_stream" % (name))
+                        mm2s_weights_layer["template"].append(
+                            "t_%s_st" % (name))
+                        mm2s_weights_layer["template"].append(
+                            "t_%s_stream" % (name))
                         mm2s_weights_layer["args"].append("c_%s" % name)
                         mm2s_weights_layer["args"].append("c_%s_dim" % name)
                         mm2s_weights_layer["args"].append("c_%s_stream" % name)
@@ -247,7 +269,7 @@ def body(file_name, parsed_write, uram_dim, prj_root="/tmp"):
 
                         print("\t", end="", file=fd)
                         write_func(fd, mm2s_weights_layer)
-            
+
             # Defining memory to stream function to load activations
             for layer in parsed_write:
                 if "produce_stream" == layer["func"]:
@@ -261,10 +283,12 @@ def body(file_name, parsed_write, uram_dim, prj_root="/tmp"):
                         mm2s_activations_layer["output"] = []
                         mm2s_activations_layer["template"] = []
                         mm2s_activations_layer["template"].append("t_in_mem")
-                        mm2s_activations_layer["template"].append("t_%s" % (name))
+                        mm2s_activations_layer["template"].append(
+                            "t_%s" % (name))
                         mm2s_activations_layer["args"].append("i_%s" % name)
                         mm2s_activations_layer["args"].append("n_inp")
-                        mm2s_activations_layer["args"].append("c_%s_stream" % name)
+                        mm2s_activations_layer["args"].append(
+                            "c_%s_stream" % name)
                         mm2s_activations_layer["declare"] = []
                         mm2s_activations_layer["defines"] = {}
                         mm2s_activations_layer["pragma"] = []
@@ -293,9 +317,9 @@ def body(file_name, parsed_write, uram_dim, prj_root="/tmp"):
                     fd.write("\t\tc_%s_stream\n" % (name))
 
         fd.write("\t);\n\n")
-        
+
         if (vitis_flow):
-            
+
             # Defining stream to memory function to store results
             for layer in parsed_write:
                 if "consume_stream" == layer["func"]:
@@ -326,9 +350,9 @@ def footer(file_name, parsed_write, prj_root="/tmp"):
         fd.write("\t}\n")
         fd.write("}\n")
 
+
 def write(file_name, parsed_write, ap_ctrl, uram_dim, prj_root="/tmp"):
 
     init(file_name, parsed_write, ap_ctrl, uram_dim, prj_root=prj_root)
     body(file_name, parsed_write, uram_dim, prj_root=prj_root)
     footer(file_name, parsed_write, prj_root=prj_root)
-

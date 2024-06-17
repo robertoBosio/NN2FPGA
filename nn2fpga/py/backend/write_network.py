@@ -2,7 +2,7 @@ import os
 import sys
 import time
 import threading
-#import onnx
+# import onnx
 import qonnx
 from qonnx.transformation import infer_shapes
 
@@ -19,6 +19,7 @@ import backend.sim as sim
 from onnx import numpy_helper
 import numpy as np
 
+
 class StatusThread(threading.Thread):
     def __init__(self, job, stdout):
         super(StatusThread, self).__init__()
@@ -33,16 +34,20 @@ class StatusThread(threading.Thread):
     def run(self):
         index = 0
         while not self.stop_event.is_set():
-            print(self.job + "\t" + self.loading[index], end='\r', flush=True, file=self.stdout)
+            print(self.job + "\t" +
+                  self.loading[index], end='\r', flush=True, file=self.stdout)
             index = (index + 1) % 4
             time.sleep(0.2)
-        print(f"{self.job}. Done in {self.end_time - self.start_time:.2f}s", end='\n', flush=True, file=self.stdout)
+        print(f"{self.job}. Done in {self.end_time - self.start_time:.2f}s",
+              end='\n', flush=True, file=self.stdout)
 
     def stop(self):
         self.end_time = time.time()
         self.stop_event.set()
 
 # Expects an ONNX model
+
+
 def write_network(
     model,
     file_name="network",
@@ -70,7 +75,6 @@ def write_network(
         info_name = info.name.replace(".", "_")
         init_info[info_name] = info
 
-    
     # Save the original stdout and stderr
     original_stdout = sys.stdout
     # original_stderr = sys.stderr
@@ -80,7 +84,8 @@ def write_network(
         # sys.stderr = log_file
         # print(init_info)
 
-        status_thread = StatusThread("Recovering informations from ONNX", original_stdout)
+        status_thread = StatusThread(
+            "Recovering informations from ONNX", original_stdout)
         status_thread.start()
 
         io_dict = graph_info(
@@ -108,7 +113,7 @@ def write_network(
         #     io_dict,
         #     init_info
         # )
-        
+
         status_thread.stop()
         status_thread.join()
         # status_thread = StatusThread("Weights quantization extraction", original_stdout)
@@ -171,7 +176,7 @@ def write_network(
         #     io_dict = balance_reuse.ilp(
         #         io_dict
         #     )
-        
+
         # status_thread.stop()
         # status_thread.join()
         # status_thread = StatusThread("Share reuse", original_stdout)
@@ -200,14 +205,13 @@ def write_network(
         io_dict = rename_nodes(
             io_dict
         )
-        
+
         # kpn_sim.simulate(model, io_dict)
 
         status_thread.stop()
         status_thread.join()
         status_thread = StatusThread("Write model code", original_stdout)
         status_thread.start()
-        
 
         parsed_write = main.write(
             io_dict,
@@ -226,7 +230,8 @@ def write_network(
         status_thread.join()
 
         if (off_chip_storage):
-            status_thread = StatusThread("Write memory management code", original_stdout)
+            status_thread = StatusThread(
+                "Write memory management code", original_stdout)
             status_thread.start()
 
             weights.write(
@@ -237,13 +242,13 @@ def write_network(
                 generate_report_file,
                 prj_root=prj_root
             )
-            
+
             status_thread.stop()
             status_thread.join()
-        
+
         status_thread = StatusThread("Write host code", original_stdout)
         status_thread.start()
-        
+
         sim.write(
             io_dict,
             model,
@@ -253,7 +258,7 @@ def write_network(
             off_chip_storage=off_chip_storage,
             prj_root=prj_root
         )
-        
+
         status_thread.stop()
         status_thread.join()
 

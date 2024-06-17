@@ -33,6 +33,7 @@ os.environ.setdefault('WBITS', '8')
 os.environ.setdefault('ABITS', '8')
 os.environ.setdefault('TRAINING_TYPE', 'regression')
 
+
 def main():
 
     root_dir = os.environ['ROOT_DIR']
@@ -63,14 +64,14 @@ def main():
     os.makedirs(ckpt_dir, exist_ok=True)
     os.makedirs(onnx_dir, exist_ok=True)
 
-
-    train_dataset, eval_dataset, input_shape = get_dataset(dataset, cifar=cifar)
+    train_dataset, eval_dataset, input_shape = get_dataset(
+        dataset, cifar=cifar)
 
     train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=train_batch_size, shuffle=True,
-                                             num_workers=num_workers)
+                                               num_workers=num_workers)
 
     eval_loader = torch.utils.data.DataLoader(eval_dataset, batch_size=eval_batch_size, shuffle=False,
-                                            num_workers=num_workers)
+                                              num_workers=num_workers)
 
     # if 'cuda' in device:
     #     model = torch.nn.DataParallel(model)
@@ -79,7 +80,7 @@ def main():
 
     print('#### Building model..')
     device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
-    #model = Autoencoder(input_shape[1], weight_bits=Wbits, act_bits=Abits).to('cuda:0')
+    # model = Autoencoder(input_shape[1], weight_bits=Wbits, act_bits=Abits).to('cuda:0')
 
     model = get_model(dataset, device, Wbits, Abits)
 
@@ -91,8 +92,9 @@ def main():
         criterion = torch.nn.MSELoss()
     else:
         criterion = torch.nn.CrossEntropyLoss()
-    
-    optimizer = optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=wd)
+
+    optimizer = optim.SGD(model.parameters(), lr=lr,
+                          momentum=0.9, weight_decay=wd)
     # optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=wd)
 
     if pretrain:
@@ -100,7 +102,8 @@ def main():
         if pretrain_file != '':
             ckpt = torch.load(pretrain_file, map_location=device)
         else:
-            ckpt = torch.load(os.path.join(ckpt_dir, f'checkpoint_fx.t7'), map_location=device)
+            ckpt = torch.load(os.path.join(
+                ckpt_dir, f'checkpoint_fx.t7'), map_location=device)
         if 'model_state_dict' not in ckpt:
             model.load_state_dict(ckpt)
         else:
@@ -118,7 +121,7 @@ def main():
         print('#### Start from scratch')
 
     def train(epoch, criterion, optimizer, best_acc):
-        train_loss, correct, total = 0, 0 ,0
+        train_loss, correct, total = 0, 0, 0
 
         model.train()
         with tqdm(train_loader, unit="batch") as tepoch:
@@ -128,7 +131,7 @@ def main():
                 optimizer.zero_grad()
                 outputs = model(inputs)
                 if dataset != "ToyADMOS":
-                    outputs = outputs.view(outputs.size(0),-1)
+                    outputs = outputs.view(outputs.size(0), -1)
                 # print(outputs.shape)
                 loss = criterion(outputs, targets)
                 loss.backward()
@@ -158,7 +161,7 @@ def main():
                     inputs, targets = inputs.to(device), targets.to(device)
                     outputs = model(inputs)
                     if dataset != "ToyADMOS":
-                        outputs = outputs.view(outputs.size(0),-1)
+                        outputs = outputs.view(outputs.size(0), -1)
                     loss = criterion(outputs, targets)
 
                     test_loss += loss.item()
@@ -175,12 +178,11 @@ def main():
 
                     tepoch.set_postfix(postfix)
 
-
         if (training_type == "classification"):
             acc = 100. * correct / total
         elif (training_type == "regression"):
             acc = 1/test_loss
-    
+
         # if acc > best_acc and retrain:
         # model.to('cpu')
         print(acc, best_acc)
@@ -193,19 +195,22 @@ def main():
                 'acc': acc,
                 'epoch': epoch,
             }
-            torch.save(state, os.path.join(ckpt_dir, f'checkpoint_quant_fx.t7'))
+            torch.save(state, os.path.join(
+                ckpt_dir, f'checkpoint_quant_fx.t7'))
             print('#### Exporting..')
-            exported_model = export_onnx_qcdq(model, args=dummy_input, export_path=onnx_dir + "/%s.onnx" % (log_name), opset_version=14)
+            exported_model = export_onnx_qcdq(
+                model, args=dummy_input, export_path=onnx_dir + "/%s.onnx" % (log_name), opset_version=14)
             best_acc = acc
         return best_acc
         # model.to(device)
 
     best_acc = 0  # best test accuracy
-    print('#### Training.. start_epoch: %d, max_epochs: %d' % (start_epoch, max_epochs))
+    print('#### Training.. start_epoch: %d, max_epochs: %d' %
+          (start_epoch, max_epochs))
     for epoch in range(start_epoch, max_epochs):
         best_acc = train(epoch, criterion, optimizer, best_acc)
     print('#### Finished Training.. with best_acc: %f' % (best_acc))
 
-   
+
 if __name__ == '__main__':
     main()

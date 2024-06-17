@@ -6,6 +6,7 @@ import os
 import cv2
 import numpy as np
 
+
 class CocoDetection(Dataset):
     """`MS Coco Detection <http://mscoco.org/dataset/#detections-challenge2016>`_ Dataset.
 
@@ -50,7 +51,6 @@ class CocoDetection(Dataset):
 
         return img, target
 
-
     def __len__(self):
         return len(self.ids)
 
@@ -59,26 +59,33 @@ class CocoDetection(Dataset):
         fmt_str += '    Number of datapoints: {}\n'.format(self.__len__())
         fmt_str += '    Root Location: {}\n'.format(self.root)
         tmp = '    Transforms (if any): '
-        fmt_str += '{0}{1}\n'.format(tmp, self.transform.__repr__().replace('\n', '\n' + ' ' * len(tmp)))
+        fmt_str += '{0}{1}\n'.format(
+            tmp, self.transform.__repr__().replace('\n', '\n' + ' ' * len(tmp)))
         tmp = '    Target Transforms (if any): '
-        fmt_str += '{0}{1}'.format(tmp, self.target_transform.__repr__().replace('\n', '\n' + ' ' * len(tmp)))
+        fmt_str += '{0}{1}'.format(
+            tmp, self.target_transform.__repr__().replace('\n', '\n' + ' ' * len(tmp)))
         return fmt_str
+
 
 def preproc(img, Y_AXIS=640, X_AXIS=360):
     # Resize the image (this is part of your runtime)
-    #im = np.asarray(cv2.resize(img, (640,360), interpolation = cv2.INTER_LINEAR))
-    im = np.asarray(cv2.resize(img, (Y_AXIS,X_AXIS), interpolation = cv2.INTER_LINEAR))
-    im = im[:,:,::-1]  # HWC to CHW, BGR to RGB
+    # im = np.asarray(cv2.resize(img, (640,360), interpolation = cv2.INTER_LINEAR))
+    im = np.asarray(cv2.resize(img, (Y_AXIS, X_AXIS),
+                    interpolation=cv2.INTER_LINEAR))
+    im = im[:, :, ::-1]  # HWC to CHW, BGR to RGB
 
     im = np.ascontiguousarray(im)  # contiguous
     print(im.shape)
     return im
 
+
 def scale_boxes(img1_shape, boxes, img0_shape, ratio_pad=None):
     # Rescale boxes (xyxy) from img1_shape to img0_shape
     if ratio_pad is None:  # calculate from img0_shape
-        gain = min(img1_shape[0] / img0_shape[0], img1_shape[1] / img0_shape[1])  # gain  = old / new
-        pad = (img1_shape[1] - img0_shape[1] * gain) / 2, (img1_shape[0] - img0_shape[0] * gain) / 2  # wh padding
+        gain = min(img1_shape[0] / img0_shape[0],
+                   img1_shape[1] / img0_shape[1])  # gain  = old / new
+        pad = (img1_shape[1] - img0_shape[1] * gain) / \
+            2, (img1_shape[0] - img0_shape[0] * gain) / 2  # wh padding
     else:
         gain = ratio_pad[0][0]
         pad = ratio_pad[1]
@@ -88,6 +95,7 @@ def scale_boxes(img1_shape, boxes, img0_shape, ratio_pad=None):
     boxes[..., :4] /= gain
     clip_boxes(boxes, img0_shape)
     return boxes
+
 
 def clip_boxes(boxes, shape):
     # Clip boxes (xyxy) to image shape (height, width)
@@ -99,6 +107,7 @@ def clip_boxes(boxes, shape):
     else:  # np.array (faster grouped)
         boxes[..., [0, 2]] = boxes[..., [0, 2]].clip(0, shape[1])  # x1, x2
         boxes[..., [1, 3]] = boxes[..., [1, 3]].clip(0, shape[0])  # y1, y2
+
 
 def non_max_suppression_custom(
         prediction,
@@ -117,26 +126,29 @@ def non_max_suppression_custom(
          list of detections, on (n,6) tensor per image [xyxy, conf, cls]
     """
 
-    if isinstance(prediction, (list, tuple)):  # YOLOv5 model in validation model, output = (inference_out, loss_out)
+    # YOLOv5 model in validation model, output = (inference_out, loss_out)
+    if isinstance(prediction, (list, tuple)):
         prediction = prediction[0]  # select only inference output
 
-    prediction = xywh2xyxy(np.asarray(prediction))  # center_x, center_y, width, height) to (x1, y1, x2, y2)
+    # center_x, center_y, width, height) to (x1, y1, x2, y2)
+    prediction = xywh2xyxy(np.asarray(prediction))
     output = nms_custom(prediction.tolist(), iou_thres, 0)
 
-    if len(output) > 0: 
+    if len(output) > 0:
         return [torch.stack(output)]
     else:
         return []
 
+
 def postprocess(out_buffer, results, accuracy, batch_size):
     # def postproc(pred, shape, orig_shape):
-                
+
     start = time.time()
     pred = non_max_suppression_custom(pred)
     if len(pred) > 0:
         pred = pred[0]
     end = time.time()
-    #print("Image postproc non max suppr: %f" % (end-start))
+    # print("Image postproc non max suppr: %f" % (end-start))
 
     object_locations = []
 

@@ -35,6 +35,7 @@ os.environ.setdefault('WBITS', '8')
 os.environ.setdefault('ABITS', '8')
 os.environ.setdefault('TRAINING_TYPE', 'regression')
 
+
 def main():
 
     root_dir = os.environ['ROOT_DIR']
@@ -66,28 +67,31 @@ def main():
     os.makedirs(ckpt_dir, exist_ok=True)
     os.makedirs(onnx_dir, exist_ok=True)
 
-    val=1
+    val = 1
     print_onnx = 0
 
-    train_dataset, eval_dataset, input_shape = get_dataset(dataset, cifar=cifar)
+    train_dataset, eval_dataset, input_shape = get_dataset(
+        dataset, cifar=cifar)
 
     train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=train_batch_size, shuffle=True,
-                                             num_workers=num_workers)
+                                               num_workers=num_workers)
 
     eval_loader = torch.utils.data.DataLoader(eval_dataset, batch_size=eval_batch_size, shuffle=False,
-                                            num_workers=num_workers)
+                                              num_workers=num_workers)
 
     print('#### Preparing data ..')
     device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
-    #model = Autoencoder(input_shape[1], weight_bits=Wbits, act_bits=Abits).to('cuda:0')
+    # model = Autoencoder(input_shape[1], weight_bits=Wbits, act_bits=Abits).to('cuda:0')
     model = get_model(dataset, device, Wbits, Abits)
 
     model.to(device)
 
     if Wbits < 8:
-        optimizer = torch.optim.SGD(model.parameters(), lr=0.001, momentum=0.9, weight_decay=wd)
+        optimizer = torch.optim.SGD(
+            model.parameters(), lr=0.001, momentum=0.9, weight_decay=wd)
     else:
-        optimizer = torch.optim.SGD(model.parameters(), lr=0.001, momentum=0.9, weight_decay=wd)
+        optimizer = torch.optim.SGD(
+            model.parameters(), lr=0.001, momentum=0.9, weight_decay=wd)
         # optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=wd)
 
     # optimizer = torch.optim.Adam(model.parameters(),lr=lr,weight_decay=wd)
@@ -95,14 +99,15 @@ def main():
     #     model = torch.nn.DataParallel(model)
     #     cudnn.benchmark = True
     #     #print("no cuda")
-    
+
     # if pretrain:
     if 0:
         print("#### Loading pretrain model..")
         if pretrain_file != '':
             ckpt = torch.load(pretrain_file, map_location=device)
         else:
-            ckpt = torch.load(os.path.join(ckpt_dir, f'checkpoint_fx.t7'), map_location=device)
+            ckpt = torch.load(os.path.join(
+                ckpt_dir, f'checkpoint_fx.t7'), map_location=device)
         if 'model_state_dict' not in ckpt:
             model.load_state_dict(ckpt)
         else:
@@ -121,7 +126,7 @@ def main():
     retrain = 0
 
     def train(epoch, criterion, optimizer, best_acc):
-        train_loss, correct, total = 0, 0 ,0
+        train_loss, correct, total = 0, 0, 0
 
         model.train()
         with tqdm(train_loader, unit="batch") as tepoch:
@@ -131,7 +136,7 @@ def main():
                 optimizer.zero_grad()
                 outputs = model(inputs)
                 if dataset != "ToyADMOS":
-                    outputs = outputs.view(outputs.size(0),-1)
+                    outputs = outputs.view(outputs.size(0), -1)
                 loss = criterion(outputs, targets)
                 loss.backward()
                 optimizer.step()
@@ -161,7 +166,7 @@ def main():
                     inputs, targets = inputs.to(device), targets.to(device)
                     outputs = model(inputs)
                     if dataset != "ToyADMOS":
-                        outputs = outputs.view(outputs.size(0),-1)
+                        outputs = outputs.view(outputs.size(0), -1)
                     loss = criterion(outputs, targets)
 
                     test_loss += loss.item()
@@ -176,13 +181,16 @@ def main():
 
                     postfix["Loss"] = f"{loss.item():.4f}"
 
-                    tepoch.set_postfix({"Acc": f"{100.0 * correct / total:.2f}%", "Loss": f"{loss.item():.4f}"})
+                    tepoch.set_postfix(
+                        {"Acc": f"{100.0 * correct / total:.2f}%", "Loss": f"{loss.item():.4f}"})
                     if log and tepoch.n == 1:
                         with open(os.path.join(log_dir, 'test_inference.txt'), 'a') as f:
                             # log input and output
                             for i in range(inputs.size(0)):
-                                f.write(f'input: {inputs[i].cpu().numpy().tolist()}\n')
-                                f.write(f'output: {outputs[i].cpu().numpy().tolist()}\n')
+                                f.write(
+                                    f'input: {inputs[i].cpu().numpy().tolist()}\n')
+                                f.write(
+                                    f'output: {outputs[i].cpu().numpy().tolist()}\n')
                         break
 
         if (training_type == "classification"):
@@ -198,26 +206,29 @@ def main():
                 'acc': acc,
                 'epoch': epoch,
             }
-            torch.save(state, os.path.join(ckpt_dir, f'checkpoint_quant_bnfuse_fx.t7'))
+            torch.save(state, os.path.join(
+                ckpt_dir, f'checkpoint_quant_bnfuse_fx.t7'))
             # model.to('cpu')
             dummy_input = torch.randn(input_shape, device=device)
             accuracy_str = f'{acc:.2f}'.replace('.', '_')
-            exported_model = export_onnx_qcdq(model, args=dummy_input, export_path=onnx_dir + "/%s_bnfuse.onnx" % (log_name), opset_version=13)
+            exported_model = export_onnx_qcdq(
+                model, args=dummy_input, export_path=onnx_dir + "/%s_bnfuse.onnx" % (log_name), opset_version=13)
             best_acc = acc
         # model.to(device)
         return best_acc
 
-
     def print_partial(model):
 
         eval_loader = torch.utils.data.DataLoader(eval_dataset, batch_size=1, shuffle=False,
-                                                num_workers=1)
+                                                  num_workers=1)
 
         activation = {}
+
         def get_activation(name):
             def hook(model, input, output):
                 activation[name] = output.detach()
             return hook
+
         def get_conv_activation(name):
             def hook(model, input, output):
                 activation[name] = input[0].detach()
@@ -237,33 +248,35 @@ def main():
             for batch_idx, (inputs, targets) in enumerate(eval_loader):
                 inputs, targets = inputs.to(device), targets.to(device)
                 outputs = model(inputs)
-                outputs = outputs.view(outputs.size(0),-1)
+                outputs = outputs.view(outputs.size(0), -1)
                 break
         return activation
 
-    #print(model)
-    #return 0
-    
+    # print(model)
+    # return 0
+
     criterion = torch.nn.CrossEntropyLoss()
     test(0, criterion, 1, log=False)
 
     if 1:
         is_calibrate = True
         if is_calibrate:
-            calib_dataset, _, _= get_dataset(dataset, sample_size=100)
+            calib_dataset, _, _ = get_dataset(dataset, sample_size=100)
             calib_loader = torch.utils.data.DataLoader(calib_dataset, batch_size=1, shuffle=True,
-                                                    num_workers=4)
+                                                       num_workers=4)
             calibrate(calib_loader, model)
             apply_gptq(calib_loader, model, act_order="")
             # calibrate(calib_loader, model, True)
             # test(0, criterion, 1, log=False)
-    
-    if(not(pretrain)) :
+
+    if (not (pretrain)):
         print('#### Start from scratch')
         # optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=wd)
         # optimizer = torch.optim.SGD(model.parameters(), lr=lr)
-        optimizer = torch.optim.Adam(model.parameters(),lr=lr,weight_decay=wd)
-        lr_schedu = optim.lr_scheduler.MultiStepLR(optimizer, [90, 150, 200], gamma=0.1)
+        optimizer = torch.optim.Adam(
+            model.parameters(), lr=lr, weight_decay=wd)
+        lr_schedu = optim.lr_scheduler.MultiStepLR(
+            optimizer, [90, 150, 200], gamma=0.1)
         if (training_type == "classification"):
             criterion = torch.nn.CrossEntropyLoss()
         elif (training_type == "regression"):
@@ -273,11 +286,11 @@ def main():
 
         print("#### TRAINING")
         best_acc = 0
-        for epoch in range(0, max_epochs): 
+        for epoch in range(0, max_epochs):
             best_acc = train(epoch, criterion, optimizer, best_acc)
             lr_schedu.step(epoch)
 
-    if(val) :
+    if (val):
         if (training_type == "classification"):
             criterion = torch.nn.CrossEntropyLoss()
         elif (training_type == "regression"):
@@ -291,10 +304,10 @@ def main():
         with torch.no_grad():
             # Put the model in training mode to collect statistics
             quant_model.train()
-             #for i, (images, _) in enumerate(calibration_loader):
-             #   print(f'Calibration iteration {i}')
-             #   # Disable quantization while collecting statistics
-             #   DisableQuantInference().apply(quant_model, images)
+            # for i, (images, _) in enumerate(calibration_loader):
+            #   print(f'Calibration iteration {i}')
+            #   # Disable quantization while collecting statistics
+            #   DisableQuantInference().apply(quant_model, images)
             #  Put the model in inference mode to use those statistics
             quant_model.eval()
             bc = BiasCorrection(iterations=len(calibration_loader))
@@ -302,41 +315,44 @@ def main():
                 # print(f'Bias correction iteration {i}')
                 # Apply bias correction
                 quant_model = bc.apply(quant_model, images)
-        quant_model.apply(finalize_collect_stats)    
+        quant_model.apply(finalize_collect_stats)
         return quant_model
-  
-    #change not hand-written
+
+    # change not hand-written
     print("#### MERGE BN")
-    
-    #model = merge_conv_bn(model)
+
+    # model = merge_conv_bn(model)
     fuse_layers(model)
-    replace_layers(model,torch.nn.BatchNorm2d ,torch.nn.Identity())
-    
+    replace_layers(model, torch.nn.BatchNorm2d, torch.nn.Identity())
+
     post_quant = 0
-    if(post_quant) :
-        model = calibrate_model(train_loader,model)
-    if(val) :
+    if (post_quant):
+        model = calibrate_model(train_loader, model)
+    if (val):
         best_acc = test(start_epoch, criterion, best_acc=0)
-        print("#### RETRAINING") 
+        print("#### RETRAINING")
         retrain = 1
         # optimizer = torch.optim.SGD(model.parameters(), lr=0.0001)
         # lr_schedu = optim.lr_scheduler.MultiStepLR(optimizer, [90, 150, 200], gamma=0.1)
         criterion = torch.nn.CrossEntropyLoss()
         if is_calibrate:
             # optimizer = torch.optim.SGD(model.parameters(), lr=0.0001, momentum=0.9, weight_decay=wd)
-            optimizer = torch.optim.SGD(model.parameters(), lr=0.00005, weight_decay=wd)
-        for epoch in range(start_epoch, start_epoch+20): 
-            if(not(post_quant)) :
+            optimizer = torch.optim.SGD(
+                model.parameters(), lr=0.00005, weight_decay=wd)
+        for epoch in range(start_epoch, start_epoch+20):
+            if (not (post_quant)):
                 best_acc = train(epoch, criterion, optimizer, best_acc)
             else:
                 best_acc = test(epoch, criterion, best_acc)
             # lr_schedu.step(epoch)
     print('#### Finished Training.. with best_acc: %f' % (best_acc))
     print('#### Logging data from best checkpoint')
-    ckpt = torch.load(os.path.join(ckpt_dir, f'checkpoint_quant_bnfuse_fx.t7'), map_location=device)
+    ckpt = torch.load(os.path.join(
+        ckpt_dir, f'checkpoint_quant_bnfuse_fx.t7'), map_location=device)
     model.load_state_dict(ckpt['model_state_dict'])
     model.to(device)
     test(epoch, criterion, 1, log=True)
+
 
 if __name__ == '__main__':
     main()
