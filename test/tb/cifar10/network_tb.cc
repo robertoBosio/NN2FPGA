@@ -142,21 +142,21 @@ int main(int argc, char** argv) {
 	}
 #endif /* CSIM */
 
-  std::string command = "python3 preprocess.py " + std::to_string(c_batch) + " " + onnx_path + " " + dataset;
-  int status = system(command.c_str());
+ std::string command = "python3 preprocess.py " + std::to_string(c_batch) + " " + onnx_path + " " + dataset;
+ int status = system(command.c_str());
 
-  if (status < 0)
-    std::cout << "Error: " << strerror(errno) << '.\n';
-  else {
-    if (WIFEXITED(status)) {
-      if (WEXITSTATUS(status) != 0){
-        std::cout << "ONNX inference failed.\n";
-        return -1;
-      }
-    } else {
-      std::cout << "Program exited abnormaly.\n";
-    }
-  }
+ if (status < 0)
+   std::cout << "Error: " << strerror(errno) << ".\n";
+ else {
+   if (WIFEXITED(status)) {
+     if (WEXITSTATUS(status) != 0){
+       std::cout << "ONNX inference failed.\n";
+       return -1;
+     }
+   } else {
+     std::cout << "Program exited abnormaly.\n";
+   }
+ }
 
   std::vector<float> images = readBinaryFile<float>("/tmp/images_preprocessed.bin");
   std::vector<int> labels = readBinaryFile<int>("/tmp/labels_preprocessed.bin");

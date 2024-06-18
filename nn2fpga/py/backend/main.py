@@ -13,7 +13,9 @@ import backend.layers.output_gen as output_gen
 import backend.layers.detect as detect
 import backend.layers.non_max_suppression as non_max_suppression
 import backend.layers.bandwidth_adjust as bandwidth_adjust
+import backend.layers.tensor_duplicator as tensor_duplicator
 import backend.graph as graph
+from backend.opt import dag_sorting as dag_sorting
 from backend.utils import *
 
 def init(file_name, parsed_write, object_detection=False, off_chip_storage=False, prj_root="/tmp"):
@@ -177,12 +179,27 @@ def parse_all_main(io_dict, model, off_chip_storage=False):
     parsed_const = []
     no_output_gen = False
     last_node = None
+    io_connect = graph.extract_connections(model, io_dict)
 
+    # Sorting the nodes in a BFS order
+    io_dict = dag_sorting(model, io_dict)
+    sorted_bfs = []
     for name, node in io_dict.items():
+        sorted_bfs.append((name, node["layer_index"]))
+
+    sorted_bfs = sorted(sorted_bfs, key=lambda x: x[1])
+    print(sorted_bfs)
+    for name, _ in sorted_bfs:
+        node = io_dict[name]
 
         if 'produce' == node["type"]:
             parsed_write.append(
                 input_gen.parse(name, node)
+            )
+
+        if 'duplicate' == node["type"]:
+            parsed_write.append(
+                tensor_duplicator.parse(name, node)
             )
 
         if 'depth' == node["type"]:

@@ -508,7 +508,6 @@ def parse_comp(name, node, streaming_params=False):
             [["data", "t_%s_acc" % output_1x1_name], ["last", "bool"]]
         ]
 
-        block["defines"]["c_%s_add_ops" % output_1x1_name]         = ["const", node["ops_out"]]
 
     block["defines"]["c_%s_ich" % name]            = ["const", node["ich"]]
     block["defines"]["c_%s_och" % name]            = ["const", node["och"]]
@@ -528,6 +527,8 @@ def parse_comp(name, node, streaming_params=False):
     block["defines"]["c_%s_ops" % name]            = ["const", node["ops"]]
     block["defines"]["c_%s_ops_out" % name]        = ["const", node["ops_out"]]
     # block["defines"]["c_%s_ops_1x1" % name]        = ["const", node["ops_1x1"]]
+
+    ### in_ops is not used by anyone!
     block["defines"]["c_%s_in_ops" % name]         = ["const", node["in_ops"]]
     block["defines"]["c_%s_ich_ops" % name]        = ["const", node["ich_ops"]]
     block["defines"]["c_%s_index" % name]          = ["const", node["kernel"]]
@@ -536,8 +537,13 @@ def parse_comp(name, node, streaming_params=False):
     block["defines"]["c_%s_ow_ops_out" % name]     = ["const", node["ow_ops_out"]]
     block["defines"]["c_%s_ow_pack" % name]        = ["const", node["ow_pack"]]
     block["defines"]["c_%s_och_pack" % name]       = ["const", node["och_pack"]]
+    
     if (node["has_forward"]):
         block["defines"]["c_%s_add_ops" % forward_name]         = ["const", node["ich_ops"]]
+    elif (node["merge_1x1"]):
+        block["defines"]["c_%s_add_ops" % output_1x1_name]         = ["const", node["ops_out"]]
+    else:
+        block["defines"][f"c_{output_name}_add_ops"]         = ["const", node["ops_out"]]
 
     block["args"] = []
     

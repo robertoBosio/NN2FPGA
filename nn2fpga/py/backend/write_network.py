@@ -197,11 +197,18 @@ def write_network(
             model,
             io_dict
         )
+        
         io_dict = rename_nodes(
             io_dict
         )
         
         # kpn_sim.simulate(model, io_dict)
+
+        io_dict = duplicate_tensor(
+            model,
+            io_dict,
+            True
+        )
 
         status_thread.stop()
         status_thread.join()

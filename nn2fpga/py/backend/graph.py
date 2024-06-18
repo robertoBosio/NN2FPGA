@@ -4,6 +4,7 @@ import sys
 import qonnx
 from onnx import numpy_helper
 import numpy as np
+import math
 import backend.layers.conv as conv
 import backend.layers.gemm as gemm
 import backend.layers.pool as pool
@@ -81,7 +82,9 @@ def remove_and_bypass_layer(io_dict, io_connect, layer_name, forward=True):
 
     return io_dict
 
+
 def compute_depth_stream(io_dict, io_connect, net_name, starting_name, ops="ops"):
+    """ Compute depth of streams when multiple branches are merged. """
 
     # Look backward from long branch to compute the receptive field
     net_receptive_field = [0, 0]
@@ -91,31 +94,56 @@ def compute_depth_stream(io_dict, io_connect, net_name, starting_name, ops="ops"
     node = io_dict[layer_output]
     starting_node = io_dict[starting_name]
 
-    # coordinates of the last pixel needed for the convolution that does the add operation.
+    # For future compatibility, the node producing the skip connection is not the same
+    # producing the other branch. Right now, they are the same.
+    skip_producing_node = starting_node
+
+    # Coordinates of the last pixel needed for the convolution that does the add operation.
     # We need to compute the receptive field of this pixel, in order to retrieve the depth
     # needed by the skip connection.
-    width_end_p = (node["fw"] + (node["ow_ops"] - 1) * node["stride"]) - node["pad"]
-    height_end_p = node["fh"] - node["pad"]
-    depth_end_p = 1 if node["depth"] else (node["och"])
+    end_pixel = [0, 0, 0] # W, H, C
+    end_pixel[0] = (node["fw"] + (node["ow_ops"] - 1) * node["stride"]) - node["pad"]
+    end_pixel[1] = node["fh"] - node["pad"]
+    end_pixel[2] = 1 if node["depth"] else (node["ich"])
 
     # Throughput of the conv filling the skip buffer
     if ops == "ops":
         # Downsample throughput
-        skip_throughput = (starting_node["ich_ops"] * starting_node["ops"]) / starting_node["ich"]
+        skip_throughput = (skip_producing_node["ich_ops"] * 
+                           skip_producing_node["ops"] * 
+                           skip_producing_node["ow_ops"]) / skip_producing_node["ich"]
     else: 
         # Forward throughput
-        skip_throughput = (starting_node["ich_ops"] * starting_node["ops"]) / starting_node["och"]
+        skip_throughput = (skip_producing_node["ich_ops"] * 
+                           skip_producing_node["ops"] * 
+                           skip_producing_node["ow_ops"]) / skip_producing_node["och"]
     
-    print(f"skip_throughput: {skip_throughput}") 
+    print(f"skip_throughput: {skip_throughput:.2f}") 
+    
+    # Throughput of the conv filling the other branch
     if starting_node["depth"]:
-        start_throughput = starting_node["ich_ops"]
+        start_throughput = starting_node["ich_ops"] * starting_node["ow_ops"]
     else:
-        start_throughput = starting_node["ich_ops"] * starting_node["ops"] / starting_node["ich"]
+        start_throughput = (starting_node["ich_ops"] * 
+                            starting_node["ops"] * 
+                            starting_node["ow_ops"]) / starting_node["ich"]
+
+    print(f"start_throughput: {start_throughput:.2f}")
 
     sum_of_latencies = 0
     strides = []
     paddings = []
     kernel_shapes = []
+
+    # Evaluating latency of the last conv doing the sum    
+    if node["depth"]:
+        sum_of_latencies = node["ich"] / node["ich_ops"]
+    else:
+        sum_of_latencies = (node["ich"] / node["ich_ops"]) * (node["och"] / node["ops"])
+    other_net = io_dict[layer_output]["input"][0]
+    layer_output = io_connect[other_net][0][0]
+    print(f"Node {layer_output} with latency: {sum_of_latencies} cc. Total latency: {sum_of_latencies} cc.")
+    
     while layer_output != starting_name:
 
         node = io_dict[layer_output]
@@ -138,30 +166,39 @@ def compute_depth_stream(io_dict, io_connect, net_name, starting_name, ops="ops"
         paddings.append(node["pad"])
         kernel_shapes.append([node["fh"], node["fw"], 1 if node["depth"] else node["ich"]])
         sum_of_latencies += node_latency
+        print(f"Node {layer_output} with latency: {node_latency} cc. Total latency: {sum_of_latencies} cc.")
 
-    width_start_p = width_end_p * np.prod(strides)    
+    start_pixel = [0, 0, 0] # W, H, C
+    start_pixel[0] = int(end_pixel[0] * np.prod(strides))    
     for l in range(len(strides)):
         strides_formula = 1
         for i in range(0, l):
             strides_formula = strides_formula * strides[i]
-        width_start_p = width_start_p - ((1 + paddings[l] - kernel_shapes[l][1]) * strides_formula)
+        start_pixel[0] = start_pixel[0] - ((1 + paddings[l] - kernel_shapes[l][1]) * strides_formula)
     
     # No strides for the height
-    height_start_p = height_end_p
+    start_pixel[1] = end_pixel[1] 
     for l in range(len(strides)):
         strides_formula = 1
-        height_start_p = height_start_p - ((1 + paddings[l] - kernel_shapes[l][0]) * strides_formula)
+        start_pixel[1] = start_pixel[1] - ((1 + paddings[l] - kernel_shapes[l][0]) * strides_formula)
     
-    depth_start_p = starting_node["ich"]
+    if ops == "ops":
+        # Downsample throughput
+        start_pixel[2] = starting_node["och"]
+    else: 
+        # Forward throughput
+        start_pixel[2] = starting_node["ich"]
 
-    print(f"start pixel coordinates: ({height_start_p}, {width_start_p}, {depth_start_p})")
-    print(f"end pixel coordinates: ({height_end_p}, {width_end_p}, {depth_end_p})")
+    print(f"Start pixel coordinates: {start_pixel}")
+    print(f"End pixel coordinates: {end_pixel}")
 
     # Compute time to calculate all the pixels in the receptive field
     skip_depth = 0
-    skip_depth += (height_start_p - 1) * starting_node["iw"] * starting_node["ich"]
-    skip_depth += (width_start_p - 1) * starting_node["ich"]
-    skip_depth = skip_depth / start_throughput
+    skip_depth += (start_pixel[1] - 1) * starting_node["ow"] * starting_node["och"]
+    skip_depth += (start_pixel[0] - 1) * starting_node["och"]
+    print(f"Data to be produced to fill receptive field: {skip_depth}.")
+
+    skip_depth = int(math.ceil(skip_depth / start_throughput))
     print(f"Time to produce receptive field: {skip_depth} cc")
 
     # Add the latency of the layers in the convolutional path
@@ -169,20 +206,25 @@ def compute_depth_stream(io_dict, io_connect, net_name, starting_name, ops="ops"
     print(f"Time to shift data to last pixel until the add: {skip_depth} cc")
 
     # Compute number of pixels should be stored in the skip buffer
-    skip_depth = skip_depth * skip_throughput
+    skip_depth = int(math.ceil(skip_depth * skip_throughput))
     print(f"Data produced by the other branch in the meanwhile: {skip_depth}")
 
     # Divide the skip depth by the number of parallel connections, 
     # considering the fact that ow_ops pixel are computed in parallel
-    skip_depth //= (starting_node["ow_ops_out"] / starting_node["ow_ops"]) 
-
-    depth = 0
-    depth += int(starting_node["ich"] / starting_node[ops]) * (net_receptive_field[1] - 1)
-    depth += starting_node["iw"] * int(starting_node["ich"] / starting_node[ops]) * (net_receptive_field[0] - 1) - starting_node["ich"]
-
-    print(f"skip depth: {skip_depth} ow_ops_out: {starting_node['ow_ops_out']} ow_ops: {starting_node['ow_ops']} and depth: {depth}")
-    if depth < 0:
-        depth = node["och"]
+    if ops == "ops":
+        skip_depth //= starting_node["ow_ops_out"] * starting_node["ops_out"]
+        print(f"Theoretical depth to have no deadlock: {skip_depth}. Single packet of {starting_node['ops_out']} bytes spread over {starting_node['ow_ops_out']} streams.")
+        
+        # Add one packet of data to consider the latency of the pipeline
+        skip_depth += 2 * (starting_node["och"] / starting_node["ops_out"])
+        print(f"Depth considering pipelining and some more slack: {skip_depth}")
+    else:
+        skip_depth //= starting_node["ow_ops_out"] * starting_node["ich_ops"]
+        print(f"Theoretical depth to have no deadlock: {skip_depth}. Single packet of {starting_node['ich_ops']} bytes spread over {starting_node['ow_ops_out']} streams.")
+        
+        # Add one packet of data to consider the latency of the pipeline
+        skip_depth += 2 * (starting_node["ich"] / starting_node["ich_ops"])
+        print(f"Depth considering pipelining and some more slack: {skip_depth}")
 
     return int(skip_depth)
 
