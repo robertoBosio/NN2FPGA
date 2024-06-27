@@ -30,6 +30,8 @@ from randomaug import RandAugment
 from models.vit import ViT
 from models.convmixer import ConvMixer
 
+from brevitas.export.onnx.qonnx.manager import QONNXManager
+
 # parsers
 parser = argparse.ArgumentParser(description='PyTorch CIFAR10 Training')
 parser.add_argument('--lr', default=1e-4, type=float, help='learning rate') # resnets.. 1e-3, Vit..1e-4
@@ -96,10 +98,10 @@ if aug:
 
 # Prepare dataset
 trainset = torchvision.datasets.CIFAR10(root='./data', train=True, download=True, transform=transform_train)
-trainloader = torch.utils.data.DataLoader(trainset, batch_size=bs, shuffle=True, num_workers=8)
+trainloader = torch.utils.data.DataLoader(trainset, batch_size=bs, shuffle=True, num_workers=4)
 
 testset = torchvision.datasets.CIFAR10(root='./data', train=False, download=True, transform=transform_test)
-testloader = torch.utils.data.DataLoader(testset, batch_size=100, shuffle=False, num_workers=8)
+testloader = torch.utils.data.DataLoader(testset, batch_size=100, shuffle=False, num_workers=4)
 
 classes = ('plane', 'car', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck')
 
@@ -144,6 +146,19 @@ elif args.net=="vit_small":
 )
 elif args.net=="vit_tiny":
     from models.vit_small import ViT
+    net = ViT(
+    image_size = size,
+    patch_size = args.patch,
+    num_classes = 10,
+    dim = int(args.dimhead),
+    depth = 4,
+    heads = 6,
+    mlp_dim = 256,
+    dropout = 0.1,
+    emb_dropout = 0.1
+)
+elif args.net=="vit_tiny_quant":
+    from models.vit_small_quant import ViT
     net = ViT(
     image_size = size,
     patch_size = args.patch,
@@ -305,7 +320,10 @@ def test(epoch):
         if not os.path.isdir('checkpoint'):
             os.mkdir('checkpoint')
         torch.save(state, './checkpoint/'+args.net+'-{}-ckpt.t7'.format(args.patch))
+        net.to('cpu')
+        QONNXManager.export(net.module, input_shape=(1, 3, 32, 32), export_path='onnx/vit_tiny_quant.onnx')            
         best_acc = acc
+        net.to(device)
     
     os.makedirs("log", exist_ok=True)
     content = time.ctime() + ' ' + f'Epoch {epoch}, lr: {optimizer.param_groups[0]["lr"]:.7f}, val loss: {test_loss:.5f}, acc: {(acc):.5f}'
