@@ -88,7 +88,7 @@ config_interface -m_axi_latency 1
 # MOD done to reduce LUT usage with a small performance degradation
 config_compile -pipeline_style stp -enable_auto_rewind=false
 
-csynth_design
+synth_design
 
 export_design -flow syn
 #export_design
