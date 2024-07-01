@@ -264,6 +264,61 @@ consume_stream(hls::stream<din_wrap_t> dinStream[ow_ops],
 #endif
 }
 
+/**
+ * Duplicate the input tensor to multiple output tensors.
+ * 
+ * tparam data_t: Data type of the tensor.
+ * tparam C: Number of channels of the tensor.
+ * tparam H: Height of the tensor.
+ * tparam W: Width of the tensor.
+ * tparam c_ops: Number of channels packed in a single data.
+ * tparam w_ops: Number of streams in parallel.
+ * 
+ * param din_stream: Input stream.
+ * param dout_stream0: First output stream.
+ * param dout_stream1: Second output stream.
+ * 
+ * return: None.
+*/
+template <typename data_t, size_t C, size_t H, size_t W, size_t c_ops, size_t w_ops>
+void tensor_duplicator(hls::stream<data_t> din_stream[w_ops],
+                       hls::stream<data_t> dout_stream0[w_ops],
+                       hls::stream<data_t> dout_stream1[w_ops])
+{
+
+#ifndef __SYNTHESIS__
+  std::cout << "INFO: Call to tensor_duplicator " << std::endl;
+  std::cout << "\t\tC: " << C << std::endl;
+  std::cout << "\t\tH: " << H << std::endl;
+  std::cout << "\t\tW: " << W << std::endl;
+  std::cout << "\t\tc_ops: " << c_ops << std::endl;
+  std::cout << "\t\tw_ops: " << w_ops << std::endl;
+#endif /* __SYNTHESIS__ */
+
+  for (auto h = 0; h < H; h++) {
+    for (auto w = 0; w < W; w += w_ops) {
+      for (auto ch = 0; ch < C; ch += c_ops) {
+        for (auto in_w = 0; in_w < w_ops; in_w++) {
+#pragma HLS unroll
+          data_t data = din_stream[in_w].read();
+          dout_stream0[in_w].write(data);
+          dout_stream1[in_w].write(data);
+        }
+      }
+    }
+  }
+
+#ifndef __SYNTHESIS__
+#ifndef SKIP_ASSERTIONS
+  std::cout << "INFO: tensor_duplicator: din_stream[0].size() "
+            << din_stream[0].size() << std::endl;
+  std::cout << "INFO: tensor_duplicator: dout_stream0[0].size() "
+            << dout_stream0[0].size() << std::endl;
+#endif /* SKIP_ASSERTION */
+  std::cout << "INFO: Finished tensor_duplicator " << std::endl;
+#endif /* __SYNTHESIS__ */
+}
+
 #ifndef __SYNTHESIS__
 template<typename data_t, int CH, int H, int W, int ch_step, int w_step>
 void
