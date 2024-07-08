@@ -62,6 +62,11 @@ def main():
         if int(os.environ.get("OBJECT_DETECTION")) == 1:
             object_detection = True
 
+    silvia_packing = False
+    if "SILVIA_PACKING" in os.environ:
+        if int(os.environ.get("SILVIA_PACKING")) == 1:
+            silvia_packing = True
+
     # if "PACKING" in os.environ:
     #     if int(os.environ.get("PACKING")) == 1:
     #         packing = True
@@ -123,6 +128,7 @@ def main():
         board=board, 
         dynamic_init=dynamic_init,
         uram_storage=uram_storage,
+        silvia_packing=silvia_packing,
         object_detection=object_detection,
         anchors=anchors,
         prj_root=PRJ_ROOT,

@@ -67,6 +67,24 @@ ifndef TARGET
 	$(error ERROR! TARGET variable is not set, please set it to sw_emu, hw_emu or hw when using ALVEO boards)
 endif
 
+SILVIA_PACKING ?= 0
+
+check-silvia:
+ifndef SILVIA_ROOT
+ifeq ($(SILVIA_PACKING), 1)
+	$(error ERROR! SILVIA_ROOT variable is not set)
+else
+	SILVIA_ROOT := ""
+endif
+endif
+ifndef SILVIA_LLVM_ROOT
+ifeq ($(SILVIA_PACKING), 1)
+	$(error ERROR! SILVIA_LLVM_ROOT variable is not set)
+else
+	SILVIA_LLVM_ROOT := ""
+endif
+endif
+
 XSA := $(BOARD).$(TOP_NAME)
 MK_PATH := $(abspath $(lastword $(MAKEFILE_LIST)))
 COMMON_REPO ?= $(shell bash -c 'export MK_PATH=$(MK_PATH); echo $${MK_PATH%/*}')
@@ -195,10 +213,10 @@ restore_vivado_design:
 	cd $(PRJ_FULL_ROOT) && vivado -mode tcl -source $(NN2FPGA_ROOT)/tcl/restore_vivado_design.tcl \
 		-tclargs $(NN2FPGA_ROOT)
 
-syn:
+syn: check-silvia
 	@mkdir -p $(PRJ_FULL_ROOT)/cc/src/ $(PRJ_FULL_ROOT)/cc/include/ && \
 	cd $(PRJ_FULL_ROOT) && vitis_hls -f $(NN2FPGA_ROOT)/tcl/synth.tcl \
-		"$(NN2FPGA_ROOT) $(CMD_ARGS)"
+		"$(NN2FPGA_ROOT) $(SILVIA_PACKING) $(SILVIA_ROOT) $(SILVIA_LLVM_ROOT) $(CMD_ARGS)"
 
 syn-vitis: check-vitis check-hls check-vivado check-top check-board check-target $(BUILD_DIR)/$(TOP_NAME).xclbin
 
