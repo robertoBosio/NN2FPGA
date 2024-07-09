@@ -68,20 +68,16 @@ ifndef TARGET
 endif
 
 SILVIA_PACKING ?= 0
+SILVIA_ROOT ?= ""
+SILVIA_LLVM_ROOT ?= ""
 
 check-silvia:
-ifndef SILVIA_ROOT
 ifeq ($(SILVIA_PACKING), 1)
+ifeq ($(SILVIA_ROOT), "")
 	$(error ERROR! SILVIA_ROOT variable is not set)
-else
-	SILVIA_ROOT := ""
 endif
-endif
-ifndef SILVIA_LLVM_ROOT
-ifeq ($(SILVIA_PACKING), 1)
+ifeq ($(SILVIA_LLVM_ROOT), "")
 	$(error ERROR! SILVIA_LLVM_ROOT variable is not set)
-else
-	SILVIA_LLVM_ROOT := ""
 endif
 endif
 
