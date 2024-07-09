@@ -1,3 +1,6 @@
 [submodule "test/py/tiny_torch"]
 	path = test/py/tiny_torch
 	url = git@github.com:minnellf/tiny-torch.git
+[submodule "deps/SILVIA"]
+	path = deps/SILVIA
+	url = https://github.com/brigio345/SILVIA
