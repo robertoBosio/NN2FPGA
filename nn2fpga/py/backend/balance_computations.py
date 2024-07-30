@@ -829,21 +829,17 @@ def write_parallelism(io_dict, model, parallel_ops):
 
 
     # Propagating ops and ow_ops to input nodes to assign ops_out and ow_ops_out
-    print("Starting backward propagation of ops and ow_ops")
+    print("Starting backward propagation of ops")
     for name, node in io_dict.items():
         if "ops" in node:
 
             if (node["type"] == "produce"):
                 continue
 
+            #Only the one without the add
             input_node_name = prev_layers(io_dict, io_connect, name)[0]
 
             line_ops = node["line_ops"]
-            ow_ops = node["ow_ops"]
-            if "depth" in node:
-                if node["depth"]:
-                    line_ops = node["line_ops"]
-            
             if "pool" == node["type"]:
                 line_ops = node["ops"]
             
@@ -860,8 +856,36 @@ def write_parallelism(io_dict, model, parallel_ops):
             print(f"\tAssigning to node {input_node_name} ops_out = {io_dict[input_node_name]['ops_out']} as mcm between {ops_out} and {line_ops}")
             # print(f'Could maybe done with {find_max_commond_div(ops_out, line_ops)}') 
 
+    # Adjusting pool layer, since in_ops must be a multiple of ops
+    print("Adjusting pool layers")
+    for name, node in io_dict.items():
+        if node["type"] == "pool":
+            output_name = node["output"][0]
+            output_node_name = io_connect[output_name][1][0]
+            
+            # Assigning as ops the ops_out
+            node["ops"] = node["ops_out"]
+            node["line_ops"] = node["ops_out"]
+
+            # Right now node["ops"] is the ich_ops of the follwing layer.
+            if (node["in_ops"] < node["ops_out"] or node["in_ops"] % node["ops_out"] != 0):
+                node["ops"] = find_max_commond_div(node["in_ops"], node["ops_out"])
+                print(f"\tAdjusting pool layer {name} over channels: {node['in_ops']} -> {node['ops']} -> {node['ops_out']} (in_ops -> ops -> ops_out)")
+
+                # A pool cannot scale up over och_ops_out as convolution does, 
+                # so we fix the lower-then-expected parallelization with a bandwidth adjust
+                # or by scaling down with the line buffer 
+                if (io_dict[output_node_name]["in_ops"] > node["ops"]):
+                    io_dict[output_node_name]["adjust_line_buffer"] = True
+                    io_dict[output_node_name]["adjust_ops"] = io_dict[output_node_name]["in_ops"]
+                    io_dict[output_node_name]["line_ops"] = io_dict[output_node_name]["in_ops"]
+                    print(f"\tAdjusting line buffer for {output_node_name} over channels: {io_dict[output_node_name]['in_ops']} -> {io_dict[output_node_name]['adjust_ops']} -> {io_dict[output_node_name]['line_ops']} (in_ops -> adjust_ops -> line_ops)")
+                else:
+                    io_dict[output_node_name]["line_ops"] = io_dict[output_node_name]["in_ops"]
+                io_dict[output_node_name]["in_ops"] = node["ops"]
+
     # Propagating ops and ow_ops to output nodes to assign in_ops and ow_ops_in
-    print("Starting forward propagation of ops and ow_ops")
+    print("Starting forward propagation of ops")
     for name, node in io_dict.items():
         if "ops" in node:
             output_name = io_dict[name]["output"][0]
@@ -960,33 +984,6 @@ def write_parallelism(io_dict, model, parallel_ops):
                 else:
                     next_node["ow_ops_in"] = next_node["ow_ops"]
                     node["ow_ops_out"] = node["ow_ops"]
-
-    # Adjusting pool layer, since in_ops must be a multiple of ops
-    print("Adjusting pool layers")
-    for name, node in io_dict.items():
-        if node["type"] == "pool":
-            output_name = node["output"][0]
-            output_node_name = io_connect[output_name][1][0]
-            
-            # Assigning as ops the ops_out
-            node["ops"] = node["ops_out"]
-
-            # Right now node["ops"] is the ich_ops of the follwing layer.
-            if (node["in_ops"] < node["ops_out"] or node["in_ops"] % node["ops_out"] != 0):
-                node["ops"] = find_max_commond_div(node["in_ops"], node["ops_out"])
-                print(f"\tAdjusting pool layer {name} over channels: {node['in_ops']} -> {node['ops']} -> {node['ops_out']} (in_ops -> ops -> ops_out)")
-
-                # A pool cannot scale up over och_ops_out as convolution does, 
-                # so we fix the lower-then-expected parallelization with a bandwidth adjust
-                # or by scaling down with the line buffer 
-                if (io_dict[output_node_name]["in_ops"] > node["ops"]):
-                    io_dict[output_node_name]["adjust_line_buffer"] = True
-                    io_dict[output_node_name]["adjust_ops"] = io_dict[output_node_name]["in_ops"]
-                    io_dict[output_node_name]["line_ops"] = io_dict[output_node_name]["in_ops"]
-                    print(f"\tAdjusting line buffer for {output_node_name} over channels: {io_dict[output_node_name]['in_ops']} -> {io_dict[output_node_name]['adjust_ops']} -> {io_dict[output_node_name]['line_ops']} (in_ops -> adjust_ops -> line_ops)")
-                else:
-                    io_dict[output_node_name]["line_ops"] = io_dict[output_node_name]["in_ops"]
-                io_dict[output_node_name]["in_ops"] = node["ops"]
 
     print("Adjusting line buffer for the last layer")
     for name, node in io_dict.items():
@@ -1147,8 +1144,8 @@ def ilp(io_dict, off_chip_storage, model, file_name, board="ULTRA96v2", generate
 
     NUM_PORTS = (board_res["bram"] + board_res["uram"])
     NUM_DSP = board_res["dsp"]
-    NUM_DSP = 1800
-    NUM_PORTS = int(NUM_PORTS * 0.85)
+    NUM_DSP = int(NUM_DSP * 0.35)
+    NUM_PORTS = int(NUM_PORTS * 0.85) * 2
 
     valid_par_solutions = generate_architectures(layers_info, NUM_DSP)
     layer_par, model_II, n_variables, n_constraints, time_spent = parallelismILP(layers_info, valid_par_solutions, NUM_DSP, NUM_PORTS, prj_root=prj_root)

@@ -157,7 +157,8 @@ def image_from_file(file_path):
     return array_3d
 
 def inference_imagenet():
-    onnx_path = "../test/onnx/mobilenet_v2_a8w8b16_71.734.onnx"
+    # onnx_path = "../test/onnx/mobilenet_v2_a8w8b16_71.734.onnx"
+    onnx_path = "../test/onnx/resnet18_a8w8b16_69.362.onnx"
     onnx_model = ModelWrapper(onnx_path)
     cleanup_model(onnx_model)
     inferred_model = onnx_model.transform(infer_shapes.InferShapes())

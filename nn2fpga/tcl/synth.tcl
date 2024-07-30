@@ -9,7 +9,7 @@ source "${NN2FPGA_ROOT}/tcl/settings.tcl"
 #source "/home-ssd/roberto/Documents/hls-llvm-simd/scripts/SILVIA.tcl"
 #set SILVIA::ROOT "/home-ssd/roberto/Documents/hls-llvm-simd"
 #set SILVIA::LLVM_ROOT "${SILVIA::ROOT}/llvm-project/install"
-#set SILVIA::PASSES [list [dict create OP "muladd" INLINE 1 MAX_CHAIN_LEN 3] [dict create OP "mul" INLINE 1]]
+#set SILVIA::PASSES [list [dict create OP "muladd" MAX_CHAIN_LEN 3 OP_SIZE 4] [dict create OP "muladd" INLINE 1 MAX_CHAIN_LEN 3] [dict create OP "muladd" MUL_ONLY 1 INLINE 1]] 
 #set SILVIA::DEBUG 1
 
 set impl_sel "solution_0"
