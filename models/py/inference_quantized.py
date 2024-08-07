@@ -202,7 +202,9 @@ def inference_imagenet():
     print_acts_tensor('global_out', inferred_model, ow_ops=1, och_ops=1) 
 
 def inference_cifar10():
-    onnx_path = "../test/onnx/resnet8.onnx"
+    # onnx_path = "../test/onnx/resnet8.onnx"
+    # onnx_path = "../test/onnx/resnet20_a8w8b16.onnx"
+    onnx_path = "../test/onnx/adder2d_expanded.onnx"
     onnx_model = ModelWrapper(onnx_path)
     cleanup_model(onnx_model)
     inferred_model = onnx_model.transform(infer_shapes.InferShapes())
@@ -222,10 +224,10 @@ def inference_cifar10():
             np_images = images.numpy()
             np_images = np.expand_dims(np_images, axis=0)
 
-            inferred_model = execute_onnx_and_make_model(inferred_model, {'inp.1': np_images})
+            inferred_model = execute_onnx_and_make_model(inferred_model, {'global_in': np_images})
             break
     
-    print_acts_tensor('/layer1/layer1.0/relu/act_quant/export_handler/Quant_output_0', inferred_model, ow_ops=4, och_ops=4) 
+    print_acts_tensor('DequantizeLinear_35_out0', inferred_model, ow_ops=2, och_ops=2) 
 
 def inference_cifar10_4bit():
     onnx_path = "../test/onnx/resnet8_a4w4b32.onnx"
@@ -254,4 +256,4 @@ def inference_cifar10_4bit():
     print_acts_tensor('DequantizeLinear_25_out0', inferred_model, ow_ops=4, och_ops=4) 
 
 if __name__ == '__main__':
-    inference_imagenet()
+    inference_cifar10()

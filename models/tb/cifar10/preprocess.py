@@ -21,6 +21,8 @@ def process_image(n_images, onnx_path, dataset):
     inferred_model = onnx_model.transform(infer_shapes.InferShapes())
     inferred_model = inferred_model.transform(InferDataTypes())
     
+    output_name = inferred_model.graph.output[0].name
+    
     batch_size = 1
     train_dataset, eval_dataset, input_shape = get_dataset(dataset)
 
@@ -55,7 +57,7 @@ def process_image(n_images, onnx_path, dataset):
                 np_images = np.expand_dims(images.numpy(), axis=0)
 
                 outputs = execute_onnx(inferred_model, {'inp.1': np_images})
-                outputs = outputs['132']
+                outputs = outputs[output_name]
                 outputs = np.squeeze(outputs)
                 f_res.write(outputs.astype(np.float32).tobytes())
 

@@ -165,7 +165,6 @@ def parse(name, node, debug=False):
                 block["args"].append(
                     "s_%s_data[%0d]" % (input_name, index-ow_ops)
                 )
-            print(f"({dfh - 1 - fh},{dfw - 1 - fw}){dfw} - 1 - {fw} - {pad_value} % {ow_ops} = {(dfw - 1 - fw - pad_value)%ow_ops}")
 
             block["args"].append(
                 "s_%s_pre_pad[%0d]" % (input_name, index)

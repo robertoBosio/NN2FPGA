@@ -1295,28 +1295,6 @@ def handle_streaming_params(io_dict, model, prj_root, board="KRIA"):
         sorted_bfs = [(node_name, io_dict[node_name]["layer_index"]) for node_name in io_dict if (io_dict[node_name]["type"] in allowed_types)]
         sorted_bfs = sorted(sorted_bfs, key=lambda x: (x[1], x[0]))
 
-        # # BFS to build the graph of streaming parameters
-        # queue = [start_node_name]
-        # visited = set()
-        # visited.add(start_node_name)
-        # sorted_bfs = []
-        # while (len(queue) > 0):
-        #     node_name = queue.pop(0)
-        #     next_node_names = graph.next_layers(io_dict, io_connect, node_name)
-        #     if next_node_names is not None:
-        #         for next_node_name in next_node_names:
-        #             if (next_node_name not in visited):
-        #                 queue.append(next_node_name)
-        #                 visited.add(next_node_name)
-
-        #     if (io_dict[node_name]["type"] in allowed_types):
-        #         sorted_bfs.append(node_name)
-
-        #         # stream_graph[start_node_name]["out"] = next_node_name
-        #         # stream_graph[next_node_name] = {}
-        #         # stream_graph[next_node_name]["in"] = start_node_name
-        #         # start_node_name = next_node_name
-
         prev_node_name = "axi_to_stream"
         for i in range(len(sorted_bfs)):
             stream_graph[sorted_bfs[i][0]] = {}
@@ -1327,7 +1305,6 @@ def handle_streaming_params(io_dict, model, prj_root, board="KRIA"):
                 stream_graph[sorted_bfs[i][0]]["out"] = sorted_bfs[i + 1][0]
             prev_node_name = sorted_bfs[i][0]
 
-        print(stream_graph)
         return stream_graph
      
     board_res = utils.extract_board_info(board, prj_root)
@@ -1424,21 +1401,26 @@ def handle_streaming_params(io_dict, model, prj_root, board="KRIA"):
     # Compute the number of weights and biases for each layer 
     read_cycles_per_layer = {}
     for name, node in io_dict.items():
+        print(f"Node {name}")
         if (node["type"] == "conv"):
             weight_node = node["weight_quant"]
             read_cycles_per_layer[name] = num_of_words(weight_node["bits"], np.prod(weight_node["values"].shape), WIDTH_STREAM)
+            print(f"\tweights {read_cycles_per_layer[name]}")
             
             if (node["has_bias"]):
                 bias_node = node["bias_quant"]
                 read_cycles_per_layer[name] += num_of_words(bias_node["bits"], np.prod(bias_node["values"].shape), WIDTH_STREAM)
+                print(f"\tbias {read_cycles_per_layer[name]}")
             
             if (node["merge_1x1"]):
                 weight_node_1x1 = node["merge_node"]["weight_quant"]
                 read_cycles_per_layer[name] += num_of_words(weight_node_1x1["bits"], np.prod(weight_node_1x1["values"].shape), WIDTH_STREAM)
+                print(f"\tmerge weights {read_cycles_per_layer[name]}")
                 
                 if (node["merge_node"]["has_bias"]):
                     bias_node_1x1 = node["merge_node"]["bias_quant"]
                     read_cycles_per_layer[name] += num_of_words(bias_node_1x1["bits"], np.prod(bias_node_1x1["values"].shape), WIDTH_STREAM)
+                    print(f"\tmerge bias {read_cycles_per_layer[name]}")
 
 
     # Save the number of weights to shift for each layer 

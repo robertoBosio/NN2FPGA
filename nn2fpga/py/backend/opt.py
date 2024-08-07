@@ -339,12 +339,10 @@ def dag_sorting(model, io_dict):
     while len(node_list) != 0:
         current_node, level = node_list.pop(0)
         output_nodes = next_layers(io_dict, io_connect, current_node)
-        input_nodes = prev_layers(io_dict, io_connect, current_node)
         # print(f"Analizing {current_node} at level {level}")
 
         if output_nodes is not None:
             for node in output_nodes:
-                print(f"Output node {node}")
                 if (level + 1 > io_dict[node]["layer_index"]):
                     io_dict[node]["layer_index"] = level + 1
                     node_list.append((node, level + 1))
@@ -364,8 +362,10 @@ def opt_merge_pointwise(model, io_dict, log=False):
 
     io_connect = extract_connections(model, io_dict)
 
-    # Retrieve all the pointwise layers
-    pointwise_layers = [layer_name for layer_name, layer_info in io_dict.items() if layer_info["type"] == "conv" and layer_info["fh"] == 1 and layer_info["fw"] == 1]
+    # Retrieve all the pointwise layers 
+    convadd_layers = [layer_name for layer_name, layer_info in io_dict.items() if layer_info["type"] == "conv" and layer_info["add"]]
+    merge_candidate_layers = [io_connect[io_dict[layer_name]["input"][1]][0][0] for layer_name in convadd_layers]
+    pointwise_layers = [layer_name for layer_name in merge_candidate_layers if io_dict[layer_name]["fh"] == 1 and io_dict[layer_name]["fw"] == 1]
 
     for layer_name in pointwise_layers:
 
@@ -389,6 +389,7 @@ def opt_merge_pointwise(model, io_dict, log=False):
                 io_dict[merge_layer_name]["merge_node"] = io_dict[layer_name]
                 io_dict[merge_layer_name]["merge_node"]["name"] = layer_name
 
+                print(f'Extending {io_dict[merge_layer_name]["output"]} with {io_dict[layer_name]["output"]}')
                 io_dict[merge_layer_name]["output"].extend(io_dict[layer_name]["output"])
                 
                 del io_dict[layer_name]
