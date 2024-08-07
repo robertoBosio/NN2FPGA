@@ -998,7 +998,6 @@ def write_parallelism(io_dict, model, parallel_ops):
             io_dict[out_node]["adjust_add_ops"] = ops_in
             if (ops_out < ops_in or ops_out % ops_in != 0):
                 io_dict[out_node]["adjust_add"] = True
-                print(f"{io_dict['Conv_20']['adjust_add']}")
                 io_dict[out_node]["adjust_add_ops"] = find_common_mult(ops_in, ops_out)
                 print(f"Channels: Node {node} -> Add {out_node} ({ops_out} -> {io_dict[out_node]['adjust_add_ops']} -> {io_dict[out_node]['ops']})")
             

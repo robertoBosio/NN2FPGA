@@ -102,7 +102,7 @@ def get_dataset(dataset, cifar=10, sample_size=None):
         train_dataset = dataset(**train_args)
         eval_dataset = dataset(**val_args)    
     
-    elif dataset == 'cifar10-4bit':
+    elif dataset == 'cifar10_4bit':
 
         transforms_sel = cifar_transform_4bit
         BASE_DIR = "/home-ssd/datasets/cifar10/"

@@ -67,7 +67,6 @@ add_files -tb ${TB_ROOT}/../py/utils
 add_files -tb ${PRJ_FULL_ROOT}/npy
 
 if {${CSIM} == 1} {
-  puts "CSIM: selected dataset is ${DATASET}"
   csim_design -argv ${CMD_ARGS}
   exit
 }

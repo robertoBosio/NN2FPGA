@@ -266,4 +266,5 @@ def write_network(
 
     # Restore the original stdout and stderr
     sys.stdout = original_stdout
+    print(f"\nCompilation successful.")
     # sys.stderr = original_stderr

@@ -103,8 +103,8 @@ def parse(name, node):
     # Template parameters
     block["template"] = []
     if (node["is_adaptive"]):
-        block["template"].append("t_%s_struct" % input_name)
-        block["template"].append("t_%s" % input_name)
+        block["template"].append("t_%s_struct" % input_type_name)
+        block["template"].append("t_%s" % input_type_name)
     # elif (node["pad"] == 0):
     #     block["template"].append("t_%s_lb_struct" % input_type_name)
     #     block["template"].append("t_%s_lb" % input_type_name)
