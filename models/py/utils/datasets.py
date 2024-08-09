@@ -6,7 +6,29 @@ import os
 import numpy as np
 import glob
 import random
+from pycocotools.coco import COCO
 from torch.utils.data import Dataset, DataLoader
+
+class COCODataset(torch.utils.data.Dataset):
+    def __init__(self, root, annFile, transform=None):
+        self.root = root
+        self.coco = COCO(annFile)
+        self.ids = list(sorted(self.coco.imgs.keys()))
+        self.transform = transform
+
+    def __getitem__(self, index):
+        coco = self.coco
+        img_id = self.ids[index]
+        ann_ids = coco.getAnnIds(imgIds=img_id)
+        target = coco.loadAnns(ann_ids)
+        path = coco.loadImgs(img_id)[0]['file_name']
+        img = Image.open(os.path.join(self.root, path)).convert('RGB')
+        if self.transform is not None:
+            img = self.transform(img)
+        return torch.tensor(img), target
+
+    def __len__(self):
+        return len(self.ids)
 
 class ToyADMOSDataset_train(Dataset):
     def __init__(self, data_array):
@@ -226,6 +248,13 @@ def get_dataset(dataset, cifar=10, sample_size=None):
         train_size = int(0.9 * len(dataset))
         test_size = len(dataset) - train_size
         train_dataset, eval_dataset = torch.utils.data.random_split(dataset, [train_size, test_size])
+    elif dataset == 'coco':
+        root = '/data/coco/images/val2017'
+        annFile = '/data/coco/annotations/instances_val2017.json'
+        transform = transforms.Compose([transforms.Resize((416, 416)), transforms.ToTensor()])
+        train_dataset = COCODataset(root, annFile, transform)
+        eval_dataset = train_dataset
+        input_shape = (3, 416, 416)
     else:
         assert False, 'dataset unknown!'
 

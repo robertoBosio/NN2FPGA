@@ -12,43 +12,7 @@ from qonnx.transformation import infer_shapes
 from qonnx.core.datatype import DataType
 from qonnx.transformation.infer_datatypes import InferDataTypes
 from qonnx.util.cleanup import cleanup_model
-#from utils.datasets import get_dataset
-# import coco dataset
-from pycocotools.coco import COCO
-from pycocotools.cocoeval import COCOeval
-from PIL import Image
-
-class COCODataset(torch.utils.data.Dataset):
-    def __init__(self, root, annFile, transform=None):
-        self.root = root
-        self.coco = COCO(annFile)
-        self.ids = list(sorted(self.coco.imgs.keys()))
-        self.transform = transform
-
-    def __getitem__(self, index):
-        coco = self.coco
-        img_id = self.ids[index]
-        ann_ids = coco.getAnnIds(imgIds=img_id)
-        target = coco.loadAnns(ann_ids)
-        path = coco.loadImgs(img_id)[0]['file_name']
-        img = Image.open(os.path.join(self.root, path)).convert('RGB')
-        if self.transform is not None:
-            img = self.transform(img)
-        return torch.tensor(img), target
-
-    def __len__(self):
-        return len(self.ids)
-    
-
-def get_dataset(dataset):
-    if dataset == 'coco':
-        root = '/data/coco/images/val2017'
-        annFile = '/data/coco/annotations/instances_val2017.json'
-        transform = transforms.Compose([transforms.Resize((416, 416)), transforms.ToTensor()])
-        dataset = COCODataset(root, annFile, transform)
-        input_shape = (3, 416, 416)
-    return dataset, dataset, input_shape
-
+from utils.datasets import get_dataset
     
 def process_image(n_images, onnx_path , dataset):
     
@@ -58,7 +22,7 @@ def process_image(n_images, onnx_path , dataset):
     inferred_model = inferred_model.transform(InferDataTypes())
     
     batch_size = 1
-    train_dataset, eval_dataset, input_shape = get_dataset(dataset= 'coco')
+    train_dataset, eval_dataset, input_shape = get_dataset(dataset='coco')
 
     counter = 0
     # remove /tmp/images_preprocessed.bin if it exists
@@ -103,7 +67,8 @@ if __name__ == "__main__":
     # n_images = sys.argv[1]
     # onnx_path = sys.argv[2]
     # dataset = sys.argv[3]
-    n_images = 10
-    onnx_path = 'runs/train/yolov3_tiny_quant3/weights/best.qonnx.onnx'
+    n_images = 1
+    # onnx_path = 'runs/train/yolov3_tiny_quant3/weights/best.qonnx.onnx'
+    onnx_path = '../models/onnx/yolov3_tiny_a8w8_28.4.onnx'
     dataset = 'coco'
     process_image(n_images, onnx_path, dataset)
