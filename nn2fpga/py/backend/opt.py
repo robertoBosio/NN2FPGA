@@ -1,13 +1,9 @@
-import os
-import sys
-#import onnx
-import qonnx
-from onnx import numpy_helper
 import numpy as np
+from onnx import numpy_helper
 from backend.quant import *
 from backend.graph import *
 
-def opt_flatten_singlepass(io_dict, model, log=False):
+def opt_flatten(io_dict, model, log=False):
     """ Optimize flatten layers by removing them and connecting the input and output layers. """
 
     io_connect = extract_connections(model, io_dict)
@@ -24,7 +20,7 @@ def opt_flatten_singlepass(io_dict, model, log=False):
 
     return io_dict
 
-def opt_pad_singlepass(model, io_dict, log=False):
+def opt_pad(model, io_dict, log=False):
     """ Optimize padding layers by merging them with the next computation layer. """
     
     # Layers that support padding
@@ -41,7 +37,7 @@ def opt_pad_singlepass(model, io_dict, log=False):
         output_layer_name = next_layers(io_dict, io_connect, layer_name)
 
         if input_layer_name is None or output_layer_name is None or len(input_layer_name) > 1 or len(output_layer_name) > 1:
-            print(f"Error in opt_pad_singlepass: padding layer \"{layer_name}\" with multiple inputs or outputs.")
+            print(f"Error in opt_pad: padding layer \"{layer_name}\" with multiple inputs or outputs.")
             exit(1)
 
         if io_dict[output_layer_name]["type"].lower() in comp_layers:
@@ -54,7 +50,7 @@ def opt_pad_singlepass(model, io_dict, log=False):
 
     return io_dict
 
-def opt_relu_singlepass(model, io_dict, log=False):
+def opt_relu(model, io_dict, log=False):
     """ Optimize relu layers by merging them with the previous computation layer. """
     
     # Layers that supports activation functions
@@ -70,7 +66,7 @@ def opt_relu_singlepass(model, io_dict, log=False):
         input_layer_name = prev_layers(io_dict, io_connect, layer_name)
 
         if input_layer_name is None or len(input_layer_name) > 1:
-            print(f"Error in opt_relu_singlepass: relu layer \"{layer_name}\" with multiple inputs.")
+            print(f"Error in opt_relu: relu layer \"{layer_name}\" with multiple inputs.")
             exit(1)
 
         input_layer_name = input_layer_name[0]
@@ -86,7 +82,7 @@ def opt_relu_singlepass(model, io_dict, log=False):
 
     return io_dict
 
-def opt_add_singlepass(model, io_dict, log=False):
+def opt_add(model, io_dict, log=False):
     """ Optimize add layers by merging them with the previous computation layer. """
 
     io_connect = extract_connections(model, io_dict)
@@ -100,7 +96,7 @@ def opt_add_singlepass(model, io_dict, log=False):
         input_net_names = io_dict[layer_name]["input"]
 
         if input_net_names is None or len(input_net_names) != 2:
-            print(f"Error in opt_add_singlepass: add layer \"{layer_name}\" without exactly two inputs.")
+            print(f"Error in opt_add: add layer \"{layer_name}\" without exactly two inputs.")
             exit(-1)
 
         first_operand_net = input_net_names[0]
@@ -579,23 +575,20 @@ def duplicate_tensor(model, io_dict, log=False):
 
     return io_dict
 
-def opt_step_singlepass(
+def opt_step(
     inferred_model,
     io_dict,
     init_info,
     log=False
 ):
 
-    # Layer optimizations without quantizations
-    io_connect = extract_connections(inferred_model, io_dict)
-    
-    io_dict = opt_flatten_singlepass(
+    io_dict = opt_flatten(
         io_dict,
         inferred_model,
         log
     )
 
-    io_dict = opt_pad_singlepass(
+    io_dict = opt_pad(
         inferred_model,
         io_dict,
         log
@@ -635,7 +628,7 @@ def opt_step_singlepass(
 
     io_dict = dag_sorting(inferred_model, io_dict)
     
-    io_dict = opt_add_singlepass(
+    io_dict = opt_add(
         inferred_model,
         io_dict,
         log
@@ -644,7 +637,7 @@ def opt_step_singlepass(
     if (check_dangling_add(io_dict)):
         exit(-1)
 
-    io_dict = opt_relu_singlepass(
+    io_dict = opt_relu(
         inferred_model,
         io_dict,
         log

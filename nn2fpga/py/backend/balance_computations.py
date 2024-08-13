@@ -1,18 +1,14 @@
-import os
-import sys
 import time
 import pulp
-from pulp.apis import PULP_CBC_CMD
-from tabulate import tabulate
 import math
 import numpy as np
+from pulp.apis import PULP_CBC_CMD
+from tabulate import tabulate
 from backend.utils import extract_board_info
 from backend.ilp_utils import generate_valid_combinations
 from backend.ilp_utils import find_common_mult
-from backend.ilp_utils import find_max_commond_div
-from backend.graph import extract_connections, prev_layers, next_layers
+from backend.graph import extract_connections, next_layers
 from backend.layers.weights import compute_bram_layer
-from backend.opt import dag_sorting
 
 def packing_feature(operands_bitwidth, par):
     """ Returns the number of operation that can be packed in a single DSP. 
@@ -886,6 +882,7 @@ def write_parallelism(io_dict, model, parallel_ops):
         
         ow_ops_out = io_dict[node]["ow_ops"]
         out_node = info["out"][0]
+
         # Retrieving the channel packing of the following layer. If the layer is a
         # depthwise convolution the packing is over the input channels.
         ops_in = 0
@@ -898,9 +895,6 @@ def write_parallelism(io_dict, model, parallel_ops):
             ops_in = 1
         
         io_dict[out_node]["line_ops"] = ops_in
-        # io_dict[out_node]["adjust_line_buffer"] = False
-        # io_dict[out_node]["adjust_add"] = False
-        # io_dict[out_node]["adjust_add_ow_ops_in"] = io_dict[out_node]["ow_ops"]
         scaling_out = ops_out # Channel packing in output of the layer.
 
         # Linebuffer can scale down channel packing.
