@@ -54,14 +54,15 @@ def remove_and_bypass_layer(io_dict, io_connect, layer_name, forward=True):
     :param forward: if True attach the input layer to the output net, otherwise attach the output layer to the input net.
     
     """ 
-
     output_net_name = io_dict[layer_name]["output"][0]
     input_net_name = io_dict[layer_name]["input"][0]
-
+    print(f"input_net_name: {input_net_name}")
+    print(f"output_net_name: {output_net_name}")
     input_layer_names = prev_layers(io_dict, io_connect, layer_name)
     output_layer_names = next_layers(io_dict, io_connect, layer_name)
-    print(f"Input layers: {input_layer_names}")
+    print(f"Input layers: {input_layer_names}") 
     print(f"Output layers: {output_layer_names}")
+    print(f"Layer name: {layer_name}")
     if input_layer_names is None or output_layer_names is None:
         print(f"Error in remove_and_bypass_layer of \"{layer_name}\"")
         exit(-1)
@@ -104,7 +105,6 @@ def compute_depth_stream(io_dict, io_connect, net_name, starting_name, ops="ops"
     # We need to compute the receptive field of this pixel, in order to retrieve the depth
     # needed by the skip connection.
     end_pixel = [0, 0, 0] # W, H, C
-    print(f"Node {layer_output} with receptive field: {net_receptive_field}")
     end_pixel[0] = (node["fw"] + (node["ow_ops"] - 1) * node["stride"]) - node["pad"]
     end_pixel[1] = node["fh"] - node["pad"]
     end_pixel[2] = 1 if node["depth"] else (node["ich"])
@@ -156,7 +156,6 @@ def compute_depth_stream(io_dict, io_connect, net_name, starting_name, ops="ops"
 
         # NOTE: not a perfect model of latency, but it's a good approximation
         # The previous conv is writing och pixels in burst, for each pixel we need och/ops cycles
-        print(f"Node {layer_output} with receptive field: {net_receptive_field}")
         if node["depth"]:
             node_latency = node["ich"] / node["ich_ops"]
         else:
@@ -210,7 +209,7 @@ def compute_depth_stream(io_dict, io_connect, net_name, starting_name, ops="ops"
     print(f"Time to shift data to last pixel until the add: {skip_depth} cc")
 
     # Compute number of pixels should be stored in the skip buffer
-    skip_depth = int(math.ceil(max(skip_depth) * skip_throughput))
+    skip_depth = int(math.ceil(skip_depth * skip_throughput))
     print(f"Data produced by the other branch in the meanwhile: {skip_depth}")
 
     # Divide the skip depth by the number of parallel connections, 
@@ -370,8 +369,8 @@ def extract_connections(model, io_dict):
             if (not is_produce_stream) and (input_name in io_connect.keys()):
                     io_connect[input_name][1].append(node_name)
 
-    # if graph_output_name in io_connect.keys():
-    #     io_connect[graph_output_name][1] = ["consume_stream"]
+    if graph_output_name in io_connect.keys():
+         io_connect[graph_output_name][1] = ["consume_stream"]
 
     return io_connect
 
@@ -384,24 +383,23 @@ def extract_tensors_info(model):
     graph_input = model.graph.input
     for input in graph_input:
         tensors_info[input.name] = input.type
-        onnx_nets.append(Net(input.name, input.type.tensor_type.shape))
-        print(onnx_nets[-1])
+#        onnx_nets.append(Net(input.name, input.type.tensor_type.shape))
+#        print(onnx_nets[-1])
 
     for info in model.graph.value_info:
         tensors_info[info.name] = info.type
-        onnx_nets.append(Net(info.name, info.type.tensor_type.shape))
-        print(onnx_nets[-1])
+#        onnx_nets.append(Net(info.name, info.type.tensor_type.shape))
+#        print(onnx_nets[-1])
 
     graph_output = model.graph.output
     for output in graph_output:
         tensors_info[output.name] = output.type
-        onnx_nets.append(Net(output.name, output.type.tensor_type.shape))
-        print(onnx_nets[-1])
+ #        onnx_nets.append(Net(output.name, output.type.tensor_type.shape))
+ #       print(onnx_nets[-1])
 
     return tensors_info
 
 def graph_info(model, init_info, object_detection=False, anchors=None, transform=False, end_points=None):
-    """ Extracts the information about the graph. """
 
     tensors_info = extract_tensors_info(model)
 
@@ -441,21 +439,9 @@ def graph_info(model, init_info, object_detection=False, anchors=None, transform
         for output in node.output:
             output_name = sanitize_string(output)
             io_dict[node_name]["output"].append(output_name)
-            
-        #if find the node in end_points don't continue in that branch and connect to output
-        if end_points is not None and node_name in end_points:
-            cut_name.append(node_name)
-            print(f"End point found: {node_name}")
-            print(f"Cutting the branch at {node_name}")
-            # Assign the graph output name ith to the ith cut layer
-            # io_dict[node_name]["output"][0] = graph_output_name
-            io_dict[node_name]["output"][0] = graph_output_name + f"_{cut_name.index(node_name)}" 
-            print(f"Assigning output name {io_dict[node_name]['output'][0]} to node {node_name}")
-       
-        # conv/conv instead of conv temporary solution for yolo 
-        # if 'conv' in node.op_type.lower(): 
-        if ('conv' in node.op_type.lower() and end_points is None) or 'conv/conv' in node_name.lower():
-            
+
+        print(f"Node {node_name} with input {io_dict[node_name]['input']} and output {io_dict[node_name]['output']}")
+        if 'conv' in node.op_type.lower():
             io_dict = conv.info(
                 io_dict,
                 node,
@@ -532,17 +518,13 @@ def graph_info(model, init_info, object_detection=False, anchors=None, transform
             last_layer_name = node_name
             continue
         
-        # if 'flatten' in node.op_type.lower() or 'reshape' in node.op_type.lower():
-        if 'flatten' in node.op_type.lower() or ('reshape' in node.op_type.lower() and end_points is None):
-            
+        if 'flatten' in node.op_type.lower() or 'reshape' in node.op_type.lower():
             io_dict[node_name]["type"] = "flatten"
 
             last_layer_name = node_name
             continue
 
-        if 'concat' in node.op_type.lower() and "model_18" not in node_name: #temporary solution for yolo
-            print("Concatenation layer found")
-            print(node_name)
+        if 'concat' in node.op_type.lower() and cut_name == []:
             io_dict = concat.info(
                 io_dict,
                 node,
@@ -554,8 +536,7 @@ def graph_info(model, init_info, object_detection=False, anchors=None, transform
             last_layer_name = node_name
             continue
         
-        # if 'resize' in node.op_type.lower() and cut_name == []:
-        if 'resize' in node.op_type.lower() and end_points is not None:
+        if 'resize' in node.op_type.lower() and cut_name == []:
             io_dict = upsample.info(
                 io_dict,
                 node,
@@ -567,10 +548,52 @@ def graph_info(model, init_info, object_detection=False, anchors=None, transform
             last_layer_name = node_name
             continue
         
-        # if cut_name == []:
-        #     cut_name.append(last_layer_name)
-        #     # Assign the graph output name to the cut layer
-        #     io_dict[last_layer_name]["output"][0] = graph_output_name
+        # if 'reshape' in node.op_type.lower() and cut_name == []:
+        #     io_dict = reshape.info(
+        #         io_dict,
+        #         node,
+        #         node_name,
+        #         init_info,
+        #         tensors_info
+        #     )
+        #     last_layer_name = node_name
+        #     continue
+        
+        # if 'traspose' in node.op_type.lower() and cut_name == []:
+        #     io_dict = transpose.info(
+        #         io_dict,
+        #         node,
+        #         node_name,
+        #         init_info,
+        #         tensors_info
+        #     )
+            
+        #     last_layer_name = node_name
+        #     continue
+        
+        #if cut_name == []:
+        #    cut_name.append(last_layer_name)
+            # Assign the graph output name to the cut layer
+        #    io_dict[last_layer_name]["output"][0] = graph_output_name
+        #else:
+            # io_connect = extract_connections(model, io_dict)
+            # # append the last layer if the input is in the io_connect
+            # if io_dict[node_name]["input"][0] in io_connect.keys():
+            #     cut_name.append(last_layer_name)
+            #     # Assign the graph output name to the cut layer
+            #     io_dict[last_layer_name]["output"][0] = graph_output_name
+  
+        if end_points is not None:
+            print(f"End points: {end_points} .")
+            print(f"last_layer_name: {last_layer_name} .")
+            for end_point in end_points:
+                if last_layer_name in end_point and end_point not in cut_name:
+                    print(f"End points: {end_points} .")
+                    print(f"End point {end_point} found.")
+                    cut_name.append(last_layer_name)
+                    print(f"End point {last_layer_name} found.")
+                    io_dict[last_layer_name]["output"][0] = last_layer_name
+                    print(f"io_dict[last_layer_name][\"output\"][0] = {last_layer_name}")
         # else:
         #     io_connect = extract_connections(model, io_dict)
         #     # append the last layer if the input is in the io_connect
@@ -578,18 +601,18 @@ def graph_info(model, init_info, object_detection=False, anchors=None, transform
         #         cut_name.append(last_layer_name)
         #         # Assign the graph output name to the cut layer
         #         io_dict[last_layer_name]["output"][0] = graph_output_name
-
+        
+        print("Cut layers", cut_name) 
         # If the node is not recognized, it is not included in the dictionary
         # and it is not considered in the optimization process
-        print(f"Node {node_name} not recognized. Skipping.")
         io_dict.pop(node_name)
 
     # check if the last layer output is the graph output
     assert (len(cut_name) < 2 or object_detection or end_points is not None)
     if len(cut_name) > 0:
-        #assert (len(cut_name) == len(anchors))
-        print(f"Cutting the branch at {cut_name}")
+        print(f"Cut layer: {cut_name}")
         assert (len(cut_name) == len(end_points))
+
     if object_detection:
         concat_net = None
         for i, layer_name in enumerate(cut_name):
@@ -601,19 +624,11 @@ def graph_info(model, init_info, object_detection=False, anchors=None, transform
     
     
     # Add a sink node to the graph
-    if end_points is None: 
-    # if end_points is not None: 
-        io_dict = output_gen.info(
-            io_dict,
-            graph_output_name
-        )
-    else :
-        for i, end_point in enumerate(end_points):
-            io_dict = output_gen.info(
-                io_dict,
-                graph_output_name + f"_{i}"
-            )
-    print(f"Graph output name: {graph_output_name}")
+    io_dict = output_gen.info(
+        io_dict,
+        graph_output_name
+    )
+
     return io_dict
 
 def rename_nodes(io_dict):

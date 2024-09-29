@@ -49,7 +49,8 @@ def write_network(
     prj_root="/tmp",
     transform=False,
     generate_report_file="tmp.rpt",
-    generate_log_file="tmp.log"
+    generate_log_file="tmp.log",
+    end_points=[]
 ):
 
     print(f"\nCurrent log file: {generate_log_file}\n")
@@ -80,7 +81,8 @@ def write_network(
             init_info,
             object_detection,
             anchors,
-            transform=transform
+            transform=transform,
+            end_points=end_points
         )
 
         status_thread.stop()
@@ -201,7 +203,8 @@ def write_network(
             board=board,
             off_chip_storage=off_chip_storage,
             prj_root=prj_root,
-            generate_report_file=generate_report_file
+            generate_report_file=generate_report_file,
+            end_points=end_points
         )
 
         status_thread.stop()

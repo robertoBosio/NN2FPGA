@@ -7,7 +7,7 @@ import numpy as np
 
 def info(io_dict, graph_output_name):
 
-    node_name = "consume_stream"
+    node_name = "consume_stream_%s" % graph_output_name
 
     io_dict[node_name] = {}
     io_dict[node_name]["input"] = [graph_output_name]
@@ -19,8 +19,10 @@ def info(io_dict, graph_output_name):
 
 def parse(node, node_name):
     
-    node_name = "consume_stream"
+    #node_name = "consume_stream" 
     input_name = node["output"][-1]
+    node_name = "consume_stream_%s" % node_name
+    #input_name = node["output"][-1] + "_%s" % node_name
     input_name = input_name.replace("s_", "")
     input_type_name = input_name.replace("_skip", "")
     output_name = input_name

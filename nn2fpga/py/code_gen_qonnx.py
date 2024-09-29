@@ -56,6 +56,11 @@ def main():
     if "OBJECT_DETECTION" in os.environ:
         if int(os.environ.get("OBJECT_DETECTION")) == 1:
             object_detection = True
+            
+    multiple_outputs = False
+    if "MULTIPLE_OUTPUTS" in os.environ:
+        if int(os.environ.get("MULTIPLE_OUTPUTS")) == 1:
+            multiple_outputs = True
 
     onnx_model = ModelWrapper(onnx_path)
     cleanup_model(onnx_model)
@@ -80,9 +85,15 @@ def main():
         anchors = [9,10, 21,18, 51,38]
         # divide anchors in group of 6 elements
         anchors = [anchors[i:i+6] for i in range(0, len(anchors), 6)]
-        
     else:
-        anchors = []
+        anchors = [] 
+    
+    # if the flag MULTIPLE_OUTPUTS is set, the end_points variable must be set with the name of the output tensors (temporary solution)   
+    if multiple_outputs:
+        end_points = ['/model_13/act/act_quant/export_handler/Quant', '/model_17/act/act_quant/export_handler/Quant']
+    else:
+        end_points = []
+
     
     if 'DATASET' in os.environ:
         dataset = os.environ['DATASET']
@@ -112,7 +123,8 @@ def main():
         prj_root=PRJ_ROOT,
         generate_report_file=generate_report_file,
         generate_log_file=generate_log_file,
-        transform=transform
+        transform=transform,
+        end_points=end_points
     )
 
 if __name__ == '__main__':

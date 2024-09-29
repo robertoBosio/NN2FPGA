@@ -1,5 +1,6 @@
 import numpy as np
 from onnx import numpy_helper
+from backend.layers.quant import get_quant_type
 
 def info(io_dict, node, node_name, init_info, tensors_info):
 
@@ -60,11 +61,23 @@ def info(io_dict, node, node_name, init_info, tensors_info):
     io_dict[node_name]["type"]   = 'concat'
     io_dict[node_name]["feature_map"] = feature_map
     io_dict[node_name]["scale_factor"] = 0
+    io_dict[node_name]["output_quant"] = None
+    io_dict[node_name]["input_quant"] = None
+    
+    io_dict[node_name]["ops"] = 1
+    io_dict[node_name]["ow_ops"] = 1
+    #TO BE REMOVED
+    io_dict[node_name]["ich_ops"] = 1
+    io_dict[node_name]["fw"] = 1
+    io_dict[node_name]["stride"] = 1   
+    io_dict[node_name]["pad"]= 0
+    io_dict[node_name]["fh"] = 1
+    io_dict[node_name]["depth"]= 1
 
     return io_dict
 
-def parse(parsed_write, node_name):
-    
+# def parse(parsed_write, node_name):
+def parse(name, node):    
     input_name  = node["input"][0]
     input_type_name = input_name.replace("_skip", "")
 
@@ -77,21 +90,25 @@ def parse(parsed_write, node_name):
     # Template parameters
     block["template"] = []
     block["template"].append("t_%s_struct" % input_type_name)
-    block["template"].append("t_%s_struct" % output_type_name)
-    block["template"].append("c_%s_feature_map" % node_name)
-
+    # block["template"].append("t_%s_struct" % output_type_name)
+    block["template"].append("c_%s_feature_map" % name)
+    block["template"].append("c_%s_ow_ops_in" % name)
+    block["template"].append("c_%s_ow_ops_out" % name)
+    
+    
     block["args"] = []
     block["args"].append("s_%s" % input_name)
     block["args"].append("c_%s_ich" % input_name)
     block["args"].append("s_%s" % output_name)
 
     block["defines"] = {}
-    block["defines"]["t_%s" % output_name] = ["type", output_type]
+    output_type = get_quant_type(node["output_quant"]["signed"], node["output_quant"]["bits"], node["output_quant"]["scale_factor"])
+    block["defines"]["t_%s" % output_type_name] = ["type", output_type]
     block["defines"]["t_%s_struct" % output_name] = [
         "struct",
         [["data", "t_%s" % output_name], ["last", "bool"]]
     ]
-    block["defines"]["c_%s_feature_map" % node_name] = ["const", node["feature_map"]]
+    block["defines"]["c_%s_feature_map" % name] = ["const", node["feature_map"]]
 
     if node["scale_factor"] is list:
         scale_factor = node["scale_factor"][0]
@@ -116,7 +133,7 @@ def parse(parsed_write, node_name):
 
     tmp = {}
     tmp["name"] = "c_%s_ich" % name
-    tmp["type"] = "int" % name
+    tmp["type"] = "int"
     tmp["is_array"] = True
     tmp["is_const"] = True
     size = node["ich"].shape

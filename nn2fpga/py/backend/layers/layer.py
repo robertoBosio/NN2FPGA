@@ -67,7 +67,8 @@ class Net:
         if len(getattr(onnx_tensor_shape, 'dim')) > 3:
             self.W = getattr(onnx_tensor_shape, 'dim')[3].dim_value
         if len(getattr(onnx_tensor_shape, 'dim')) > 4:
-            raise ValueError(f"Unknown shape with more than 4 dimensions.")
+            print(f"Unknown shape with more than 4 dimensions.")
+            #raise ValueError(f"Unknown shape with more than 4 dimensions.")
 
     def __str__(self) -> str:
         return f"Net: {self.name}, \

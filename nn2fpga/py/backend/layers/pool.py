@@ -76,6 +76,8 @@ def info(io_dict, node, node_name, init_info, tensors_info):
     io_dict[node_name]["input_quant"] = None
     io_dict[node_name]["output_quant"] = None
     io_dict[node_name]["start_comp_layer"] = False
+    #To be removed
+    io_dict[node_name]["depth"] = 0
 
     return io_dict
 

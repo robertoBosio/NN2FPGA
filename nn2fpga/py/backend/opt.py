@@ -326,7 +326,7 @@ def dag_sorting(model, io_dict):
         start_layer = start_layers[0]
     
     # Initializing layer index
-    accepted_layers = ["conv", "pool", "produce", "consume", "add", "relu", "duplicate"]
+    accepted_layers = ["conv", "pool", "produce", "consume", "add", "relu", "duplicate", "upsample", "concat"]
     start_layers = [layer_name for layer_name, layer_info in io_dict.items() if layer_info["type"] in accepted_layers]
     for layer_name in start_layers:
         io_dict[layer_name]["layer_index"] = 0
@@ -445,7 +445,7 @@ def propagate_quant(model, io_dict, log=False):
     else:
         start_layer = start_layers[0]
     
-    accepted_layers = ["conv", "pool", "add"]
+    accepted_layers = ["conv", "pool", "add","upsample", "concat"]
     node_list = [start_layer]
     mark_set = set()
     mark_set.add(start_layer)

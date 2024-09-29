@@ -14,11 +14,13 @@ import backend.layers.detect as detect
 import backend.layers.non_max_suppression as non_max_suppression
 import backend.layers.bandwidth_adjust as bandwidth_adjust
 import backend.layers.tensor_duplicator as tensor_duplicator
+import backend.layers.upsample as upsample
+import backend.layers.concat as concat
 import backend.graph as graph
 from backend.opt import dag_sorting as dag_sorting
 from backend.utils import *
 
-def init(file_name, parsed_write, object_detection=False, off_chip_storage=False, prj_root="/tmp"):
+def init(file_name, parsed_write, object_detection=False, off_chip_storage=False, prj_root="/tmp", end_points=None):
 
 
     libraries = [
@@ -179,6 +181,7 @@ def parse_all_main(io_dict, model, off_chip_storage=False):
     parsed_const = []
     no_output_gen = False
     last_node = None
+    list_last_node_name = []
     io_connect = graph.extract_connections(model, io_dict)
 
     # Sorting the nodes in a BFS order
@@ -242,7 +245,19 @@ def parse_all_main(io_dict, model, off_chip_storage=False):
         #         name,
         #         node
         #     )
-
+        if 'concat' == node["type"]:
+            parsed_write.append(
+                concat.parse(name, node)
+            )
+            last_node = node
+            
+        if 'upsample' == node["type"]:
+            parsed_write.append(
+                upsample.parse(name, node)
+            )
+            last_node = node
+            
+            
         if 'detect' == node["type"]:
             parsed_write.append(
                 detect.parse(name, node)
@@ -253,11 +268,17 @@ def parse_all_main(io_dict, model, off_chip_storage=False):
                 non_max_suppression.parse(name, node)
             )
             no_output_gen = True
-
-
-        last_node_name = name
-
-    if not no_output_gen:
+        multiple_outputs = True
+        if not multiple_outputs:
+            last_node_name = name
+        elif "consume" == node["type"]:
+            list_last_node_name.append(name)
+    if multiple_outputs:
+        for last_node_name in list_last_node_name:
+            parsed_write.append(
+                output_gen.parse(last_node, last_node_name)
+            )       
+    elif not no_output_gen:
         parsed_write.append(
             output_gen.parse(last_node, last_node_name)
         )
@@ -308,7 +329,8 @@ def write(
         board, 
         off_chip_storage, 
         prj_root="/tmp", 
-        generate_report_file="tmp.rpt"
+        generate_report_file="tmp.rpt",
+        end_points=None
         ):
 
     if ap_ctrl_chain:
