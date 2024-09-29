@@ -1,0 +1,371 @@
+In file included from cc/src/yolo.cc:4:
+In file included from /home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:7:
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/activations_utils.h:151:23: error: use of undeclared identifier 'c_ich'
+          if (s_ich < c_ich[0]){
+                      ^
+In file included from cc/src/yolo.cc:4:
+In file included from /home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:8:
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/stream_utils.h:93:10: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+      if constexpr (PREPROC == 1) {
+         ^
+In file included from cc/src/yolo.cc:4:
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:45:6: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+  if constexpr (std::is_same<t_output_clip, std::nullptr_t>::value == false) {
+     ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:53:6: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+  if constexpr (std::is_same<t_output_mask, std::nullptr_t>::value == false) {
+     ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:74:6: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+  if constexpr (std::is_same<t_output_clip, std::nullptr_t>::value == false) {
+     ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:81:6: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+  if constexpr (std::is_same<t_output_mask, std::nullptr_t>::value == false) {
+     ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:85:6: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+  if constexpr (c_relu == 1) {
+     ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:147:5: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+ if constexpr (std::is_same<typename t_act::Base::Base,
+    ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:149:8: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+    if constexpr (std::is_same<
+       ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:171:8: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+    if constexpr (std::is_same<
+       ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:271:6: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+  if constexpr (c_och_pack > 1) {
+     ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:283:12: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+        if constexpr(std::is_same<t_bias, std::nullptr_t>::value == false) {
+           ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:333:16: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+            if constexpr(std::is_same<typename t_weight_st::Base::Base, ssdm_int<t_weight_st::Base::width, true>>::value) {
+               ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:350:16: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+            if constexpr(std::is_same<typename t_input_mod::Base::Base, ssdm_int<t_input_mod::Base::width, true>>::value) {
+               ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:414:14: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+          if constexpr (std::is_same<t_add, std::nullptr_t>::value ==
+             ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:438:8: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+    if constexpr(c_ow_pack > 1) {
+       ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:445:10: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+      if constexpr(c_depth == 1) {
+         ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:457:10: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+      if constexpr (std::is_same<t_bias, std::nullptr_t>::value == false) {
+         ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:458:12: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+        if constexpr (c_depth == 0) {
+           ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:478:12: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+        if constexpr(c_depth == 1) {
+           ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:485:12: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+        if constexpr(std::is_same<t_bias, std::nullptr_t>::value == false) {
+           ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:486:14: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+          if constexpr(c_depth == 1) {
+             ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:525:12: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+        if constexpr(c_depth == 1) {
+           ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:558:10: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+      if constexpr(c_depth == 0) {
+         ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:581:10: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+      if constexpr(c_depth == 0) {
+         ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:591:10: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+      if constexpr(c_depth == 0) {
+         ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:606:10: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+      if constexpr (c_depth == 0) {
+         ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:609:16: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+            if constexpr (std::is_same<t_add, std::nullptr_t>::value == false) {
+               ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:636:10: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+      if constexpr(c_depth == 1) {
+         ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:642:10: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+      if constexpr(std::is_same<t_bias, std::nullptr_t>::value == false) {
+         ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:643:12: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+        if constexpr(c_depth == 0) {
+           ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:657:12: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+        if constexpr(std::is_same<t_bias, std::nullptr_t>::value == false) {
+           ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:658:14: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+          if constexpr(c_depth == 1) {
+             ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:688:12: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+        if constexpr (c_depth == 1) {
+           ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:695:10: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+      if constexpr(c_depth == 0) {
+         ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:707:10: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+      if constexpr(c_depth == 0){
+         ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:711:10: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+      if constexpr (c_depth == 0) {
+         ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:713:14: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+          if constexpr (std::is_same<t_add, std::nullptr_t>::value ==
+             ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:819:6: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+  if constexpr (c_depth == 0) {
+     ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:827:6: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+  if constexpr(std::is_same<t_add_struct, std::nullptr_t>::value == false) {
+     ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:1019:20: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+                if constexpr(std::is_same<t_weight_1x1, std::nullptr_t>::value == false) {
+                   ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:1023:20: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+                if constexpr(std::is_same<t_bias, std::nullptr_t>::value == false) {
+                   ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:1027:20: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+                if constexpr(std::is_same<t_bias_1x1, std::nullptr_t>::value == false) {
+                   ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:1035:18: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+              if constexpr(std::is_same<t_add_struct, std::nullptr_t>::value == false){
+                 ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:1076:18: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+              if constexpr (std::is_same<t_acc_1x1_struct,
+                 ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:1145:22: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+                  if constexpr(std::is_same<t_acc_1x1_struct, std::nullptr_t>::value == false) {
+                     ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:1146:24: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+                    if constexpr(c_ops_1x1 != c_ops){
+                       ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:1203:18: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+              if constexpr (std::is_same<t_forward_struct,
+                 ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:1258:22: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+                  if constexpr (std::is_same<t_output_struct_1x1,
+                     ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:1602:22: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+                  if constexpr (std::is_same<t_weight_1x1,
+                     ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:1615:24: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+                    if constexpr (std::is_same<t_bias, std::nullptr_t>::value ==
+                       ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:1620:26: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+                      if constexpr (std::is_same<t_bias_1x1,
+                         ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:1639:20: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+                if constexpr (std::is_same<t_add_struct,
+                   ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:1684:18: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+              if constexpr (std::is_same<t_acc_1x1_struct,
+                 ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:1753:22: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+                  if constexpr(std::is_same<t_acc_1x1_struct, std::nullptr_t>::value == false) {
+                     ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:1754:24: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+                    if constexpr(c_ops_1x1 != c_och_ops){
+                       ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:1811:18: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+              if constexpr (std::is_same<t_forward_struct,
+                 ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:1866:22: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+                  if constexpr (std::is_same<t_output_struct_1x1,
+                     ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:2210:22: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+                  if constexpr (std::is_same<t_weight_1x1,
+                     ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:2223:24: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+                    if constexpr (std::is_same<t_bias, std::nullptr_t>::value ==
+                       ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:2228:26: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+                      if constexpr (std::is_same<t_bias_1x1,
+                         ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:2247:20: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+                if constexpr (std::is_same<t_add_struct,
+                   ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:2292:18: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+              if constexpr (std::is_same<t_acc_1x1_struct,
+                 ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:2361:22: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+                  if constexpr(std::is_same<t_acc_1x1_struct, std::nullptr_t>::value == false) {
+                     ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:2362:24: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+                    if constexpr(c_ops_1x1 != c_och_ops){
+                       ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:2419:18: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+              if constexpr (std::is_same<t_forward_struct,
+                 ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:2474:22: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+                  if constexpr (std::is_same<t_output_struct_1x1,
+                     ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:2818:22: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+                  if constexpr (std::is_same<t_weight_1x1,
+                     ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:2831:24: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+                    if constexpr (std::is_same<t_bias, std::nullptr_t>::value ==
+                       ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:2836:26: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+                      if constexpr (std::is_same<t_bias_1x1,
+                         ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:2855:20: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+                if constexpr (std::is_same<t_add_struct,
+                   ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:2900:18: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+              if constexpr (std::is_same<t_acc_1x1_struct,
+                 ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:2969:22: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+                  if constexpr(std::is_same<t_acc_1x1_struct, std::nullptr_t>::value == false) {
+                     ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:2970:24: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+                    if constexpr(c_ops_1x1 != c_och_ops){
+                       ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:3027:18: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+              if constexpr (std::is_same<t_forward_struct,
+                 ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:3082:22: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+                  if constexpr (std::is_same<t_output_struct_1x1,
+                     ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:3426:22: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+                  if constexpr (std::is_same<t_weight_1x1,
+                     ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:3439:24: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+                    if constexpr (std::is_same<t_bias, std::nullptr_t>::value ==
+                       ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:3444:26: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+                      if constexpr (std::is_same<t_bias_1x1,
+                         ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:3463:20: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+                if constexpr (std::is_same<t_add_struct,
+                   ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:3508:18: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+              if constexpr (std::is_same<t_acc_1x1_struct,
+                 ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:3577:22: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+                  if constexpr(std::is_same<t_acc_1x1_struct, std::nullptr_t>::value == false) {
+                     ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:3578:24: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+                    if constexpr(c_ops_1x1 != c_och_ops){
+                       ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:3635:18: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+              if constexpr (std::is_same<t_forward_struct,
+                 ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:3690:22: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+                  if constexpr (std::is_same<t_output_struct_1x1,
+                     ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:3887:6: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+  if constexpr (c_depth == 0) {
+     ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:3895:6: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+  if constexpr(std::is_same<t_add_struct, std::nullptr_t>::value == false) {
+     ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:3988:8: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+    if constexpr (std::is_same<t_bias_st, std::nullptr_t>::value == false) {
+       ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:4014:8: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+    if constexpr (std::is_same<t_weight_1x1_st, std::nullptr_t>::value ==
+       ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:4038:8: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+    if constexpr (std::is_same<t_bias_1x1_st, std::nullptr_t>::value == false) {
+       ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:4091:6: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+  if constexpr (c_och_ops_out == c_iter_ops_out && c_och_depth == c_iter_och &&
+     ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:4167:13: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+  } else if constexpr (c_och_ops_out == c_iter_ops_out && c_och_depth == c_iter_och) {
+            ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:4243:14: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+   } else if constexpr (c_och_ops_out == c_iter_ops_out) {
+             ^
+In file included from cc/src/yolo.cc:5:
+In file included from /home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/pool_streams.h:8:
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/line_buffer_utils.h:200:18: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+              if constexpr (!SKIP) {
+                 ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/line_buffer_utils.h:303:18: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+              if constexpr (!SKIP) {
+                 ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/line_buffer_utils.h:383:18: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+              if constexpr (!SKIP) {
+                 ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/line_buffer_utils.h:426:6: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+  if constexpr (c_ow_ops_in >= c_ow_ops_out)
+     ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/line_buffer_utils.h:428:8: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+    if constexpr (c_ops_out >= c_ops_in)
+       ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/line_buffer_utils.h:642:14: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+          if constexpr (std::is_same<dout_t, std::nullptr_t>::value == false) {
+             ^
+In file included from cc/src/yolo.cc:5:
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/pool_streams.h:44:8: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+    if constexpr(c_pool == 0)
+       ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/pool_streams.h:120:22: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+                  if constexpr (c_pool == 0)
+                     ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/pool_streams.h:124:22: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+                  if constexpr (c_pool == 1)
+                     ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/pool_streams.h:137:24: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+                    if constexpr (c_pool == 0)
+                       ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/pool_streams.h:203:8: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+    if constexpr(c_pool == 0)
+       ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/pool_streams.h:265:18: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+              if constexpr (c_pool == 0)
+                 ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/pool_streams.h:281:20: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+                if constexpr (c_pool == 0)
+                   ^
+In file included from cc/src/yolo.cc:11:
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/weights_utils.h:269:6: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+  if constexpr (std::is_same<din_bias_t, std::nullptr_t>::value == false) {
+     ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/weights_utils.h:284:6: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+  if constexpr (std::is_same<din_weight1x1_t, std::nullptr_t>::value == false) {
+     ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/weights_utils.h:303:6: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+  if constexpr (std::is_same<din_bias1x1_t, std::nullptr_t>::value == false) {
+     ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/weights_utils.h:415:8: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+    if constexpr (std::is_same<din_bias_t, std::nullptr_t>::value == false) {
+       ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/weights_utils.h:440:8: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+    if constexpr (std::is_same<din_weight1x1_t, std::nullptr_t>::value ==
+       ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/weights_utils.h:464:8: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+    if constexpr (std::is_same<din_bias1x1_t, std::nullptr_t>::value == false) {
+       ^
+cc/src/yolo.cc:4472:2: error: no matching function for call to 'concat_op'
+ nn2fpga::concat_op <
+ ^~~~~~~~~~~~~~~~~~~~
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/activations_utils.h:133:6: note: candidate function not viable: no known conversion from 'hls::stream<t_net_14_dup_1_struct> [2]' to 'hls::stream<t_net_20_struct> *' for 2nd argument
+void concat_op(
+     ^
+In file included from cc/src/yolo.cc:5:
+In file included from /home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/pool_streams.h:8:
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/line_buffer_utils.h:519:3: error: static_assert failed "c_ops must be a multiple of c_ops_out"
+  static_assert(c_ops % c_ops_out == 0, "c_ops must be a multiple of c_ops_out");
+  ^             ~~~~~~~~~~~~~~~~~~~~~~
+cc/src/yolo.cc:4346:11: note: in instantiation of function template specialization 'nn2fpga::shift_op<t_net_18_struct, t_net_18_dup_1_lb_struct, nullptr_t, 256, 128, 13, 13, 13, 13, 1, 1, 1, 0, 0, 0, 1, 1, 8>' requested here
+ nn2fpga::shift_op <
+          ^
+In file included from cc/src/yolo.cc:5:
+In file included from /home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/pool_streams.h:8:
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/line_buffer_utils.h:520:3: error: static_assert failed "c_ops must be bigger than c_ops_out"
+  static_assert(c_ops >= c_ops_out, "c_ops must be bigger than c_ops_out");
+  ^             ~~~~~~~~~~~~~~~~~~
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/line_buffer_utils.h:635:15: error: type 'af_bit_ref<8, 3, false, (ap_q_mode)4U, (ap_o_mode)0U, 0>' does not provide a subscript operator
+              s_input.data[0][s_index_read + s_index_ops];
+              ^~~~~~~~~~~~~~~ ~~~~~~~~~~~~~~~~~~~~~~~~~~
+cc/src/yolo.cc:4486:11: note: in instantiation of function template specialization 'nn2fpga::shift_op<t_net_24_struct, t_net_24_lb_struct, t_net_24_lb_struct, 384, 256, 26, 26, 26, 26, 3, 3, 1, 1, 2, 2, 1, 24, 24>' requested here
+ nn2fpga::shift_op <
+          ^
+111 warnings and 5 errors generated.

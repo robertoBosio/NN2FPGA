@@ -1,0 +1,378 @@
+<xilinx:hls_fe_msgs>
+    <msg msg_groups="" msg_id="207-5190" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/models/tb/common/cmdparser/cmdlineparser.cpp:94:27" msg_body="adding '__gnu_cxx::__alloc_traits&lt;std::allocator&lt;char&gt;, char&gt;::value_type' (aka 'char') to a string does not append to the string">
+        <args ClangWarningOption="string-plus-int"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-4506" msg_severity="INFO" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/models/tb/common/cmdparser/cmdlineparser.cpp:94:27" msg_body="use array indexing to silence this warning">
+        <args/>
+    </msg>
+    <msg msg_groups="" msg_id="207-5190" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/models/tb/common/cmdparser/cmdlineparser.cpp:98:24" msg_body="adding 'const __gnu_cxx::__alloc_traits&lt;std::allocator&lt;char&gt;, char&gt;::value_type' (aka 'const char') to a string does not append to the string">
+        <args ClangWarningOption="string-plus-int"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-4506" msg_severity="INFO" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/models/tb/common/cmdparser/cmdlineparser.cpp:98:24" msg_body="use array indexing to silence this warning">
+        <args/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1016" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:24:32" msg_body="unknown warning group '-Wunused-but-set-parameter', ignored">
+        <args ClangWarningOption="unknown-warning-option"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1016" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:25:32" msg_body="unknown warning group '-Wunused-but-set-variable', ignored">
+        <args ClangWarningOption="unknown-warning-option"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-3776" msg_severity="ERROR" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/activations_utils.h:151:23" msg_body="use of undeclared identifier 'c_ich'">
+        <args/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/stream_utils.h:93:10" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:45:6" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:53:6" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:74:6" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:81:6" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:85:6" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:147:5" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:149:8" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:171:8" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:271:6" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:283:12" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:333:16" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:350:16" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:414:14" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:438:8" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:445:10" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:457:10" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:458:12" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:478:12" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:485:12" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:486:14" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:525:12" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:558:10" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:581:10" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:591:10" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:606:10" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:609:16" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:636:10" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:642:10" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:643:12" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:657:12" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:658:14" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:688:12" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:695:10" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:707:10" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:711:10" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:713:14" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:819:6" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:827:6" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:1019:20" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:1023:20" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:1027:20" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:1035:18" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:1076:18" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:1145:22" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:1146:24" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:1203:18" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:1258:22" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:1602:22" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:1615:24" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:1620:26" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:1639:20" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:1684:18" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:1753:22" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:1754:24" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:1811:18" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:1866:22" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:2210:22" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:2223:24" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:2228:26" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:2247:20" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:2292:18" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:2361:22" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:2362:24" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:2419:18" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:2474:22" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:2818:22" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:2831:24" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:2836:26" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:2855:20" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:2900:18" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:2969:22" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:2970:24" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:3027:18" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:3082:22" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:3426:22" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:3439:24" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:3444:26" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:3463:20" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:3508:18" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:3577:22" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:3578:24" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:3635:18" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:3690:22" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:3887:6" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:3895:6" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:3988:8" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:4014:8" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:4038:8" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:4091:6" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:4167:13" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:4243:14" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/line_buffer_utils.h:200:18" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/line_buffer_utils.h:303:18" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/line_buffer_utils.h:383:18" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/line_buffer_utils.h:426:6" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/line_buffer_utils.h:428:8" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/line_buffer_utils.h:642:14" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/pool_streams.h:44:8" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/pool_streams.h:120:22" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/pool_streams.h:124:22" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/pool_streams.h:137:24" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/pool_streams.h:203:8" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/pool_streams.h:265:18" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/pool_streams.h:281:20" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/weights_utils.h:269:6" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/weights_utils.h:284:6" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/weights_utils.h:303:6" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/weights_utils.h:415:8" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/weights_utils.h:440:8" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-1421" msg_severity="WARNING" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/weights_utils.h:464:8" msg_body="constexpr if is a C++17 extension">
+        <args ClangWarningOption="c++17-extensions"/>
+    </msg>
+    <msg msg_groups="" msg_id="207-3339" msg_severity="ERROR" msg_loc="cc/src/yolo.cc:4472:2" msg_body="no matching function for call to 'concat_op'">
+        <args/>
+    </msg>
+    <msg msg_groups="" msg_id="207-4378" msg_severity="INFO" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/activations_utils.h:133:6" msg_body="candidate function not viable: no known conversion from 'hls::stream&lt;t_net_14_dup_1_struct&gt; [2]' to 'hls::stream&lt;t_net_20_struct&gt; *' for 2nd argument">
+        <args/>
+    </msg>
+    <msg msg_groups="" msg_id="207-3504" msg_severity="ERROR" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/line_buffer_utils.h:519:3" msg_body="static_assert failed &quot;c_ops must be a multiple of c_ops_out&quot;">
+        <args/>
+    </msg>
+    <msg msg_groups="" msg_id="207-4235" msg_severity="INFO" msg_loc="cc/src/yolo.cc:4346:11" msg_body="in instantiation of function template specialization 'nn2fpga::shift_op&lt;t_net_18_struct, t_net_18_dup_1_lb_struct, nullptr_t, 256, 128, 13, 13, 13, 13, 1, 1, 1, 0, 0, 0, 1, 1, 8&gt;' requested here">
+        <args/>
+    </msg>
+    <msg msg_groups="" msg_id="207-3504" msg_severity="ERROR" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/line_buffer_utils.h:520:3" msg_body="static_assert failed &quot;c_ops must be bigger than c_ops_out&quot;">
+        <args/>
+    </msg>
+    <msg msg_groups="" msg_id="207-3337" msg_severity="ERROR" msg_loc="/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/line_buffer_utils.h:635:15" msg_body="type 'af_bit_ref&lt;8, 3, false, (ap_q_mode)4U, (ap_o_mode)0U, 0&gt;' does not provide a subscript operator">
+        <args/>
+    </msg>
+    <msg msg_groups="" msg_id="207-4235" msg_severity="INFO" msg_loc="cc/src/yolo.cc:4486:11" msg_body="in instantiation of function template specialization 'nn2fpga::shift_op&lt;t_net_24_struct, t_net_24_lb_struct, t_net_24_lb_struct, 384, 256, 26, 26, 26, 26, 3, 3, 1, 1, 2, 2, 1, 24, 24&gt;' requested here">
+        <args/>
+    </msg>
+</xilinx:hls_fe_msgs>
+

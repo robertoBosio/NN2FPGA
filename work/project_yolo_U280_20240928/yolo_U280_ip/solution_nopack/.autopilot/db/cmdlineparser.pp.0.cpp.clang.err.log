@@ -1,0 +1,15 @@
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/models/tb/common/cmdparser/cmdlineparser.cpp:94:27: warning: adding '__gnu_cxx::__alloc_traits<std::allocator<char>, char>::value_type' (aka 'char') to a string does not append to the string [-Wstring-plus-int]
+        string temp = "-" + cmd.key[2];
+                      ~~~~^~~~~~~~~~~~
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/models/tb/common/cmdparser/cmdlineparser.cpp:94:27: note: use array indexing to silence this warning
+        string temp = "-" + cmd.key[2];
+                          ^
+                      &   [           ]
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/models/tb/common/cmdparser/cmdlineparser.cpp:98:24: warning: adding 'const __gnu_cxx::__alloc_traits<std::allocator<char>, char>::value_type' (aka 'const char') to a string does not append to the string [-Wstring-plus-int]
+            temp = "-" + s.key[i];
+                   ~~~~^~~~~~~~~~
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/models/tb/common/cmdparser/cmdlineparser.cpp:98:24: note: use array indexing to silence this warning
+            temp = "-" + s.key[i];
+                       ^
+                   &   [         ]
+2 warnings generated.

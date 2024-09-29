@@ -1,0 +1,8 @@
+In file included from cc/src/yolo.cc:4:
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:24:32: warning: unknown warning group '-Wunused-but-set-parameter', ignored [-Wunknown-warning-option]
+#pragma GCC diagnostic ignored "-Wunused-but-set-parameter"
+                               ^
+/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:25:32: warning: unknown warning group '-Wunused-but-set-variable', ignored [-Wunknown-warning-option]
+#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
+                               ^
+2 warnings generated.

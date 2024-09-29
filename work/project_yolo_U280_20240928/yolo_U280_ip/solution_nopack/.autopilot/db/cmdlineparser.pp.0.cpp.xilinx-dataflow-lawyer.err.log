@@ -1,0 +1,5 @@
+adding '__gnu_cxx::__alloc_traits<std::allocator<char>, char>::value_type' (aka 'char') to a string does not append to the string
+use array indexing to silence this warning
+adding 'const __gnu_cxx::__alloc_traits<std::allocator<char>, char>::value_type' (aka 'const char') to a string does not append to the string
+use array indexing to silence this warning
+2 warnings generated.

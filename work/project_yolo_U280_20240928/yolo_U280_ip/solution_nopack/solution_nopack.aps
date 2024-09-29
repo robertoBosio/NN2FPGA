@@ -1,0 +1,23 @@
+<AutoPilot:solution xmlns:AutoPilot="com.autoesl.autopilot.solution">
+    <config>
+        <config_interface s_axilite_auto_restart_counter="1" m_axi_max_widen_bitwidth="128" m_axi_alignment_byte_size="16" m_axi_max_read_burst_length="256" m_axi_num_read_outstanding="1" m_axi_latency="1"/>
+        <config_compile complex-mul-dsp="0" enable_auto_rewind="0" pipeline_style="stp"/>
+    </config>
+    <name>
+        <value string="solution_nopack"/>
+    </name>
+    <project>
+        <value string="yolo_U280_ip"/>
+    </project>
+    <flowTarget value="vivado"/>
+    <targetInfo>
+        <TargetInfo value="xcu280:-fsvh2892:-2L-e"/>
+    </targetInfo>
+    <libraryList>
+        <library value="xilinx/virtexuplus/virtexuplus" name="DefaultPlatform"/>
+    </libraryList>
+    <clockList>
+        <clock default="false" name="default" period="3.3"/>
+    </clockList>
+</AutoPilot:solution>
+

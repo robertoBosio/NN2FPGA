@@ -1,0 +1,39 @@
+<dict>
+  <key>main-file</key>
+  <string>cc/src/yolo.cc</string>
+  <key>diagnostics</key>
+  <array>
+    <dict>
+      <key>level</key>
+      <string>warning</string>
+      <key>filename</key>
+      <string>/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h</string>
+      <key>line</key>
+      <integer>24</integer>
+      <key>column</key>
+      <integer>32</integer>
+      <key>message</key>
+      <string>unknown warning group &apos;-Wunused-but-set-parameter&apos;, ignored</string>
+      <key>ID</key>
+      <integer>1016</integer>
+      <key>WarningOption</key>
+      <string>unknown-warning-option</string>
+    </dict>
+    <dict>
+      <key>level</key>
+      <string>warning</string>
+      <key>filename</key>
+      <string>/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h</string>
+      <key>line</key>
+      <integer>25</integer>
+      <key>column</key>
+      <integer>32</integer>
+      <key>message</key>
+      <string>unknown warning group &apos;-Wunused-but-set-variable&apos;, ignored</string>
+      <key>ID</key>
+      <integer>1016</integer>
+      <key>WarningOption</key>
+      <string>unknown-warning-option</string>
+    </dict>
+  </array>
+</dict>

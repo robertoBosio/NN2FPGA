@@ -1,0 +1,67 @@
+<dict>
+  <key>main-file</key>
+  <string>/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/work/project_yolo_U280_20240928/yolo_U280_ip/solution_nopack/.autopilot/db/cmdlineparser.pp.0.cpp</string>
+  <key>diagnostics</key>
+  <array>
+    <dict>
+      <key>level</key>
+      <string>warning</string>
+      <key>filename</key>
+      <string>/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/models/tb/common/cmdparser/cmdlineparser.cpp</string>
+      <key>line</key>
+      <integer>94</integer>
+      <key>column</key>
+      <integer>27</integer>
+      <key>message</key>
+      <string>adding &apos;__gnu_cxx::__alloc_traits&lt;std::allocator&lt;char&gt;, char&gt;::value_type&apos; (aka &apos;char&apos;) to a string does not append to the string</string>
+      <key>ID</key>
+      <integer>5190</integer>
+      <key>WarningOption</key>
+      <string>string-plus-int</string>
+    </dict>
+    <dict>
+      <key>level</key>
+      <string>note</string>
+      <key>filename</key>
+      <string>/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/models/tb/common/cmdparser/cmdlineparser.cpp</string>
+      <key>line</key>
+      <integer>94</integer>
+      <key>column</key>
+      <integer>27</integer>
+      <key>message</key>
+      <string>use array indexing to silence this warning</string>
+      <key>ID</key>
+      <integer>4506</integer>
+    </dict>
+    <dict>
+      <key>level</key>
+      <string>warning</string>
+      <key>filename</key>
+      <string>/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/models/tb/common/cmdparser/cmdlineparser.cpp</string>
+      <key>line</key>
+      <integer>98</integer>
+      <key>column</key>
+      <integer>24</integer>
+      <key>message</key>
+      <string>adding &apos;const __gnu_cxx::__alloc_traits&lt;std::allocator&lt;char&gt;, char&gt;::value_type&apos; (aka &apos;const char&apos;) to a string does not append to the string</string>
+      <key>ID</key>
+      <integer>5190</integer>
+      <key>WarningOption</key>
+      <string>string-plus-int</string>
+    </dict>
+    <dict>
+      <key>level</key>
+      <string>note</string>
+      <key>filename</key>
+      <string>/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/models/tb/common/cmdparser/cmdlineparser.cpp</string>
+      <key>line</key>
+      <integer>98</integer>
+      <key>column</key>
+      <integer>24</integer>
+      <key>message</key>
+      <string>use array indexing to silence this warning</string>
+      <key>ID</key>
+      <integer>4506</integer>
+    </dict>
+  </array>
+</dict>

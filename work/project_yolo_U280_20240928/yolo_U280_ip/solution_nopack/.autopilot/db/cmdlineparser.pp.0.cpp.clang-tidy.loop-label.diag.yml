@@ -1,0 +1,67 @@
+---
+MainSourceFile:  /home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/work/project_yolo_U280_20240928/yolo_U280_ip/solution_nopack/.autopilot/db/cmdlineparser.pp.0.cpp
+Diagnostics:     
+  - DiagnosticName:  xilinx-label-all-loops
+    Message:         'Added loop label VITIS_LOOP_60_1:  '
+    FileOffset:      60
+    FilePath:        /home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/models/tb/common/logger/logger.h
+    Replacements:    
+      - FilePath:        /home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/work/project_yolo_U280_20240928/yolo_U280_ip/solution_nopack/.autopilot/db/cmdlineparser.pp.0.cpp
+        Offset:          1224729
+        Length:          0
+        ReplacementText: 'VITIS_LOOP_60_1: '
+  - DiagnosticName:  xilinx-label-all-loops
+    Message:         'Added loop label VITIS_LOOP_39_1:  '
+    FileOffset:      39
+    FilePath:        /home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/models/tb/common/cmdparser/cmdlineparser.cpp
+    Replacements:    
+      - FilePath:        /home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/work/project_yolo_U280_20240928/yolo_U280_ip/solution_nopack/.autopilot/db/cmdlineparser.pp.0.cpp
+        Offset:          1274526
+        Length:          0
+        ReplacementText: 'VITIS_LOOP_39_1: '
+  - DiagnosticName:  xilinx-label-all-loops
+    Message:         'Added loop label VITIS_LOOP_64_1:  '
+    FileOffset:      64
+    FilePath:        /home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/models/tb/common/cmdparser/cmdlineparser.cpp
+    Replacements:    
+      - FilePath:        /home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/work/project_yolo_U280_20240928/yolo_U280_ip/solution_nopack/.autopilot/db/cmdlineparser.pp.0.cpp
+        Offset:          1275022
+        Length:          0
+        ReplacementText: 'VITIS_LOOP_64_1: '
+  - DiagnosticName:  xilinx-label-all-loops
+    Message:         'Added loop label VITIS_LOOP_97_1:  '
+    FileOffset:      97
+    FilePath:        /home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/models/tb/common/cmdparser/cmdlineparser.cpp
+    Replacements:    
+      - FilePath:        /home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/work/project_yolo_U280_20240928/yolo_U280_ip/solution_nopack/.autopilot/db/cmdlineparser.pp.0.cpp
+        Offset:          1276168
+        Length:          0
+        ReplacementText: 'VITIS_LOOP_97_1: '
+  - DiagnosticName:  xilinx-label-all-loops
+    Message:         'Added loop label VITIS_LOOP_161_1:  '
+    FileOffset:      161
+    FilePath:        /home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/models/tb/common/cmdparser/cmdlineparser.cpp
+    Replacements:    
+      - FilePath:        /home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/work/project_yolo_U280_20240928/yolo_U280_ip/solution_nopack/.autopilot/db/cmdlineparser.pp.0.cpp
+        Offset:          1278071
+        Length:          0
+        ReplacementText: 'VITIS_LOOP_161_1: '
+  - DiagnosticName:  xilinx-label-all-loops
+    Message:         'Added loop label VITIS_LOOP_318_1:  '
+    FileOffset:      318
+    FilePath:        /home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/models/tb/common/cmdparser/cmdlineparser.cpp
+    Replacements:    
+      - FilePath:        /home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/work/project_yolo_U280_20240928/yolo_U280_ip/solution_nopack/.autopilot/db/cmdlineparser.pp.0.cpp
+        Offset:          1283374
+        Length:          0
+        ReplacementText: 'VITIS_LOOP_318_1: '
+  - DiagnosticName:  xilinx-label-all-loops
+    Message:         'Added loop label VITIS_LOOP_326_2:  '
+    FileOffset:      326
+    FilePath:        /home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/models/tb/common/cmdparser/cmdlineparser.cpp
+    Replacements:    
+      - FilePath:        /home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/work/project_yolo_U280_20240928/yolo_U280_ip/solution_nopack/.autopilot/db/cmdlineparser.pp.0.cpp
+        Offset:          1283659
+        Length:          0
+        ReplacementText: 'VITIS_LOOP_326_2: '
+...

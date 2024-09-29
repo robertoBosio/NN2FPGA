@@ -1,0 +1,1472 @@
+Net: images,                 
+	Tensor shape: (1, 3, 416, 416),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.0/id/act_quant/export_handler/Quant_output_0,                 
+	Tensor shape: (1, 3, 416, 416),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.0/conv/weight_quant/export_handler/Quant_output_0,                 
+	Tensor shape: (16, 3, 3, 3),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.0/act/act_quant/export_handler/Quant_output_0,                 
+	Tensor shape: (1, 16, 416, 416),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.2/conv/weight_quant/export_handler/Quant_output_0,                 
+	Tensor shape: (32, 16, 3, 3),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.2/act/act_quant/export_handler/Quant_output_0,                 
+	Tensor shape: (1, 32, 208, 208),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.4/conv/weight_quant/export_handler/Quant_output_0,                 
+	Tensor shape: (64, 32, 3, 3),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.4/act/act_quant/export_handler/Quant_output_0,                 
+	Tensor shape: (1, 64, 104, 104),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.6/conv/weight_quant/export_handler/Quant_output_0,                 
+	Tensor shape: (128, 64, 3, 3),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.6/act/act_quant/export_handler/Quant_output_0,                 
+	Tensor shape: (1, 128, 52, 52),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.8/conv/weight_quant/export_handler/Quant_output_0,                 
+	Tensor shape: (256, 128, 3, 3),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.8/act/act_quant/export_handler/Quant_output_0,                 
+	Tensor shape: (1, 256, 26, 26),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.10/conv/weight_quant/export_handler/Quant_output_0,                 
+	Tensor shape: (512, 256, 3, 3),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.10/act/act_quant/export_handler/Quant_output_0,                 
+	Tensor shape: (1, 512, 13, 13),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.11/conv/weight_quant/export_handler/Quant_output_0,                 
+	Tensor shape: (1024, 512, 3, 3),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.11/act/act_quant/export_handler/Quant_output_0,                 
+	Tensor shape: (1, 1024, 13, 13),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.12/conv/weight_quant/export_handler/Quant_output_0,                 
+	Tensor shape: (256, 1024, 1, 1),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.12/act/act_quant/export_handler/Quant_output_0,                 
+	Tensor shape: (1, 256, 13, 13),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.13/conv/weight_quant/export_handler/Quant_output_0,                 
+	Tensor shape: (512, 256, 3, 3),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.13/act/act_quant/export_handler/Quant_output_0,                 
+	Tensor shape: (1, 512, 13, 13),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.14/conv/weight_quant/export_handler/Quant_output_0,                 
+	Tensor shape: (128, 256, 1, 1),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.14/act/act_quant/export_handler/Quant_output_0,                 
+	Tensor shape: (1, 128, 13, 13),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.17/conv/weight_quant/export_handler/Quant_output_0,                 
+	Tensor shape: (256, 384, 3, 3),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.17/act/act_quant/export_handler/Quant_output_0,                 
+	Tensor shape: (1, 256, 26, 26),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.0/id/act_quant/export_handler/Constant_1_output_0,                 
+	Tensor shape: (1, 1, 1, 1),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.0/id/act_quant/export_handler/Constant_2_output_0,                 
+	Tensor shape: (1, 1, 1, 1),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.0/id/act_quant/export_handler/Constant_output_0,                 
+	Tensor shape: (1, 1, 1, 1),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.0/conv/weight_quant/export_handler/Constant_output_0,                 
+	Tensor shape: (16, 3, 3, 3),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.0/conv/weight_quant/export_handler/Constant_1_output_0,                 
+	Tensor shape: (1, 1, 1, 1),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.2/conv/weight_quant/export_handler/Constant_output_0,                 
+	Tensor shape: (32, 16, 3, 3),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.4/conv/weight_quant/export_handler/Constant_output_0,                 
+	Tensor shape: (64, 32, 3, 3),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.4/conv/weight_quant/export_handler/Constant_1_output_0,                 
+	Tensor shape: (1, 1, 1, 1),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.6/conv/weight_quant/export_handler/Constant_output_0,                 
+	Tensor shape: (128, 64, 3, 3),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.8/conv/weight_quant/export_handler/Constant_output_0,                 
+	Tensor shape: (256, 128, 3, 3),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.8/conv/weight_quant/export_handler/Constant_1_output_0,                 
+	Tensor shape: (1, 1, 1, 1),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.10/conv/weight_quant/export_handler/Constant_output_0,                 
+	Tensor shape: (512, 256, 3, 3),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.11/conv/weight_quant/export_handler/Constant_output_0,                 
+	Tensor shape: (1024, 512, 3, 3),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.11/conv/weight_quant/export_handler/Constant_1_output_0,                 
+	Tensor shape: (1, 1, 1, 1),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.12/conv/weight_quant/export_handler/Constant_output_0,                 
+	Tensor shape: (256, 1024, 1, 1),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.13/conv/weight_quant/export_handler/Constant_output_0,                 
+	Tensor shape: (512, 256, 3, 3),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.14/conv/weight_quant/export_handler/Constant_output_0,                 
+	Tensor shape: (128, 256, 1, 1),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.15/Constant_1_output_0,                 
+	Tensor shape: (0, 1, 1, 1),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.15/Constant_output_0,                 
+	Tensor shape: (4, 1, 1, 1),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.17/conv/weight_quant/export_handler/Constant_output_0,                 
+	Tensor shape: (256, 384, 3, 3),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.18/Constant_output_0,                 
+	Tensor shape: (5, 1, 1, 1),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.18/Constant_2_output_0,                 
+	Tensor shape: (1, 1, 1, 1),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.18/Constant_3_output_0,                 
+	Tensor shape: (1, 1, 1, 1),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.18/Constant_1_output_0,                 
+	Tensor shape: (1, 1, 1, 1),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.18/Constant_4_output_0,                 
+	Tensor shape: (1, 1, 1, 1),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.18/Constant_5_output_0,                 
+	Tensor shape: (1, 1, 1, 1),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.18/Constant_6_output_0,                 
+	Tensor shape: (1, 1, 1, 1),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Unknown shape with more than 4 dimensions.
+Net: /model.18/Constant_7_output_0,                 
+	Tensor shape: (1, 3, 26, 26),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.18/Constant_8_output_0,                 
+	Tensor shape: (1, 1, 1, 1),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.18/Constant_10_output_0,                 
+	Tensor shape: (1, 1, 1, 1),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.18/Constant_11_output_0,                 
+	Tensor shape: (1, 1, 1, 1),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.18/Constant_9_output_0,                 
+	Tensor shape: (1, 1, 1, 1),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.18/Constant_12_output_0,                 
+	Tensor shape: (1, 1, 1, 1),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.18/Constant_13_output_0,                 
+	Tensor shape: (1, 1, 1, 1),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.18/Constant_14_output_0,                 
+	Tensor shape: (1, 1, 1, 1),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Unknown shape with more than 4 dimensions.
+Net: /model.18/Constant_15_output_0,                 
+	Tensor shape: (1, 3, 26, 26),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.18/Constant_17_output_0,                 
+	Tensor shape: (1, 1, 1, 1),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.18/Constant_18_output_0,                 
+	Tensor shape: (1, 1, 1, 1),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.18/Constant_16_output_0,                 
+	Tensor shape: (1, 1, 1, 1),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.18/Constant_19_output_0,                 
+	Tensor shape: (1, 1, 1, 1),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.18/Constant_20_output_0,                 
+	Tensor shape: (3, 1, 1, 1),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.18/Constant_21_output_0,                 
+	Tensor shape: (5, 1, 1, 1),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.18/Constant_23_output_0,                 
+	Tensor shape: (1, 1, 1, 1),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.18/Constant_24_output_0,                 
+	Tensor shape: (1, 1, 1, 1),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.18/Constant_22_output_0,                 
+	Tensor shape: (1, 1, 1, 1),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.18/Constant_25_output_0,                 
+	Tensor shape: (1, 1, 1, 1),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.18/Constant_26_output_0,                 
+	Tensor shape: (1, 1, 1, 1),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.18/Constant_27_output_0,                 
+	Tensor shape: (1, 1, 1, 1),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Unknown shape with more than 4 dimensions.
+Net: /model.18/Constant_28_output_0,                 
+	Tensor shape: (1, 3, 13, 13),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.18/Constant_29_output_0,                 
+	Tensor shape: (1, 1, 1, 1),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.18/Constant_31_output_0,                 
+	Tensor shape: (1, 1, 1, 1),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.18/Constant_32_output_0,                 
+	Tensor shape: (1, 1, 1, 1),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.18/Constant_30_output_0,                 
+	Tensor shape: (1, 1, 1, 1),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.18/Constant_33_output_0,                 
+	Tensor shape: (1, 1, 1, 1),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.18/Constant_34_output_0,                 
+	Tensor shape: (1, 1, 1, 1),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.18/Constant_35_output_0,                 
+	Tensor shape: (1, 1, 1, 1),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Unknown shape with more than 4 dimensions.
+Net: /model.18/Constant_36_output_0,                 
+	Tensor shape: (1, 3, 13, 13),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.18/Constant_38_output_0,                 
+	Tensor shape: (1, 1, 1, 1),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.18/Constant_39_output_0,                 
+	Tensor shape: (1, 1, 1, 1),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.18/Constant_37_output_0,                 
+	Tensor shape: (1, 1, 1, 1),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.18/Constant_40_output_0,                 
+	Tensor shape: (1, 1, 1, 1),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.18/Constant_41_output_0,                 
+	Tensor shape: (3, 1, 1, 1),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.0/conv/Conv_output_0,                 
+	Tensor shape: (1, 16, 416, 416),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.0/act/act_quant/activation_impl/Relu_output_0,                 
+	Tensor shape: (1, 16, 416, 416),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.1/MaxPool_output_0,                 
+	Tensor shape: (1, 16, 208, 208),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.2/conv/Conv_output_0,                 
+	Tensor shape: (1, 32, 208, 208),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.2/act/act_quant/activation_impl/Relu_output_0,                 
+	Tensor shape: (1, 32, 208, 208),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.3/MaxPool_output_0,                 
+	Tensor shape: (1, 32, 104, 104),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.4/conv/Conv_output_0,                 
+	Tensor shape: (1, 64, 104, 104),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.4/act/act_quant/activation_impl/Relu_output_0,                 
+	Tensor shape: (1, 64, 104, 104),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.5/MaxPool_output_0,                 
+	Tensor shape: (1, 64, 52, 52),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.6/conv/Conv_output_0,                 
+	Tensor shape: (1, 128, 52, 52),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.6/act/act_quant/activation_impl/Relu_output_0,                 
+	Tensor shape: (1, 128, 52, 52),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.7/MaxPool_output_0,                 
+	Tensor shape: (1, 128, 26, 26),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.8/conv/Conv_output_0,                 
+	Tensor shape: (1, 256, 26, 26),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.8/act/act_quant/activation_impl/Relu_output_0,                 
+	Tensor shape: (1, 256, 26, 26),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.9/MaxPool_output_0,                 
+	Tensor shape: (1, 256, 13, 13),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.10/conv/Conv_output_0,                 
+	Tensor shape: (1, 512, 13, 13),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.10/act/act_quant/activation_impl/Relu_output_0,                 
+	Tensor shape: (1, 512, 13, 13),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.11/conv/Conv_output_0,                 
+	Tensor shape: (1, 1024, 13, 13),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.11/act/act_quant/activation_impl/Relu_output_0,                 
+	Tensor shape: (1, 1024, 13, 13),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.12/conv/Conv_output_0,                 
+	Tensor shape: (1, 256, 13, 13),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.12/act/act_quant/activation_impl/Relu_output_0,                 
+	Tensor shape: (1, 256, 13, 13),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.13/conv/Conv_output_0,                 
+	Tensor shape: (1, 512, 13, 13),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.13/act/act_quant/activation_impl/Relu_output_0,                 
+	Tensor shape: (1, 512, 13, 13),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.14/conv/Conv_output_0,                 
+	Tensor shape: (1, 128, 13, 13),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.14/act/act_quant/activation_impl/Relu_output_0,                 
+	Tensor shape: (1, 128, 13, 13),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.15/Resize_output_0,                 
+	Tensor shape: (1, 128, 26, 26),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.16/Concat_output_0,                 
+	Tensor shape: (1, 384, 26, 26),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.17/conv/Conv_output_0,                 
+	Tensor shape: (1, 256, 26, 26),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.17/act/act_quant/activation_impl/Relu_output_0,                 
+	Tensor shape: (1, 256, 26, 26),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.18/m.0/Conv_output_0,                 
+	Tensor shape: (1, 255, 26, 26),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Unknown shape with more than 4 dimensions.
+Net: /model.18/Reshape_output_0,                 
+	Tensor shape: (1, 3, 85, 26),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Unknown shape with more than 4 dimensions.
+Net: /model.18/Sigmoid_output_0,                 
+	Tensor shape: (1, 3, 26, 26),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Unknown shape with more than 4 dimensions.
+Net: /model.18/Slice_output_0,                 
+	Tensor shape: (1, 3, 26, 26),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Unknown shape with more than 4 dimensions.
+Net: /model.18/Mul_output_0,                 
+	Tensor shape: (1, 3, 26, 26),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Unknown shape with more than 4 dimensions.
+Net: /model.18/Sub_output_0,                 
+	Tensor shape: (1, 3, 26, 26),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Unknown shape with more than 4 dimensions.
+Net: /model.18/Add_output_0,                 
+	Tensor shape: (1, 3, 26, 26),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Unknown shape with more than 4 dimensions.
+Net: /model.18/Mul_1_output_0,                 
+	Tensor shape: (1, 3, 26, 26),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Unknown shape with more than 4 dimensions.
+Net: /model.18/Slice_1_output_0,                 
+	Tensor shape: (1, 3, 26, 26),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Unknown shape with more than 4 dimensions.
+Net: /model.18/Mul_2_output_0,                 
+	Tensor shape: (1, 3, 26, 26),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Unknown shape with more than 4 dimensions.
+Net: /model.18/Pow_output_0,                 
+	Tensor shape: (1, 3, 26, 26),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Unknown shape with more than 4 dimensions.
+Net: /model.18/Mul_3_output_0,                 
+	Tensor shape: (1, 3, 26, 26),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Unknown shape with more than 4 dimensions.
+Net: /model.18/Slice_2_output_0,                 
+	Tensor shape: (1, 3, 26, 26),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Unknown shape with more than 4 dimensions.
+Net: /model.18/Concat_output_0,                 
+	Tensor shape: (1, 3, 26, 26),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.18/Reshape_1_output_0,                 
+	Tensor shape: (1, 2028, 85, 1),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.18/m.1/Conv_output_0,                 
+	Tensor shape: (1, 255, 13, 13),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Unknown shape with more than 4 dimensions.
+Net: /model.18/Reshape_2_output_0,                 
+	Tensor shape: (1, 3, 85, 13),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Unknown shape with more than 4 dimensions.
+Net: /model.18/Sigmoid_1_output_0,                 
+	Tensor shape: (1, 3, 13, 13),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Unknown shape with more than 4 dimensions.
+Net: /model.18/Slice_3_output_0,                 
+	Tensor shape: (1, 3, 13, 13),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Unknown shape with more than 4 dimensions.
+Net: /model.18/Mul_4_output_0,                 
+	Tensor shape: (1, 3, 13, 13),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Unknown shape with more than 4 dimensions.
+Net: /model.18/Sub_1_output_0,                 
+	Tensor shape: (1, 3, 13, 13),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Unknown shape with more than 4 dimensions.
+Net: /model.18/Add_1_output_0,                 
+	Tensor shape: (1, 3, 13, 13),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Unknown shape with more than 4 dimensions.
+Net: /model.18/Mul_5_output_0,                 
+	Tensor shape: (1, 3, 13, 13),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Unknown shape with more than 4 dimensions.
+Net: /model.18/Slice_4_output_0,                 
+	Tensor shape: (1, 3, 13, 13),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Unknown shape with more than 4 dimensions.
+Net: /model.18/Mul_6_output_0,                 
+	Tensor shape: (1, 3, 13, 13),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Unknown shape with more than 4 dimensions.
+Net: /model.18/Pow_1_output_0,                 
+	Tensor shape: (1, 3, 13, 13),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Unknown shape with more than 4 dimensions.
+Net: /model.18/Mul_7_output_0,                 
+	Tensor shape: (1, 3, 13, 13),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Unknown shape with more than 4 dimensions.
+Net: /model.18/Slice_5_output_0,                 
+	Tensor shape: (1, 3, 13, 13),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Unknown shape with more than 4 dimensions.
+Net: /model.18/Concat_1_output_0,                 
+	Tensor shape: (1, 3, 13, 13),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: /model.18/Reshape_3_output_0,                 
+	Tensor shape: (1, 507, 85, 1),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: model.18.m.0.weight,                 
+	Tensor shape: (255, 256, 1, 1),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: model.18.m.1.weight,                 
+	Tensor shape: (255, 512, 1, 1),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: model.18.m.0.bias,                 
+	Tensor shape: (255, 1, 1, 1),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: model.18.m.1.bias,                 
+	Tensor shape: (255, 1, 1, 1),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Net: output,                 
+	Tensor shape: (1, 2535, 85, 1),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Unknown shape with more than 4 dimensions.
+Net: onnx::Sigmoid_187,                 
+	Tensor shape: (1, 3, 26, 26),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+Unknown shape with more than 4 dimensions.
+Net: onnx::Sigmoid_238,                 
+	Tensor shape: (1, 3, 13, 13),                 
+	Depth: 1,                 
+	Width: 1,                 
+	Channel packing: 1,                 
+	Data type: None
+End point found: /model_13/act/act_quant/export_handler/Quant
+Cutting the branch at /model_13/act/act_quant/export_handler/Quant
+Assigning output name output_0 to node /model_13/act/act_quant/export_handler/Quant
+Node /model_18/m_1/Conv not recognized. Skipping.
+Concatenation layer found
+/model_16/Concat
+[1, 128, 26, 26]
+[1, 256, 26, 26]
+Node /model_18/Reshape_2 not recognized. Skipping.
+Node /model_18/Transpose_1 not recognized. Skipping.
+Node /model_18/Sigmoid_1 not recognized. Skipping.
+End point found: /model_17/act/act_quant/export_handler/Quant
+Cutting the branch at /model_17/act/act_quant/export_handler/Quant
+Assigning output name output_1 to node /model_17/act/act_quant/export_handler/Quant
+Node /model_18/Slice_3 not recognized. Skipping.
+Node /model_18/Slice_4 not recognized. Skipping.
+Node /model_18/Slice_5 not recognized. Skipping.
+Node /model_18/m_0/Conv not recognized. Skipping.
+Node /model_18/Mul_4 not recognized. Skipping.
+Node /model_18/Mul_6 not recognized. Skipping.
+Node /model_18/Reshape not recognized. Skipping.
+Node /model_18/Sub_1 not recognized. Skipping.
+Node /model_18/Pow_1 not recognized. Skipping.
+Node /model_18/Transpose not recognized. Skipping.
+Node /model_18/Add_1 not recognized. Skipping.
+Node /model_18/Mul_7 not recognized. Skipping.
+Node /model_18/Sigmoid not recognized. Skipping.
+Node /model_18/Mul_5 not recognized. Skipping.
+Node /model_18/Slice not recognized. Skipping.
+Node /model_18/Slice_1 not recognized. Skipping.
+Node /model_18/Slice_2 not recognized. Skipping.
+Node /model_18/Concat_1 not recognized. Skipping.
+Node /model_18/Mul not recognized. Skipping.
+Node /model_18/Mul_2 not recognized. Skipping.
+Node /model_18/Reshape_3 not recognized. Skipping.
+Node /model_18/Sub not recognized. Skipping.
+Node /model_18/Pow not recognized. Skipping.
+Node /model_18/Add not recognized. Skipping.
+Node /model_18/Mul_3 not recognized. Skipping.
+Node /model_18/Mul_1 not recognized. Skipping.
+Node /model_18/Concat not recognized. Skipping.
+Node /model_18/Reshape_1 not recognized. Skipping.
+Node /model_18/Concat_2 not recognized. Skipping.
+Cutting the branch at ['/model_13/act/act_quant/export_handler/Quant', '/model_17/act/act_quant/export_handler/Quant']
+Graph output name: output
+Folding weight quant /model_0/conv/weight_quant/export_handler/Quant into layer /model_0/conv/Conv 432
+Folding weight quant /model_2/conv/weight_quant/export_handler/Quant into layer /model_2/conv/Conv 4608
+Folding weight quant /model_4/conv/weight_quant/export_handler/Quant into layer /model_4/conv/Conv 18432
+Folding weight quant /model_6/conv/weight_quant/export_handler/Quant into layer /model_6/conv/Conv 73728
+Folding weight quant /model_8/conv/weight_quant/export_handler/Quant into layer /model_8/conv/Conv 294912
+Folding weight quant /model_10/conv/weight_quant/export_handler/Quant into layer /model_10/conv/Conv 1179648
+Folding weight quant /model_11/conv/weight_quant/export_handler/Quant into layer /model_11/conv/Conv 4718592
+Folding weight quant /model_12/conv/weight_quant/export_handler/Quant into layer /model_12/conv/Conv 262144
+Folding weight quant /model_13/conv/weight_quant/export_handler/Quant into layer /model_13/conv/Conv 1179648
+Folding weight quant /model_14/conv/weight_quant/export_handler/Quant into layer /model_14/conv/Conv 32768
+Folding weight quant /model_17/conv/weight_quant/export_handler/Quant into layer /model_17/conv/Conv 884736
+Quantization layer "/model_0/id/act_quant/export_handler/Quant" folded with "produce_stream".
+Quantization layer "/model_0/act/act_quant/export_handler/Quant" folded with "/model_0/act/act_quant/activation_impl/Relu".
+Quantization layer "/model_2/act/act_quant/export_handler/Quant" folded with "/model_2/act/act_quant/activation_impl/Relu".
+Quantization layer "/model_4/act/act_quant/export_handler/Quant" folded with "/model_4/act/act_quant/activation_impl/Relu".
+Quantization layer "/model_6/act/act_quant/export_handler/Quant" folded with "/model_6/act/act_quant/activation_impl/Relu".
+Quantization layer "/model_8/act/act_quant/export_handler/Quant" folded with "/model_8/act/act_quant/activation_impl/Relu".
+Quantization layer "/model_10/act/act_quant/export_handler/Quant" folded with "/model_10/act/act_quant/activation_impl/Relu".
+Quantization layer "/model_11/act/act_quant/export_handler/Quant" folded with "/model_11/act/act_quant/activation_impl/Relu".
+Quantization layer "/model_12/act/act_quant/export_handler/Quant" folded with "/model_12/act/act_quant/activation_impl/Relu".
+Quantization layer "/model_13/act/act_quant/export_handler/Quant" folded with "/model_13/act/act_quant/activation_impl/Relu".
+Quantization layer "/model_14/act/act_quant/export_handler/Quant" folded with "/model_14/act/act_quant/activation_impl/Relu".
+Quantization layer "/model_17/act/act_quant/export_handler/Quant" folded with "/model_17/act/act_quant/activation_impl/Relu".
+Output quant /model_0/id/act_quant/export_handler/Quant folded into produce_stream
+Input layers: ['produce_stream']
+Output layers: ['/model_0/conv/Conv']
+Connected node produce_stream to net /model_0/id/act_quant/export_handler/Quant_output_0
+Output quant /model_0/act/act_quant/export_handler/Quant folded into /model_0/act/act_quant/activation_impl/Relu
+Input layers: ['/model_0/act/act_quant/activation_impl/Relu']
+Output layers: ['/model_1/MaxPool']
+Connected node /model_0/act/act_quant/activation_impl/Relu to net /model_0/act/act_quant/export_handler/Quant_output_0
+Output quant /model_2/act/act_quant/export_handler/Quant folded into /model_2/act/act_quant/activation_impl/Relu
+Input layers: ['/model_2/act/act_quant/activation_impl/Relu']
+Output layers: ['/model_3/MaxPool']
+Connected node /model_2/act/act_quant/activation_impl/Relu to net /model_2/act/act_quant/export_handler/Quant_output_0
+Output quant /model_4/act/act_quant/export_handler/Quant folded into /model_4/act/act_quant/activation_impl/Relu
+Input layers: ['/model_4/act/act_quant/activation_impl/Relu']
+Output layers: ['/model_5/MaxPool']
+Connected node /model_4/act/act_quant/activation_impl/Relu to net /model_4/act/act_quant/export_handler/Quant_output_0
+Output quant /model_6/act/act_quant/export_handler/Quant folded into /model_6/act/act_quant/activation_impl/Relu
+Input layers: ['/model_6/act/act_quant/activation_impl/Relu']
+Output layers: ['/model_7/MaxPool']
+Connected node /model_6/act/act_quant/activation_impl/Relu to net /model_6/act/act_quant/export_handler/Quant_output_0
+Output quant /model_8/act/act_quant/export_handler/Quant folded into /model_8/act/act_quant/activation_impl/Relu
+Input layers: ['/model_8/act/act_quant/activation_impl/Relu']
+Output layers: ['/model_9/MaxPool', '/model_16/Concat']
+Connected node /model_8/act/act_quant/activation_impl/Relu to net /model_8/act/act_quant/export_handler/Quant_output_0
+Output quant /model_10/act/act_quant/export_handler/Quant folded into /model_10/act/act_quant/activation_impl/Relu
+Input layers: ['/model_10/act/act_quant/activation_impl/Relu']
+Output layers: ['/model_11/conv/Conv']
+Connected node /model_10/act/act_quant/activation_impl/Relu to net /model_10/act/act_quant/export_handler/Quant_output_0
+Output quant /model_11/act/act_quant/export_handler/Quant folded into /model_11/act/act_quant/activation_impl/Relu
+Input layers: ['/model_11/act/act_quant/activation_impl/Relu']
+Output layers: ['/model_12/conv/Conv']
+Connected node /model_11/act/act_quant/activation_impl/Relu to net /model_11/act/act_quant/export_handler/Quant_output_0
+Output quant /model_12/act/act_quant/export_handler/Quant folded into /model_12/act/act_quant/activation_impl/Relu
+Input layers: ['/model_12/act/act_quant/activation_impl/Relu']
+Output layers: ['/model_13/conv/Conv', '/model_14/conv/Conv']
+Connected node /model_12/act/act_quant/activation_impl/Relu to net /model_12/act/act_quant/export_handler/Quant_output_0
+Output quant /model_13/act/act_quant/export_handler/Quant folded into /model_13/act/act_quant/activation_impl/Relu
+Input layers: ['/model_13/act/act_quant/activation_impl/Relu']
+Output layers: ['consume_stream_output_0']
+Connected node /model_13/act/act_quant/activation_impl/Relu to net output_0
+Output quant /model_14/act/act_quant/export_handler/Quant folded into /model_14/act/act_quant/activation_impl/Relu
+Input layers: ['/model_14/act/act_quant/activation_impl/Relu']
+Output layers: ['/model_15/Resize']
+Connected node /model_14/act/act_quant/activation_impl/Relu to net /model_14/act/act_quant/export_handler/Quant_output_0
+Output quant /model_17/act/act_quant/export_handler/Quant folded into /model_17/act/act_quant/activation_impl/Relu
+Input layers: ['/model_17/act/act_quant/activation_impl/Relu']
+Output layers: ['consume_stream_output_1']
+Connected node /model_17/act/act_quant/activation_impl/Relu to net output_1
+Analizing produce_stream
+	Propagating output quantization from "produce_stream" to input quantization for "/model_0/conv/Conv".
+Analizing /model_0/conv/Conv
+Analizing /model_0/act/act_quant/activation_impl/Relu
+	Propagating output quantization from "/model_0/act/act_quant/activation_impl/Relu" to input quantization for "/model_1/MaxPool".
+Analizing /model_1/MaxPool
+	Propagating input quantization to output quantization for "/model_1/MaxPool".
+	Propagating output quantization from "/model_1/MaxPool" to input quantization for "/model_2/conv/Conv".
+Analizing /model_2/conv/Conv
+Analizing /model_2/act/act_quant/activation_impl/Relu
+	Propagating output quantization from "/model_2/act/act_quant/activation_impl/Relu" to input quantization for "/model_3/MaxPool".
+Analizing /model_3/MaxPool
+	Propagating input quantization to output quantization for "/model_3/MaxPool".
+	Propagating output quantization from "/model_3/MaxPool" to input quantization for "/model_4/conv/Conv".
+Analizing /model_4/conv/Conv
+Analizing /model_4/act/act_quant/activation_impl/Relu
+	Propagating output quantization from "/model_4/act/act_quant/activation_impl/Relu" to input quantization for "/model_5/MaxPool".
+Analizing /model_5/MaxPool
+	Propagating input quantization to output quantization for "/model_5/MaxPool".
+	Propagating output quantization from "/model_5/MaxPool" to input quantization for "/model_6/conv/Conv".
+Analizing /model_6/conv/Conv
+Analizing /model_6/act/act_quant/activation_impl/Relu
+	Propagating output quantization from "/model_6/act/act_quant/activation_impl/Relu" to input quantization for "/model_7/MaxPool".
+Analizing /model_7/MaxPool
+	Propagating input quantization to output quantization for "/model_7/MaxPool".
+	Propagating output quantization from "/model_7/MaxPool" to input quantization for "/model_8/conv/Conv".
+Analizing /model_8/conv/Conv
+Analizing /model_8/act/act_quant/activation_impl/Relu
+	Propagating output quantization from "/model_8/act/act_quant/activation_impl/Relu" to input quantization for "/model_9/MaxPool".
+	Propagating output quantization from "/model_8/act/act_quant/activation_impl/Relu" to input quantization for "/model_16/Concat".
+Analizing /model_16/Concat
+	Propagating input quantization to output quantization for "/model_16/Concat".
+	Propagating output quantization from "/model_16/Concat" to input quantization for "/model_17/conv/Conv".
+Analizing /model_17/conv/Conv
+Analizing /model_17/act/act_quant/activation_impl/Relu
+Analizing consume_stream_output_1
+Analizing /model_9/MaxPool
+	Propagating input quantization to output quantization for "/model_9/MaxPool".
+	Propagating output quantization from "/model_9/MaxPool" to input quantization for "/model_10/conv/Conv".
+Analizing /model_10/conv/Conv
+Analizing /model_10/act/act_quant/activation_impl/Relu
+	Propagating output quantization from "/model_10/act/act_quant/activation_impl/Relu" to input quantization for "/model_11/conv/Conv".
+Analizing /model_11/conv/Conv
+Analizing /model_11/act/act_quant/activation_impl/Relu
+	Propagating output quantization from "/model_11/act/act_quant/activation_impl/Relu" to input quantization for "/model_12/conv/Conv".
+Analizing /model_12/conv/Conv
+Analizing /model_12/act/act_quant/activation_impl/Relu
+	Propagating output quantization from "/model_12/act/act_quant/activation_impl/Relu" to input quantization for "/model_13/conv/Conv".
+	Propagating output quantization from "/model_12/act/act_quant/activation_impl/Relu" to input quantization for "/model_14/conv/Conv".
+Analizing /model_14/conv/Conv
+Analizing /model_14/act/act_quant/activation_impl/Relu
+	Propagating output quantization from "/model_14/act/act_quant/activation_impl/Relu" to input quantization for "/model_15/Resize".
+Analizing /model_15/Resize
+	Propagating input quantization to output quantization for "/model_15/Resize".
+Analizing /model_13/conv/Conv
+Analizing /model_13/act/act_quant/activation_impl/Relu
+Analizing consume_stream_output_0
+Input layers: ['/model_0/conv/Conv']
+Output layers: ['/model_1/MaxPool']
+Connected node /model_0/conv/Conv to net /model_0/act/act_quant/export_handler/Quant_output_0
+Relu layer "/model_0/act/act_quant/activation_impl/Relu" merged with "/model_0/conv/Conv".
+Input layers: ['/model_2/conv/Conv']
+Output layers: ['/model_3/MaxPool']
+Connected node /model_2/conv/Conv to net /model_2/act/act_quant/export_handler/Quant_output_0
+Relu layer "/model_2/act/act_quant/activation_impl/Relu" merged with "/model_2/conv/Conv".
+Input layers: ['/model_4/conv/Conv']
+Output layers: ['/model_5/MaxPool']
+Connected node /model_4/conv/Conv to net /model_4/act/act_quant/export_handler/Quant_output_0
+Relu layer "/model_4/act/act_quant/activation_impl/Relu" merged with "/model_4/conv/Conv".
+Input layers: ['/model_6/conv/Conv']
+Output layers: ['/model_7/MaxPool']
+Connected node /model_6/conv/Conv to net /model_6/act/act_quant/export_handler/Quant_output_0
+Relu layer "/model_6/act/act_quant/activation_impl/Relu" merged with "/model_6/conv/Conv".
+Input layers: ['/model_8/conv/Conv']
+Output layers: ['/model_9/MaxPool', '/model_16/Concat']
+Connected node /model_8/conv/Conv to net /model_8/act/act_quant/export_handler/Quant_output_0
+Relu layer "/model_8/act/act_quant/activation_impl/Relu" merged with "/model_8/conv/Conv".
+Input layers: ['/model_10/conv/Conv']
+Output layers: ['/model_11/conv/Conv']
+Connected node /model_10/conv/Conv to net /model_10/act/act_quant/export_handler/Quant_output_0
+Relu layer "/model_10/act/act_quant/activation_impl/Relu" merged with "/model_10/conv/Conv".
+Input layers: ['/model_11/conv/Conv']
+Output layers: ['/model_12/conv/Conv']
+Connected node /model_11/conv/Conv to net /model_11/act/act_quant/export_handler/Quant_output_0
+Relu layer "/model_11/act/act_quant/activation_impl/Relu" merged with "/model_11/conv/Conv".
+Input layers: ['/model_12/conv/Conv']
+Output layers: ['/model_13/conv/Conv', '/model_14/conv/Conv']
+Connected node /model_12/conv/Conv to net /model_12/act/act_quant/export_handler/Quant_output_0
+Relu layer "/model_12/act/act_quant/activation_impl/Relu" merged with "/model_12/conv/Conv".
+Input layers: ['/model_13/conv/Conv']
+Output layers: ['consume_stream_output_0']
+Connected node /model_13/conv/Conv to net output_0
+Relu layer "/model_13/act/act_quant/activation_impl/Relu" merged with "/model_13/conv/Conv".
+Input layers: ['/model_14/conv/Conv']
+Output layers: ['/model_15/Resize']
+Connected node /model_14/conv/Conv to net /model_14/act/act_quant/export_handler/Quant_output_0
+Relu layer "/model_14/act/act_quant/activation_impl/Relu" merged with "/model_14/conv/Conv".
+Input layers: ['/model_17/conv/Conv']
+Output layers: ['consume_stream_output_1']
+Connected node /model_17/conv/Conv to net output_1
+Relu layer "/model_17/act/act_quant/activation_impl/Relu" merged with "/model_17/conv/Conv".
+Layer: produce_stream ['/model_0/conv/Conv']
+Output quant: ap_ufixed<8, 3, AP_RND_CONV, AP_SAT>
+Layer: /model_0/conv/Conv ['/model_1/MaxPool']
+Input quant: ap_ufixed<8, 3, AP_RND_CONV, AP_SAT>
+Output quant: ap_ufixed<8, 3, AP_RND_CONV, AP_SAT>
+Layer: /model_1/MaxPool ['/model_2/conv/Conv']
+Input quant: ap_ufixed<8, 3, AP_RND_CONV, AP_SAT>
+Output quant: ap_ufixed<8, 3, AP_RND_CONV, AP_SAT>
+Layer: /model_2/conv/Conv ['/model_3/MaxPool']
+Input quant: ap_ufixed<8, 3, AP_RND_CONV, AP_SAT>
+Output quant: ap_ufixed<8, 3, AP_RND_CONV, AP_SAT>
+Layer: /model_3/MaxPool ['/model_4/conv/Conv']
+Input quant: ap_ufixed<8, 3, AP_RND_CONV, AP_SAT>
+Output quant: ap_ufixed<8, 3, AP_RND_CONV, AP_SAT>
+Layer: /model_4/conv/Conv ['/model_5/MaxPool']
+Input quant: ap_ufixed<8, 3, AP_RND_CONV, AP_SAT>
+Output quant: ap_ufixed<8, 3, AP_RND_CONV, AP_SAT>
+Layer: /model_5/MaxPool ['/model_6/conv/Conv']
+Input quant: ap_ufixed<8, 3, AP_RND_CONV, AP_SAT>
+Output quant: ap_ufixed<8, 3, AP_RND_CONV, AP_SAT>
+Layer: /model_6/conv/Conv ['/model_7/MaxPool']
+Input quant: ap_ufixed<8, 3, AP_RND_CONV, AP_SAT>
+Output quant: ap_ufixed<8, 3, AP_RND_CONV, AP_SAT>
+Layer: /model_7/MaxPool ['/model_8/conv/Conv']
+Input quant: ap_ufixed<8, 3, AP_RND_CONV, AP_SAT>
+Output quant: ap_ufixed<8, 3, AP_RND_CONV, AP_SAT>
+Layer: /model_8/conv/Conv ['/model_9/MaxPool', '/model_16/Concat']
+Input quant: ap_ufixed<8, 3, AP_RND_CONV, AP_SAT>
+Output quant: ap_ufixed<8, 3, AP_RND_CONV, AP_SAT>
+Layer: /model_9/MaxPool ['/model_10/conv/Conv']
+Input quant: ap_ufixed<8, 3, AP_RND_CONV, AP_SAT>
+Output quant: ap_ufixed<8, 3, AP_RND_CONV, AP_SAT>
+Layer: /model_10/conv/Conv ['/model_11/conv/Conv']
+Input quant: ap_ufixed<8, 3, AP_RND_CONV, AP_SAT>
+Output quant: ap_ufixed<8, 3, AP_RND_CONV, AP_SAT>
+Layer: /model_11/conv/Conv ['/model_12/conv/Conv']
+Input quant: ap_ufixed<8, 3, AP_RND_CONV, AP_SAT>
+Output quant: ap_ufixed<8, 3, AP_RND_CONV, AP_SAT>
+Layer: /model_12/conv/Conv ['/model_13/conv/Conv', '/model_14/conv/Conv']
+Input quant: ap_ufixed<8, 3, AP_RND_CONV, AP_SAT>
+Output quant: ap_ufixed<8, 3, AP_RND_CONV, AP_SAT>
+Layer: /model_13/conv/Conv ['consume_stream_output_0']
+Input quant: ap_ufixed<8, 3, AP_RND_CONV, AP_SAT>
+Output quant: ap_ufixed<8, 3, AP_RND_CONV, AP_SAT>
+Layer: /model_14/conv/Conv ['/model_15/Resize']
+Input quant: ap_ufixed<8, 3, AP_RND_CONV, AP_SAT>
+Output quant: ap_ufixed<8, 3, AP_RND_CONV, AP_SAT>
+Layer: /model_15/Resize ['/model_16/Concat']
+Input quant: ap_ufixed<8, 3, AP_RND_CONV, AP_SAT>
+Output quant: ap_ufixed<8, 3, AP_RND_CONV, AP_SAT>
+Layer: /model_16/Concat ['/model_17/conv/Conv']
+Input quant: ap_ufixed<8, 3, AP_RND_CONV, AP_SAT>
+Output quant: ap_ufixed<8, 3, AP_RND_CONV, AP_SAT>
+Layer: /model_17/conv/Conv ['consume_stream_output_1']
+Input quant: ap_ufixed<8, 3, AP_RND_CONV, AP_SAT>
+Output quant: ap_ufixed<8, 3, AP_RND_CONV, AP_SAT>
+Layer: consume_stream_output_0 None
+Layer: consume_stream_output_1 None
+Before: 0, After: 0
+Graph:
+	produce_stream -> ['/model_0/conv/Conv']
+	/model_0/conv/Conv -> ['/model_1/MaxPool']
+	/model_1/MaxPool -> ['/model_2/conv/Conv']
+	/model_2/conv/Conv -> ['/model_3/MaxPool']
+	/model_3/MaxPool -> ['/model_4/conv/Conv']
+	/model_4/conv/Conv -> ['/model_5/MaxPool']
+	/model_5/MaxPool -> ['/model_6/conv/Conv']
+	/model_6/conv/Conv -> ['/model_7/MaxPool']
+	/model_7/MaxPool -> ['/model_8/conv/Conv']
+	/model_8/conv/Conv -> ['/model_9/MaxPool', '/model_16/Concat']
+	/model_9/MaxPool -> ['/model_10/conv/Conv']
+	/model_16/Concat -> ['/model_17/conv/Conv']
+	/model_10/conv/Conv -> ['/model_11/conv/Conv']
+	/model_17/conv/Conv -> ['consume_stream_output_1']
+	/model_11/conv/Conv -> ['/model_12/conv/Conv']
+	/model_12/conv/Conv -> ['/model_13/conv/Conv', '/model_14/conv/Conv']
+	/model_13/conv/Conv -> ['consume_stream_output_0']
+	/model_14/conv/Conv -> ['/model_15/Resize']
+	/model_15/Resize -> ['/model_16/Concat']
+Channels: Node produce_stream -> /model_0/conv/Conv (3 -> 3 -> 3)
+Width: Node produce_stream -> /model_0/conv/Conv (1 -> 1 -> 1)
+Channels: Node /model_0/conv/Conv -> /model_1/MaxPool (16 -> 16 -> 16)
+Width: Node /model_0/conv/Conv -> /model_1/MaxPool (1 -> 1 -> 1)
+Channels: Node /model_1/MaxPool -> /model_2/conv/Conv (16 -> 16 -> 16 -> 8)
+Width: Node /model_1/MaxPool -> /model_2/conv/Conv (1 -> 1 -> 2)
+Channels: Node /model_2/conv/Conv -> /model_3/MaxPool (16 -> 16 -> 16 -> 16)
+Width: Node /model_2/conv/Conv -> /model_3/MaxPool (2 -> 2 -> 1)
+Channels: Node /model_3/MaxPool -> /model_4/conv/Conv (16 -> 16 -> 16 -> 8)
+Width: Node /model_3/MaxPool -> /model_4/conv/Conv (1 -> 1 -> 2)
+Channels: Node /model_4/conv/Conv -> /model_5/MaxPool (8 -> 8 -> 8 -> 8)
+Width: Node /model_4/conv/Conv -> /model_5/MaxPool (2 -> 2 -> 1)
+Channels: Node /model_5/MaxPool -> /model_6/conv/Conv (8 -> 8 -> 8 -> 8)
+Width: Node /model_5/MaxPool -> /model_6/conv/Conv (1 -> 1 -> 2)
+Channels: Node /model_6/conv/Conv -> /model_7/MaxPool (8 -> 8 -> 8 -> 8)
+Width: Node /model_6/conv/Conv -> /model_7/MaxPool (2 -> 2 -> 1)
+Channels: Node /model_7/MaxPool -> /model_8/conv/Conv (8 -> 8 -> 8 -> 8)
+Width: Node /model_7/MaxPool -> /model_8/conv/Conv (1 -> 1 -> 2)
+Channels: Node /model_8/conv/Conv -> /model_9/MaxPool (8 -> 8 -> 8 -> 8)
+Width: Node /model_8/conv/Conv -> /model_9/MaxPool (2 -> 2 -> 1)
+Channels: Node /model_9/MaxPool -> /model_10/conv/Conv (8 -> 8 -> 8)
+Width: Node /model_9/MaxPool -> /model_10/conv/Conv (1 -> 1 -> 1)
+Channels: Node /model_16/Concat -> /model_17/conv/Conv (24 -> 24 -> 24)
+Width: Node /model_16/Concat -> /model_17/conv/Conv (1 -> 1 -> 1)
+Channels: Node /model_10/conv/Conv -> /model_11/conv/Conv (32 -> 32 -> 32)
+Width: Node /model_10/conv/Conv -> /model_11/conv/Conv (1 -> 1 -> 1)
+Channels: Node /model_17/conv/Conv -> consume_stream_output_1 (16 -> 16 -> 1)
+Width: Node /model_17/conv/Conv -> consume_stream_output_1 (1 -> 1 -> 1)
+Channels: Node /model_11/conv/Conv -> /model_12/conv/Conv (16 -> 16 -> 16)
+Width: Node /model_11/conv/Conv -> /model_12/conv/Conv (1 -> 1 -> 1)
+Channels: Node /model_12/conv/Conv -> /model_13/conv/Conv (16 -> 16 -> 8)
+Width: Node /model_12/conv/Conv -> /model_13/conv/Conv (1 -> 1 -> 1)
+Channels: Node /model_13/conv/Conv -> consume_stream_output_0 (16 -> 16 -> 1)
+Width: Node /model_13/conv/Conv -> consume_stream_output_0 (1 -> 1 -> 1)
+Channels: Node /model_14/conv/Conv -> /model_15/Resize (4 -> 4 -> 1)
+Width: Node /model_14/conv/Conv -> /model_15/Resize (1 -> 1 -> 1)
+Channels: Node /model_15/Resize -> /model_16/Concat (1 -> 1 -> 1)
+Width: Node /model_15/Resize -> /model_16/Concat (1 -> 1 -> 1)
+Assigning packing
+Assigning packing for /model_0/conv/Conv: (2, 1)
+Assigning packing for /model_2/conv/Conv: (1, 2)
+Assigning packing for /model_4/conv/Conv: (1, 2)
+Assigning packing for /model_6/conv/Conv: (1, 2)
+Assigning packing for /model_8/conv/Conv: (1, 2)
+Assigning packing for /model_10/conv/Conv: (2, 1)
+Assigning packing for /model_11/conv/Conv: (2, 1)
+Assigning packing for /model_12/conv/Conv: (2, 1)
+Assigning packing for /model_13/conv/Conv: (2, 1)
+Assigning packing for /model_14/conv/Conv: (2, 1)
+Assigning packing for /model_17/conv/Conv: (2, 1)
+Checking produce_stream -> /model_0/id/act_quant/export_handler/Quant_output_0
+Output: /model_0/id/act_quant/export_handler/Quant_output_0, [['produce_stream'], ['/model_0/conv/Conv']]
+Checking /model_0/conv/Conv -> /model_0/act/act_quant/export_handler/Quant_output_0
+Output: /model_0/act/act_quant/export_handler/Quant_output_0, [['/model_0/conv/Conv'], ['/model_1/MaxPool']]
+Checking /model_1/MaxPool -> /model_1/MaxPool_output_0
+Output: /model_1/MaxPool_output_0, [['/model_1/MaxPool'], ['/model_2/conv/Conv']]
+Checking /model_2/conv/Conv -> /model_2/act/act_quant/export_handler/Quant_output_0
+Output: /model_2/act/act_quant/export_handler/Quant_output_0, [['/model_2/conv/Conv'], ['/model_3/MaxPool']]
+Checking /model_3/MaxPool -> /model_3/MaxPool_output_0
+Output: /model_3/MaxPool_output_0, [['/model_3/MaxPool'], ['/model_4/conv/Conv']]
+Checking /model_4/conv/Conv -> /model_4/act/act_quant/export_handler/Quant_output_0
+Output: /model_4/act/act_quant/export_handler/Quant_output_0, [['/model_4/conv/Conv'], ['/model_5/MaxPool']]
+Checking /model_5/MaxPool -> /model_5/MaxPool_output_0
+Output: /model_5/MaxPool_output_0, [['/model_5/MaxPool'], ['/model_6/conv/Conv']]
+Checking /model_6/conv/Conv -> /model_6/act/act_quant/export_handler/Quant_output_0
+Output: /model_6/act/act_quant/export_handler/Quant_output_0, [['/model_6/conv/Conv'], ['/model_7/MaxPool']]
+Checking /model_7/MaxPool -> /model_7/MaxPool_output_0
+Output: /model_7/MaxPool_output_0, [['/model_7/MaxPool'], ['/model_8/conv/Conv']]
+Checking /model_8/conv/Conv -> /model_8/act/act_quant/export_handler/Quant_output_0
+Output: /model_8/act/act_quant/export_handler/Quant_output_0, [['/model_8/conv/Conv'], ['/model_9/MaxPool', '/model_16/Concat']]
+Checking /model_9/MaxPool -> /model_9/MaxPool_output_0
+Output: /model_9/MaxPool_output_0, [['/model_9/MaxPool'], ['/model_10/conv/Conv']]
+Checking /model_10/conv/Conv -> /model_10/act/act_quant/export_handler/Quant_output_0
+Output: /model_10/act/act_quant/export_handler/Quant_output_0, [['/model_10/conv/Conv'], ['/model_11/conv/Conv']]
+Checking /model_11/conv/Conv -> /model_11/act/act_quant/export_handler/Quant_output_0
+Output: /model_11/act/act_quant/export_handler/Quant_output_0, [['/model_11/conv/Conv'], ['/model_12/conv/Conv']]
+Checking /model_12/conv/Conv -> /model_12/act/act_quant/export_handler/Quant_output_0
+Output: /model_12/act/act_quant/export_handler/Quant_output_0, [['/model_12/conv/Conv'], ['/model_13/conv/Conv', '/model_14/conv/Conv']]
+Checking /model_13/conv/Conv -> output_0
+Output: output_0, [['/model_13/conv/Conv'], ['consume_stream_output_0']]
+Checking /model_14/conv/Conv -> /model_14/act/act_quant/export_handler/Quant_output_0
+Output: /model_14/act/act_quant/export_handler/Quant_output_0, [['/model_14/conv/Conv'], ['/model_15/Resize']]
+Error: line buffer before /model_14/conv/Conv in_ops (1) is not a multiple of line_ops (8).
+Checking /model_15/Resize -> /model_15/Resize_output_0
+Output: /model_15/Resize_output_0, [['/model_15/Resize'], ['/model_16/Concat']]
+Checking /model_16/Concat -> /model_16/Concat_output_0
+Output: /model_16/Concat_output_0, [['/model_16/Concat'], ['/model_17/conv/Conv']]
+Checking /model_17/conv/Conv -> output_1
+Output: output_1, [['/model_17/conv/Conv'], ['consume_stream_output_1']]
+Renamed produce_stream to node_produce_0
+Renamed /model_0/conv/Conv to node_conv_1
+Renamed /model_1/MaxPool to node_pool_2
+Renamed /model_2/conv/Conv to node_conv_3
+Renamed /model_3/MaxPool to node_pool_4
+Renamed /model_4/conv/Conv to node_conv_5
+Renamed /model_5/MaxPool to node_pool_6
+Renamed /model_6/conv/Conv to node_conv_7
+Renamed /model_7/MaxPool to node_pool_8
+Renamed /model_8/conv/Conv to node_conv_9
+Renamed /model_9/MaxPool to node_pool_10
+Renamed /model_10/conv/Conv to node_conv_11
+Renamed /model_11/conv/Conv to node_conv_12
+Renamed /model_12/conv/Conv to node_conv_13
+Renamed /model_13/conv/Conv to node_conv_14
+Renamed /model_14/conv/Conv to node_conv_15
+Renamed /model_15/Resize to node_upsample_16
+Renamed /model_16/Concat to node_concat_17
+Renamed /model_17/conv/Conv to node_conv_18
+Renamed consume_stream_output_0 to node_consume_19
+Renamed consume_stream_output_1 to node_consume_20
+Multiple: ['net_14', 'net_18']
+Creating duplicate layer dup_net_14 with producer node_conv_9 and parallelism 8, 2
+Tensor "net_14" duplicated to "net_14_dup_0".
+Tensor "net_14" duplicated to "net_14_dup_1".
+Node node_concat_17 with receptive field: [0, 0]
+skip_throughput: 1.00
+start_throughput: 1.00
+Node node_upsample_16 with latency: [128. 256.] cc. Total latency: [128. 256.] cc.
+Node node_upsample_16 with receptive field: [1, 1]
+Node node_conv_15 with latency: 128.0 cc. Total latency: [256. 384.] cc.
+Node node_conv_15 with receptive field: [2, 2]
+Node node_conv_13 with latency: 1024.0 cc. Total latency: [1280. 1408.] cc.
+Node node_conv_13 with receptive field: [3, 3]
+Node node_conv_12 with latency: 1024.0 cc. Total latency: [2304. 2432.] cc.
+Node node_conv_12 with receptive field: [6, 6]
+Node node_conv_11 with latency: 1024.0 cc. Total latency: [3328. 3456.] cc.
+Node node_conv_11 with receptive field: [9, 9]
+Node node_pool_10 with latency: 1024.0 cc. Total latency: [4352. 4480.] cc.
+Node node_pool_10 with receptive field: [11, 11]
+Node node_conv_9 with latency: 1024.0 cc. Total latency: [5376. 5504.] cc.
+Start pixel coordinates: [5, 4, 256]
+End pixel coordinates: [1, 1, 1]
+Data to be produced to fill receptive field: 20992.
+Time to produce receptive field: 20992 cc
+Time to shift data to last pixel until the add: [26368. 26496.] cc
+Data produced by the other branch in the meanwhile: 26496
+Theoretical depth to have no deadlock: 1656. Single packet of 8 bytes spread over 2 streams.
+Depth considering pipelining and some more slack: 1720.0
+Creating duplicate layer dup_net_18 with producer node_conv_13 and parallelism 16, 1
+Tensor "net_18" duplicated to "net_18_dup_0".
+Tensor "net_18" duplicated to "net_18_dup_1".
+Node node_produce_0
+Node node_conv_1
+	weights 432
+Node node_pool_2
+Node node_conv_3
+	weights 4608
+Node node_pool_4
+Node node_conv_5
+	weights 18432
+Node node_pool_6
+Node node_conv_7
+	weights 73728
+Node node_pool_8
+Node node_conv_9
+	weights 294912
+Node node_pool_10
+Node node_conv_11
+	weights 1179648
+Node node_conv_12
+	weights 4718592
+Node node_conv_13
+	weights 262144
+Node node_conv_14
+	weights 1179648
+Node node_conv_15
+	weights 32768
+Node node_upsample_16
+Node node_concat_17
+Node node_conv_18
+	weights 884736
+Node node_consume_19
+Node node_consume_20
+Node dup_net_14
+Node dup_net_18
+node_conv_1 432 8649216
+node_conv_3 4608 8644608
+node_conv_5 18432 8626176
+node_conv_7 73728 8552448
+node_conv_9 294912 8257536
+node_conv_11 1179648 7077888
+node_conv_12 4718592 2359296
+node_conv_13 262144 2097152
+node_conv_14 1179648 917504
+node_conv_15 32768 884736
+node_conv_18 884736 0
+8 bits, 4718592 weights, 4608 parallelism, BRAM9: 4096, BRAM18: 2048, BRAM36: 1024, BRAM72: 1024
+8 bits, 884736 weights, 3456 parallelism, BRAM9: 3072, BRAM18: 1536, BRAM36: 768, BRAM72: 384
+8 bits, 1179648 weights, 1152 parallelism, BRAM9: 1024, BRAM18: 512, BRAM36: 256, BRAM72: 256
+8 bits, 1179648 weights, 1152 parallelism, BRAM9: 1024, BRAM18: 512, BRAM36: 256, BRAM72: 256
+8 bits, 4608 weights, 576 parallelism, BRAM9: 0, BRAM18: 0, BRAM36: 0, BRAM72: 0
+8 bits, 18432 weights, 576 parallelism, BRAM9: 512, BRAM18: 256, BRAM36: 128, BRAM72: 64
+8 bits, 73728 weights, 576 parallelism, BRAM9: 512, BRAM18: 256, BRAM36: 128, BRAM72: 64
+8 bits, 294912 weights, 576 parallelism, BRAM9: 512, BRAM18: 256, BRAM36: 128, BRAM72: 64
+8 bits, 432 weights, 432 parallelism, BRAM9: 0, BRAM18: 0, BRAM36: 0, BRAM72: 0
+8 bits, 262144 weights, 256 parallelism, BRAM9: 228, BRAM18: 114, BRAM36: 57, BRAM72: 57
+8 bits, 32768 weights, 32 parallelism, BRAM9: 29, BRAM18: 15, BRAM36: 8, BRAM72: 8
+[('node_produce_0', 0), ('node_conv_1', 1), ('node_pool_2', 2), ('node_conv_3', 3), ('node_pool_4', 4), ('node_conv_5', 5), ('node_pool_6', 6), ('node_conv_7', 7), ('node_pool_8', 8), ('node_conv_9', 9), ('dup_net_14', 10), ('node_pool_10', 11), ('node_conv_11', 12), ('node_conv_12', 13), ('node_conv_13', 14), ('dup_net_18', 15), ('node_conv_14', 16), ('node_conv_15', 16), ('node_upsample_16', 17), ('node_consume_19', 17), ('node_concat_17', 18), ('node_conv_18', 19), ('node_consume_20', 20)]
+simd: 4, max_acc 7, guard_bits 2, mask: 3 with 27 adds.
+ops: 16, ich_ops: 3, ich: 3, och: 16, depth: False
+shape: (9, 1, 48)
+simd: 16, max_acc 7, guard_bits 2, mask: 15 with 72 adds.
+ops: 8, ich_ops: 8, ich: 16, och: 32, depth: False
+shape: (9, 8, 64)
+simd: 16, max_acc 7, guard_bits 2, mask: 15 with 72 adds.
+ops: 8, ich_ops: 8, ich: 32, och: 64, depth: False
+shape: (9, 32, 64)
+simd: 16, max_acc 7, guard_bits 2, mask: 15 with 72 adds.
+ops: 8, ich_ops: 8, ich: 64, och: 128, depth: False
+shape: (9, 128, 64)
+simd: 16, max_acc 7, guard_bits 2, mask: 15 with 72 adds.
+ops: 8, ich_ops: 8, ich: 128, och: 256, depth: False
+shape: (9, 512, 64)
+Found depth_net_14_dup_1 in node.keys() for net_14_dup_1
+simd: 16, max_acc 7, guard_bits 2, mask: 15 with 72 adds.
+ops: 16, ich_ops: 8, ich: 256, och: 512, depth: False
+shape: (9, 1024, 128)
+simd: 64, max_acc 7, guard_bits 2, mask: 63 with 288 adds.
+ops: 16, ich_ops: 32, ich: 512, och: 1024, depth: False
+shape: (9, 1024, 512)
+simd: 4, max_acc 7, guard_bits 2, mask: 3 with 16 adds.
+ops: 16, ich_ops: 16, ich: 1024, och: 256, depth: False
+shape: (1, 1024, 256)
+simd: 16, max_acc 7, guard_bits 2, mask: 15 with 72 adds.
+ops: 16, ich_ops: 8, ich: 256, och: 512, depth: False
+shape: (9, 1024, 128)
+simd: 2, max_acc 7, guard_bits 2, mask: 1 with 8 adds.
+ops: 4, ich_ops: 8, ich: 256, och: 128, depth: False
+shape: (1, 1024, 32)
+simd: 32, max_acc 7, guard_bits 2, mask: 31 with 216 adds.
+ops: 16, ich_ops: 24, ich: 384, och: 256, depth: False
+shape: (9, 256, 384)

@@ -1,0 +1,23 @@
+[
+  {
+    "functionLabel": "",
+    "functionName": "yolo",
+    "id": 0,
+    "ifcond": "",
+    "insert_position": "",
+    "label": "",
+    "pragma": {
+      "name": "TOP",
+      "option": [
+        {
+          "name": "name",
+          "value": "yolo"
+        }
+      ]
+    },
+    "slx": false,
+    "sourceFile": "/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/tcl/synth.tcl",
+    "sourceLine": 95,
+    "success": false
+  }
+]

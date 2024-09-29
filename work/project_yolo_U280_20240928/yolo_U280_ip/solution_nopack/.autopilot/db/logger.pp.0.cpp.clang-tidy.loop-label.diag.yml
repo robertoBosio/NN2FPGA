@@ -1,0 +1,13 @@
+---
+MainSourceFile:  /home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/work/project_yolo_U280_20240928/yolo_U280_ip/solution_nopack/.autopilot/db/logger.pp.0.cpp
+Diagnostics:     
+  - DiagnosticName:  xilinx-label-all-loops
+    Message:         'Added loop label VITIS_LOOP_60_1:  '
+    FileOffset:      60
+    FilePath:        /home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/models/tb/common/logger/logger.h
+    Replacements:    
+      - FilePath:        /home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/work/project_yolo_U280_20240928/yolo_U280_ip/solution_nopack/.autopilot/db/logger.pp.0.cpp
+        Offset:          1124268
+        Length:          0
+        ReplacementText: 'VITIS_LOOP_60_1: '
+...

@@ -1,0 +1,4 @@
+2 warnings generated.
+clang-tidy applied 7 of 7 suggested fixes.
+Suppressed 178 warnings (176 in non-user code, 2 with check filters).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
