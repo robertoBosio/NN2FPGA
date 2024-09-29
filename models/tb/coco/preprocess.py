@@ -49,6 +49,7 @@ def process_image(n_images, onnx_path , dataset):
              open("/tmp/results_preprocessed.bin", "ab") as f_res:
             
             for images, labels in eval_dataset:
+                print(images.shape)
                 f_image.write(np.asarray(torch.permute(images, (1, 2, 0))).flatten().astype(np.float32).tobytes())
                 #f_labels.write(np.asarray(labels).astype(np.uint32).tobytes())
 
@@ -64,11 +65,11 @@ def process_image(n_images, onnx_path , dataset):
                     break
 
 if __name__ == "__main__":
-    # n_images = sys.argv[1]
-    # onnx_path = sys.argv[2]
-    # dataset = sys.argv[3]
+    n_images = sys.argv[1]
+    onnx_path = sys.argv[2]
+    dataset = sys.argv[3]
     n_images = 1
     # onnx_path = 'runs/train/yolov3_tiny_quant3/weights/best.qonnx.onnx'
-    onnx_path = '../models/onnx/yolov3_tiny_a8w8_28.4.onnx'
-    dataset = 'coco'
+    # onnx_path = '../models/onnx/yolov3_tiny_a8w8_28.4.onnx'
+    # dataset = 'coco'
     process_image(n_images, onnx_path, dataset)
