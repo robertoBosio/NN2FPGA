@@ -4014,6 +4014,22 @@ void yolo(
 		s_net_18_dup_1
 	);
 
+	// nn2fpga::bandwidth_adjust <
+	// 	t_net_18_dup_0_struct,
+	// 	t_net_18_dup_0_adj_struct,
+	// 	c_bandwidth_adjust_net_18_dup_0_ich,
+	// 	c_bandwidth_adjust_net_18_dup_0_iw,
+	// 	c_bandwidth_adjust_net_18_dup_0_ih,
+	// 	c_bandwidth_adjust_net_18_dup_0_ow_ops_in,
+	// 	c_bandwidth_adjust_net_18_dup_0_ow_ops,
+	// 	c_bandwidth_adjust_net_18_dup_0_old_in_ops,
+	// 	c_bandwidth_adjust_net_18_dup_0_in_ops,
+	// 	false>		//skip connection flag
+	// (
+	// 	s_net_18_dup_0,
+	// 	s_net_18_dup_0_adj
+	// );
+
 	nn2fpga::shift_op <
 		t_net_18_dup_0_struct,
 		t_net_18_dup_0_lb_struct,
@@ -4362,7 +4378,7 @@ void yolo(
 		0,
 		0,
 		c_node_conv_15_ow_ops,
-		1,
+		8,
 		8>
 	(
 		s_net_18_dup_1[0],
@@ -4507,9 +4523,9 @@ void yolo(
 		384,
 		26,	
 		26,
-		2,
 		1,
-		4,
+		1,
+		1,
 		8,
 		false>		//skip connection flag
 	(
@@ -4864,11 +4880,11 @@ void yolo(
 	nn2fpga::consume_stream <
 		t_net_25_struct,
 		t_o_net_25,
-		c_consume_stream_node_consume_20_och,
-		c_consume_stream_node_consume_20_ow,
-		c_consume_stream_node_consume_20_oh,
-		c_consume_stream_node_consume_20_ow_ops,
-		c_consume_stream_node_consume_20_ops>
+		c_consume_stream_node_consume_25_och,
+		c_consume_stream_node_consume_25_ow,
+		c_consume_stream_node_consume_25_oh,
+		c_consume_stream_node_consume_25_ow_ops,
+		c_consume_stream_node_consume_25_ops>
 	(
 		s_net_25,
 		o_outp2
