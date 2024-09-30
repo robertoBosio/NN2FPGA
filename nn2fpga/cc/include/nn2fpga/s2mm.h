@@ -23,19 +23,24 @@ s2mm(T_mem* mem, const unsigned int size, hls::stream<T_stream>& stream)
 #endif /* __SYNTHESIS__ */
 
 S2MM_LOOP:
-  do {
+//   do {
+// #pragma HLS pipeline II = 1
+//     v = stream.read();
+//     mem[p] = v.data;
+//     p++;
+
+// #ifndef __SYNTHESIS__
+//     if (p > size)
+//       std::cout << "ERROR: s2mm: p > size\n";
+// #endif
+
+//   } while (!v.last);
+for (auto it = 0; it < size; ++it) {
 #pragma HLS pipeline II = 1
     v = stream.read();
-    mem[p] = v.data;
+    mem[p] = v;
     p++;
-
-#ifndef __SYNTHESIS__
-    if (p > size)
-      std::cout << "ERROR: s2mm: p > size\n";
-#endif
-
-  } while (!v.last);
-
+}
 #ifndef __SYNTHESIS__
 #ifdef SKIP_ASSERTIONS
   if (stream.size() > 0) {

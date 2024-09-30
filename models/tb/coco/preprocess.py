@@ -5,6 +5,7 @@ from torch.utils.data import DataLoader
 import sys
 import numpy as np
 import os
+import qonnx
 from qonnx.core.modelwrapper import ModelWrapper
 from qonnx.core.onnx_exec import execute_onnx_and_make_model
 from qonnx.core.onnx_exec import execute_onnx
@@ -21,6 +22,17 @@ def process_image(n_images, onnx_path , dataset):
     inferred_model = onnx_model.transform(infer_shapes.InferShapes())
     inferred_model = inferred_model.transform(InferDataTypes())
     
+    # multiple_output = True
+    # shape_info = qonnx.shape_inference.infer_shapes(inferred_model)
+    # if multiple_output:
+    #     #add outptut to the model
+    #     new_outputs_name = ['/model.13/act/act_quant/export_handler/Quant_output_0', '/model.17/act/act_quant/export_handler/Quant_output_0']
+    #     new_protos = []
+    #     for output_name in new_outputs_name:
+    #         new_protos.append(inferred_model.get_tensor_proto(output_name))
+    #     inferred_model.add_outputs(new_protos)
+        
+         
     batch_size = 1
     train_dataset, eval_dataset, input_shape = get_dataset(dataset='coco')
 
@@ -70,6 +82,6 @@ if __name__ == "__main__":
     dataset = sys.argv[3]
     n_images = 1
     # onnx_path = 'runs/train/yolov3_tiny_quant3/weights/best.qonnx.onnx'
-    # onnx_path = '../models/onnx/yolov3_tiny_a8w8_28.4.onnx'
+    # onnx_path = '/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/models/onnx/yolov3_tiny_a8w8_28.4.onnx'
     # dataset = 'coco'
     process_image(n_images, onnx_path, dataset)

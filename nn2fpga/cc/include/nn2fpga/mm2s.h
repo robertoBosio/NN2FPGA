@@ -17,10 +17,10 @@ MM2S_LOOP:
 #pragma HLS pipeline II = 1
     T_stream s_data;
     auto data = mem[it];
-    s_data.data = data;
-    s_data.last = (it == (size - 1));
-    s_data.strb = ~0;
-    s_data.keep = ~0;
+    // s_data.data = data;
+    // s_data.last = (it == (size - 2));
+    // s_data.strb = ~0;
+    // s_data.keep = ~0;
     stream.write(s_data);
   }
 

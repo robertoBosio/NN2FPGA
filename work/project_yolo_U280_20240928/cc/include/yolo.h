@@ -3,10 +3,10 @@
 #include "params.h"
 
 void yolo(
-	hls::stream<t_inp_1> &i_inp_1,
-	hls::stream<t_params_axi_stream> &i_data_params,
-	hls::stream<t_o_outp1> &o_outp1,
-	hls::stream<t_o_outp1> &o_outp2
+	hls::stream<t_in_mem> &i_inp_1,
+	hls::stream<t_params_stream> &i_data_params,
+	hls::stream<t_net_19> &o_outp1,
+	hls::stream<t_net_25> &o_outp2
 );
 
 #endif  /*__YOLO__H__ */

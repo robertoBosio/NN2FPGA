@@ -24,8 +24,8 @@ std::chrono::duration<double> networkSim(
 	const unsigned int n_inp,
 	const unsigned int n_out,
 	const t_in_mem* inp_1,
-	t_out_mem* o_outp1,
-	t_out_mem* o_outp2
+	t_out_mem1* o_outp1,
+	t_out_mem2* o_outp2
 ) {
 	
 /************************* c_params *************************/
@@ -41,13 +41,13 @@ const int c_params_dim = 8649648;
 	file_weights.close();
 
 #ifdef CSIM
-	hls::stream<t_params_axi_stream> i_data_params;
-	hls::stream<t_inp_1> c_inp_1_stream;
-	hls::stream<t_o_outp1> c_outp1_stream;
-	hls::stream<t_o_outp1> c_outp2_stream;
+	hls::stream<t_params_stream> i_data_params;
+	hls::stream<t_in_mem> c_inp_1_stream;
+	hls::stream<t_net_19> c_outp1_stream;
+	hls::stream<t_net_25> c_outp2_stream;
 	nn2fpga::mm2s <
 		t_params_st,
-		t_params_axi_stream>
+		t_params_stream>
 	(
 		c_params,
 		c_params_dim,
@@ -56,7 +56,7 @@ const int c_params_dim = 8649648;
 
 	nn2fpga::mm2s <
 		t_in_mem,
-		t_inp_1>
+		t_in_mem>
 	(
 		inp_1,
 		n_inp,
@@ -75,8 +75,8 @@ const int c_params_dim = 8649648;
 	auto end = std::chrono::high_resolution_clock::now();
 
 	nn2fpga::s2mm <
-		t_out_mem,
-		t_o_outp1>
+		t_out_mem1,
+		t_net_19>
 	(
 		o_outp1,
 		n_out,
@@ -84,8 +84,8 @@ const int c_params_dim = 8649648;
 	);
 
 	nn2fpga::s2mm <
-		t_out_mem,
-		t_o_outp1>
+		t_out_mem2,
+		t_net_25>
 	(
 		o_outp2,
 		n_out,

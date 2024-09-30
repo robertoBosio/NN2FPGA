@@ -84,7 +84,7 @@ PRODSTR_FLAT_LOOP:
 
       if (s_data == 0) {
         dinWrap = dinStream.read();
-        din_par.range(BITS - 1, 0) = dinWrap.data.range(BITS - 1, 0);
+        din_par.range(BITS - 1, 0) = dinWrap.range(BITS - 1, 0);
       }
 
       din.range(WIDTH - 1, 0) =
@@ -98,11 +98,11 @@ PRODSTR_FLAT_LOOP:
 
       /* Write last only in case of last packet, since input can have more
        * than one out packet */
-      if (s_data == (DATA_PER_READ - 1)) {
-        doutWrap.last = dinWrap.last;
-      } else {
-        doutWrap.last = false;
-      }
+      // if (s_data == (DATA_PER_READ - 1)) {
+      //   doutWrap.last = dinWrap.last;
+      // } else {
+      doutWrap.last = false;
+      // }
 
       /* Write in the correct stream the data */
       doutStream[s_data].write(doutWrap);
@@ -227,7 +227,7 @@ consume_stream(hls::stream<din_wrap_t> dinStream[ow_ops],
       if (s_ops == 0)
         wrap = dinStream[0].read();
       dout_wrap_t dout;
-      dout.data = wrap.data[0][s_ops];
+      dout = wrap.data[0][s_ops];
 #ifndef __SYNTHESIS__
 #ifdef DEBUG
       ap_uint<8> tmp = 0;
@@ -235,9 +235,9 @@ consume_stream(hls::stream<din_wrap_t> dinStream[ow_ops],
       std::cout << tmp.to_string(16) << std::endl;
 #endif
 #endif
-      dout.last = wrap.last & (i == (OSZ - 1)) & (s_ops == (OPS - 1));
-      dout.keep = -1;
-      dout.strb = 1;
+      // dout.last = wrap.last & (i == (OSZ - 1)) & (s_ops == (OPS - 1));
+      // dout.keep = -1;
+      // dout.strb = 1;
       doutStream << dout;
     }
   }
