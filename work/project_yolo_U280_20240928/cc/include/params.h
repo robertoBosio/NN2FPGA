@@ -10,7 +10,7 @@
 
 /************************* axi_to_stream *************************/
 typedef ap_uint<8> t_params_stream;
-typedef ap_axiu<8, 0, 0, 0> t_params_axi_stream;
+// typedef ap_axiu<8, 0, 0, 0> t_params_axi_stream;
 typedef uint8_t t_params_st;
 
 /************************* produce_stream *************************/
@@ -19,7 +19,7 @@ const int c_data_per_packet = 8;
 const int c_width_act_stream = 64;
 const int c_inp_1 = 64;
 typedef ap_uint<64> t_in_mem;
-typedef ap_axiu<64, 0, 0, 0> t_inp_1;
+// typedef ap_axiu<64, 0, 0, 0> t_inp_1;
 typedef ap_ufixed<8, 3, AP_RND_CONV, AP_SAT> t_inp_1_part;
 typedef ap_ufixed<8, 3, AP_RND_CONV, AP_SAT> t_net_5;
 typedef std::array<t_net_5, 3> t_net_5_vector;
@@ -900,20 +900,20 @@ const int c_node_conv_18_och_pack = 2;
 const int c_net_25_add_ops = 16;
 
 /************************* consume_stream *************************/
-typedef hls::axis<t_net_25, 0, 0, 0> t_o_net_25;
-using t_out_mem=t_net_25;
-using t_o_outp1=t_o_net_25;
-using t_o_data=t_o_net_25;
+// typedef hls::axis<t_net_25, 0, 0, 0> t_o_net_25;
+using t_out_mem2=t_net_25;
+// using t_o_outp2=t_o_net_25;
+// using t_o_data=t_o_net_25;
 const int c_consume_stream_node_consume_25_och = 512;
 const int c_consume_stream_node_consume_25_ow = 13;
 const int c_consume_stream_node_consume_25_oh = 13;
 const int c_consume_stream_node_consume_25_ow_ops = 1;
 const int c_consume_stream_node_consume_25_ops = 16;
 
-typedef hls::axis<t_net_19, 0, 0, 0> t_o_net_19;
-using t_out_mem=t_net_19;
-using t_o_outp1=t_o_net_19;
-using t_o_data=t_o_net_19;
+// typedef hls::axis<t_net_19, 0, 0, 0> t_o_net_19;
+using t_out_mem1=t_net_19;
+// using t_o_outp1=t_o_net_19;
+// using t_o_data=t_o_net_19;
 const int c_consume_stream_node_consume_19_och = 256;
 const int c_consume_stream_node_consume_19_ow = 26;
 const int c_consume_stream_node_consume_19_oh = 26;

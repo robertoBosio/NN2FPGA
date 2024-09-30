@@ -196,7 +196,7 @@ axi_to_stream(hls::stream<din_t>& in, bool& s_init, hls::stream<dout_t> out[1])
   if (!s_init) {
     for (auto i = 0; i < CYCLES; i++) {
 #pragma HLS pipeline II = 1 style = stp
-      out[0].write(in.read().data);
+      out[0].write(in.read());
     }
   }
   s_init = true;

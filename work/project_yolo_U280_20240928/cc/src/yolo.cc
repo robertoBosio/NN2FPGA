@@ -15,10 +15,10 @@
 extern "C++" {
 
 void yolo(
-	hls::stream<t_inp_1> &i_inp_1,
-	hls::stream<t_params_axi_stream> &i_data_params,
-	hls::stream<t_o_outp1> &o_outp1,
-	hls::stream<t_o_outp1> &o_outp2
+	hls::stream<t_in_mem> &i_inp_1,
+	hls::stream<t_params_stream> &i_data_params,
+	hls::stream<t_net_19> &o_outp1,
+	hls::stream<t_net_25> &o_outp2
 
 ) {
 
@@ -384,7 +384,7 @@ void yolo(
 	#pragma HLS interface port=o_outp1 mode=axis
 
 	nn2fpga::axi_to_stream <
-		t_params_axi_stream,
+		t_params_stream,
 		t_params_stream,
 		8649648>		//tot cycles
 	(
@@ -394,7 +394,7 @@ void yolo(
 	);
 
 	nn2fpga::produce_stream <
-		t_inp_1,
+		t_in_mem,
 		t_inp_1_part,
 		t_net_5_struct,
 		t_net_5,
@@ -4378,6 +4378,7 @@ void yolo(
 		0,
 		0,
 		c_node_conv_15_ow_ops,
+		// manually changed from 1 to 8
 		8,
 		8>
 	(
@@ -4866,7 +4867,7 @@ void yolo(
 
 	nn2fpga::consume_stream <
 		t_net_19_struct,
-		t_o_net_19,
+		t_net_19,
 		c_consume_stream_node_consume_19_och,
 		c_consume_stream_node_consume_19_ow,
 		c_consume_stream_node_consume_19_oh,
@@ -4879,7 +4880,7 @@ void yolo(
 
 	nn2fpga::consume_stream <
 		t_net_25_struct,
-		t_o_net_25,
+		t_net_25,
 		c_consume_stream_node_consume_25_och,
 		c_consume_stream_node_consume_25_ow,
 		c_consume_stream_node_consume_25_oh,
