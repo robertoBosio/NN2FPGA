@@ -227,6 +227,7 @@ void yolo(
 	#pragma HLS stream variable=s_net_14 depth=65 type=fifo
 	hls::stream<t_net_14_dup_0_struct> s_net_14_dup_0[2];
 	hls::stream<t_net_14_dup_1_struct> s_net_14_dup_1[2];
+	hls::stream<t_net_20_struct> s_net_14_dup_1_adj[2];
 	#pragma HLS stream variable=s_net_14_dup_0 depth=33 type=fifo
 	#pragma HLS stream variable=s_net_14_dup_1 depth=1720 type=fifo
 	hls::stream<t_net_14_dup_0_adj_struct> s_net_14_dup_0_adj[1];
@@ -352,6 +353,7 @@ void yolo(
 	#pragma HLS array_partition variable=c_node_conv_15_weight off=true
 	#pragma HLS stream variable=s_net_20 depth=33 type=fifo
 	hls::stream<t_net_20_struct> s_net_23[1];
+	hls::stream<t_net_20_struct> s_net_24_pre_adj[1];
 	hls::stream<t_net_24_struct> s_net_24[1];
 	const int c_node_concat_17_ich[2] = {128,256};
 	hls::stream<t_net_24_lb_struct> s_net_24_data[8];
@@ -4469,6 +4471,22 @@ void yolo(
 		s_net_23
 	);
 
+	nn2fpga::bandwidth_adjust <
+		t_net_14_dup_1_struct,
+		t_net_20_struct,
+		257,
+		26,	
+		26,
+		2,
+		1,
+		8,
+		4,
+		false>		//skip connection flag
+	(
+		s_net_14_dup_1,
+		s_net_14_dup_1_adj
+	);
+
 	nn2fpga::concat_op <
 		t_net_20_struct,
 		c_node_concat_17_feature_map,
@@ -4479,7 +4497,23 @@ void yolo(
 		c_node_concat_17_ow_ops_in>
 	(
 		s_net_23,
-		s_net_14_dup_1,		
+		s_net_14_dup_1_adj,		
+		s_net_24_pre_adj
+	);
+
+	nn2fpga::bandwidth_adjust <
+		t_net_20_struct,
+		t_net_24_struct,
+		384,
+		26,	
+		26,
+		2,
+		1,
+		4,
+		8,
+		false>		//skip connection flag
+	(
+		s_net_24_pre_adj,
 		s_net_24
 	);
 
@@ -4815,15 +4849,15 @@ void yolo(
 	);
 
 	nn2fpga::consume_stream <
-		t_net_25_struct,
-		t_o_net_25,
+		t_net_19_struct,
+		t_o_net_19,
 		c_consume_stream_node_consume_19_och,
 		c_consume_stream_node_consume_19_ow,
 		c_consume_stream_node_consume_19_oh,
 		c_consume_stream_node_consume_19_ow_ops,
 		c_consume_stream_node_consume_19_ops>
 	(
-		s_net_25,
+		s_net_19,
 		o_outp1
 	);
 

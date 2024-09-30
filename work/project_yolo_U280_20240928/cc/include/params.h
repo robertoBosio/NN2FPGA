@@ -841,8 +841,9 @@ const int c_node_upsample_16_scale_factor = 0;
 
 /************************* concat_op *************************/
 typedef ap_ufixed<8, 3, AP_RND_CONV, AP_SAT> t_net_24;
+typedef std::array<t_net_24, 1> t_net_24_vector;
 typedef struct {
-	t_net_24 data;
+	std::array<t_net_24_vector, 1> data;
 	bool last;
 } t_net_24_struct;
 const int c_node_concat_17_feature_map = 676;
