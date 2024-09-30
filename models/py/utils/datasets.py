@@ -249,8 +249,8 @@ def get_dataset(dataset, cifar=10, sample_size=None):
         test_size = len(dataset) - train_size
         train_dataset, eval_dataset = torch.utils.data.random_split(dataset, [train_size, test_size])
     elif dataset == 'coco':
-        root = '/data/coco/images/val2017'
-        annFile = '/data/coco/annotations/instances_val2017.json'
+        root = '/home-ssd/datasets/coco/images/val2017'
+        annFile = '/home-ssd/datasets/coco/annotations/instances_val2017.json'
         transform = transforms.Compose([transforms.Resize((416, 416)), transforms.ToTensor()])
         train_dataset = COCODataset(root, annFile, transform)
         eval_dataset = train_dataset
