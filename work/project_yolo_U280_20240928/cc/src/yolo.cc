@@ -227,7 +227,7 @@ void yolo(
 	#pragma HLS stream variable=s_net_14 depth=65 type=fifo
 	hls::stream<t_net_14_dup_0_struct> s_net_14_dup_0[2];
 	hls::stream<t_net_14_dup_1_struct> s_net_14_dup_1[2];
-	hls::stream<t_net_20_struct> s_net_14_dup_1_adj[2];
+	hls::stream<t_net_20_struct> s_net_14_dup_1_adj[1];
 	#pragma HLS stream variable=s_net_14_dup_0 depth=33 type=fifo
 	#pragma HLS stream variable=s_net_14_dup_1 depth=1720 type=fifo
 	hls::stream<t_net_14_dup_0_adj_struct> s_net_14_dup_0_adj[1];
@@ -4379,7 +4379,7 @@ void yolo(
 		0,
 		c_node_conv_15_ow_ops,
 		// manually changed from 1 to 8
-		8,
+		16,
 		8>
 	(
 		s_net_18_dup_1[0],
@@ -4491,7 +4491,7 @@ void yolo(
 	nn2fpga::bandwidth_adjust <
 		t_net_14_dup_1_struct,
 		t_net_20_struct,
-		257,
+		256,
 		26,	
 		26,
 		2,
