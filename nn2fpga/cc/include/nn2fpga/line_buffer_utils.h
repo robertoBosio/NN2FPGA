@@ -289,12 +289,12 @@ void bandwidth_adjust_down_down(hls::stream<din_t> din[c_ow_ops_in],
             auto s_i_read = s_ow_ops_in + s_ow_ops_out;
             
             if (s_i == 0) {
-              #ifndef __SYNTHESIS__
-                std::cout << "s_i_read = " << s_i_read << std::endl;
-                std::cout << "din[" << s_i_read << "].size() = " << din[s_i_read].size() << std::endl;
-                std::cout << "s_ich = " << s_ich << std::endl;
-                std::cout << "s_index = " << s_index << std::endl;
-              #endif
+              // #ifndef __SYNTHESIS__
+              //   std::cout << "s_i_read = " << s_i_read << std::endl;
+              //   std::cout << "din[" << s_i_read << "].size() = " << din[s_i_read].size() << std::endl;
+              //   std::cout << "s_ich = " << s_ich << std::endl;
+              //   std::cout << "s_index = " << s_index << std::endl;
+              // #endif
               s_read = din[s_i_read].read();
             }
 

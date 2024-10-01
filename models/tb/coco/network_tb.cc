@@ -202,7 +202,7 @@ int main(int argc, char** argv) {
                               argv,
                               projPath,
                               c_index,
-                              CLASSES,
+                              1,
                               &mem_activations[i * c_index],
                               &mem_outputs1[i * 256 * 26 * 26],
                               &mem_outputs2[i * 512 * 13 * 13]);

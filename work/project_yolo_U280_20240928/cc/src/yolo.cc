@@ -4527,7 +4527,7 @@ void yolo(
 		1,	
 		1,
 		4,
-		8,
+		24,
 		false>		//skip connection flag
 	(
 		s_net_24_pre_adj,
