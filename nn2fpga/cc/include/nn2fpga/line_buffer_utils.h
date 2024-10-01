@@ -271,8 +271,9 @@ void bandwidth_adjust_down_down(hls::stream<din_t> din[c_ow_ops_in],
     for (auto s_ow_ops_in = 0; s_ow_ops_in < c_ow_ops_in;
          s_ow_ops_in += c_ow_ops_out) {
 
-      /* Loop over the ICH dimension */
-      for (auto s_ich = 0; s_ich < ICH; s_ich += c_ops_out) {
+      /* Loop over the ICH dimension */ 
+      /* changed for yolo TO CHECK*/
+      for (auto s_ich = 0; s_ich < ICH; s_ich += c_ops_in) {
 
         /* Loop over the packets in the ICH dimension */
         for (auto s_i = 0; s_i < c_ops_in; s_i += c_ops_out) {
@@ -288,6 +289,12 @@ void bandwidth_adjust_down_down(hls::stream<din_t> din[c_ow_ops_in],
             auto s_i_read = s_ow_ops_in + s_ow_ops_out;
             
             if (s_i == 0) {
+              #ifndef __SYNTHESIS__
+                std::cout << "s_i_read = " << s_i_read << std::endl;
+                std::cout << "din[" << s_i_read << "].size() = " << din[s_i_read].size() << std::endl;
+                std::cout << "s_ich = " << s_ich << std::endl;
+                std::cout << "s_index = " << s_index << std::endl;
+              #endif
               s_read = din[s_i_read].read();
             }
 

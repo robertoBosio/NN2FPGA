@@ -4524,9 +4524,9 @@ void yolo(
 		384,
 		26,	
 		26,
+		1,	
 		1,
-		1,
-		1,
+		4,
 		8,
 		false>		//skip connection flag
 	(

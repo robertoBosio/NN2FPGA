@@ -136,12 +136,15 @@ void concat_op(
   hls::stream<t_input> o_data[c_ow_ops_in]
 ) {  
 
-// #ifndef __SYNTHESIS__
-//   if (c_ow_ops_in != c_ow_ops_out) {
-//     std::cerr << "Error: c_ow_ops_in != c_ow_ops_out" << std::endl;
-//     exit(1);
-//   }
-// #endif
+#ifndef __SYNTHESIS__
+  std::cout << "INFO: Call to concat_op" << std::endl;
+  std::cout << "\t\tc_feature_map: " << c_feature_map << std::endl;
+  std::cout << "\t\tc_ich1: " << c_ich1 << std::endl;
+  std::cout << "\t\tc_ich2: " << c_ich2 << std::endl;
+  std::cout << "\t\tc_och: " << c_och << std::endl;
+  std::cout << "\t\tc_ops: " << c_ops << std::endl;
+  std::cout << "\t\tc_ow_ops_in: " << c_ow_ops_in << std::endl;
+#endif
   bool s_last = false;
   for (auto s_feature_map = 0; s_feature_map < c_feature_map; s_feature_map++) {  
     for (auto s_ich = 0; s_ich < c_och; s_ich+=c_ops) {
@@ -163,6 +166,9 @@ void concat_op(
         }
     }
   }
+#ifndef __SYNTHESIS__
+  std::cout << "INFO: Finished concat_op" << std::endl;
+#endif
 }
 // TODO : change with hls::stram array ow_ops read all the channels at once (for ow_ops -> i_ch )  
 // template <typename t_input, int c_ich, int c_ih, int c_iw, int c_upsample>
@@ -200,6 +206,15 @@ void upsample_op(
   hls::stream<t_input> din[c_ow_ops_in],
   hls::stream<t_input> o_data[1]
 ) {
+#ifndef __SYNTHESIS__
+  std::cout << "INFO: Call to upsample_op" << std::endl;
+  std::cout << "\t\tc_ich: " << c_ich << std::endl;
+  std::cout << "\t\tc_ih: " << c_ih << std::endl;
+  std::cout << "\t\tc_iw: " << c_iw << std::endl;
+  std::cout << "\t\tc_upsample: " << c_upsample << std::endl;
+  std::cout << "\t\tc_ops: " << c_ops << std::endl;
+  std::cout << "\t\tc_ow_ops_in: " << c_ow_ops_in << std::endl;
+#endif
 
   t_input upsample_buff[c_ich][1][c_iw];
   bool s_last = false;
@@ -242,6 +257,9 @@ void upsample_op(
       } 
     }
   }
+#ifndef __SYNTHESIS__
+  std::cout << "INFO: Finished upsample_op" << std::endl;
+#endif
 }
 
 }  // namespace nn2fpga
