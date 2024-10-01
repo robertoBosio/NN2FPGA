@@ -52,30 +52,32 @@ class Net:
         self.depth = 1  # Depth of the hls::stream
         self.width = 1  # Array dimension of the hls::stream
         self.channel_packing = 1  # Number of channels packed in a single element of the hls::stream
-        self.data_type = None # Data type of the hls::stream
+        self.data_type = "float" # Data type of the hls::stream
 
-        self.N = 1
-        self.C = 1
-        self.H = 1
-        self.W = 1
-        if len(getattr(onnx_tensor_shape, 'dim')) > 0:
-            self.N = getattr(onnx_tensor_shape, 'dim')[0].dim_value
-        if len(getattr(onnx_tensor_shape, 'dim')) > 1:
-            self.C = getattr(onnx_tensor_shape, 'dim')[1].dim_value
-        if len(getattr(onnx_tensor_shape, 'dim')) > 2:
-            self.H = getattr(onnx_tensor_shape, 'dim')[2].dim_value
-        if len(getattr(onnx_tensor_shape, 'dim')) > 3:
-            self.W = getattr(onnx_tensor_shape, 'dim')[3].dim_value
-        if len(getattr(onnx_tensor_shape, 'dim')) > 4:
-            raise ValueError(f"Unknown shape with more than 4 dimensions.")
+        self.tensor_shape = [dim.dim_value for dim in onnx_tensor_shape.dim]
 
     def __str__(self) -> str:
         return f"Net: {self.name}, \
-                \n\tTensor shape: ({self.N}, {self.C}, {self.H}, {self.W}), \
+                \n\tTensor shape: {self.tensor_shape} \
                 \n\tDepth: {self.depth}, \
                 \n\tWidth: {self.width}, \
                 \n\tChannel packing: {self.channel_packing}, \
                 \n\tData type: {self.data_type}"
+
+    def get_data_type(self):
+        return self.data_type
+    
+    def get_depth(self):
+        return self.depth
+
+    def get_width(self):
+        return self.width
+    
+    def get_channel_packing(self):
+        return self.channel_packing
+    
+    def get_tensor_shape(self):
+        return self.tensor_shape
 
     def parse(self):
         pass

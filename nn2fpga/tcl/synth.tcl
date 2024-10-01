@@ -27,7 +27,7 @@ if {${CSIM} == 1} {
 open_project ${PRJ_NAME}_ip
 set_top ${TOP_NAME}
 
-open_solution solution_nopack
+open_solution ${impl_sel}
 set_part ${FPGA_PART}
 
 if {${SIMD_DSP} == 1} {
