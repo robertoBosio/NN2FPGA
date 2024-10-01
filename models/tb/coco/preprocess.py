@@ -61,12 +61,20 @@ def process_image(n_images, onnx_path , dataset):
              open("/tmp/results_preprocessed.bin", "ab") as f_res:
             
             for images, labels in eval_dataset:
-                print(images.shape)
-                f_image.write(np.asarray(torch.permute(images, (1, 2, 0))).flatten().astype(np.float32).tobytes())
+                ###### file img
+                images_path = "/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/models/tb/coco/hls_lab.jpeg"
+                image = torchvision.io.read_image(images_path)
+            
+                np_images = image.numpy()
+                #resize image to 416x416
+                np_images = np.resize(np_images, (3, 416, 416))
+                #print(images.shape)
+                f_image.write(np.asarray(torch.permute(image, (1, 2, 0))).flatten().astype(np.float32).tobytes())
                 #f_labels.write(np.asarray(labels).astype(np.uint32).tobytes())
 
-                np_images = np.expand_dims(images.numpy(), axis=0)
 
+                # np_images = np.expand_dims(image.numpy(), axis=0)
+                np_images = np.expand_dims(np_images, axis=0)
                 outputs = execute_onnx(inferred_model, {'images': np_images})
                 outputs = outputs['output']
                 outputs = np.squeeze(outputs)

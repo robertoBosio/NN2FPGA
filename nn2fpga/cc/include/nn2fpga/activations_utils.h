@@ -142,7 +142,7 @@ void concat_op(
 //     exit(1);
 //   }
 // #endif
-  
+  bool s_last = false;
   for (auto s_feature_map = 0; s_feature_map < c_feature_map; s_feature_map++) {  
     for (auto s_ich = 0; s_ich < c_och; s_ich+=c_ops) {
     #pragma HLS pipeline style = stp
@@ -154,6 +154,11 @@ void concat_op(
           else{
             s_data = din2[s_ow_ops].read();
           }
+          //if last iteration on the wole feature map last is true
+          if (s_feature_map == c_feature_map - 1 && s_ich == c_och - c_ops && s_ow_ops == c_ow_ops_in - 1){
+            s_last = true;
+          }
+          s_data.last = s_last;
           o_data[s_ow_ops].write(s_data);
         }
     }
@@ -197,6 +202,7 @@ void upsample_op(
 ) {
 
   t_input upsample_buff[c_ich][1][c_iw];
+  bool s_last = false;
   /* Loop over ih dimentions */
   for(auto s_h = 0; s_h < c_ih ; s_h++) {
 
@@ -218,10 +224,16 @@ void upsample_op(
               t_input s_data[1];
               if (s_upsample_w == 0 && s_upsample_h == 0) {
                 s_data[0] = din[s_ow_ops_in].read();
+                s_data[0].last = s_last;
                 o_data[0].write(s_data[0]);
                 upsample_buff[s_ich][0][s_w + s_ow_ops_in] = s_data[0];
               } else {
                 s_data[0] = upsample_buff[s_ich][0][s_w + s_ow_ops_in];
+                //if last iteration on the wole feature map last is true
+                if (s_h == c_ih - 1 && s_w == c_iw - c_ow_ops_in && s_ich == c_ich - c_ops && s_upsample_w == c_upsample - 1 && s_upsample_h == c_upsample - 1){
+                  s_last = true;
+                }
+                s_data[0].last = s_last;
                 o_data[0].write(s_data[0]);
               }
             }

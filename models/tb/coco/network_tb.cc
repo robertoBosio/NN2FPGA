@@ -141,11 +141,12 @@ int main(int argc, char** argv) {
   t_in_mem *mem_activations;
   posix_memalign((void**)&mem_activations, 4096, c_index * c_batch * sizeof(t_in_mem));
   t_out_mem1 *mem_outputs1;
-  posix_memalign((void**)&mem_outputs1, 4096, CLASSES * c_batch * sizeof(t_out_mem1));
+  posix_memalign((void**)&mem_outputs1, 4096,  256 * 26 * 26 * c_batch * sizeof(t_out_mem1));
   t_out_mem2 *mem_outputs2;
-  posix_memalign((void**)&mem_outputs2, 4096, CLASSES * c_batch * sizeof(t_out_mem2));
+  posix_memalign((void**)&mem_outputs2, 4096, 512 * 13 * 13 * c_batch * sizeof(t_out_mem2));
   std::cout << "Allocated " << c_index * c_batch << " ap_uint<64> for activations." << std::endl;
-  std::cout << "Allocated " << CLASSES * c_batch << " ap_uint<8> for output results." << std::endl;
+  std::cout << "Allocated " << 256 * 26 * 26 * c_batch << " ap_uint<8> for output1 results." << std::endl;
+  std::cout << "Allocated " << 512 * 13 * 13 * c_batch << " ap_uint<8> for output2 results." << std::endl;
 
 #ifndef CSIM
 	if (argc < 3) {
@@ -203,8 +204,8 @@ int main(int argc, char** argv) {
                               c_index,
                               CLASSES,
                               &mem_activations[i * c_index],
-                              &mem_outputs1[i * CLASSES],
-                              &mem_outputs2[i * CLASSES]);
+                              &mem_outputs1[i * 256 * 26 * 26],
+                              &mem_outputs2[i * 512 * 13 * 13]);
 #endif /* CSIM */
   }
 
@@ -215,7 +216,8 @@ int main(int argc, char** argv) {
                               c_index * c_batch,
                               CLASSES * c_batch,
                               mem_activations,
-                              mem_outputs1);
+                              mem_outputs1
+                              mem_outputs2);
 
 #endif
 
