@@ -4877,7 +4877,7 @@ void yolo(
 	// (
 	// 	s_net_25,
 	// 	s_net_25_2,
-	// 	"output_1"
+	// 	"output_2"
 	// );
 
 	nn2fpga::consume_stream <
