@@ -213,6 +213,10 @@ consume_stream(hls::stream<din_wrap_t> dinStream[ow_ops],
 #ifndef __SYNTHESIS__
   std::cout << "INFO: Call to consume_stream" << std::endl;
   std::cout << "\t\tOCH: " << OCH << std::endl;
+  std::cout << "\t\tOW: " << OW << std::endl;
+  std::cout << "\t\tOH: " << OH << std::endl;
+  std::cout << "\t\tow_ops: " << ow_ops << std::endl;
+  std::cout << "\t\tOPS: " << OPS << std::endl;
 
   if (dinStream[0].size() == 0) {
     std::cout << "ERROR: consume_stream: dinStream[0].size() "
@@ -333,7 +337,7 @@ act_tensor_hook(hls::stream<data_t> dinStream[w_step],
   std::cout << "HOOK FUNCTION ACTIVATION TENSOR" << std::endl;
   std::ofstream file_stream;
   file_stream.open(
-    "/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/tmp/logs/" +
+    "/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/tmp/logs/" +
     name + "_acts.txt");
   for (auto h = 0; h < H; h++) {
     for (auto w = 0; w < W; w += w_step) {

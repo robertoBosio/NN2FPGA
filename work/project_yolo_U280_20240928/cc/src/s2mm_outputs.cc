@@ -3,7 +3,7 @@
 
 extern "C++" {
 	void s2mm_outputs(
-		t_out_mem* o_outp1,
+		t_out_mem1* o_outp1,
 		const unsigned int n_out,
 		hls::stream<t_o_outp1>& c_outp1_stream
 	) {

@@ -901,24 +901,24 @@ const int c_net_25_add_ops = 16;
 
 /************************* consume_stream *************************/
 // typedef hls::axis<t_net_25, 0, 0, 0> t_o_net_25;
-using t_out_mem2=t_net_25;
+using t_out_mem1=t_net_19;
 // using t_o_outp2=t_o_net_25;
 // using t_o_data=t_o_net_25;
-const int c_consume_stream_node_consume_25_och = 512;
-const int c_consume_stream_node_consume_25_ow = 13;
-const int c_consume_stream_node_consume_25_oh = 13;
-const int c_consume_stream_node_consume_25_ow_ops = 1;
-const int c_consume_stream_node_consume_25_ops = 16;
-
-// typedef hls::axis<t_net_19, 0, 0, 0> t_o_net_19;
-using t_out_mem1=t_net_19;
-// using t_o_outp1=t_o_net_19;
-// using t_o_data=t_o_net_19;
-const int c_consume_stream_node_consume_19_och = 256;
-const int c_consume_stream_node_consume_19_ow = 26;
-const int c_consume_stream_node_consume_19_oh = 26;
+const int c_consume_stream_node_consume_19_och = 512;
+const int c_consume_stream_node_consume_19_ow = 13;
+const int c_consume_stream_node_consume_19_oh = 13;
 const int c_consume_stream_node_consume_19_ow_ops = 1;
 const int c_consume_stream_node_consume_19_ops = 16;
+
+// typedef hls::axis<t_net_19, 0, 0, 0> t_o_net_19;
+using t_out_mem2=t_net_25;
+// using t_o_outp1=t_o_net_19;
+// using t_o_data=t_o_net_19;
+const int c_consume_stream_node_consume_25_och = 256;
+const int c_consume_stream_node_consume_25_ow = 26;
+const int c_consume_stream_node_consume_25_oh = 26;
+const int c_consume_stream_node_consume_25_ow_ops = 1;
+const int c_consume_stream_node_consume_25_ops = 16;
 
 /************************* fake_func_params *************************/
 typedef ap_fixed<8, 2, AP_RND_ZERO, AP_SAT_SYM> t_node_conv_1_weight_mem;
