@@ -392,7 +392,7 @@ void yolo(
 		s_axi_to_stream_init_flag,
 		s_axi_to_stream_out
 	);
-hls::stream<t_net_5_struct> s_net_5_2[1];
+// hls::stream<t_net_5_struct> s_net_5_2[1];
 
 	nn2fpga::produce_stream <
 		t_in_mem,
@@ -408,7 +408,7 @@ hls::stream<t_net_5_struct> s_net_5_2[1];
 		false>		//transform flag
 	(
 		i_inp_1,
-		s_net_5_2
+		s_net_5
 	);
 
 
