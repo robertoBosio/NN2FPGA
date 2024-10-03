@@ -22,15 +22,16 @@ std::chrono::duration<double> networkSim(
 	char** argv,
 	std::string prj_root,
 	const unsigned int n_inp,
-	const unsigned int n_out,
+	const unsigned int n_out1,
+	const unsigned int n_out2,
 	const t_in_mem* inp_1,
 	t_out_mem1* o_outp1,
 	t_out_mem2* o_outp2
 ) {
 	
 /************************* c_params *************************/
-const int c_params_dim = 8649648;
-	t_params_st *c_params;
+	const int c_params_dim = 8649648;
+	t_params_st *c_params = nullptr;
 	posix_memalign((void**)&c_params, 4096, 8649648 * sizeof(t_params_st));
 	std::ifstream file_weights(prj_root + "npy/yolo_weights.bin", std::ios::binary);
 	if (!file_weights.is_open()) {
@@ -79,7 +80,7 @@ const int c_params_dim = 8649648;
 		t_net_19>
 	(
 		o_outp1,
-		n_out,
+		n_out1,
 		c_outp1_stream
 	);
 
@@ -88,7 +89,7 @@ const int c_params_dim = 8649648;
 		t_net_25>
 	(
 		o_outp2,
-		n_out,
+		n_out2,
 		c_outp2_stream
 	);
 

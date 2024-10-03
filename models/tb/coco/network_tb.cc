@@ -140,10 +140,10 @@ int main(int argc, char** argv) {
 
   t_in_mem *mem_activations;
   posix_memalign((void**)&mem_activations, 4096, c_index * c_batch * sizeof(t_in_mem));
-  t_out_mem1 *mem_outputs1;
-  posix_memalign((void**)&mem_outputs1, 4096,  256 * 26 * 26 * c_batch * sizeof(t_out_mem1));
-  t_out_mem2 *mem_outputs2;
-  posix_memalign((void**)&mem_outputs2, 4096, 512 * 13 * 13 * c_batch * sizeof(t_out_mem2));
+  t_out_mem1 *mem_outputs2;
+  posix_memalign((void**)&mem_outputs2, 4096,  256 * 26 * 26 * c_batch * sizeof(t_out_mem1));
+  t_out_mem2 *mem_outputs1;
+  posix_memalign((void**)&mem_outputs1, 4096, 512 * 13 * 13 * c_batch * sizeof(t_out_mem2));
   std::cout << "Allocated " << c_index * c_batch << " ap_uint<64> for activations." << std::endl;
   std::cout << "Allocated " << 256 * 26 * 26 * c_batch << " ap_uint<8> for output1 results." << std::endl;
   std::cout << "Allocated " << 512 * 13 * 13 * c_batch << " ap_uint<8> for output2 results." << std::endl;
@@ -202,7 +202,8 @@ int main(int argc, char** argv) {
                               argv,
                               projPath,
                               c_index,
-                              CLASSES,
+                              512 * 13 * 13,
+                              256 * 26 * 26,
                               &mem_activations[i * c_index],
                               &mem_outputs1[i * 256 * 26 * 26],
                               &mem_outputs2[i * 512 * 13 * 13]);
@@ -213,8 +214,8 @@ int main(int argc, char** argv) {
   inference_time = networkSim(argc,
                               argv,
                               projPath,
-                              c_index * c_batch,
-                              CLASSES * c_batch,
+                              512 * 13 * 13 * c_batch,
+                              256 * 26 * 26 * c_batch,
                               mem_activations,
                               mem_outputs1
                               mem_outputs2);

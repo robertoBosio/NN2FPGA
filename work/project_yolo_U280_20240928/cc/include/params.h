@@ -836,6 +836,7 @@ const int c_node_upsample_16_ich = 128;
 const int c_node_upsample_16_ih = 13;
 const int c_node_upsample_16_iw = 13;
 const int c_node_upsample_16_factor = 2;
+const int c_node_upsample_16_ops = 4;
 const int c_node_upsample_16_ow_ops = 1;
 const int c_node_upsample_16_scale_factor = 0;
 
