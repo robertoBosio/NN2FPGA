@@ -12,8 +12,8 @@
 // #include <opencv2/imgproc/imgproc.hpp>
 
 #define READ_WIDTH 8
-#define READ_BYTES 1
-#define CLASSES 1
+#define READ_BYTES 1 
+#define CLASSES  512*13*13
 
 // Get directory names in a given path
 std::vector<std::string> getDirectories(const std::string& path) {
@@ -202,7 +202,7 @@ int main(int argc, char** argv) {
                               argv,
                               projPath,
                               c_index,
-                              1,
+                              CLASSES,
                               &mem_activations[i * c_index],
                               &mem_outputs1[i * 256 * 26 * 26],
                               &mem_outputs2[i * 512 * 13 * 13]);

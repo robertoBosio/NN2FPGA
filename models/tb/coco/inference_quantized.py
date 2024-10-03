@@ -13,6 +13,7 @@ from qonnx.transformation import infer_shapes
 from qonnx.core.datatype import DataType
 from qonnx.transformation.infer_datatypes import InferDataTypes
 from qonnx.util.cleanup import cleanup_model
+from PIL import Image
 
 def float_to_fixed_point(value, num_bits_fractional=8, act_width=8):
 
@@ -180,12 +181,16 @@ def inference_coco():
         #read image from file
             images_path = "/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/models/tb/coco/hls_lab.jpeg"
             #read image jpeg and convert to numpy array
-            image = torchvision.io.read_image(images_path)
+            img = Image.open(images_path).convert('RGB')
+            transform = transforms.Compose([transforms.Resize((416, 416)), transforms.ToTensor()])
+            img = transform(img)
+            image = torch.tensor(img)
             
-            np_images = image.numpy()
-            np_images = np.expand_dims(np_images, axis=0)
             #resize image to 416x416
-            np_images = np.resize(np_images, (1, 3, 416, 416))
+            # np_images = np.resize(np_images, (3, 416, 416))
+            
+            np_images = np.expand_dims(image.numpy(), axis=0)
+            print_image(np_images, "tmp/logs/yolov3_tiny/input_image.txt")
             inferred_model = execute_onnx_and_make_model(inferred_model, {'images': np_images})
             # outputs = execute_onnx(inferred_model, {'global_in': images.numpy()})
             # outputs = outputs['global_out']
@@ -203,8 +208,10 @@ def inference_coco():
     
     # print_weights_tensor('DequantizeLinear_71_out0', inferred_model, ich_ops=8, och_ops=2) 
     # print_bias_tensor('DequantizeLinear_18_out0', inferred_model) 
-    print_acts_tensor('/model.17/act/act_quant/export_handler/Quant_output_0', inferred_model, ow_ops=1, och_ops=1) 
-    print_acts_tensor('/model.13/act/act_quant/export_handler/Quant_output_0', inferred_model, ow_ops=1, och_ops=1) 
+    print_acts_tensor('/model.0/id/act_quant/export_handler/Quant_output_0', inferred_model, ow_ops=1, och_ops=3)
+    print_acts_tensor('/model.17/act/act_quant/export_handler/Quant_output_0', inferred_model, ow_ops=1, och_ops=16) 
+    print_acts_tensor('/model.13/act/act_quant/export_handler/Quant_output_0', inferred_model, ow_ops=1, och_ops=16) 
+    print_acts_tensor('/model.0/act/act_quant/export_handler/Quant_output_0', inferred_model, ow_ops=16, och_ops=16)
     
 if __name__ == '__main__':
     inference_coco()

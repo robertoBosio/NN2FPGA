@@ -14,6 +14,7 @@ from qonnx.core.datatype import DataType
 from qonnx.transformation.infer_datatypes import InferDataTypes
 from qonnx.util.cleanup import cleanup_model
 from utils.datasets import get_dataset
+from PIL import Image
     
 def process_image(n_images, onnx_path , dataset):
     
@@ -63,18 +64,18 @@ def process_image(n_images, onnx_path , dataset):
             for images, labels in eval_dataset:
                 ###### file img
                 images_path = "/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/models/tb/coco/hls_lab.jpeg"
-                image = torchvision.io.read_image(images_path)
-            
-                np_images = image.numpy()
-                #resize image to 416x416
-                np_images = np.resize(np_images, (3, 416, 416))
-                #print(images.shape)
+                # image = torchvision.io.read_image(images_path)
+                img = Image.open(images_path).convert('RGB')
+                #resize the image to 416x416
+                transform = transforms.Compose([transforms.Resize((416, 416)), transforms.ToTensor()])
+                image = transform(img)
+                
                 f_image.write(np.asarray(torch.permute(image, (1, 2, 0))).flatten().astype(np.float32).tobytes())
                 #f_labels.write(np.asarray(labels).astype(np.uint32).tobytes())
 
 
-                # np_images = np.expand_dims(image.numpy(), axis=0)
-                np_images = np.expand_dims(np_images, axis=0)
+                np_images = np.expand_dims(image.numpy(), axis=0)
+                
                 outputs = execute_onnx(inferred_model, {'images': np_images})
                 outputs = outputs['output']
                 outputs = np.squeeze(outputs)

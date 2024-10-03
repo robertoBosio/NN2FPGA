@@ -330,8 +330,6 @@ void yolo(
 	hls::stream<t_net_18_dup_0_window_struct> s_net_18_dup_0_compute[1];
 	#pragma HLS stream variable=s_net_18_dup_0_compute depth=2 type=fifo
 	hls::stream<t_net_19_struct> s_net_19[1];
-	//hook for out1
-	// hls::stream<t_net_25_struct> s_net_25_2[1];
 	t_node_conv_14_weight_mem static c_node_conv_14_weight[9][1024][128];
 	static bool s_node_conv_14_init_flag = false;
 	hls::stream<t_params_stream> s_node_conv_14_out[1];
@@ -394,6 +392,7 @@ void yolo(
 		s_axi_to_stream_init_flag,
 		s_axi_to_stream_out
 	);
+hls::stream<t_net_5_struct> s_net_5_2[1];
 
 	nn2fpga::produce_stream <
 		t_in_mem,
@@ -409,8 +408,22 @@ void yolo(
 		false>		//transform flag
 	(
 		i_inp_1,
-		s_net_5
+		s_net_5_2
 	);
+
+
+	// nn2fpga::act_tensor_hook <
+	// 	t_net_5_struct,
+	// 	c_node_produce_0_ich,
+	// 	c_node_produce_0_ih,
+	// 	c_node_produce_0_iw,
+	// 	c_node_produce_0_ops,
+	// 	1>
+	// (
+	// 	s_net_5_2,
+	// 	s_net_5,
+	// 	"produce_out"
+	// );
 
 	nn2fpga::shift_op <
 		t_net_5_struct,
@@ -742,6 +755,20 @@ void yolo(
 		s_net_6,
 		(hls::stream<std::nullptr_t>*)(nullptr)
 	);
+
+	// hls::stream<t_net_6_struct> s_net_6_2[1];
+	// nn2fpga::act_tensor_hook <
+	// 	t_net_6_struct,
+	// 	c_node_conv_1_och,
+	// 	c_node_conv_1_oh,
+	// 	c_node_conv_1_ow,
+	// 	c_node_conv_1_ops_out,
+	// 	c_node_conv_1_ow_ops_out>
+	// (
+	// 	s_net_6,
+	// 	s_net_6_2,
+	// 	"conv_1_out"
+	// );
 
 	nn2fpga::shift_op <
 		t_net_6_struct,
@@ -4866,19 +4893,6 @@ void yolo(
 		s_net_25,
 		(hls::stream<std::nullptr_t>*)(nullptr)
 	);
-
-	// nn2fpga::act_tensor_hook <
-	// 	t_net_25_struct,
-	// 	c_node_conv_18_och,
-	// 	c_node_conv_18_oh,
-	// 	c_node_conv_18_ow,
-	// 	c_node_conv_18_ops_out,
-	// 	c_node_conv_18_ow_ops_out>
-	// (
-	// 	s_net_25,
-	// 	s_net_25_2,
-	// 	"output_2"
-	// );
 
 	nn2fpga::consume_stream <
 		t_net_19_struct,
