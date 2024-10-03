@@ -1687,3 +1687,75 @@ Command     csim_design done; error code: 2; 15.76 sec.
 INFO: [HLS 200-111] Finished Command csim_design CPU user time: 5.82 seconds. CPU system time: 0.66 seconds. Elapsed time: 15.76 seconds; current allocated memory: 0.000 MB.
 Command   ap_source done; error code: 1; 25.59 sec.
 Execute   cleanup_all 
+INFO-FLOW: Workspace /home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/work/project_yolo_U280_20240928/yolo_U280_csim_ip/solution_nopack opened at Tue Oct 01 19:26:24 +0000 2024
+Execute       set_part xcu280-fsvh2892-2L-e 
+Execute         create_platform xcu280-fsvh2892-2L-e -board  
+DBG:HLSDevice: Trying to load device library: /tools/Xilinx/Vitis_HLS/2024.1/lib/lnx64.o/libxv_hlsvwrap.so
+DBG:HLSDevice: first parts/arch.xml in RDI_DATADIR: /tools/Xilinx/Vivado/2024.1/data/parts/arch.xml
+DBG:HLSDevice: init success
+ERROR: [HLS 200-1023] Part 'xcu280-fsvh2892-2L-e' is not installed.
+Command         create_platform done; error code: 1; 10.56 sec.
+INFO-FLOW: Caught error in set_part: command 'create_platform' returned error code
+    while executing
+"create_platform $value -board $board"
+    (procedure "ap_internal_set_part" line 27)
+    invoked from within
+"ap_internal_set_part "
+Command       set_part done; error code: 2; 10.56 sec.
+INFO-FLOW: Caught error in open_solution: command 'create_platform' returned error code
+    while executing
+"::AP::initSetPart $apsfile [::AP::GetGlobalSettingTcl]"
+    (procedure "ap_internal_open_solution" line 140)
+    invoked from within
+"ap_internal_open_solution "
+Command     open_solution done; error code: 2; 10.57 sec.
+Command   ap_source done; error code: 1; 10.57 sec.
+Execute   cleanup_all 
+INFO-FLOW: Workspace /home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/work/project_yolo_U280_20240928/yolo_U280_csim_ip/solution_nopack opened at Tue Oct 01 19:44:52 +0000 2024
+Execute       set_part xcu280-fsvh2892-2L-e 
+Execute         create_platform xcu280-fsvh2892-2L-e -board  
+DBG:HLSDevice: Trying to load device library: /tools/Xilinx/Vitis_HLS/2024.1/lib/lnx64.o/libxv_hlsvwrap.so
+DBG:HLSDevice: first parts/arch.xml in RDI_DATADIR: /tools/Xilinx/Vivado/2024.1/data/parts/arch.xml
+DBG:HLSDevice: init success
+ERROR: [HLS 200-1023] Part 'xcu280-fsvh2892-2L-e' is not installed.
+Command         create_platform done; error code: 1; 3.5 sec.
+INFO-FLOW: Caught error in set_part: command 'create_platform' returned error code
+    while executing
+"create_platform $value -board $board"
+    (procedure "ap_internal_set_part" line 27)
+    invoked from within
+"ap_internal_set_part "
+Command       set_part done; error code: 2; 3.5 sec.
+INFO-FLOW: Caught error in open_solution: command 'create_platform' returned error code
+    while executing
+"::AP::initSetPart $apsfile [::AP::GetGlobalSettingTcl]"
+    (procedure "ap_internal_open_solution" line 140)
+    invoked from within
+"ap_internal_open_solution "
+Command     open_solution done; error code: 2; 3.5 sec.
+Command   ap_source done; error code: 1; 3.51 sec.
+Execute   cleanup_all 
+INFO-FLOW: Workspace /home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/work/project_yolo_U280_20240928/yolo_U280_csim_ip/solution_nopack opened at Tue Oct 01 19:48:06 +0000 2024
+Execute       set_part xcu280-fsvh2892-2L-e 
+Execute         create_platform xcu280-fsvh2892-2L-e -board  
+DBG:HLSDevice: Trying to load device library: /tools/Xilinx/Vitis_HLS/2024.1/lib/lnx64.o/libxv_hlsvwrap.so
+DBG:HLSDevice: first parts/arch.xml in RDI_DATADIR: /tools/Xilinx/Vivado/2024.1/data/parts/arch.xml
+DBG:HLSDevice: init success
+ERROR: [HLS 200-1023] Part 'xcu280-fsvh2892-2L-e' is not installed.
+Command         create_platform done; error code: 1; 3.56 sec.
+INFO-FLOW: Caught error in set_part: command 'create_platform' returned error code
+    while executing
+"create_platform $value -board $board"
+    (procedure "ap_internal_set_part" line 27)
+    invoked from within
+"ap_internal_set_part "
+Command       set_part done; error code: 2; 3.56 sec.
+INFO-FLOW: Caught error in open_solution: command 'create_platform' returned error code
+    while executing
+"::AP::initSetPart $apsfile [::AP::GetGlobalSettingTcl]"
+    (procedure "ap_internal_open_solution" line 140)
+    invoked from within
+"ap_internal_open_solution "
+Command     open_solution done; error code: 2; 3.57 sec.
+Command   ap_source done; error code: 1; 3.57 sec.
+Execute   cleanup_all 

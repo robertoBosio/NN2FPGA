@@ -15,17 +15,17 @@ mm2s(const T_mem* mem, const unsigned int size, hls::stream<T_stream>& stream)
 MM2S_LOOP:
   for (auto it = 0; it < size; ++it) {
 #pragma HLS pipeline II = 1
-    T_stream s_data;
-    auto data = mem[it];
+    T_mem data = mem[it];
     // s_data.data = data;
     // s_data.last = (it == (size - 2));
     // s_data.strb = ~0;
     // s_data.keep = ~0;
-    stream.write(s_data);
+    stream.write(data);
   }
 
 #ifndef __SYNTHESIS__
   std::cout << "INFO: Finished mm2s" << std::endl;
 #endif // __SYNTHESIS__
 }
+
 } // namespace nn2fpga

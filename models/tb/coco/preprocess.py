@@ -63,7 +63,7 @@ def process_image(n_images, onnx_path , dataset):
             
             for images, labels in eval_dataset:
                 ###### file img
-                images_path = "/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/models/tb/coco/hls_lab.jpeg"
+                images_path = "/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/models/tb/coco/hls_lab.jpeg"
                 # image = torchvision.io.read_image(images_path)
                 img = Image.open(images_path).convert('RGB')
                 #resize the image to 416x416

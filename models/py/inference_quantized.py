@@ -15,6 +15,7 @@ from qonnx.core.datatype import DataType
 from qonnx.transformation.infer_datatypes import InferDataTypes
 from qonnx.util.cleanup import cleanup_model
 from utils.datasets import ImageNet
+from PIL import Image
 
 def float_to_fixed_point(value, num_bits_fractional=8, act_width=8):
 
@@ -230,7 +231,7 @@ def inference_cifar10():
     print_acts_tensor('DequantizeLinear_35_out0', inferred_model, ow_ops=2, och_ops=2) 
 
 def inference_cifar10_4bit():
-    onnx_path = "../test/onnx/resnet8_a4w4b32.onnx"
+    onnx_path = "../models/onnx/resnet8_a4w4b32.onnx"
     onnx_model = ModelWrapper(onnx_path)
     cleanup_model(onnx_model)
     inferred_model = onnx_model.transform(infer_shapes.InferShapes())
@@ -255,5 +256,40 @@ def inference_cifar10_4bit():
     
     print_acts_tensor('DequantizeLinear_25_out0', inferred_model, ow_ops=4, och_ops=4) 
 
+def inference_coco():
+    onnx_path = "../models/onnx/yolov3_tiny_a8w8_28.4.onnx"
+    onnx_model = ModelWrapper(onnx_path)
+    cleanup_model(onnx_model)
+    inferred_model = onnx_model.transform(infer_shapes.InferShapes())
+    inferred_model = inferred_model.transform(InferDataTypes())
+    log_name = "yolov3"
+
+    # hook the intermediate tensors with their name
+    os.system(f"mkdir -p tmp/logs/{log_name}")
+
+    train_dataset, eval_dataset, input_shape = get_dataset(dataset='coco')
+    
+    correct = 0
+    total = 0
+    outputs = 0
+    with torch.no_grad():
+        for images, labels in eval_dataset:
+            images_path = "/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/models/tb/coco/hls_lab.jpeg"
+            # image = torchvision.io.read_image(images_path)
+            img = Image.open(images_path).convert('RGB')
+            #resize the image to 416x416
+            transform = transforms.Compose([transforms.Resize((416, 416)), transforms.ToTensor()])
+            image = transform(img)
+            
+            #f_labels.write(np.asarray(labels).astype(np.uint32).tobytes())
+
+
+            np_images = np.expand_dims(image.numpy(), axis=0)
+
+            inferred_model = execute_onnx_and_make_model(inferred_model, {'images': np_images})
+            break
+
+    print_acts_tensor('/model.0/id/act_quant/export_handler/Quant_output_0', inferred_model, ow_ops=1, och_ops=3) 
+
 if __name__ == '__main__':
-    inference_cifar10()
+    inference_coco()

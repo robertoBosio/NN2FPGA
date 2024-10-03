@@ -1,476 +1,4013 @@
 
-****** Vitis HLS - High-Level Synthesis from C, C++ and OpenCL v2023.2 (64-bit)
-  **** SW Build 4023990 on Oct 11 2023
-  **** IP Build 4028589 on Sat Oct 14 00:45:43 MDT 2023
-  **** SharedData Build 4025554 on Tue Oct 10 17:18:54 MDT 2023
+****** Vitis HLS - High-Level Synthesis from C, C++ and OpenCL v2024.1 (64-bit)
+  **** SW Build 5069499 on May 21 2024
+  **** IP Build 5075265 on Wed May 22 21:45:21 MDT 2024
+  **** SharedData Build 5076995 on Wed May 22 18:29:18 MDT 2024
+  **** Start of session at: Thu Oct  3 14:11:44 2024
     ** Copyright 1986-2022 Xilinx, Inc. All Rights Reserved.
-    ** Copyright 2022-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+    ** Copyright 2022-2024 Advanced Micro Devices, Inc. All Rights Reserved.
 
-source /tools/Xilinx/Vitis_HLS/2023.2/scripts/vitis_hls/hls.tcl -notrace
-INFO: [HLS 200-10] Running '/tools/Xilinx/Vitis_HLS/2023.2/bin/unwrapped/lnx64.o/vitis_hls'
-INFO: [HLS 200-10] For user 'teodoro' on host 'b370716b833d' (Linux_x86_64 version 6.8.0-45-generic) on Sun Sep 29 15:02:18 +0000 2024
+source /tools/Xilinx/Vitis_HLS/2024.1/scripts/vitis_hls/hls.tcl -notrace
+INFO: [HLS 200-10] For user 'roberto' on host 'smaug.polito.it' (Linux_x86_64 version 6.8.0-45-generic) on Thu Oct 03 14:11:47 +0000 2024
 INFO: [HLS 200-10] On os Ubuntu 22.04.5 LTS
-INFO: [HLS 200-10] In directory '/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/work/project_yolo_U280_20240928'
-INFO: [HLS 200-2053] The vitis_hls executable is being deprecated. Consider using vitis-run --mode hls --tcl
-Sourcing Tcl script '/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/tcl/synth.tcl'
-INFO: [HLS 200-1510] Running: open_project yolo_U280_csim_ip 
-INFO: [HLS 200-10] Opening project '/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/work/project_yolo_U280_20240928/yolo_U280_csim_ip'.
+INFO: [HLS 200-10] In directory '/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/work/project_yolo_U280_20240928'
+WARNING: [HLS 200-2053] The vitis_hls executable is deprecated. Consider using vitis-run --mode hls --tcl
+Sourcing Tcl script '/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/tcl/synth.tcl'
+INFO: [HLS 200-1510] Running: open_project yolo_U55C_csim_ip 
+INFO: [HLS 200-10] Opening project '/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/work/project_yolo_U280_20240928/yolo_U55C_csim_ip'.
 INFO: [HLS 200-1510] Running: set_top yolo 
 INFO: [HLS 200-1510] Running: open_solution solution_nopack 
-INFO: [HLS 200-10] Opening solution '/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/work/project_yolo_U280_20240928/yolo_U280_csim_ip/solution_nopack'.
-INFO: [HLS 200-1611] Setting target device to 'xcu280-fsvh2892-2L-e'
+INFO: [HLS 200-10] Opening solution '/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/work/project_yolo_U280_20240928/yolo_U55C_csim_ip/solution_nopack'.
+INFO: [HLS 200-1611] Setting target device to 'xcu55c-fsvh2892-2L-e'
 INFO: [HLS 200-1505] Using flow_target 'vivado'
-Resolution: For help on HLS 200-1505 see docs.xilinx.com/access/sources/dita/topic?Doc_Version=2023.2%20English&url=ug1448-hls-guidance&resourceid=200-1505.html
-INFO: [HLS 200-1510] Running: set_part xcu280-fsvh2892-2L-e 
-INFO: [HLS 200-1510] Running: add_files -cflags -O3 -Icc/include -I/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include cc/src/yolo.cc 
+Resolution: For help on HLS 200-1505 see docs.xilinx.com/access/sources/dita/topic?Doc_Version=2024.1%20English&url=ug1448-hls-guidance&resourceid=200-1505.html
+INFO: [HLS 200-1510] Running: set_part xcu55c-fsvh2892-2L-e 
+INFO: [HLS 200-1510] Running: add_files -cflags -O3 -Icc/include -I/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include cc/src/yolo.cc 
 INFO: [HLS 200-10] Adding design file 'cc/src/yolo.cc' to the project
-INFO: [HLS 200-1510] Running: add_files -cflags  -I/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/models/tb/common/logger/  /home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/models/tb/common/cmdparser/cmdlineparser.cpp 
-INFO: [HLS 200-10] Adding design file '/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/models/tb/common/cmdparser/cmdlineparser.cpp' to the project
-INFO: [HLS 200-1510] Running: add_files /home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/models/tb/common/logger/logger.cpp 
-INFO: [HLS 200-10] Adding design file '/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/models/tb/common/logger/logger.cpp' to the project
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/work/project_yolo_U280_20240928/Vitis_Libraries/vision/L1/include/common/
-INFO: [HLS 200-1510] Running: add_files -cflags  -DCSIM -Icc/include -I/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include -I/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/models/tb/common/cmdparser -I/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/models/tb/common/logger -I/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/work/project_yolo_U280_20240928/Vitis_Libraries/vision/L1/include/ -tb /home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/models/tb/coco/network_tb.cc 
-INFO: [HLS 200-10] Adding test bench file '/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/models/tb/coco/network_tb.cc' to the project
-INFO: [HLS 200-1510] Running: add_files -tb /home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/models/tb/coco/preprocess.py 
-INFO: [HLS 200-10] Adding test bench file '/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/models/tb/coco/preprocess.py' to the project
-INFO: [HLS 200-1510] Running: add_files -tb /home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/models/tb/../py/utils 
-INFO: [HLS 200-10] Adding test bench file '/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/models/tb/../py/utils' to the project
-INFO: [HLS 200-1510] Running: add_files -tb /home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/work/project_yolo_U280_20240928/npy 
-INFO: [HLS 200-10] Adding test bench file '/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/work/project_yolo_U280_20240928/npy' to the project
-INFO: [HLS 200-1510] Running: csim_design -argv -x /home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/work/project_yolo_U280_20240928/build_dir..U280.yolo/yolo.xclbin -n 1 -w 1 -o /home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/models/onnx/yolov3_tiny_a8w8_28.4.onnx -dt coco 
+INFO: [HLS 200-1510] Running: add_files -cflags  -I/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/models/tb/common/logger/  /home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/models/tb/common/cmdparser/cmdlineparser.cpp 
+INFO: [HLS 200-10] Adding design file '/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/models/tb/common/cmdparser/cmdlineparser.cpp' to the project
+INFO: [HLS 200-1510] Running: add_files /home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/models/tb/common/logger/logger.cpp 
+INFO: [HLS 200-10] Adding design file '/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/models/tb/common/logger/logger.cpp' to the project
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/work/project_yolo_U280_20240928/Vitis_Libraries/vision/L1/include/common/
+INFO: [HLS 200-1510] Running: add_files -cflags  -DCSIM -Icc/include -I/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include -I/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/models/tb/common/cmdparser -I/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/models/tb/common/logger -I/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/work/project_yolo_U280_20240928/Vitis_Libraries/vision/L1/include/ -tb /home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/models/tb/coco/network_tb.cc 
+INFO: [HLS 200-10] Adding test bench file '/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/models/tb/coco/network_tb.cc' to the project
+INFO: [HLS 200-1510] Running: add_files -tb /home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/models/tb/coco/preprocess.py 
+INFO: [HLS 200-10] Adding test bench file '/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/models/tb/coco/preprocess.py' to the project
+INFO: [HLS 200-1510] Running: add_files -tb /home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/models/tb/../py/utils 
+INFO: [HLS 200-10] Adding test bench file '/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/models/tb/../py/utils' to the project
+INFO: [HLS 200-1510] Running: add_files -tb /home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/work/project_yolo_U280_20240928/npy 
+INFO: [HLS 200-10] Adding test bench file '/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/work/project_yolo_U280_20240928/npy' to the project
+INFO: [HLS 200-1510] Running: csim_design -argv -x /home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/work/project_yolo_U280_20240928/build_dir..U55C.yolo/yolo.xclbin -n 1 -w 1 -o /home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/models/onnx/yolov3_tiny_a8w8_28.4.onnx -dt coco 
 INFO: [SIM 211-2] *************** CSIM start ***************
-INFO: [SIM 211-4] CSIM will launch GCC as the compiler.
+INFO: [SIM 211-4] CSIM will launch CLANG as the compiler.
 INFO: [HLS 200-2036] Building debug C Simulation binaries
-make[2]: Entering directory '/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/work/project_yolo_U280_20240928/yolo_U280_csim_ip/solution_nopack/csim/build'
+make[2]: Entering directory '/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/work/project_yolo_U280_20240928/yolo_U55C_csim_ip/solution_nopack/csim/build'
    Compiling ../../../../../../models/tb/coco/network_tb.cc in debug mode
    Compiling ../../../../cc/src/yolo.cc in debug mode
-make[2]: Leaving directory '/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/work/project_yolo_U280_20240928/yolo_U280_csim_ip/solution_nopack/csim/build'
-csim.mk:84: warning: overriding recipe for target 'obj/network_tb.o'
-csim.mk:78: warning: ignoring old recipe for target 'obj/network_tb.o'
-In file included from /home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:8,
-                 from ../../../../cc/src/yolo.cc:4:
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/stream_utils.h: In function ‘void nn2fpga::produce_flatten_stream(hls::stream<__STREAM_T__, 0>&, hls::stream<dout_wrap_t>*)’:
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/stream_utils.h:93:10: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-       if constexpr (PREPROC == 1) {
-          ^~~~~~~~~
+   Generating csim.exe
+make[2]: Leaving directory '/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/work/project_yolo_U280_20240928/yolo_U55C_csim_ip/solution_nopack/csim/build'
 In file included from ../../../../cc/src/yolo.cc:4:
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h: In function ‘t_output nn2fpga::quant_stream(t_acc)’:
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:45:6: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-   if constexpr (std::is_same<t_output_clip, std::nullptr_t>::value == false) {
-      ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:53:6: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-   if constexpr (std::is_same<t_output_mask, std::nullptr_t>::value == false) {
-      ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h: In function ‘t_output nn2fpga::quant_and_add_stream(t_acc, t_add)’:
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:74:6: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-   if constexpr (std::is_same<t_output_clip, std::nullptr_t>::value == false) {
-      ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:81:6: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-   if constexpr (std::is_same<t_output_mask, std::nullptr_t>::value == false) {
-      ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:85:6: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-   if constexpr (c_relu == 1) {
-      ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h: In function ‘ap_uint<48> nn2fpga::double_packing_wrap(t_act, t_act, t_weight, t_res)’:
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:147:6: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-   if constexpr (std::is_same<typename t_act::Base::Base,
-      ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:149:8: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-     if constexpr (std::is_same<
-        ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:171:8: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-     if constexpr (std::is_same<
-        ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h: In function ‘void nn2fpga::conv_pipe(t_input, const t_weight*, t_bias, uint32_t, uint32_t, uint32_t, uint32_t, const t_add_vector*, t_acc*, t_output (*)[c_iter_ops_out])’:
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:271:6: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-   if constexpr (c_och_pack > 1) {
-      ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:283:12: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-         if constexpr(std::is_same<t_bias, std::nullptr_t>::value == false) {
-            ^~~~~~~~~
+In file included from /home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:8:
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/stream_utils.h:93:10: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+      if constexpr (PREPROC == 1) {
+         ^
 In file included from ../../../../cc/src/yolo.cc:4:
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:333:16: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-             if constexpr(std::is_same<typename t_weight_st::Base::Base, _AP_ROOT_TYPE<t_weight_st::Base::width, true>>::value) {
-                ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:350:16: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-             if constexpr(std::is_same<typename t_input_mod::Base::Base, _AP_ROOT_TYPE<t_input_mod::Base::width, true>>::value) {
-                ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:414:14: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-           if constexpr (std::is_same<t_add, std::nullptr_t>::value ==
-              ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:438:8: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-     if constexpr(c_ow_pack > 1) {
-        ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:445:10: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-       if constexpr(c_depth == 1) {
-          ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:457:10: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-       if constexpr (std::is_same<t_bias, std::nullptr_t>::value == false) {
-          ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:458:12: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-         if constexpr (c_depth == 0) {
-            ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:478:12: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-         if constexpr(c_depth == 1) {
-            ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:485:12: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-         if constexpr(std::is_same<t_bias, std::nullptr_t>::value == false) {
-            ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:486:14: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-           if constexpr(c_depth == 1) {
-              ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:525:12: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-         if constexpr(c_depth == 1) {
-            ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:558:10: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-       if constexpr(c_depth == 0) {
-          ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:581:10: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-       if constexpr(c_depth == 0) {
-          ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:591:10: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-       if constexpr(c_depth == 0) {
-          ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:606:10: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-       if constexpr (c_depth == 0) {
-          ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:609:16: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-             if constexpr (std::is_same<t_add, std::nullptr_t>::value == false) {
-                ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:636:10: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-       if constexpr(c_depth == 1) {
-          ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:642:10: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-       if constexpr(std::is_same<t_bias, std::nullptr_t>::value == false) {
-          ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:643:12: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-         if constexpr(c_depth == 0) {
-            ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:657:12: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-         if constexpr(std::is_same<t_bias, std::nullptr_t>::value == false) {
-            ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:658:14: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-           if constexpr(c_depth == 1) {
-              ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:688:12: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-         if constexpr (c_depth == 1) {
-            ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:695:10: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-       if constexpr(c_depth == 0) {
-          ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:707:10: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-       if constexpr(c_depth == 0){
-          ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:711:10: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-       if constexpr (c_depth == 0) {
-          ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:713:14: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-           if constexpr (std::is_same<t_add, std::nullptr_t>::value ==
-              ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h: In function ‘void nn2fpga::conv_comp(hls::stream<__STREAM_T__, 0>*, hls::stream<t_weight>*, hls::stream<t_bias>*, hls::stream<t_weight_1x1>*, hls::stream<t_bias_1x1>*, hls::stream<t_add_struct>*, hls::stream<t_forward_struct>*, hls::stream<t_output_struct>*, hls::stream<t_output_struct_1x1>*)’:
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:819:6: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-   if constexpr (c_depth == 0) {
-      ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:827:6: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-   if constexpr(std::is_same<t_add_struct, std::nullptr_t>::value == false) {
-      ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:927:8: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-     if constexpr(std::is_same<t_add_struct, std::nullptr_t>::value == false)
-        ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:1019:20: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-                 if constexpr(std::is_same<t_weight_1x1, std::nullptr_t>::value == false) {
-                    ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:1023:20: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-                 if constexpr(std::is_same<t_bias, std::nullptr_t>::value == false) {
-                    ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:1027:20: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-                 if constexpr(std::is_same<t_bias_1x1, std::nullptr_t>::value == false) {
-                    ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:1035:18: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-               if constexpr(std::is_same<t_add_struct, std::nullptr_t>::value == false){
-                  ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:1076:18: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-               if constexpr (std::is_same<t_acc_1x1_struct,
-                  ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:1145:22: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-                   if constexpr(std::is_same<t_acc_1x1_struct, std::nullptr_t>::value == false) {
-                      ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:1146:24: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-                     if constexpr(c_ops_1x1 != c_ops){
-                        ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:1203:18: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-               if constexpr (std::is_same<t_forward_struct,
-                  ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:1258:22: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-                   if constexpr (std::is_same<t_output_struct_1x1,
-                      ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:1330:8: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-     if constexpr (std::is_same<t_add_struct, std::nullptr_t>::value == false) {
-        ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h: In function ‘void nn2fpga::conv_comp_onchip_OW_OPS_OUT(t_bias_st (*)[c_bias_ops], t_weight_st (*)[((c_och * c_ich_groups) / (c_och_ops * c_ich_ops))][(c_och_ops * c_ich_ops)], t_bias_1x1_st (*)[c_bias_ops], t_weight_1x1_st (*)[((c_och_1x1 * c_ich_groups) / (c_och_ops * c_ich_ops))][(c_och_ops * c_ich_ops)], hls::stream<__STREAM_T__, 0>*, hls::stream<t_add_struct>*, hls::stream<t_forward_struct>*, hls::stream<t_output_struct>*, hls::stream<t_output_struct_1x1>*)’:
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:1602:22: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-                   if constexpr (std::is_same<t_weight_1x1,
-                      ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:1615:24: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-                     if constexpr (std::is_same<t_bias, std::nullptr_t>::value ==
-                        ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:1620:26: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-                       if constexpr (std::is_same<t_bias_1x1,
-                          ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:1639:20: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-                 if constexpr (std::is_same<t_add_struct,
-                    ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:1684:18: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-               if constexpr (std::is_same<t_acc_1x1_struct,
-                  ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:1753:22: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-                   if constexpr(std::is_same<t_acc_1x1_struct, std::nullptr_t>::value == false) {
-                      ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:1754:24: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-                     if constexpr(c_ops_1x1 != c_och_ops){
-                        ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:1811:18: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-               if constexpr (std::is_same<t_forward_struct,
-                  ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:1866:22: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-                   if constexpr (std::is_same<t_output_struct_1x1,
-                      ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:1937:8: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-     if constexpr (std::is_same<t_add_struct, std::nullptr_t>::value == false) {
-        ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h: In function ‘void nn2fpga::conv_comp_onchip_ICH(t_bias_st (*)[c_bias_ops], t_weight_st (*)[((c_och * c_ich_groups) / (c_och_ops * c_ich_ops))][(c_och_ops * c_ich_ops)], t_bias_1x1_st (*)[c_bias_ops], t_weight_1x1_st (*)[((c_och_1x1 * c_ich_groups) / (c_och_ops * c_ich_ops))][(c_och_ops * c_ich_ops)], hls::stream<__STREAM_T__, 0>*, hls::stream<t_add_struct>*, hls::stream<t_forward_struct>*, hls::stream<t_output_struct>*, hls::stream<t_output_struct_1x1>*)’:
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:2210:22: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-                   if constexpr (std::is_same<t_weight_1x1,
-                      ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:2223:24: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-                     if constexpr (std::is_same<t_bias, std::nullptr_t>::value ==
-                        ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:2228:26: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-                       if constexpr (std::is_same<t_bias_1x1,
-                          ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:2247:20: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-                 if constexpr (std::is_same<t_add_struct,
-                    ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:2292:18: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-               if constexpr (std::is_same<t_acc_1x1_struct,
-                  ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:2361:22: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-                   if constexpr(std::is_same<t_acc_1x1_struct, std::nullptr_t>::value == false) {
-                      ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:2362:24: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-                     if constexpr(c_ops_1x1 != c_och_ops){
-                        ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:2419:18: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-               if constexpr (std::is_same<t_forward_struct,
-                  ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:2474:22: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-                   if constexpr (std::is_same<t_output_struct_1x1,
-                      ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:2545:8: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-     if constexpr (std::is_same<t_add_struct, std::nullptr_t>::value == false) {
-        ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h: In function ‘void nn2fpga::conv_comp_onchip_OCH(t_bias_st (*)[c_bias_ops], t_weight_st (*)[((c_och * c_ich_groups) / (c_och_ops * c_ich_ops))][(c_och_ops * c_ich_ops)], t_bias_1x1_st (*)[c_bias_ops], t_weight_1x1_st (*)[((c_och_1x1 * c_ich_groups) / (c_och_ops * c_ich_ops))][(c_och_ops * c_ich_ops)], hls::stream<__STREAM_T__, 0>*, hls::stream<t_add_struct>*, hls::stream<t_forward_struct>*, hls::stream<t_output_struct>*, hls::stream<t_output_struct_1x1>*)’:
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:2818:22: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-                   if constexpr (std::is_same<t_weight_1x1,
-                      ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:2831:24: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-                     if constexpr (std::is_same<t_bias, std::nullptr_t>::value ==
-                        ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:2836:26: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-                       if constexpr (std::is_same<t_bias_1x1,
-                          ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:2855:20: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-                 if constexpr (std::is_same<t_add_struct,
-                    ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:2900:18: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-               if constexpr (std::is_same<t_acc_1x1_struct,
-                  ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:2969:22: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-                   if constexpr(std::is_same<t_acc_1x1_struct, std::nullptr_t>::value == false) {
-                      ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:2970:24: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-                     if constexpr(c_ops_1x1 != c_och_ops){
-                        ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:3027:18: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-               if constexpr (std::is_same<t_forward_struct,
-                  ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:3082:22: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-                   if constexpr (std::is_same<t_output_struct_1x1,
-                      ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:3153:8: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-     if constexpr (std::is_same<t_add_struct, std::nullptr_t>::value == false) {
-        ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h: In function ‘void nn2fpga::conv_comp_onchip(t_bias_st (*)[c_bias_ops], t_weight_st (*)[((c_och * c_ich_groups) / (c_och_ops * c_ich_ops))][(c_och_ops * c_ich_ops)], t_bias_1x1_st (*)[c_bias_ops], t_weight_1x1_st (*)[((c_och_1x1 * c_ich_groups) / (c_och_ops * c_ich_ops))][(c_och_ops * c_ich_ops)], hls::stream<__STREAM_T__, 0>*, hls::stream<t_add_struct>*, hls::stream<t_forward_struct>*, hls::stream<t_output_struct>*, hls::stream<t_output_struct_1x1>*)’:
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:3426:22: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-                   if constexpr (std::is_same<t_weight_1x1,
-                      ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:3439:24: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-                     if constexpr (std::is_same<t_bias, std::nullptr_t>::value ==
-                        ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:3444:26: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-                       if constexpr (std::is_same<t_bias_1x1,
-                          ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:3463:20: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-                 if constexpr (std::is_same<t_add_struct,
-                    ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:3508:18: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-               if constexpr (std::is_same<t_acc_1x1_struct,
-                  ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:3577:22: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-                   if constexpr(std::is_same<t_acc_1x1_struct, std::nullptr_t>::value == false) {
-                      ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:3578:24: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-                     if constexpr(c_ops_1x1 != c_och_ops){
-                        ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:3635:18: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-               if constexpr (std::is_same<t_forward_struct,
-                  ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:3690:22: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-                   if constexpr (std::is_same<t_output_struct_1x1,
-                      ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:3761:8: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-     if constexpr (std::is_same<t_add_struct, std::nullptr_t>::value == false) {
-        ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h: In function ‘void nn2fpga::conv_comp_wrap(hls::stream<p_stream_t>*, bool&, hls::stream<p_stream_t>*, t_bias_st (*)[c_bias_ops], t_weight_st (*)[((c_och * c_ich_groups) / (c_och_ops * c_ich_ops))][(c_och_ops * c_ich_ops)], t_bias_1x1_st (*)[c_bias_ops], t_weight_1x1_st (*)[((c_och_1x1 * c_ich_groups) / (c_och_ops * c_ich_ops))][(c_och_ops * c_ich_ops)], hls::stream<__STREAM_T__, 0>*, hls::stream<t_add_struct>*, hls::stream<t_forward_struct>*, hls::stream<t_output_struct>*, hls::stream<t_output_struct_1x1>*)’:
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:3887:6: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-   if constexpr (c_depth == 0) {
-      ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:3895:6: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-   if constexpr(std::is_same<t_add_struct, std::nullptr_t>::value == false) {
-      ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:3988:8: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-     if constexpr (std::is_same<t_bias_st, std::nullptr_t>::value == false) {
-        ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:4014:8: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-     if constexpr (std::is_same<t_weight_1x1_st, std::nullptr_t>::value ==
-        ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:4038:8: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-     if constexpr (std::is_same<t_bias_1x1_st, std::nullptr_t>::value == false) {
-        ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:4091:6: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-   if constexpr (c_och_ops_out == c_iter_ops_out && c_och_depth == c_iter_och &&
-      ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:4167:13: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-   } else if constexpr (c_och_ops_out == c_iter_ops_out && c_och_depth == c_iter_och) {
-             ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:4243:14: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-    } else if constexpr (c_och_ops_out == c_iter_ops_out) {
-              ^~~~~~~~~
-In file included from /home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/pool_streams.h:8,
-                 from ../../../../cc/src/yolo.cc:5:
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/line_buffer_utils.h: In function ‘void nn2fpga::bandwidth_adjust_down_up(hls::stream<__STREAM_T__, 0>*, hls::stream<dout_wrap_t>*)’:
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/line_buffer_utils.h:200:18: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-               if constexpr (!SKIP) {
-                  ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/line_buffer_utils.h: In function ‘void nn2fpga::bandwidth_adjust_down_down(hls::stream<__STREAM_T__, 0>*, hls::stream<dout_wrap_t>*)’:
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/line_buffer_utils.h:303:18: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-               if constexpr (!SKIP) {
-                  ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/line_buffer_utils.h: In function ‘void nn2fpga::bandwidth_adjust_up_up(hls::stream<__STREAM_T__, 0>*, hls::stream<dout_wrap_t>*)’:
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/line_buffer_utils.h:383:18: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-               if constexpr (!SKIP) {
-                  ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/line_buffer_utils.h: In function ‘void nn2fpga::bandwidth_adjust(hls::stream<__STREAM_T__, 0>*, hls::stream<dout_wrap_t>*)’:
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/line_buffer_utils.h:426:6: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-   if constexpr (c_ow_ops_in >= c_ow_ops_out)
-      ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/line_buffer_utils.h:428:8: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-     if constexpr (c_ops_out >= c_ops_in)
-        ^~~~~~~~~
-In file included from /home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/pool_streams.h:8,
-                 from ../../../../cc/src/yolo.cc:5:
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/line_buffer_utils.h: In function ‘void nn2fpga::shift_op(hls::stream<__STREAM_T__, 0>&, hls::stream<dout_wrap_t>&, hls::stream<dout_wrap_t>&)’:
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/line_buffer_utils.h:642:14: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-           if constexpr (std::is_same<dout_t, std::nullptr_t>::value == false) {
-              ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/line_buffer_utils.h:657:6: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-   if constexpr (std::is_same<dout_t, std::nullptr_t>::value == false) {
-      ^~~~~~~~~
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:45:6: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+  if constexpr (std::is_same<t_output_clip, std::nullptr_t>::value == false) {
+     ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:53:6: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+  if constexpr (std::is_same<t_output_mask, std::nullptr_t>::value == false) {
+     ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:74:6: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+  if constexpr (std::is_same<t_output_clip, std::nullptr_t>::value == false) {
+     ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:81:6: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+  if constexpr (std::is_same<t_output_mask, std::nullptr_t>::value == false) {
+     ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:85:6: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+  if constexpr (c_relu == 1) {
+     ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:147:6: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+  if constexpr (std::is_same<typename t_act::Base::Base,
+     ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:149:8: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+    if constexpr (std::is_same<
+       ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:171:8: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+    if constexpr (std::is_same<
+       ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:271:6: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+  if constexpr (c_och_pack > 1) {
+     ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:283:12: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+        if constexpr(std::is_same<t_bias, std::nullptr_t>::value == false) {
+           ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:333:16: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+            if constexpr(std::is_same<typename t_weight_st::Base::Base, _AP_ROOT_TYPE<t_weight_st::Base::width, true>>::value) {
+               ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:350:16: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+            if constexpr(std::is_same<typename t_input_mod::Base::Base, _AP_ROOT_TYPE<t_input_mod::Base::width, true>>::value) {
+               ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:414:14: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+          if constexpr (std::is_same<t_add, std::nullptr_t>::value ==
+             ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:438:8: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+    if constexpr(c_ow_pack > 1) {
+       ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:445:10: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+      if constexpr(c_depth == 1) {
+         ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:457:10: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+      if constexpr (std::is_same<t_bias, std::nullptr_t>::value == false) {
+         ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:458:12: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+        if constexpr (c_depth == 0) {
+           ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:478:12: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+        if constexpr(c_depth == 1) {
+           ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:485:12: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+        if constexpr(std::is_same<t_bias, std::nullptr_t>::value == false) {
+           ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:486:14: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+          if constexpr(c_depth == 1) {
+             ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:525:12: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+        if constexpr(c_depth == 1) {
+           ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:558:10: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+      if constexpr(c_depth == 0) {
+         ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:581:10: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+      if constexpr(c_depth == 0) {
+         ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:591:10: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+      if constexpr(c_depth == 0) {
+         ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:606:10: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+      if constexpr (c_depth == 0) {
+         ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:609:16: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+            if constexpr (std::is_same<t_add, std::nullptr_t>::value == false) {
+               ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:636:10: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+      if constexpr(c_depth == 1) {
+         ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:642:10: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+      if constexpr(std::is_same<t_bias, std::nullptr_t>::value == false) {
+         ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:643:12: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+        if constexpr(c_depth == 0) {
+           ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:657:12: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+        if constexpr(std::is_same<t_bias, std::nullptr_t>::value == false) {
+           ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:658:14: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+          if constexpr(c_depth == 1) {
+             ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:688:12: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+        if constexpr (c_depth == 1) {
+           ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:695:10: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+      if constexpr(c_depth == 0) {
+         ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:707:10: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+      if constexpr(c_depth == 0){
+         ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:711:10: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+      if constexpr (c_depth == 0) {
+         ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:713:14: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+          if constexpr (std::is_same<t_add, std::nullptr_t>::value ==
+             ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:819:6: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+  if constexpr (c_depth == 0) {
+     ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:827:6: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+  if constexpr(std::is_same<t_add_struct, std::nullptr_t>::value == false) {
+     ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:927:8: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+    if constexpr(std::is_same<t_add_struct, std::nullptr_t>::value == false)
+       ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:1019:20: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+                if constexpr(std::is_same<t_weight_1x1, std::nullptr_t>::value == false) {
+                   ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:1023:20: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+                if constexpr(std::is_same<t_bias, std::nullptr_t>::value == false) {
+                   ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:1027:20: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+                if constexpr(std::is_same<t_bias_1x1, std::nullptr_t>::value == false) {
+                   ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:1035:18: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+              if constexpr(std::is_same<t_add_struct, std::nullptr_t>::value == false){
+                 ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:1076:18: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+              if constexpr (std::is_same<t_acc_1x1_struct,
+                 ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:1145:22: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+                  if constexpr(std::is_same<t_acc_1x1_struct, std::nullptr_t>::value == false) {
+                     ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:1146:24: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+                    if constexpr(c_ops_1x1 != c_ops){
+                       ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:1203:18: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+              if constexpr (std::is_same<t_forward_struct,
+                 ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:1258:22: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+                  if constexpr (std::is_same<t_output_struct_1x1,
+                     ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:1330:8: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+    if constexpr (std::is_same<t_add_struct, std::nullptr_t>::value == false) {
+       ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:1602:22: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+                  if constexpr (std::is_same<t_weight_1x1,
+                     ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:1615:24: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+                    if constexpr (std::is_same<t_bias, std::nullptr_t>::value ==
+                       ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:1620:26: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+                      if constexpr (std::is_same<t_bias_1x1,
+                         ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:1639:20: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+                if constexpr (std::is_same<t_add_struct,
+                   ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:1684:18: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+              if constexpr (std::is_same<t_acc_1x1_struct,
+                 ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:1753:22: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+                  if constexpr(std::is_same<t_acc_1x1_struct, std::nullptr_t>::value == false) {
+                     ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:1754:24: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+                    if constexpr(c_ops_1x1 != c_och_ops){
+                       ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:1811:18: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+              if constexpr (std::is_same<t_forward_struct,
+                 ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:1866:22: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+                  if constexpr (std::is_same<t_output_struct_1x1,
+                     ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:1937:8: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+    if constexpr (std::is_same<t_add_struct, std::nullptr_t>::value == false) {
+       ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:2210:22: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+                  if constexpr (std::is_same<t_weight_1x1,
+                     ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:2223:24: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+                    if constexpr (std::is_same<t_bias, std::nullptr_t>::value ==
+                       ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:2228:26: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+                      if constexpr (std::is_same<t_bias_1x1,
+                         ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:2247:20: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+                if constexpr (std::is_same<t_add_struct,
+                   ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:2292:18: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+              if constexpr (std::is_same<t_acc_1x1_struct,
+                 ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:2361:22: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+                  if constexpr(std::is_same<t_acc_1x1_struct, std::nullptr_t>::value == false) {
+                     ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:2362:24: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+                    if constexpr(c_ops_1x1 != c_och_ops){
+                       ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:2419:18: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+              if constexpr (std::is_same<t_forward_struct,
+                 ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:2474:22: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+                  if constexpr (std::is_same<t_output_struct_1x1,
+                     ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:2545:8: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+    if constexpr (std::is_same<t_add_struct, std::nullptr_t>::value == false) {
+       ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:2818:22: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+                  if constexpr (std::is_same<t_weight_1x1,
+                     ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:2831:24: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+                    if constexpr (std::is_same<t_bias, std::nullptr_t>::value ==
+                       ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:2836:26: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+                      if constexpr (std::is_same<t_bias_1x1,
+                         ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:2855:20: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+                if constexpr (std::is_same<t_add_struct,
+                   ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:2900:18: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+              if constexpr (std::is_same<t_acc_1x1_struct,
+                 ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:2969:22: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+                  if constexpr(std::is_same<t_acc_1x1_struct, std::nullptr_t>::value == false) {
+                     ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:2970:24: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+                    if constexpr(c_ops_1x1 != c_och_ops){
+                       ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:3027:18: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+              if constexpr (std::is_same<t_forward_struct,
+                 ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:3082:22: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+                  if constexpr (std::is_same<t_output_struct_1x1,
+                     ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:3153:8: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+    if constexpr (std::is_same<t_add_struct, std::nullptr_t>::value == false) {
+       ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:3426:22: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+                  if constexpr (std::is_same<t_weight_1x1,
+                     ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:3439:24: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+                    if constexpr (std::is_same<t_bias, std::nullptr_t>::value ==
+                       ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:3444:26: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+                      if constexpr (std::is_same<t_bias_1x1,
+                         ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:3463:20: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+                if constexpr (std::is_same<t_add_struct,
+                   ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:3508:18: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+              if constexpr (std::is_same<t_acc_1x1_struct,
+                 ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:3577:22: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+                  if constexpr(std::is_same<t_acc_1x1_struct, std::nullptr_t>::value == false) {
+                     ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:3578:24: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+                    if constexpr(c_ops_1x1 != c_och_ops){
+                       ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:3635:18: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+              if constexpr (std::is_same<t_forward_struct,
+                 ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:3690:22: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+                  if constexpr (std::is_same<t_output_struct_1x1,
+                     ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:3761:8: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+    if constexpr (std::is_same<t_add_struct, std::nullptr_t>::value == false) {
+       ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:3887:6: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+  if constexpr (c_depth == 0) {
+     ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:3895:6: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+  if constexpr(std::is_same<t_add_struct, std::nullptr_t>::value == false) {
+     ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:3988:8: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+    if constexpr (std::is_same<t_bias_st, std::nullptr_t>::value == false) {
+       ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:4014:8: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+    if constexpr (std::is_same<t_weight_1x1_st, std::nullptr_t>::value ==
+       ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:4038:8: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+    if constexpr (std::is_same<t_bias_1x1_st, std::nullptr_t>::value == false) {
+       ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:4091:6: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+  if constexpr (c_och_ops_out == c_iter_ops_out && c_och_depth == c_iter_och &&
+     ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:4167:13: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+  } else if constexpr (c_och_ops_out == c_iter_ops_out && c_och_depth == c_iter_och) {
+            ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:4243:14: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+   } else if constexpr (c_och_ops_out == c_iter_ops_out) {
+             ^
 In file included from ../../../../cc/src/yolo.cc:5:
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/pool_streams.h: In function ‘void nn2fpga::pool_op(hls::stream<__STREAM_T__, 0>*, hls::stream<dout_wrap_t>*)’:
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/pool_streams.h:44:8: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-     if constexpr(c_pool == 0)
-        ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/pool_streams.h:120:22: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-                   if constexpr (c_pool == 0)
-                      ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/pool_streams.h:124:22: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-                   if constexpr (c_pool == 1)
-                      ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/pool_streams.h:137:24: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-                     if constexpr (c_pool == 0)
-                        ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/pool_streams.h: In function ‘void nn2fpga::global_pool_op(hls::stream<__STREAM_T__, 0>*, hls::stream<dout_wrap_t>*)’:
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/pool_streams.h:203:8: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-     if constexpr(c_pool == 0)
-        ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/pool_streams.h:265:18: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-               if constexpr (c_pool == 0)
-                  ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/pool_streams.h:281:20: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-                 if constexpr (c_pool == 0)
-                    ^~~~~~~~~
+In file included from /home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/pool_streams.h:8:
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/line_buffer_utils.h:200:18: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+              if constexpr (!SKIP) {
+                 ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/line_buffer_utils.h:310:18: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+              if constexpr (!SKIP) {
+                 ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/line_buffer_utils.h:390:18: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+              if constexpr (!SKIP) {
+                 ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/line_buffer_utils.h:433:6: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+  if constexpr (c_ow_ops_in >= c_ow_ops_out)
+     ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/line_buffer_utils.h:435:8: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+    if constexpr (c_ops_out >= c_ops_in)
+       ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/line_buffer_utils.h:649:14: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+          if constexpr (std::is_same<dout_t, std::nullptr_t>::value == false) {
+             ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/line_buffer_utils.h:664:6: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+  if constexpr (std::is_same<dout_t, std::nullptr_t>::value == false) {
+     ^
+In file included from ../../../../cc/src/yolo.cc:5:
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/pool_streams.h:44:8: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+    if constexpr(c_pool == 0)
+       ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/pool_streams.h:120:22: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+                  if constexpr (c_pool == 0)
+                     ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/pool_streams.h:124:22: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+                  if constexpr (c_pool == 1)
+                     ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/pool_streams.h:137:24: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+                    if constexpr (c_pool == 0)
+                       ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/pool_streams.h:203:8: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+    if constexpr(c_pool == 0)
+       ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/pool_streams.h:265:18: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+              if constexpr (c_pool == 0)
+                 ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/pool_streams.h:281:20: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+                if constexpr (c_pool == 0)
+                   ^
 In file included from ../../../../cc/src/yolo.cc:11:
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/weights_utils.h: In function ‘void nn2fpga::produce_stream(din_bias_t (*)[BIAS_OPS], din_weight_t (*)[((OCH * ICH) / (OCH_OPS * ICH_OPS))][(OCH_OPS * ICH_OPS)], din_bias1x1_t (*)[BIAS_OPS], din_weight1x1_t (*)[((OCH * ICH) / (OCH_OPS * ICH_OPS))][(OCH_OPS * ICH_OPS)], hls::stream<t_weight>*, hls::stream<dout_weight_t>*, hls::stream<t_bias>*, hls::stream<t_add_struct>*)’:
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/weights_utils.h:269:6: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-   if constexpr (std::is_same<din_bias_t, std::nullptr_t>::value == false) {
-      ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/weights_utils.h:284:6: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-   if constexpr (std::is_same<din_weight1x1_t, std::nullptr_t>::value == false) {
-      ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/weights_utils.h:303:6: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-   if constexpr (std::is_same<din_bias1x1_t, std::nullptr_t>::value == false) {
-      ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/weights_utils.h: In function ‘void nn2fpga::produce_shift_stream(din_bias_t (*)[BIAS_OPS], din_weight_t (*)[((OCH * ICH) / (OCH_OPS * ICH_OPS))][(OCH_OPS * ICH_OPS)], din_bias1x1_t (*)[BIAS_OPS], din_weight1x1_t (*)[((OCH * ICH) / (OCH_OPS * ICH_OPS))][(OCH_OPS * ICH_OPS)], hls::stream<t_weight>*, bool&, hls::stream<dout_weight_t>*, hls::stream<t_bias>*, hls::stream<t_add_struct>*, hls::stream<t_add_struct>*, hls::stream<t_weight>*)’:
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/weights_utils.h:415:8: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-     if constexpr (std::is_same<din_bias_t, std::nullptr_t>::value == false) {
-        ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/weights_utils.h:440:8: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-     if constexpr (std::is_same<din_weight1x1_t, std::nullptr_t>::value ==
-        ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/weights_utils.h:464:8: warning: ‘if constexpr’ only available with -std=c++17 or -std=gnu++17
-     if constexpr (std::is_same<din_bias1x1_t, std::nullptr_t>::value == false) {
-        ^~~~~~~~~
-../../../../cc/src/yolo.cc: In function ‘void yolo(hls::stream<hls::axis<ap_uint<64>, 0, 0, 0, 56, false> >&, hls::stream<hls::axis<ap_uint<8>, 0, 0, 0, 56, false> >&, hls::stream<hls::axis<ap_ufixed<8, 3, (ap_q_mode)4, (ap_o_mode)0>, 0, 0, 0> >&, hls::stream<hls::axis<ap_ufixed<8, 3, (ap_q_mode)4, (ap_o_mode)0>, 0, 0, 0> >&)’:
-../../../../cc/src/yolo.cc:4484:2: error: no matching function for call to ‘concat_op<t_net_20_struct, c_node_concat_17_feature_map, 128, 256, 384, 4, c_node_concat_17_ow_ops_in>(hls::stream<t_net_20_struct> [1], hls::stream<t_net_14_struct> [2], hls::stream<t_net_24_struct> [1])’
-  );
-  ^
-In file included from /home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/packed_conv.h:7,
-                 from ../../../../cc/src/yolo.cc:4:
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/activations_utils.h:133:6: note: candidate: ‘template<class t_input, long unsigned int c_feature_map, long unsigned int c_ich1, long unsigned int c_ich2, long unsigned int c_och, long unsigned int c_ops, long unsigned int c_ow_ops_in> void nn2fpga::concat_op(hls::stream<__STREAM_T__, 0>*, hls::stream<__STREAM_T__, 0>*, hls::stream<__STREAM_T__, 0>*)’
- void concat_op(
-      ^~~~~~~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/activations_utils.h:133:6: note:   template argument deduction/substitution failed:
-../../../../cc/src/yolo.cc:4482:3: note:   cannot convert ‘s_net_14_dup_1’ (type ‘hls::stream<t_net_14_struct> [2]’) to type ‘hls::stream<t_net_20_struct>*’
-   s_net_14_dup_1,
-   ^~~~~~~~~~~~~~
-In file included from /home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/pool_streams.h:8,
-                 from ../../../../cc/src/yolo.cc:5:
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/line_buffer_utils.h: In instantiation of ‘void nn2fpga::shift_op(hls::stream<__STREAM_T__, 0>&, hls::stream<dout_wrap_t>&, hls::stream<dout_wrap_t>&) [with din_t = t_net_18_struct; dcomp_t = t_net_18_dup_1_lb_struct; dout_t = std::nullptr_t; int ICH = 256; int OCH = 128; int IH = 13; int IW = 13; int OH = 13; int OW = 13; int c_fh = 1; int c_fw = 1; int c_str = 1; int c_pad = 0; int c_pos_h = 0; int c_pos_w = 0; int c_ow_ops = 1; int c_ops = 1; int c_ops_out = 8]’:
-../../../../cc/src/yolo.cc:4369:2:   required from here
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/line_buffer_utils.h:519:35: error: static assertion failed: c_ops must be a multiple of c_ops_out
-   static_assert(c_ops % c_ops_out == 0, "c_ops must be a multiple of c_ops_out");
-                 ~~~~~~~~~~~~~~~~~~^~~~
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/line_buffer_utils.h:520:23: error: static assertion failed: c_ops must be bigger than c_ops_out
-   static_assert(c_ops >= c_ops_out, "c_ops must be bigger than c_ops_out");
-                 ~~~~~~^~~~~~~~~~~~
-In file included from /home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/pool_streams.h:8,
-                 from ../../../../cc/src/yolo.cc:5:
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/line_buffer_utils.h: In instantiation of ‘void nn2fpga::shift_op(hls::stream<__STREAM_T__, 0>&, hls::stream<dout_wrap_t>&, hls::stream<dout_wrap_t>&) [with din_t = t_net_24_struct; dcomp_t = t_net_24_lb_struct; dout_t = t_net_24_lb_struct; int ICH = 384; int OCH = 256; int IH = 26; int IW = 26; int OH = 26; int OW = 26; int c_fh = 3; int c_fw = 3; int c_str = 1; int c_pad = 1; int c_pos_h = 2; int c_pos_w = 2; int c_ow_ops = 1; int c_ops = 24; int c_ops_out = 24]’:
-../../../../cc/src/yolo.cc:4509:2:   required from here
-/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/cc/include/nn2fpga/line_buffer_utils.h:635:30: error: no match for ‘operator[]’ (operand types are ‘af_bit_ref<8, 3, false, (ap_q_mode)4, (ap_o_mode)0, 0>’ and ‘int’)
-               s_input.data[0][s_index_read + s_index_ops];
-               ~~~~~~~~~~~~~~~^
-make[2]: *** [csim.mk:103: obj/yolo.o] Error 1
-ERROR: [SIM 211-100] 'csim_design' failed: compilation error(s).
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/weights_utils.h:269:6: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+  if constexpr (std::is_same<din_bias_t, std::nullptr_t>::value == false) {
+     ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/weights_utils.h:284:6: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+  if constexpr (std::is_same<din_weight1x1_t, std::nullptr_t>::value == false) {
+     ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/weights_utils.h:303:6: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+  if constexpr (std::is_same<din_bias1x1_t, std::nullptr_t>::value == false) {
+     ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/weights_utils.h:415:8: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+    if constexpr (std::is_same<din_bias_t, std::nullptr_t>::value == false) {
+       ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/weights_utils.h:440:8: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+    if constexpr (std::is_same<din_weight1x1_t, std::nullptr_t>::value ==
+       ^
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/weights_utils.h:464:8: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+    if constexpr (std::is_same<din_bias1x1_t, std::nullptr_t>::value == false) {
+       ^
+118 warnings generated.
+ONNX path: /home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/models/onnx/yolov3_tiny_a8w8_28.4.onnx
+Dataset: coco
+Current working directory: /home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/work/project_yolo_U280_20240928/yolo_U55C_csim_ip/solution_nopack/csim/build
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/work/
+Sending 1 images.
+Allocated 64896 ap_uint<64> for activations.
+Allocated 173056 ap_uint<8> for output1 results.
+Allocated 86528 ap_uint<8> for output2 results.
+/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/work/project_yolo_U280_20240928/yolo_U55C_csim_ip/solution_nopack/csim/build/utils/datasets.py:28: UserWarning: To copy construct from a tensor, it is recommended to use sourceTensor.clone().detach() or sourceTensor.clone().detach().requires_grad_(True), rather than torch.tensor(sourceTensor).
+  return torch.tensor(img), target
+loading annotations into memory...
+Done (t=0.32s)
+creating index...
+index created!
+Starting inference
+INFO: Call to mm2s
+		size: 8649648
+INFO: Finished mm2s
+INFO: Call to mm2s
+		size: 64896
+INFO: Finished mm2s
+INFO: Call to axi_to_stream
+		CYCLES: 8649648
+INFO: Finished axi_to_stream
+INFO: Call to produce_stream
+		ICH: 3
+		IW: 416
+		IH: 416
+		BITS: 64
+		OPS: 3
+		PREPROC: 0
+INFO: Finished produce_stream
+INFO: Call to shift_op.
+		ICH = 3
+		IH = 416
+		IW = 416
+		c_fh = 3
+		c_fw = 3
+		c_str = 1
+		c_pad = 1
+		c_pos_h = 2
+		c_pos_w = 2
+		c_ow_ops = 1
+		c_ops = 3
+		c_ops_out = 3
+		c_top_border = 1
+		c_left_border = 1
+		c_bottom_border = 417
+		c_right_border = 417
+		c_starth = 0
+		c_startw = 0
+		c_strh = 0
+		c_strw = 0
+o_data.size() 173056
+o_compute.size() 172225
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 3
+		IH = 416
+		IW = 416
+		c_fh = 3
+		c_fw = 3
+		c_str = 1
+		c_pad = 1
+		c_pos_h = 2
+		c_pos_w = 1
+		c_ow_ops = 1
+		c_ops = 3
+		c_ops_out = 3
+		c_top_border = 1
+		c_left_border = 0
+		c_bottom_border = 417
+		c_right_border = 416
+		c_starth = 0
+		c_startw = 0
+		c_strh = 0
+		c_strw = 0
+o_data.size() 173056
+o_compute.size() 172640
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 3
+		IH = 416
+		IW = 416
+		c_fh = 3
+		c_fw = 3
+		c_str = 1
+		c_pad = 1
+		c_pos_h = 2
+		c_pos_w = 0
+		c_ow_ops = 1
+		c_ops = 3
+		c_ops_out = 3
+		c_top_border = 1
+		c_left_border = 0
+		c_bottom_border = 417
+		c_right_border = 415
+		c_starth = 0
+		c_startw = 0
+		c_strh = 0
+		c_strw = 0
+o_data.size() 173056
+o_compute.size() 172225
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 3
+		IH = 416
+		IW = 416
+		c_fh = 3
+		c_fw = 3
+		c_str = 1
+		c_pad = 1
+		c_pos_h = 1
+		c_pos_w = 2
+		c_ow_ops = 1
+		c_ops = 3
+		c_ops_out = 3
+		c_top_border = 0
+		c_left_border = 1
+		c_bottom_border = 416
+		c_right_border = 417
+		c_starth = 0
+		c_startw = 0
+		c_strh = 0
+		c_strw = 0
+o_data.size() 173056
+o_compute.size() 172640
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 3
+		IH = 416
+		IW = 416
+		c_fh = 3
+		c_fw = 3
+		c_str = 1
+		c_pad = 1
+		c_pos_h = 1
+		c_pos_w = 1
+		c_ow_ops = 1
+		c_ops = 3
+		c_ops_out = 3
+		c_top_border = 0
+		c_left_border = 0
+		c_bottom_border = 416
+		c_right_border = 416
+		c_starth = 0
+		c_startw = 0
+		c_strh = 0
+		c_strw = 0
+o_data.size() 173056
+o_compute.size() 173056
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 3
+		IH = 416
+		IW = 416
+		c_fh = 3
+		c_fw = 3
+		c_str = 1
+		c_pad = 1
+		c_pos_h = 1
+		c_pos_w = 0
+		c_ow_ops = 1
+		c_ops = 3
+		c_ops_out = 3
+		c_top_border = 0
+		c_left_border = 0
+		c_bottom_border = 416
+		c_right_border = 415
+		c_starth = 0
+		c_startw = 0
+		c_strh = 0
+		c_strw = 0
+o_data.size() 173056
+o_compute.size() 172640
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 3
+		IH = 416
+		IW = 416
+		c_fh = 3
+		c_fw = 3
+		c_str = 1
+		c_pad = 1
+		c_pos_h = 0
+		c_pos_w = 2
+		c_ow_ops = 1
+		c_ops = 3
+		c_ops_out = 3
+		c_top_border = 0
+		c_left_border = 1
+		c_bottom_border = 415
+		c_right_border = 417
+		c_starth = 0
+		c_startw = 0
+		c_strh = 0
+		c_strw = 0
+o_data.size() 173056
+o_compute.size() 172225
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 3
+		IH = 416
+		IW = 416
+		c_fh = 3
+		c_fw = 3
+		c_str = 1
+		c_pad = 1
+		c_pos_h = 0
+		c_pos_w = 1
+		c_ow_ops = 1
+		c_ops = 3
+		c_ops_out = 3
+		c_top_border = 0
+		c_left_border = 0
+		c_bottom_border = 415
+		c_right_border = 416
+		c_starth = 0
+		c_startw = 0
+		c_strh = 0
+		c_strw = 0
+o_data.size() 173056
+o_compute.size() 172640
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 3
+		IH = 416
+		IW = 416
+		c_fh = 3
+		c_fw = 3
+		c_str = 1
+		c_pad = 1
+		c_pos_h = 0
+		c_pos_w = 0
+		c_ow_ops = 1
+		c_ops = 3
+		c_ops_out = 3
+		c_top_border = 0
+		c_left_border = 0
+		c_bottom_border = 415
+		c_right_border = 415
+		c_starth = 0
+		c_startw = 0
+		c_strh = 0
+		c_strw = 0
+o_compute.size() 172225
+INFO: Finished shift_op.
+pad_input 3 1 3 3
+s_read[0] = 172225
+s_read[1] = 172640
+s_read[2] = 172225
+s_read[3] = 172640
+s_read[4] = 173056
+s_read[5] = 172640
+s_read[6] = 172225
+s_read[7] = 172640
+s_read[8] = 172225
+IH_REM 416 IW_REM 416
+end pad_input 3 1 3 3
+INFO: Call to conv_comp
+		c_ich = 3
+		c_och = 16
+		c_oh = 416
+		c_ow = 416
+		c_fh = 3
+		c_fw = 3
+		c_index = 9
+		c_str = 1
+		c_och_ops = 16
+		c_och_ops_out = 16
+		c_ich_ops = 3
+		c_add_ops = 1
+		c_ow_ops = 1
+		c_ow_ops_out = 1
+		c_bias_ops = 16
+		c_relu = 1
+		c_reuse = 1
+		c_ow_pack = 1
+		c_och_pack = 2
+		c_in_bits = 8
+		c_in_ibits = 3
+		c_w_bits = 8
+		c_w_ibits = 2
+		c_simd_bits = 2
+		c_simd = 4
+		c_mask = 3
+		c_in_bits_1x1 = 0
+		c_in_ibits_1x1 = 0
+		c_w_bits_1x1 = 0
+		c_w_ibits_1x1 = 0
+		c_simd_bits_1x1 = 2
+		c_simd_1x1 = 1
+		c_mask_1x1 = 0
+		c_depth = 0
+		c_data_to_shift = 8649216
+	INFO: Finished saving parameters.
+o_output[0].size() = 173056
+end conv_op 3 0
+INFO: Call to shift_op.
+		ICH = 16
+		IH = 416
+		IW = 416
+		c_fh = 2
+		c_fw = 2
+		c_str = 2
+		c_pad = 0
+		c_pos_h = 1
+		c_pos_w = 1
+		c_ow_ops = 1
+		c_ops = 16
+		c_ops_out = 16
+		c_top_border = 1
+		c_left_border = 1
+		c_bottom_border = 416
+		c_right_border = 416
+		c_starth = 0
+		c_startw = 0
+		c_strh = 1
+		c_strw = 1
+o_data.size() 173056
+o_compute.size() 43264
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 16
+		IH = 416
+		IW = 416
+		c_fh = 2
+		c_fw = 2
+		c_str = 2
+		c_pad = 0
+		c_pos_h = 1
+		c_pos_w = 0
+		c_ow_ops = 1
+		c_ops = 16
+		c_ops_out = 16
+		c_top_border = 1
+		c_left_border = 0
+		c_bottom_border = 416
+		c_right_border = 415
+		c_starth = 0
+		c_startw = 0
+		c_strh = 1
+		c_strw = 0
+o_data.size() 173056
+o_compute.size() 43264
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 16
+		IH = 416
+		IW = 416
+		c_fh = 2
+		c_fw = 2
+		c_str = 2
+		c_pad = 0
+		c_pos_h = 0
+		c_pos_w = 1
+		c_ow_ops = 1
+		c_ops = 16
+		c_ops_out = 16
+		c_top_border = 0
+		c_left_border = 1
+		c_bottom_border = 415
+		c_right_border = 416
+		c_starth = 0
+		c_startw = 0
+		c_strh = 0
+		c_strw = 1
+o_data.size() 173056
+o_compute.size() 43264
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 16
+		IH = 416
+		IW = 416
+		c_fh = 2
+		c_fw = 2
+		c_str = 2
+		c_pad = 0
+		c_pos_h = 0
+		c_pos_w = 0
+		c_ow_ops = 1
+		c_ops = 16
+		c_ops_out = 16
+		c_top_border = 0
+		c_left_border = 0
+		c_bottom_border = 415
+		c_right_border = 415
+		c_starth = 0
+		c_startw = 0
+		c_strh = 0
+		c_strw = 0
+o_compute.size() 43264
+INFO: Finished shift_op.
+pad_input 16 0 16 16
+s_read[0] = 43264
+s_read[1] = 43264
+s_read[2] = 43264
+s_read[3] = 43264
+IH_REM 416 IW_REM 416
+end pad_input 16 0 16 16
+INFO: Call to pool_op
+		c_ich = 16
+		c_och = 16
+		c_ih = 416
+		c_iw = 416
+		c_oh = 208
+		c_ow = 208
+		c_fh = 2
+		c_fw = 2
+		c_str = 2
+		c_pad = 0
+		c_pool = 1
+		c_ow_ops = 1
+		c_ops = 16
+		c_in_ops = 16
+i_data[0].size() = 43264
+pool_op: o_data[0].size() 43264
+end pool_op 16
+INFO: Call to bandwidth_adjust_up
+		ICH = 16
+		IH = 208
+		IW = 208
+		c_ow_ops_in = 1
+		c_ow_ops_out = 2
+		c_ops_in = 16
+		c_ops_out = 16
+INFO: Finished bandwidth_adjust 
+INFO: Call to shift_op.
+		ICH = 16
+		IH = 208
+		IW = 208
+		c_fh = 3
+		c_fw = 3
+		c_str = 1
+		c_pad = 1
+		c_pos_h = 2
+		c_pos_w = 3
+		c_ow_ops = 2
+		c_ops = 16
+		c_ops_out = 8
+		c_top_border = 1
+		c_left_border = 2
+		c_bottom_border = 209
+		c_right_border = 209
+		c_starth = 0
+		c_startw = 0
+		c_strh = 0
+		c_strw = 0
+o_data.size() 43264
+o_compute.size() 42642
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 16
+		IH = 208
+		IW = 208
+		c_fh = 3
+		c_fw = 3
+		c_str = 1
+		c_pad = 1
+		c_pos_h = 2
+		c_pos_w = 2
+		c_ow_ops = 2
+		c_ops = 16
+		c_ops_out = 8
+		c_top_border = 1
+		c_left_border = 1
+		c_bottom_border = 209
+		c_right_border = 208
+		c_starth = 0
+		c_startw = 1
+		c_strh = 0
+		c_strw = 0
+o_data.size() 43264
+o_compute.size() 43056
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 16
+		IH = 208
+		IW = 208
+		c_fh = 3
+		c_fw = 3
+		c_str = 1
+		c_pad = 1
+		c_pos_h = 2
+		c_pos_w = 1
+		c_ow_ops = 2
+		c_ops = 8
+		c_ops_out = 8
+		c_top_border = 1
+		c_left_border = 0
+		c_bottom_border = 209
+		c_right_border = 207
+		c_starth = 0
+		c_startw = 0
+		c_strh = 0
+		c_strw = 0
+o_data.size() 43264
+o_compute.size() 43056
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 16
+		IH = 208
+		IW = 208
+		c_fh = 3
+		c_fw = 3
+		c_str = 1
+		c_pad = 1
+		c_pos_h = 2
+		c_pos_w = 0
+		c_ow_ops = 2
+		c_ops = 8
+		c_ops_out = 8
+		c_top_border = 1
+		c_left_border = 0
+		c_bottom_border = 209
+		c_right_border = 206
+		c_starth = 0
+		c_startw = 1
+		c_strh = 0
+		c_strw = 0
+o_data.size() 43264
+o_compute.size() 42642
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 16
+		IH = 208
+		IW = 208
+		c_fh = 3
+		c_fw = 3
+		c_str = 1
+		c_pad = 1
+		c_pos_h = 1
+		c_pos_w = 3
+		c_ow_ops = 2
+		c_ops = 8
+		c_ops_out = 8
+		c_top_border = 0
+		c_left_border = 2
+		c_bottom_border = 208
+		c_right_border = 209
+		c_starth = 0
+		c_startw = 0
+		c_strh = 0
+		c_strw = 0
+o_data.size() 43264
+o_compute.size() 42848
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 16
+		IH = 208
+		IW = 208
+		c_fh = 3
+		c_fw = 3
+		c_str = 1
+		c_pad = 1
+		c_pos_h = 1
+		c_pos_w = 2
+		c_ow_ops = 2
+		c_ops = 8
+		c_ops_out = 8
+		c_top_border = 0
+		c_left_border = 1
+		c_bottom_border = 208
+		c_right_border = 208
+		c_starth = 0
+		c_startw = 1
+		c_strh = 0
+		c_strw = 0
+o_data.size() 43264
+o_compute.size() 43264
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 16
+		IH = 208
+		IW = 208
+		c_fh = 3
+		c_fw = 3
+		c_str = 1
+		c_pad = 1
+		c_pos_h = 1
+		c_pos_w = 1
+		c_ow_ops = 2
+		c_ops = 8
+		c_ops_out = 8
+		c_top_border = 0
+		c_left_border = 0
+		c_bottom_border = 208
+		c_right_border = 207
+		c_starth = 0
+		c_startw = 0
+		c_strh = 0
+		c_strw = 0
+o_data.size() 43264
+o_compute.size() 43264
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 16
+		IH = 208
+		IW = 208
+		c_fh = 3
+		c_fw = 3
+		c_str = 1
+		c_pad = 1
+		c_pos_h = 1
+		c_pos_w = 0
+		c_ow_ops = 2
+		c_ops = 8
+		c_ops_out = 8
+		c_top_border = 0
+		c_left_border = 0
+		c_bottom_border = 208
+		c_right_border = 206
+		c_starth = 0
+		c_startw = 1
+		c_strh = 0
+		c_strw = 0
+o_data.size() 43264
+o_compute.size() 42848
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 16
+		IH = 208
+		IW = 208
+		c_fh = 3
+		c_fw = 3
+		c_str = 1
+		c_pad = 1
+		c_pos_h = 0
+		c_pos_w = 3
+		c_ow_ops = 2
+		c_ops = 8
+		c_ops_out = 8
+		c_top_border = 0
+		c_left_border = 2
+		c_bottom_border = 207
+		c_right_border = 209
+		c_starth = 0
+		c_startw = 0
+		c_strh = 0
+		c_strw = 0
+o_data.size() 43264
+o_compute.size() 42642
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 16
+		IH = 208
+		IW = 208
+		c_fh = 3
+		c_fw = 3
+		c_str = 1
+		c_pad = 1
+		c_pos_h = 0
+		c_pos_w = 2
+		c_ow_ops = 2
+		c_ops = 8
+		c_ops_out = 8
+		c_top_border = 0
+		c_left_border = 1
+		c_bottom_border = 207
+		c_right_border = 208
+		c_starth = 0
+		c_startw = 1
+		c_strh = 0
+		c_strw = 0
+o_data.size() 43264
+o_compute.size() 43056
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 16
+		IH = 208
+		IW = 208
+		c_fh = 3
+		c_fw = 3
+		c_str = 1
+		c_pad = 1
+		c_pos_h = 0
+		c_pos_w = 1
+		c_ow_ops = 2
+		c_ops = 8
+		c_ops_out = 8
+		c_top_border = 0
+		c_left_border = 0
+		c_bottom_border = 207
+		c_right_border = 207
+		c_starth = 0
+		c_startw = 0
+		c_strh = 0
+		c_strw = 0
+o_compute.size() 43056
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 16
+		IH = 208
+		IW = 208
+		c_fh = 3
+		c_fw = 3
+		c_str = 1
+		c_pad = 1
+		c_pos_h = 0
+		c_pos_w = 0
+		c_ow_ops = 2
+		c_ops = 8
+		c_ops_out = 8
+		c_top_border = 0
+		c_left_border = 0
+		c_bottom_border = 207
+		c_right_border = 206
+		c_starth = 0
+		c_startw = 1
+		c_strh = 0
+		c_strw = 0
+o_compute.size() 42642
+INFO: Finished shift_op.
+pad_input 16 1 8 8
+s_read[0] = 42642
+s_read[1] = 43056
+s_read[2] = 43056
+s_read[3] = 42642
+s_read[4] = 42848
+s_read[5] = 43264
+s_read[6] = 43264
+s_read[7] = 42848
+s_read[8] = 42642
+s_read[9] = 43056
+s_read[10] = 43056
+s_read[11] = 42642
+IH_REM 208 IW_REM 208
+end pad_input 16 1 8 8
+INFO: Call to conv_comp
+		c_ich = 16
+		c_och = 32
+		c_oh = 208
+		c_ow = 208
+		c_fh = 3
+		c_fw = 3
+		c_index = 9
+		c_str = 1
+		c_och_ops = 8
+		c_och_ops_out = 16
+		c_ich_ops = 8
+		c_add_ops = 1
+		c_ow_ops = 2
+		c_ow_ops_out = 2
+		c_bias_ops = 8
+		c_relu = 1
+		c_reuse = 2
+		c_ow_pack = 2
+		c_och_pack = 1
+		c_in_bits = 8
+		c_in_ibits = 3
+		c_w_bits = 8
+		c_w_ibits = 2
+		c_simd_bits = 2
+		c_simd = 16
+		c_mask = 15
+		c_in_bits_1x1 = 0
+		c_in_ibits_1x1 = 0
+		c_w_bits_1x1 = 0
+		c_w_ibits_1x1 = 0
+		c_simd_bits_1x1 = 2
+		c_simd_1x1 = 1
+		c_mask_1x1 = 0
+		c_depth = 0
+		c_data_to_shift = 8644608
+	INFO: Finished saving parameters.
+o_output[0].size() = 43264
+o_output[1].size() = 43264
+end conv_op 16 0
+INFO: Call to bandwidth_adjust_down
+		ICH = 32
+		IH = 208
+		IW = 208
+		c_ow_ops_in = 2
+		c_ow_ops_out = 1
+		c_ops_in = 16
+		c_ops_out = 16
+INFO: Finished bandwidth_adjust 
+INFO: Call to shift_op.
+		ICH = 32
+		IH = 208
+		IW = 208
+		c_fh = 2
+		c_fw = 2
+		c_str = 2
+		c_pad = 0
+		c_pos_h = 1
+		c_pos_w = 1
+		c_ow_ops = 1
+		c_ops = 16
+		c_ops_out = 16
+		c_top_border = 1
+		c_left_border = 1
+		c_bottom_border = 208
+		c_right_border = 208
+		c_starth = 0
+		c_startw = 0
+		c_strh = 1
+		c_strw = 1
+o_data.size() 86528
+o_compute.size() 21632
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 32
+		IH = 208
+		IW = 208
+		c_fh = 2
+		c_fw = 2
+		c_str = 2
+		c_pad = 0
+		c_pos_h = 1
+		c_pos_w = 0
+		c_ow_ops = 1
+		c_ops = 16
+		c_ops_out = 16
+		c_top_border = 1
+		c_left_border = 0
+		c_bottom_border = 208
+		c_right_border = 207
+		c_starth = 0
+		c_startw = 0
+		c_strh = 1
+		c_strw = 0
+o_data.size() 86528
+o_compute.size() 21632
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 32
+		IH = 208
+		IW = 208
+		c_fh = 2
+		c_fw = 2
+		c_str = 2
+		c_pad = 0
+		c_pos_h = 0
+		c_pos_w = 1
+		c_ow_ops = 1
+		c_ops = 16
+		c_ops_out = 16
+		c_top_border = 0
+		c_left_border = 1
+		c_bottom_border = 207
+		c_right_border = 208
+		c_starth = 0
+		c_startw = 0
+		c_strh = 0
+		c_strw = 1
+o_data.size() 86528
+o_compute.size() 21632
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 32
+		IH = 208
+		IW = 208
+		c_fh = 2
+		c_fw = 2
+		c_str = 2
+		c_pad = 0
+		c_pos_h = 0
+		c_pos_w = 0
+		c_ow_ops = 1
+		c_ops = 16
+		c_ops_out = 16
+		c_top_border = 0
+		c_left_border = 0
+		c_bottom_border = 207
+		c_right_border = 207
+		c_starth = 0
+		c_startw = 0
+		c_strh = 0
+		c_strw = 0
+o_compute.size() 21632
+INFO: Finished shift_op.
+pad_input 32 0 16 16
+s_read[0] = 21632
+s_read[1] = 21632
+s_read[2] = 21632
+s_read[3] = 21632
+IH_REM 208 IW_REM 208
+end pad_input 32 0 16 16
+INFO: Call to pool_op
+		c_ich = 32
+		c_och = 32
+		c_ih = 208
+		c_iw = 208
+		c_oh = 104
+		c_ow = 104
+		c_fh = 2
+		c_fw = 2
+		c_str = 2
+		c_pad = 0
+		c_pool = 1
+		c_ow_ops = 1
+		c_ops = 16
+		c_in_ops = 16
+i_data[0].size() = 21632
+pool_op: o_data[0].size() 21632
+end pool_op 32
+INFO: Call to bandwidth_adjust_up
+		ICH = 32
+		IH = 104
+		IW = 104
+		c_ow_ops_in = 1
+		c_ow_ops_out = 2
+		c_ops_in = 16
+		c_ops_out = 16
+INFO: Finished bandwidth_adjust 
+INFO: Call to shift_op.
+		ICH = 32
+		IH = 104
+		IW = 104
+		c_fh = 3
+		c_fw = 3
+		c_str = 1
+		c_pad = 1
+		c_pos_h = 2
+		c_pos_w = 3
+		c_ow_ops = 2
+		c_ops = 16
+		c_ops_out = 8
+		c_top_border = 1
+		c_left_border = 2
+		c_bottom_border = 105
+		c_right_border = 105
+		c_starth = 0
+		c_startw = 0
+		c_strh = 0
+		c_strw = 0
+o_data.size() 21632
+o_compute.size() 21012
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 32
+		IH = 104
+		IW = 104
+		c_fh = 3
+		c_fw = 3
+		c_str = 1
+		c_pad = 1
+		c_pos_h = 2
+		c_pos_w = 2
+		c_ow_ops = 2
+		c_ops = 16
+		c_ops_out = 8
+		c_top_border = 1
+		c_left_border = 1
+		c_bottom_border = 105
+		c_right_border = 104
+		c_starth = 0
+		c_startw = 1
+		c_strh = 0
+		c_strw = 0
+o_data.size() 21632
+o_compute.size() 21424
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 32
+		IH = 104
+		IW = 104
+		c_fh = 3
+		c_fw = 3
+		c_str = 1
+		c_pad = 1
+		c_pos_h = 2
+		c_pos_w = 1
+		c_ow_ops = 2
+		c_ops = 8
+		c_ops_out = 8
+		c_top_border = 1
+		c_left_border = 0
+		c_bottom_border = 105
+		c_right_border = 103
+		c_starth = 0
+		c_startw = 0
+		c_strh = 0
+		c_strw = 0
+o_data.size() 21632
+o_compute.size() 21424
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 32
+		IH = 104
+		IW = 104
+		c_fh = 3
+		c_fw = 3
+		c_str = 1
+		c_pad = 1
+		c_pos_h = 2
+		c_pos_w = 0
+		c_ow_ops = 2
+		c_ops = 8
+		c_ops_out = 8
+		c_top_border = 1
+		c_left_border = 0
+		c_bottom_border = 105
+		c_right_border = 102
+		c_starth = 0
+		c_startw = 1
+		c_strh = 0
+		c_strw = 0
+o_data.size() 21632
+o_compute.size() 21012
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 32
+		IH = 104
+		IW = 104
+		c_fh = 3
+		c_fw = 3
+		c_str = 1
+		c_pad = 1
+		c_pos_h = 1
+		c_pos_w = 3
+		c_ow_ops = 2
+		c_ops = 8
+		c_ops_out = 8
+		c_top_border = 0
+		c_left_border = 2
+		c_bottom_border = 104
+		c_right_border = 105
+		c_starth = 0
+		c_startw = 0
+		c_strh = 0
+		c_strw = 0
+o_data.size() 21632
+o_compute.size() 21216
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 32
+		IH = 104
+		IW = 104
+		c_fh = 3
+		c_fw = 3
+		c_str = 1
+		c_pad = 1
+		c_pos_h = 1
+		c_pos_w = 2
+		c_ow_ops = 2
+		c_ops = 8
+		c_ops_out = 8
+		c_top_border = 0
+		c_left_border = 1
+		c_bottom_border = 104
+		c_right_border = 104
+		c_starth = 0
+		c_startw = 1
+		c_strh = 0
+		c_strw = 0
+o_data.size() 21632
+o_compute.size() 21632
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 32
+		IH = 104
+		IW = 104
+		c_fh = 3
+		c_fw = 3
+		c_str = 1
+		c_pad = 1
+		c_pos_h = 1
+		c_pos_w = 1
+		c_ow_ops = 2
+		c_ops = 8
+		c_ops_out = 8
+		c_top_border = 0
+		c_left_border = 0
+		c_bottom_border = 104
+		c_right_border = 103
+		c_starth = 0
+		c_startw = 0
+		c_strh = 0
+		c_strw = 0
+o_data.size() 21632
+o_compute.size() 21632
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 32
+		IH = 104
+		IW = 104
+		c_fh = 3
+		c_fw = 3
+		c_str = 1
+		c_pad = 1
+		c_pos_h = 1
+		c_pos_w = 0
+		c_ow_ops = 2
+		c_ops = 8
+		c_ops_out = 8
+		c_top_border = 0
+		c_left_border = 0
+		c_bottom_border = 104
+		c_right_border = 102
+		c_starth = 0
+		c_startw = 1
+		c_strh = 0
+		c_strw = 0
+o_data.size() 21632
+o_compute.size() 21216
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 32
+		IH = 104
+		IW = 104
+		c_fh = 3
+		c_fw = 3
+		c_str = 1
+		c_pad = 1
+		c_pos_h = 0
+		c_pos_w = 3
+		c_ow_ops = 2
+		c_ops = 8
+		c_ops_out = 8
+		c_top_border = 0
+		c_left_border = 2
+		c_bottom_border = 103
+		c_right_border = 105
+		c_starth = 0
+		c_startw = 0
+		c_strh = 0
+		c_strw = 0
+o_data.size() 21632
+o_compute.size() 21012
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 32
+		IH = 104
+		IW = 104
+		c_fh = 3
+		c_fw = 3
+		c_str = 1
+		c_pad = 1
+		c_pos_h = 0
+		c_pos_w = 2
+		c_ow_ops = 2
+		c_ops = 8
+		c_ops_out = 8
+		c_top_border = 0
+		c_left_border = 1
+		c_bottom_border = 103
+		c_right_border = 104
+		c_starth = 0
+		c_startw = 1
+		c_strh = 0
+		c_strw = 0
+o_data.size() 21632
+o_compute.size() 21424
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 32
+		IH = 104
+		IW = 104
+		c_fh = 3
+		c_fw = 3
+		c_str = 1
+		c_pad = 1
+		c_pos_h = 0
+		c_pos_w = 1
+		c_ow_ops = 2
+		c_ops = 8
+		c_ops_out = 8
+		c_top_border = 0
+		c_left_border = 0
+		c_bottom_border = 103
+		c_right_border = 103
+		c_starth = 0
+		c_startw = 0
+		c_strh = 0
+		c_strw = 0
+o_compute.size() 21424
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 32
+		IH = 104
+		IW = 104
+		c_fh = 3
+		c_fw = 3
+		c_str = 1
+		c_pad = 1
+		c_pos_h = 0
+		c_pos_w = 0
+		c_ow_ops = 2
+		c_ops = 8
+		c_ops_out = 8
+		c_top_border = 0
+		c_left_border = 0
+		c_bottom_border = 103
+		c_right_border = 102
+		c_starth = 0
+		c_startw = 1
+		c_strh = 0
+		c_strw = 0
+o_compute.size() 21012
+INFO: Finished shift_op.
+pad_input 32 1 8 8
+s_read[0] = 21012
+s_read[1] = 21424
+s_read[2] = 21424
+s_read[3] = 21012
+s_read[4] = 21216
+s_read[5] = 21632
+s_read[6] = 21632
+s_read[7] = 21216
+s_read[8] = 21012
+s_read[9] = 21424
+s_read[10] = 21424
+s_read[11] = 21012
+IH_REM 104 IW_REM 104
+end pad_input 32 1 8 8
+INFO: Call to conv_comp
+		c_ich = 32
+		c_och = 64
+		c_oh = 104
+		c_ow = 104
+		c_fh = 3
+		c_fw = 3
+		c_index = 9
+		c_str = 1
+		c_och_ops = 8
+		c_och_ops_out = 8
+		c_ich_ops = 8
+		c_add_ops = 1
+		c_ow_ops = 2
+		c_ow_ops_out = 2
+		c_bias_ops = 8
+		c_relu = 1
+		c_reuse = 2
+		c_ow_pack = 2
+		c_och_pack = 1
+		c_in_bits = 8
+		c_in_ibits = 3
+		c_w_bits = 8
+		c_w_ibits = 1
+		c_simd_bits = 2
+		c_simd = 16
+		c_mask = 15
+		c_in_bits_1x1 = 0
+		c_in_ibits_1x1 = 0
+		c_w_bits_1x1 = 0
+		c_w_ibits_1x1 = 0
+		c_simd_bits_1x1 = 2
+		c_simd_1x1 = 1
+		c_mask_1x1 = 0
+		c_depth = 0
+		c_data_to_shift = 8626176
+	INFO: Finished saving parameters.
+o_output[0].size() = 43264
+o_output[1].size() = 43264
+end conv_op 32 0
+INFO: Call to bandwidth_adjust_down
+		ICH = 64
+		IH = 104
+		IW = 104
+		c_ow_ops_in = 2
+		c_ow_ops_out = 1
+		c_ops_in = 8
+		c_ops_out = 8
+INFO: Finished bandwidth_adjust 
+INFO: Call to shift_op.
+		ICH = 64
+		IH = 104
+		IW = 104
+		c_fh = 2
+		c_fw = 2
+		c_str = 2
+		c_pad = 0
+		c_pos_h = 1
+		c_pos_w = 1
+		c_ow_ops = 1
+		c_ops = 8
+		c_ops_out = 8
+		c_top_border = 1
+		c_left_border = 1
+		c_bottom_border = 104
+		c_right_border = 104
+		c_starth = 0
+		c_startw = 0
+		c_strh = 1
+		c_strw = 1
+o_data.size() 86528
+o_compute.size() 21632
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 64
+		IH = 104
+		IW = 104
+		c_fh = 2
+		c_fw = 2
+		c_str = 2
+		c_pad = 0
+		c_pos_h = 1
+		c_pos_w = 0
+		c_ow_ops = 1
+		c_ops = 8
+		c_ops_out = 8
+		c_top_border = 1
+		c_left_border = 0
+		c_bottom_border = 104
+		c_right_border = 103
+		c_starth = 0
+		c_startw = 0
+		c_strh = 1
+		c_strw = 0
+o_data.size() 86528
+o_compute.size() 21632
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 64
+		IH = 104
+		IW = 104
+		c_fh = 2
+		c_fw = 2
+		c_str = 2
+		c_pad = 0
+		c_pos_h = 0
+		c_pos_w = 1
+		c_ow_ops = 1
+		c_ops = 8
+		c_ops_out = 8
+		c_top_border = 0
+		c_left_border = 1
+		c_bottom_border = 103
+		c_right_border = 104
+		c_starth = 0
+		c_startw = 0
+		c_strh = 0
+		c_strw = 1
+o_data.size() 86528
+o_compute.size() 21632
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 64
+		IH = 104
+		IW = 104
+		c_fh = 2
+		c_fw = 2
+		c_str = 2
+		c_pad = 0
+		c_pos_h = 0
+		c_pos_w = 0
+		c_ow_ops = 1
+		c_ops = 8
+		c_ops_out = 8
+		c_top_border = 0
+		c_left_border = 0
+		c_bottom_border = 103
+		c_right_border = 103
+		c_starth = 0
+		c_startw = 0
+		c_strh = 0
+		c_strw = 0
+o_compute.size() 21632
+INFO: Finished shift_op.
+pad_input 64 0 8 8
+s_read[0] = 21632
+s_read[1] = 21632
+s_read[2] = 21632
+s_read[3] = 21632
+IH_REM 104 IW_REM 104
+end pad_input 64 0 8 8
+INFO: Call to pool_op
+		c_ich = 64
+		c_och = 64
+		c_ih = 104
+		c_iw = 104
+		c_oh = 52
+		c_ow = 52
+		c_fh = 2
+		c_fw = 2
+		c_str = 2
+		c_pad = 0
+		c_pool = 1
+		c_ow_ops = 1
+		c_ops = 8
+		c_in_ops = 8
+i_data[0].size() = 21632
+pool_op: o_data[0].size() 21632
+end pool_op 64
+INFO: Call to bandwidth_adjust_up
+		ICH = 64
+		IH = 52
+		IW = 52
+		c_ow_ops_in = 1
+		c_ow_ops_out = 2
+		c_ops_in = 8
+		c_ops_out = 8
+INFO: Finished bandwidth_adjust 
+INFO: Call to shift_op.
+		ICH = 64
+		IH = 52
+		IW = 52
+		c_fh = 3
+		c_fw = 3
+		c_str = 1
+		c_pad = 1
+		c_pos_h = 2
+		c_pos_w = 3
+		c_ow_ops = 2
+		c_ops = 8
+		c_ops_out = 8
+		c_top_border = 1
+		c_left_border = 2
+		c_bottom_border = 53
+		c_right_border = 53
+		c_starth = 0
+		c_startw = 0
+		c_strh = 0
+		c_strw = 0
+o_data.size() 10816
+o_compute.size() 10200
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 64
+		IH = 52
+		IW = 52
+		c_fh = 3
+		c_fw = 3
+		c_str = 1
+		c_pad = 1
+		c_pos_h = 2
+		c_pos_w = 2
+		c_ow_ops = 2
+		c_ops = 8
+		c_ops_out = 8
+		c_top_border = 1
+		c_left_border = 1
+		c_bottom_border = 53
+		c_right_border = 52
+		c_starth = 0
+		c_startw = 1
+		c_strh = 0
+		c_strw = 0
+o_data.size() 10816
+o_compute.size() 10608
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 64
+		IH = 52
+		IW = 52
+		c_fh = 3
+		c_fw = 3
+		c_str = 1
+		c_pad = 1
+		c_pos_h = 2
+		c_pos_w = 1
+		c_ow_ops = 2
+		c_ops = 8
+		c_ops_out = 8
+		c_top_border = 1
+		c_left_border = 0
+		c_bottom_border = 53
+		c_right_border = 51
+		c_starth = 0
+		c_startw = 0
+		c_strh = 0
+		c_strw = 0
+o_data.size() 10816
+o_compute.size() 10608
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 64
+		IH = 52
+		IW = 52
+		c_fh = 3
+		c_fw = 3
+		c_str = 1
+		c_pad = 1
+		c_pos_h = 2
+		c_pos_w = 0
+		c_ow_ops = 2
+		c_ops = 8
+		c_ops_out = 8
+		c_top_border = 1
+		c_left_border = 0
+		c_bottom_border = 53
+		c_right_border = 50
+		c_starth = 0
+		c_startw = 1
+		c_strh = 0
+		c_strw = 0
+o_data.size() 10816
+o_compute.size() 10200
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 64
+		IH = 52
+		IW = 52
+		c_fh = 3
+		c_fw = 3
+		c_str = 1
+		c_pad = 1
+		c_pos_h = 1
+		c_pos_w = 3
+		c_ow_ops = 2
+		c_ops = 8
+		c_ops_out = 8
+		c_top_border = 0
+		c_left_border = 2
+		c_bottom_border = 52
+		c_right_border = 53
+		c_starth = 0
+		c_startw = 0
+		c_strh = 0
+		c_strw = 0
+o_data.size() 10816
+o_compute.size() 10400
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 64
+		IH = 52
+		IW = 52
+		c_fh = 3
+		c_fw = 3
+		c_str = 1
+		c_pad = 1
+		c_pos_h = 1
+		c_pos_w = 2
+		c_ow_ops = 2
+		c_ops = 8
+		c_ops_out = 8
+		c_top_border = 0
+		c_left_border = 1
+		c_bottom_border = 52
+		c_right_border = 52
+		c_starth = 0
+		c_startw = 1
+		c_strh = 0
+		c_strw = 0
+o_data.size() 10816
+o_compute.size() 10816
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 64
+		IH = 52
+		IW = 52
+		c_fh = 3
+		c_fw = 3
+		c_str = 1
+		c_pad = 1
+		c_pos_h = 1
+		c_pos_w = 1
+		c_ow_ops = 2
+		c_ops = 8
+		c_ops_out = 8
+		c_top_border = 0
+		c_left_border = 0
+		c_bottom_border = 52
+		c_right_border = 51
+		c_starth = 0
+		c_startw = 0
+		c_strh = 0
+		c_strw = 0
+o_data.size() 10816
+o_compute.size() 10816
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 64
+		IH = 52
+		IW = 52
+		c_fh = 3
+		c_fw = 3
+		c_str = 1
+		c_pad = 1
+		c_pos_h = 1
+		c_pos_w = 0
+		c_ow_ops = 2
+		c_ops = 8
+		c_ops_out = 8
+		c_top_border = 0
+		c_left_border = 0
+		c_bottom_border = 52
+		c_right_border = 50
+		c_starth = 0
+		c_startw = 1
+		c_strh = 0
+		c_strw = 0
+o_data.size() 10816
+o_compute.size() 10400
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 64
+		IH = 52
+		IW = 52
+		c_fh = 3
+		c_fw = 3
+		c_str = 1
+		c_pad = 1
+		c_pos_h = 0
+		c_pos_w = 3
+		c_ow_ops = 2
+		c_ops = 8
+		c_ops_out = 8
+		c_top_border = 0
+		c_left_border = 2
+		c_bottom_border = 51
+		c_right_border = 53
+		c_starth = 0
+		c_startw = 0
+		c_strh = 0
+		c_strw = 0
+o_data.size() 10816
+o_compute.size() 10200
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 64
+		IH = 52
+		IW = 52
+		c_fh = 3
+		c_fw = 3
+		c_str = 1
+		c_pad = 1
+		c_pos_h = 0
+		c_pos_w = 2
+		c_ow_ops = 2
+		c_ops = 8
+		c_ops_out = 8
+		c_top_border = 0
+		c_left_border = 1
+		c_bottom_border = 51
+		c_right_border = 52
+		c_starth = 0
+		c_startw = 1
+		c_strh = 0
+		c_strw = 0
+o_data.size() 10816
+o_compute.size() 10608
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 64
+		IH = 52
+		IW = 52
+		c_fh = 3
+		c_fw = 3
+		c_str = 1
+		c_pad = 1
+		c_pos_h = 0
+		c_pos_w = 1
+		c_ow_ops = 2
+		c_ops = 8
+		c_ops_out = 8
+		c_top_border = 0
+		c_left_border = 0
+		c_bottom_border = 51
+		c_right_border = 51
+		c_starth = 0
+		c_startw = 0
+		c_strh = 0
+		c_strw = 0
+o_compute.size() 10608
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 64
+		IH = 52
+		IW = 52
+		c_fh = 3
+		c_fw = 3
+		c_str = 1
+		c_pad = 1
+		c_pos_h = 0
+		c_pos_w = 0
+		c_ow_ops = 2
+		c_ops = 8
+		c_ops_out = 8
+		c_top_border = 0
+		c_left_border = 0
+		c_bottom_border = 51
+		c_right_border = 50
+		c_starth = 0
+		c_startw = 1
+		c_strh = 0
+		c_strw = 0
+o_compute.size() 10200
+INFO: Finished shift_op.
+pad_input 64 1 8 8
+s_read[0] = 10200
+s_read[1] = 10608
+s_read[2] = 10608
+s_read[3] = 10200
+s_read[4] = 10400
+s_read[5] = 10816
+s_read[6] = 10816
+s_read[7] = 10400
+s_read[8] = 10200
+s_read[9] = 10608
+s_read[10] = 10608
+s_read[11] = 10200
+IH_REM 52 IW_REM 52
+end pad_input 64 1 8 8
+INFO: Call to conv_comp
+		c_ich = 64
+		c_och = 128
+		c_oh = 52
+		c_ow = 52
+		c_fh = 3
+		c_fw = 3
+		c_index = 9
+		c_str = 1
+		c_och_ops = 8
+		c_och_ops_out = 8
+		c_ich_ops = 8
+		c_add_ops = 1
+		c_ow_ops = 2
+		c_ow_ops_out = 2
+		c_bias_ops = 8
+		c_relu = 1
+		c_reuse = 2
+		c_ow_pack = 2
+		c_och_pack = 1
+		c_in_bits = 8
+		c_in_ibits = 3
+		c_w_bits = 8
+		c_w_ibits = 1
+		c_simd_bits = 2
+		c_simd = 16
+		c_mask = 15
+		c_in_bits_1x1 = 0
+		c_in_ibits_1x1 = 0
+		c_w_bits_1x1 = 0
+		c_w_ibits_1x1 = 0
+		c_simd_bits_1x1 = 2
+		c_simd_1x1 = 1
+		c_mask_1x1 = 0
+		c_depth = 0
+		c_data_to_shift = 8552448
+	INFO: Finished saving parameters.
+o_output[0].size() = 21632
+o_output[1].size() = 21632
+end conv_op 64 0
+INFO: Call to bandwidth_adjust_down
+		ICH = 128
+		IH = 52
+		IW = 52
+		c_ow_ops_in = 2
+		c_ow_ops_out = 1
+		c_ops_in = 8
+		c_ops_out = 8
+INFO: Finished bandwidth_adjust 
+INFO: Call to shift_op.
+		ICH = 128
+		IH = 52
+		IW = 52
+		c_fh = 2
+		c_fw = 2
+		c_str = 2
+		c_pad = 0
+		c_pos_h = 1
+		c_pos_w = 1
+		c_ow_ops = 1
+		c_ops = 8
+		c_ops_out = 8
+		c_top_border = 1
+		c_left_border = 1
+		c_bottom_border = 52
+		c_right_border = 52
+		c_starth = 0
+		c_startw = 0
+		c_strh = 1
+		c_strw = 1
+o_data.size() 43264
+o_compute.size() 10816
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 128
+		IH = 52
+		IW = 52
+		c_fh = 2
+		c_fw = 2
+		c_str = 2
+		c_pad = 0
+		c_pos_h = 1
+		c_pos_w = 0
+		c_ow_ops = 1
+		c_ops = 8
+		c_ops_out = 8
+		c_top_border = 1
+		c_left_border = 0
+		c_bottom_border = 52
+		c_right_border = 51
+		c_starth = 0
+		c_startw = 0
+		c_strh = 1
+		c_strw = 0
+o_data.size() 43264
+o_compute.size() 10816
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 128
+		IH = 52
+		IW = 52
+		c_fh = 2
+		c_fw = 2
+		c_str = 2
+		c_pad = 0
+		c_pos_h = 0
+		c_pos_w = 1
+		c_ow_ops = 1
+		c_ops = 8
+		c_ops_out = 8
+		c_top_border = 0
+		c_left_border = 1
+		c_bottom_border = 51
+		c_right_border = 52
+		c_starth = 0
+		c_startw = 0
+		c_strh = 0
+		c_strw = 1
+o_data.size() 43264
+o_compute.size() 10816
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 128
+		IH = 52
+		IW = 52
+		c_fh = 2
+		c_fw = 2
+		c_str = 2
+		c_pad = 0
+		c_pos_h = 0
+		c_pos_w = 0
+		c_ow_ops = 1
+		c_ops = 8
+		c_ops_out = 8
+		c_top_border = 0
+		c_left_border = 0
+		c_bottom_border = 51
+		c_right_border = 51
+		c_starth = 0
+		c_startw = 0
+		c_strh = 0
+		c_strw = 0
+o_compute.size() 10816
+INFO: Finished shift_op.
+pad_input 128 0 8 8
+s_read[0] = 10816
+s_read[1] = 10816
+s_read[2] = 10816
+s_read[3] = 10816
+IH_REM 52 IW_REM 52
+end pad_input 128 0 8 8
+INFO: Call to pool_op
+		c_ich = 128
+		c_och = 128
+		c_ih = 52
+		c_iw = 52
+		c_oh = 26
+		c_ow = 26
+		c_fh = 2
+		c_fw = 2
+		c_str = 2
+		c_pad = 0
+		c_pool = 1
+		c_ow_ops = 1
+		c_ops = 8
+		c_in_ops = 8
+i_data[0].size() = 10816
+pool_op: o_data[0].size() 10816
+end pool_op 128
+INFO: Call to bandwidth_adjust_up
+		ICH = 128
+		IH = 26
+		IW = 26
+		c_ow_ops_in = 1
+		c_ow_ops_out = 2
+		c_ops_in = 8
+		c_ops_out = 8
+INFO: Finished bandwidth_adjust 
+INFO: Call to shift_op.
+		ICH = 128
+		IH = 26
+		IW = 26
+		c_fh = 3
+		c_fw = 3
+		c_str = 1
+		c_pad = 1
+		c_pos_h = 2
+		c_pos_w = 3
+		c_ow_ops = 2
+		c_ops = 8
+		c_ops_out = 8
+		c_top_border = 1
+		c_left_border = 2
+		c_bottom_border = 27
+		c_right_border = 27
+		c_starth = 0
+		c_startw = 0
+		c_strh = 0
+		c_strw = 0
+o_data.size() 5408
+o_compute.size() 4800
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 128
+		IH = 26
+		IW = 26
+		c_fh = 3
+		c_fw = 3
+		c_str = 1
+		c_pad = 1
+		c_pos_h = 2
+		c_pos_w = 2
+		c_ow_ops = 2
+		c_ops = 8
+		c_ops_out = 8
+		c_top_border = 1
+		c_left_border = 1
+		c_bottom_border = 27
+		c_right_border = 26
+		c_starth = 0
+		c_startw = 1
+		c_strh = 0
+		c_strw = 0
+o_data.size() 5408
+o_compute.size() 5200
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 128
+		IH = 26
+		IW = 26
+		c_fh = 3
+		c_fw = 3
+		c_str = 1
+		c_pad = 1
+		c_pos_h = 2
+		c_pos_w = 1
+		c_ow_ops = 2
+		c_ops = 8
+		c_ops_out = 8
+		c_top_border = 1
+		c_left_border = 0
+		c_bottom_border = 27
+		c_right_border = 25
+		c_starth = 0
+		c_startw = 0
+		c_strh = 0
+		c_strw = 0
+o_data.size() 5408
+o_compute.size() 5200
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 128
+		IH = 26
+		IW = 26
+		c_fh = 3
+		c_fw = 3
+		c_str = 1
+		c_pad = 1
+		c_pos_h = 2
+		c_pos_w = 0
+		c_ow_ops = 2
+		c_ops = 8
+		c_ops_out = 8
+		c_top_border = 1
+		c_left_border = 0
+		c_bottom_border = 27
+		c_right_border = 24
+		c_starth = 0
+		c_startw = 1
+		c_strh = 0
+		c_strw = 0
+o_data.size() 5408
+o_compute.size() 4800
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 128
+		IH = 26
+		IW = 26
+		c_fh = 3
+		c_fw = 3
+		c_str = 1
+		c_pad = 1
+		c_pos_h = 1
+		c_pos_w = 3
+		c_ow_ops = 2
+		c_ops = 8
+		c_ops_out = 8
+		c_top_border = 0
+		c_left_border = 2
+		c_bottom_border = 26
+		c_right_border = 27
+		c_starth = 0
+		c_startw = 0
+		c_strh = 0
+		c_strw = 0
+o_data.size() 5408
+o_compute.size() 4992
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 128
+		IH = 26
+		IW = 26
+		c_fh = 3
+		c_fw = 3
+		c_str = 1
+		c_pad = 1
+		c_pos_h = 1
+		c_pos_w = 2
+		c_ow_ops = 2
+		c_ops = 8
+		c_ops_out = 8
+		c_top_border = 0
+		c_left_border = 1
+		c_bottom_border = 26
+		c_right_border = 26
+		c_starth = 0
+		c_startw = 1
+		c_strh = 0
+		c_strw = 0
+o_data.size() 5408
+o_compute.size() 5408
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 128
+		IH = 26
+		IW = 26
+		c_fh = 3
+		c_fw = 3
+		c_str = 1
+		c_pad = 1
+		c_pos_h = 1
+		c_pos_w = 1
+		c_ow_ops = 2
+		c_ops = 8
+		c_ops_out = 8
+		c_top_border = 0
+		c_left_border = 0
+		c_bottom_border = 26
+		c_right_border = 25
+		c_starth = 0
+		c_startw = 0
+		c_strh = 0
+		c_strw = 0
+o_data.size() 5408
+o_compute.size() 5408
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 128
+		IH = 26
+		IW = 26
+		c_fh = 3
+		c_fw = 3
+		c_str = 1
+		c_pad = 1
+		c_pos_h = 1
+		c_pos_w = 0
+		c_ow_ops = 2
+		c_ops = 8
+		c_ops_out = 8
+		c_top_border = 0
+		c_left_border = 0
+		c_bottom_border = 26
+		c_right_border = 24
+		c_starth = 0
+		c_startw = 1
+		c_strh = 0
+		c_strw = 0
+o_data.size() 5408
+o_compute.size() 4992
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 128
+		IH = 26
+		IW = 26
+		c_fh = 3
+		c_fw = 3
+		c_str = 1
+		c_pad = 1
+		c_pos_h = 0
+		c_pos_w = 3
+		c_ow_ops = 2
+		c_ops = 8
+		c_ops_out = 8
+		c_top_border = 0
+		c_left_border = 2
+		c_bottom_border = 25
+		c_right_border = 27
+		c_starth = 0
+		c_startw = 0
+		c_strh = 0
+		c_strw = 0
+o_data.size() 5408
+o_compute.size() 4800
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 128
+		IH = 26
+		IW = 26
+		c_fh = 3
+		c_fw = 3
+		c_str = 1
+		c_pad = 1
+		c_pos_h = 0
+		c_pos_w = 2
+		c_ow_ops = 2
+		c_ops = 8
+		c_ops_out = 8
+		c_top_border = 0
+		c_left_border = 1
+		c_bottom_border = 25
+		c_right_border = 26
+		c_starth = 0
+		c_startw = 1
+		c_strh = 0
+		c_strw = 0
+o_data.size() 5408
+o_compute.size() 5200
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 128
+		IH = 26
+		IW = 26
+		c_fh = 3
+		c_fw = 3
+		c_str = 1
+		c_pad = 1
+		c_pos_h = 0
+		c_pos_w = 1
+		c_ow_ops = 2
+		c_ops = 8
+		c_ops_out = 8
+		c_top_border = 0
+		c_left_border = 0
+		c_bottom_border = 25
+		c_right_border = 25
+		c_starth = 0
+		c_startw = 0
+		c_strh = 0
+		c_strw = 0
+o_compute.size() 5200
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 128
+		IH = 26
+		IW = 26
+		c_fh = 3
+		c_fw = 3
+		c_str = 1
+		c_pad = 1
+		c_pos_h = 0
+		c_pos_w = 0
+		c_ow_ops = 2
+		c_ops = 8
+		c_ops_out = 8
+		c_top_border = 0
+		c_left_border = 0
+		c_bottom_border = 25
+		c_right_border = 24
+		c_starth = 0
+		c_startw = 1
+		c_strh = 0
+		c_strw = 0
+o_compute.size() 4800
+INFO: Finished shift_op.
+pad_input 128 1 8 8
+s_read[0] = 4800
+s_read[1] = 5200
+s_read[2] = 5200
+s_read[3] = 4800
+s_read[4] = 4992
+s_read[5] = 5408
+s_read[6] = 5408
+s_read[7] = 4992
+s_read[8] = 4800
+s_read[9] = 5200
+s_read[10] = 5200
+s_read[11] = 4800
+IH_REM 26 IW_REM 26
+end pad_input 128 1 8 8
+INFO: Call to conv_comp
+		c_ich = 128
+		c_och = 256
+		c_oh = 26
+		c_ow = 26
+		c_fh = 3
+		c_fw = 3
+		c_index = 9
+		c_str = 1
+		c_och_ops = 8
+		c_och_ops_out = 8
+		c_ich_ops = 8
+		c_add_ops = 1
+		c_ow_ops = 2
+		c_ow_ops_out = 2
+		c_bias_ops = 8
+		c_relu = 1
+		c_reuse = 2
+		c_ow_pack = 2
+		c_och_pack = 1
+		c_in_bits = 8
+		c_in_ibits = 3
+		c_w_bits = 8
+		c_w_ibits = 0
+		c_simd_bits = 2
+		c_simd = 16
+		c_mask = 15
+		c_in_bits_1x1 = 0
+		c_in_ibits_1x1 = 0
+		c_w_bits_1x1 = 0
+		c_w_ibits_1x1 = 0
+		c_simd_bits_1x1 = 2
+		c_simd_1x1 = 1
+		c_mask_1x1 = 0
+		c_depth = 0
+		c_data_to_shift = 8257536
+	INFO: Finished saving parameters.
+o_output[0].size() = 10816
+o_output[1].size() = 10816
+end conv_op 128 0
+INFO: Call to tensor_duplicator 
+		C: 256
+		H: 26
+		W: 26
+		c_ops: 8
+		w_ops: 2
+INFO: tensor_duplicator: din_stream[0].size() 0
+INFO: tensor_duplicator: dout_stream0[0].size() 10816
+INFO: Finished tensor_duplicator 
+INFO: Call to bandwidth_adjust_down
+		ICH = 256
+		IH = 26
+		IW = 26
+		c_ow_ops_in = 2
+		c_ow_ops_out = 1
+		c_ops_in = 8
+		c_ops_out = 8
+INFO: Finished bandwidth_adjust 
+INFO: Call to shift_op.
+		ICH = 256
+		IH = 26
+		IW = 26
+		c_fh = 2
+		c_fw = 2
+		c_str = 2
+		c_pad = 0
+		c_pos_h = 1
+		c_pos_w = 1
+		c_ow_ops = 1
+		c_ops = 8
+		c_ops_out = 8
+		c_top_border = 1
+		c_left_border = 1
+		c_bottom_border = 26
+		c_right_border = 26
+		c_starth = 0
+		c_startw = 0
+		c_strh = 1
+		c_strw = 1
+o_data.size() 21632
+o_compute.size() 5408
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 256
+		IH = 26
+		IW = 26
+		c_fh = 2
+		c_fw = 2
+		c_str = 2
+		c_pad = 0
+		c_pos_h = 1
+		c_pos_w = 0
+		c_ow_ops = 1
+		c_ops = 8
+		c_ops_out = 8
+		c_top_border = 1
+		c_left_border = 0
+		c_bottom_border = 26
+		c_right_border = 25
+		c_starth = 0
+		c_startw = 0
+		c_strh = 1
+		c_strw = 0
+o_data.size() 21632
+o_compute.size() 5408
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 256
+		IH = 26
+		IW = 26
+		c_fh = 2
+		c_fw = 2
+		c_str = 2
+		c_pad = 0
+		c_pos_h = 0
+		c_pos_w = 1
+		c_ow_ops = 1
+		c_ops = 8
+		c_ops_out = 8
+		c_top_border = 0
+		c_left_border = 1
+		c_bottom_border = 25
+		c_right_border = 26
+		c_starth = 0
+		c_startw = 0
+		c_strh = 0
+		c_strw = 1
+o_data.size() 21632
+o_compute.size() 5408
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 256
+		IH = 26
+		IW = 26
+		c_fh = 2
+		c_fw = 2
+		c_str = 2
+		c_pad = 0
+		c_pos_h = 0
+		c_pos_w = 0
+		c_ow_ops = 1
+		c_ops = 8
+		c_ops_out = 8
+		c_top_border = 0
+		c_left_border = 0
+		c_bottom_border = 25
+		c_right_border = 25
+		c_starth = 0
+		c_startw = 0
+		c_strh = 0
+		c_strw = 0
+o_compute.size() 5408
+INFO: Finished shift_op.
+pad_input 256 0 8 8
+s_read[0] = 5408
+s_read[1] = 5408
+s_read[2] = 5408
+s_read[3] = 5408
+IH_REM 26 IW_REM 26
+end pad_input 256 0 8 8
+INFO: Call to pool_op
+		c_ich = 256
+		c_och = 256
+		c_ih = 26
+		c_iw = 26
+		c_oh = 13
+		c_ow = 13
+		c_fh = 2
+		c_fw = 2
+		c_str = 2
+		c_pad = 0
+		c_pool = 1
+		c_ow_ops = 1
+		c_ops = 8
+		c_in_ops = 8
+i_data[0].size() = 5408
+pool_op: o_data[0].size() 5408
+end pool_op 256
+INFO: Call to shift_op.
+		ICH = 256
+		IH = 13
+		IW = 13
+		c_fh = 3
+		c_fw = 3
+		c_str = 1
+		c_pad = 1
+		c_pos_h = 2
+		c_pos_w = 2
+		c_ow_ops = 1
+		c_ops = 8
+		c_ops_out = 8
+		c_top_border = 1
+		c_left_border = 1
+		c_bottom_border = 14
+		c_right_border = 14
+		c_starth = 0
+		c_startw = 0
+		c_strh = 0
+		c_strw = 0
+o_data.size() 5408
+o_compute.size() 4608
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 256
+		IH = 13
+		IW = 13
+		c_fh = 3
+		c_fw = 3
+		c_str = 1
+		c_pad = 1
+		c_pos_h = 2
+		c_pos_w = 1
+		c_ow_ops = 1
+		c_ops = 8
+		c_ops_out = 8
+		c_top_border = 1
+		c_left_border = 0
+		c_bottom_border = 14
+		c_right_border = 13
+		c_starth = 0
+		c_startw = 0
+		c_strh = 0
+		c_strw = 0
+o_data.size() 5408
+o_compute.size() 4992
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 256
+		IH = 13
+		IW = 13
+		c_fh = 3
+		c_fw = 3
+		c_str = 1
+		c_pad = 1
+		c_pos_h = 2
+		c_pos_w = 0
+		c_ow_ops = 1
+		c_ops = 8
+		c_ops_out = 8
+		c_top_border = 1
+		c_left_border = 0
+		c_bottom_border = 14
+		c_right_border = 12
+		c_starth = 0
+		c_startw = 0
+		c_strh = 0
+		c_strw = 0
+o_data.size() 5408
+o_compute.size() 4608
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 256
+		IH = 13
+		IW = 13
+		c_fh = 3
+		c_fw = 3
+		c_str = 1
+		c_pad = 1
+		c_pos_h = 1
+		c_pos_w = 2
+		c_ow_ops = 1
+		c_ops = 8
+		c_ops_out = 8
+		c_top_border = 0
+		c_left_border = 1
+		c_bottom_border = 13
+		c_right_border = 14
+		c_starth = 0
+		c_startw = 0
+		c_strh = 0
+		c_strw = 0
+o_data.size() 5408
+o_compute.size() 4992
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 256
+		IH = 13
+		IW = 13
+		c_fh = 3
+		c_fw = 3
+		c_str = 1
+		c_pad = 1
+		c_pos_h = 1
+		c_pos_w = 1
+		c_ow_ops = 1
+		c_ops = 8
+		c_ops_out = 8
+		c_top_border = 0
+		c_left_border = 0
+		c_bottom_border = 13
+		c_right_border = 13
+		c_starth = 0
+		c_startw = 0
+		c_strh = 0
+		c_strw = 0
+o_data.size() 5408
+o_compute.size() 5408
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 256
+		IH = 13
+		IW = 13
+		c_fh = 3
+		c_fw = 3
+		c_str = 1
+		c_pad = 1
+		c_pos_h = 1
+		c_pos_w = 0
+		c_ow_ops = 1
+		c_ops = 8
+		c_ops_out = 8
+		c_top_border = 0
+		c_left_border = 0
+		c_bottom_border = 13
+		c_right_border = 12
+		c_starth = 0
+		c_startw = 0
+		c_strh = 0
+		c_strw = 0
+o_data.size() 5408
+o_compute.size() 4992
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 256
+		IH = 13
+		IW = 13
+		c_fh = 3
+		c_fw = 3
+		c_str = 1
+		c_pad = 1
+		c_pos_h = 0
+		c_pos_w = 2
+		c_ow_ops = 1
+		c_ops = 8
+		c_ops_out = 8
+		c_top_border = 0
+		c_left_border = 1
+		c_bottom_border = 12
+		c_right_border = 14
+		c_starth = 0
+		c_startw = 0
+		c_strh = 0
+		c_strw = 0
+o_data.size() 5408
+o_compute.size() 4608
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 256
+		IH = 13
+		IW = 13
+		c_fh = 3
+		c_fw = 3
+		c_str = 1
+		c_pad = 1
+		c_pos_h = 0
+		c_pos_w = 1
+		c_ow_ops = 1
+		c_ops = 8
+		c_ops_out = 8
+		c_top_border = 0
+		c_left_border = 0
+		c_bottom_border = 12
+		c_right_border = 13
+		c_starth = 0
+		c_startw = 0
+		c_strh = 0
+		c_strw = 0
+o_data.size() 5408
+o_compute.size() 4992
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 256
+		IH = 13
+		IW = 13
+		c_fh = 3
+		c_fw = 3
+		c_str = 1
+		c_pad = 1
+		c_pos_h = 0
+		c_pos_w = 0
+		c_ow_ops = 1
+		c_ops = 8
+		c_ops_out = 8
+		c_top_border = 0
+		c_left_border = 0
+		c_bottom_border = 12
+		c_right_border = 12
+		c_starth = 0
+		c_startw = 0
+		c_strh = 0
+		c_strw = 0
+o_compute.size() 4608
+INFO: Finished shift_op.
+pad_input 256 1 8 8
+s_read[0] = 4608
+s_read[1] = 4992
+s_read[2] = 4608
+s_read[3] = 4992
+s_read[4] = 5408
+s_read[5] = 4992
+s_read[6] = 4608
+s_read[7] = 4992
+s_read[8] = 4608
+IH_REM 13 IW_REM 13
+end pad_input 256 1 8 8
+INFO: Call to conv_comp
+		c_ich = 256
+		c_och = 512
+		c_oh = 13
+		c_ow = 13
+		c_fh = 3
+		c_fw = 3
+		c_index = 9
+		c_str = 1
+		c_och_ops = 16
+		c_och_ops_out = 32
+		c_ich_ops = 8
+		c_add_ops = 1
+		c_ow_ops = 1
+		c_ow_ops_out = 1
+		c_bias_ops = 16
+		c_relu = 1
+		c_reuse = 1
+		c_ow_pack = 1
+		c_och_pack = 2
+		c_in_bits = 8
+		c_in_ibits = 3
+		c_w_bits = 8
+		c_w_ibits = 0
+		c_simd_bits = 2
+		c_simd = 16
+		c_mask = 15
+		c_in_bits_1x1 = 0
+		c_in_ibits_1x1 = 0
+		c_w_bits_1x1 = 0
+		c_w_ibits_1x1 = 0
+		c_simd_bits_1x1 = 2
+		c_simd_1x1 = 1
+		c_mask_1x1 = 0
+		c_depth = 0
+		c_data_to_shift = 7077888
+	INFO: Finished saving parameters.
+o_output[0].size() = 2704
+end conv_op 256 0
+INFO: Call to shift_op.
+		ICH = 512
+		IH = 13
+		IW = 13
+		c_fh = 3
+		c_fw = 3
+		c_str = 1
+		c_pad = 1
+		c_pos_h = 2
+		c_pos_w = 2
+		c_ow_ops = 1
+		c_ops = 32
+		c_ops_out = 32
+		c_top_border = 1
+		c_left_border = 1
+		c_bottom_border = 14
+		c_right_border = 14
+		c_starth = 0
+		c_startw = 0
+		c_strh = 0
+		c_strw = 0
+o_data.size() 2704
+o_compute.size() 2304
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 512
+		IH = 13
+		IW = 13
+		c_fh = 3
+		c_fw = 3
+		c_str = 1
+		c_pad = 1
+		c_pos_h = 2
+		c_pos_w = 1
+		c_ow_ops = 1
+		c_ops = 32
+		c_ops_out = 32
+		c_top_border = 1
+		c_left_border = 0
+		c_bottom_border = 14
+		c_right_border = 13
+		c_starth = 0
+		c_startw = 0
+		c_strh = 0
+		c_strw = 0
+o_data.size() 2704
+o_compute.size() 2496
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 512
+		IH = 13
+		IW = 13
+		c_fh = 3
+		c_fw = 3
+		c_str = 1
+		c_pad = 1
+		c_pos_h = 2
+		c_pos_w = 0
+		c_ow_ops = 1
+		c_ops = 32
+		c_ops_out = 32
+		c_top_border = 1
+		c_left_border = 0
+		c_bottom_border = 14
+		c_right_border = 12
+		c_starth = 0
+		c_startw = 0
+		c_strh = 0
+		c_strw = 0
+o_data.size() 2704
+o_compute.size() 2304
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 512
+		IH = 13
+		IW = 13
+		c_fh = 3
+		c_fw = 3
+		c_str = 1
+		c_pad = 1
+		c_pos_h = 1
+		c_pos_w = 2
+		c_ow_ops = 1
+		c_ops = 32
+		c_ops_out = 32
+		c_top_border = 0
+		c_left_border = 1
+		c_bottom_border = 13
+		c_right_border = 14
+		c_starth = 0
+		c_startw = 0
+		c_strh = 0
+		c_strw = 0
+o_data.size() 2704
+o_compute.size() 2496
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 512
+		IH = 13
+		IW = 13
+		c_fh = 3
+		c_fw = 3
+		c_str = 1
+		c_pad = 1
+		c_pos_h = 1
+		c_pos_w = 1
+		c_ow_ops = 1
+		c_ops = 32
+		c_ops_out = 32
+		c_top_border = 0
+		c_left_border = 0
+		c_bottom_border = 13
+		c_right_border = 13
+		c_starth = 0
+		c_startw = 0
+		c_strh = 0
+		c_strw = 0
+o_data.size() 2704
+o_compute.size() 2704
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 512
+		IH = 13
+		IW = 13
+		c_fh = 3
+		c_fw = 3
+		c_str = 1
+		c_pad = 1
+		c_pos_h = 1
+		c_pos_w = 0
+		c_ow_ops = 1
+		c_ops = 32
+		c_ops_out = 32
+		c_top_border = 0
+		c_left_border = 0
+		c_bottom_border = 13
+		c_right_border = 12
+		c_starth = 0
+		c_startw = 0
+		c_strh = 0
+		c_strw = 0
+o_data.size() 2704
+o_compute.size() 2496
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 512
+		IH = 13
+		IW = 13
+		c_fh = 3
+		c_fw = 3
+		c_str = 1
+		c_pad = 1
+		c_pos_h = 0
+		c_pos_w = 2
+		c_ow_ops = 1
+		c_ops = 32
+		c_ops_out = 32
+		c_top_border = 0
+		c_left_border = 1
+		c_bottom_border = 12
+		c_right_border = 14
+		c_starth = 0
+		c_startw = 0
+		c_strh = 0
+		c_strw = 0
+o_data.size() 2704
+o_compute.size() 2304
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 512
+		IH = 13
+		IW = 13
+		c_fh = 3
+		c_fw = 3
+		c_str = 1
+		c_pad = 1
+		c_pos_h = 0
+		c_pos_w = 1
+		c_ow_ops = 1
+		c_ops = 32
+		c_ops_out = 32
+		c_top_border = 0
+		c_left_border = 0
+		c_bottom_border = 12
+		c_right_border = 13
+		c_starth = 0
+		c_startw = 0
+		c_strh = 0
+		c_strw = 0
+o_data.size() 2704
+o_compute.size() 2496
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 512
+		IH = 13
+		IW = 13
+		c_fh = 3
+		c_fw = 3
+		c_str = 1
+		c_pad = 1
+		c_pos_h = 0
+		c_pos_w = 0
+		c_ow_ops = 1
+		c_ops = 32
+		c_ops_out = 32
+		c_top_border = 0
+		c_left_border = 0
+		c_bottom_border = 12
+		c_right_border = 12
+		c_starth = 0
+		c_startw = 0
+		c_strh = 0
+		c_strw = 0
+o_compute.size() 2304
+INFO: Finished shift_op.
+pad_input 512 1 32 32
+s_read[0] = 2304
+s_read[1] = 2496
+s_read[2] = 2304
+s_read[3] = 2496
+s_read[4] = 2704
+s_read[5] = 2496
+s_read[6] = 2304
+s_read[7] = 2496
+s_read[8] = 2304
+IH_REM 13 IW_REM 13
+end pad_input 512 1 32 32
+INFO: Call to conv_comp
+		c_ich = 512
+		c_och = 1024
+		c_oh = 13
+		c_ow = 13
+		c_fh = 3
+		c_fw = 3
+		c_index = 9
+		c_str = 1
+		c_och_ops = 16
+		c_och_ops_out = 16
+		c_ich_ops = 32
+		c_add_ops = 1
+		c_ow_ops = 1
+		c_ow_ops_out = 1
+		c_bias_ops = 16
+		c_relu = 1
+		c_reuse = 1
+		c_ow_pack = 1
+		c_och_pack = 2
+		c_in_bits = 8
+		c_in_ibits = 3
+		c_w_bits = 8
+		c_w_ibits = -1
+		c_simd_bits = 2
+		c_simd = 64
+		c_mask = 63
+		c_in_bits_1x1 = 0
+		c_in_ibits_1x1 = 0
+		c_w_bits_1x1 = 0
+		c_w_ibits_1x1 = 0
+		c_simd_bits_1x1 = 2
+		c_simd_1x1 = 1
+		c_mask_1x1 = 0
+		c_depth = 0
+		c_data_to_shift = 2359296
+	INFO: Finished saving parameters.
+o_output[0].size() = 10816
+end conv_op 512 0
+INFO: Call to shift_op.
+		ICH = 1024
+		IH = 13
+		IW = 13
+		c_fh = 1
+		c_fw = 1
+		c_str = 1
+		c_pad = 0
+		c_pos_h = 0
+		c_pos_w = 0
+		c_ow_ops = 1
+		c_ops = 16
+		c_ops_out = 16
+		c_top_border = 0
+		c_left_border = 0
+		c_bottom_border = 13
+		c_right_border = 13
+		c_starth = 0
+		c_startw = 0
+		c_strh = 0
+		c_strw = 0
+o_compute.size() 10816
+INFO: Finished shift_op.
+INFO: Call to conv_comp
+		c_ich = 1024
+		c_och = 256
+		c_oh = 13
+		c_ow = 13
+		c_fh = 1
+		c_fw = 1
+		c_index = 1
+		c_str = 1
+		c_och_ops = 16
+		c_och_ops_out = 16
+		c_ich_ops = 16
+		c_add_ops = 1
+		c_ow_ops = 1
+		c_ow_ops_out = 1
+		c_bias_ops = 16
+		c_relu = 1
+		c_reuse = 1
+		c_ow_pack = 1
+		c_och_pack = 2
+		c_in_bits = 8
+		c_in_ibits = 3
+		c_w_bits = 8
+		c_w_ibits = 0
+		c_simd_bits = 2
+		c_simd = 4
+		c_mask = 3
+		c_in_bits_1x1 = 0
+		c_in_ibits_1x1 = 0
+		c_w_bits_1x1 = 0
+		c_w_ibits_1x1 = 0
+		c_simd_bits_1x1 = 2
+		c_simd_1x1 = 1
+		c_mask_1x1 = 0
+		c_depth = 0
+		c_data_to_shift = 2097152
+	INFO: Finished saving parameters.
+o_output[0].size() = 2704
+end conv_op 1024 0
+INFO: Call to tensor_duplicator 
+		C: 256
+		H: 13
+		W: 13
+		c_ops: 16
+		w_ops: 1
+INFO: tensor_duplicator: din_stream[0].size() 0
+INFO: tensor_duplicator: dout_stream0[0].size() 2704
+INFO: Finished tensor_duplicator 
+INFO: Call to shift_op.
+		ICH = 256
+		IH = 13
+		IW = 13
+		c_fh = 3
+		c_fw = 3
+		c_str = 1
+		c_pad = 1
+		c_pos_h = 2
+		c_pos_w = 2
+		c_ow_ops = 1
+		c_ops = 16
+		c_ops_out = 8
+		c_top_border = 1
+		c_left_border = 1
+		c_bottom_border = 14
+		c_right_border = 14
+		c_starth = 0
+		c_startw = 0
+		c_strh = 0
+		c_strw = 0
+o_data.size() 5408
+o_compute.size() 4608
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 256
+		IH = 13
+		IW = 13
+		c_fh = 3
+		c_fw = 3
+		c_str = 1
+		c_pad = 1
+		c_pos_h = 2
+		c_pos_w = 1
+		c_ow_ops = 1
+		c_ops = 8
+		c_ops_out = 8
+		c_top_border = 1
+		c_left_border = 0
+		c_bottom_border = 14
+		c_right_border = 13
+		c_starth = 0
+		c_startw = 0
+		c_strh = 0
+		c_strw = 0
+o_data.size() 5408
+o_compute.size() 4992
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 256
+		IH = 13
+		IW = 13
+		c_fh = 3
+		c_fw = 3
+		c_str = 1
+		c_pad = 1
+		c_pos_h = 2
+		c_pos_w = 0
+		c_ow_ops = 1
+		c_ops = 8
+		c_ops_out = 8
+		c_top_border = 1
+		c_left_border = 0
+		c_bottom_border = 14
+		c_right_border = 12
+		c_starth = 0
+		c_startw = 0
+		c_strh = 0
+		c_strw = 0
+o_data.size() 5408
+o_compute.size() 4608
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 256
+		IH = 13
+		IW = 13
+		c_fh = 3
+		c_fw = 3
+		c_str = 1
+		c_pad = 1
+		c_pos_h = 1
+		c_pos_w = 2
+		c_ow_ops = 1
+		c_ops = 8
+		c_ops_out = 8
+		c_top_border = 0
+		c_left_border = 1
+		c_bottom_border = 13
+		c_right_border = 14
+		c_starth = 0
+		c_startw = 0
+		c_strh = 0
+		c_strw = 0
+o_data.size() 5408
+o_compute.size() 4992
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 256
+		IH = 13
+		IW = 13
+		c_fh = 3
+		c_fw = 3
+		c_str = 1
+		c_pad = 1
+		c_pos_h = 1
+		c_pos_w = 1
+		c_ow_ops = 1
+		c_ops = 8
+		c_ops_out = 8
+		c_top_border = 0
+		c_left_border = 0
+		c_bottom_border = 13
+		c_right_border = 13
+		c_starth = 0
+		c_startw = 0
+		c_strh = 0
+		c_strw = 0
+o_data.size() 5408
+o_compute.size() 5408
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 256
+		IH = 13
+		IW = 13
+		c_fh = 3
+		c_fw = 3
+		c_str = 1
+		c_pad = 1
+		c_pos_h = 1
+		c_pos_w = 0
+		c_ow_ops = 1
+		c_ops = 8
+		c_ops_out = 8
+		c_top_border = 0
+		c_left_border = 0
+		c_bottom_border = 13
+		c_right_border = 12
+		c_starth = 0
+		c_startw = 0
+		c_strh = 0
+		c_strw = 0
+o_data.size() 5408
+o_compute.size() 4992
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 256
+		IH = 13
+		IW = 13
+		c_fh = 3
+		c_fw = 3
+		c_str = 1
+		c_pad = 1
+		c_pos_h = 0
+		c_pos_w = 2
+		c_ow_ops = 1
+		c_ops = 8
+		c_ops_out = 8
+		c_top_border = 0
+		c_left_border = 1
+		c_bottom_border = 12
+		c_right_border = 14
+		c_starth = 0
+		c_startw = 0
+		c_strh = 0
+		c_strw = 0
+o_data.size() 5408
+o_compute.size() 4608
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 256
+		IH = 13
+		IW = 13
+		c_fh = 3
+		c_fw = 3
+		c_str = 1
+		c_pad = 1
+		c_pos_h = 0
+		c_pos_w = 1
+		c_ow_ops = 1
+		c_ops = 8
+		c_ops_out = 8
+		c_top_border = 0
+		c_left_border = 0
+		c_bottom_border = 12
+		c_right_border = 13
+		c_starth = 0
+		c_startw = 0
+		c_strh = 0
+		c_strw = 0
+o_data.size() 5408
+o_compute.size() 4992
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 256
+		IH = 13
+		IW = 13
+		c_fh = 3
+		c_fw = 3
+		c_str = 1
+		c_pad = 1
+		c_pos_h = 0
+		c_pos_w = 0
+		c_ow_ops = 1
+		c_ops = 8
+		c_ops_out = 8
+		c_top_border = 0
+		c_left_border = 0
+		c_bottom_border = 12
+		c_right_border = 12
+		c_starth = 0
+		c_startw = 0
+		c_strh = 0
+		c_strw = 0
+o_compute.size() 4608
+INFO: Finished shift_op.
+pad_input 256 1 8 8
+s_read[0] = 4608
+s_read[1] = 4992
+s_read[2] = 4608
+s_read[3] = 4992
+s_read[4] = 5408
+s_read[5] = 4992
+s_read[6] = 4608
+s_read[7] = 4992
+s_read[8] = 4608
+IH_REM 13 IW_REM 13
+end pad_input 256 1 8 8
+INFO: Call to conv_comp
+		c_ich = 256
+		c_och = 512
+		c_oh = 13
+		c_ow = 13
+		c_fh = 3
+		c_fw = 3
+		c_index = 9
+		c_str = 1
+		c_och_ops = 16
+		c_och_ops_out = 16
+		c_ich_ops = 8
+		c_add_ops = 1
+		c_ow_ops = 1
+		c_ow_ops_out = 1
+		c_bias_ops = 16
+		c_relu = 1
+		c_reuse = 1
+		c_ow_pack = 1
+		c_och_pack = 2
+		c_in_bits = 8
+		c_in_ibits = 3
+		c_w_bits = 8
+		c_w_ibits = -1
+		c_simd_bits = 2
+		c_simd = 16
+		c_mask = 15
+		c_in_bits_1x1 = 0
+		c_in_ibits_1x1 = 0
+		c_w_bits_1x1 = 0
+		c_w_ibits_1x1 = 0
+		c_simd_bits_1x1 = 2
+		c_simd_1x1 = 1
+		c_mask_1x1 = 0
+		c_depth = 0
+		c_data_to_shift = 917504
+	INFO: Finished saving parameters.
+o_output[0].size() = 5408
+end conv_op 256 0
+INFO: Call to shift_op.
+		ICH = 256
+		IH = 13
+		IW = 13
+		c_fh = 1
+		c_fw = 1
+		c_str = 1
+		c_pad = 0
+		c_pos_h = 0
+		c_pos_w = 0
+		c_ow_ops = 1
+		c_ops = 16
+		c_ops_out = 8
+		c_top_border = 0
+		c_left_border = 0
+		c_bottom_border = 13
+		c_right_border = 13
+		c_starth = 0
+		c_startw = 0
+		c_strh = 0
+		c_strw = 0
+o_compute.size() 5408
+INFO: Finished shift_op.
+INFO: Call to conv_comp
+		c_ich = 256
+		c_och = 128
+		c_oh = 13
+		c_ow = 13
+		c_fh = 1
+		c_fw = 1
+		c_index = 1
+		c_str = 1
+		c_och_ops = 4
+		c_och_ops_out = 4
+		c_ich_ops = 8
+		c_add_ops = 1
+		c_ow_ops = 1
+		c_ow_ops_out = 1
+		c_bias_ops = 4
+		c_relu = 1
+		c_reuse = 1
+		c_ow_pack = 1
+		c_och_pack = 2
+		c_in_bits = 8
+		c_in_ibits = 3
+		c_w_bits = 8
+		c_w_ibits = 0
+		c_simd_bits = 2
+		c_simd = 2
+		c_mask = 1
+		c_in_bits_1x1 = 0
+		c_in_ibits_1x1 = 0
+		c_w_bits_1x1 = 0
+		c_w_ibits_1x1 = 0
+		c_simd_bits_1x1 = 2
+		c_simd_1x1 = 1
+		c_mask_1x1 = 0
+		c_depth = 0
+		c_data_to_shift = 884736
+	INFO: Finished saving parameters.
+o_output[0].size() = 5408
+end conv_op 256 0
+INFO: Call to upsample_op
+		c_ich: 128
+		c_ih: 13
+		c_iw: 13
+		c_upsample: 2
+		c_ops: 4
+		c_ow_ops_in: 1
+INFO: Finished upsample_op
+INFO: Call to bandwidth_adjust_down
+		ICH = 256
+		IH = 26
+		IW = 26
+		c_ow_ops_in = 2
+		c_ow_ops_out = 1
+		c_ops_in = 8
+		c_ops_out = 4
+INFO: Finished bandwidth_adjust 
+INFO: Call to concat_op
+		c_feature_map: 676
+		c_ich1: 128
+		c_ich2: 256
+		c_och: 384
+		c_ops: 4
+		c_ow_ops_in: 1
+INFO: Finished concat_op
+INFO: Call to bandwidth_adjust_down
+		ICH = 384
+		IH = 26
+		IW = 26
+		c_ow_ops_in = 1
+		c_ow_ops_out = 1
+		c_ops_in = 4
+		c_ops_out = 24
+INFO: Finished bandwidth_adjust 
+INFO: Call to shift_op.
+		ICH = 384
+		IH = 26
+		IW = 26
+		c_fh = 3
+		c_fw = 3
+		c_str = 1
+		c_pad = 1
+		c_pos_h = 2
+		c_pos_w = 2
+		c_ow_ops = 1
+		c_ops = 24
+		c_ops_out = 24
+		c_top_border = 1
+		c_left_border = 1
+		c_bottom_border = 27
+		c_right_border = 27
+		c_starth = 0
+		c_startw = 0
+		c_strh = 0
+		c_strw = 0
+o_data.size() 10816
+o_compute.size() 10000
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 384
+		IH = 26
+		IW = 26
+		c_fh = 3
+		c_fw = 3
+		c_str = 1
+		c_pad = 1
+		c_pos_h = 2
+		c_pos_w = 1
+		c_ow_ops = 1
+		c_ops = 24
+		c_ops_out = 24
+		c_top_border = 1
+		c_left_border = 0
+		c_bottom_border = 27
+		c_right_border = 26
+		c_starth = 0
+		c_startw = 0
+		c_strh = 0
+		c_strw = 0
+o_data.size() 10816
+o_compute.size() 10400
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 384
+		IH = 26
+		IW = 26
+		c_fh = 3
+		c_fw = 3
+		c_str = 1
+		c_pad = 1
+		c_pos_h = 2
+		c_pos_w = 0
+		c_ow_ops = 1
+		c_ops = 24
+		c_ops_out = 24
+		c_top_border = 1
+		c_left_border = 0
+		c_bottom_border = 27
+		c_right_border = 25
+		c_starth = 0
+		c_startw = 0
+		c_strh = 0
+		c_strw = 0
+o_data.size() 10816
+o_compute.size() 10000
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 384
+		IH = 26
+		IW = 26
+		c_fh = 3
+		c_fw = 3
+		c_str = 1
+		c_pad = 1
+		c_pos_h = 1
+		c_pos_w = 2
+		c_ow_ops = 1
+		c_ops = 24
+		c_ops_out = 24
+		c_top_border = 0
+		c_left_border = 1
+		c_bottom_border = 26
+		c_right_border = 27
+		c_starth = 0
+		c_startw = 0
+		c_strh = 0
+		c_strw = 0
+o_data.size() 10816
+o_compute.size() 10400
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 384
+		IH = 26
+		IW = 26
+		c_fh = 3
+		c_fw = 3
+		c_str = 1
+		c_pad = 1
+		c_pos_h = 1
+		c_pos_w = 1
+		c_ow_ops = 1
+		c_ops = 24
+		c_ops_out = 24
+		c_top_border = 0
+		c_left_border = 0
+		c_bottom_border = 26
+		c_right_border = 26
+		c_starth = 0
+		c_startw = 0
+		c_strh = 0
+		c_strw = 0
+o_data.size() 10816
+o_compute.size() 10816
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 384
+		IH = 26
+		IW = 26
+		c_fh = 3
+		c_fw = 3
+		c_str = 1
+		c_pad = 1
+		c_pos_h = 1
+		c_pos_w = 0
+		c_ow_ops = 1
+		c_ops = 24
+		c_ops_out = 24
+		c_top_border = 0
+		c_left_border = 0
+		c_bottom_border = 26
+		c_right_border = 25
+		c_starth = 0
+		c_startw = 0
+		c_strh = 0
+		c_strw = 0
+o_data.size() 10816
+o_compute.size() 10400
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 384
+		IH = 26
+		IW = 26
+		c_fh = 3
+		c_fw = 3
+		c_str = 1
+		c_pad = 1
+		c_pos_h = 0
+		c_pos_w = 2
+		c_ow_ops = 1
+		c_ops = 24
+		c_ops_out = 24
+		c_top_border = 0
+		c_left_border = 1
+		c_bottom_border = 25
+		c_right_border = 27
+		c_starth = 0
+		c_startw = 0
+		c_strh = 0
+		c_strw = 0
+o_data.size() 10816
+o_compute.size() 10000
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 384
+		IH = 26
+		IW = 26
+		c_fh = 3
+		c_fw = 3
+		c_str = 1
+		c_pad = 1
+		c_pos_h = 0
+		c_pos_w = 1
+		c_ow_ops = 1
+		c_ops = 24
+		c_ops_out = 24
+		c_top_border = 0
+		c_left_border = 0
+		c_bottom_border = 25
+		c_right_border = 26
+		c_starth = 0
+		c_startw = 0
+		c_strh = 0
+		c_strw = 0
+o_data.size() 10816
+o_compute.size() 10400
+INFO: Finished shift_op.
+INFO: Call to shift_op.
+		ICH = 384
+		IH = 26
+		IW = 26
+		c_fh = 3
+		c_fw = 3
+		c_str = 1
+		c_pad = 1
+		c_pos_h = 0
+		c_pos_w = 0
+		c_ow_ops = 1
+		c_ops = 24
+		c_ops_out = 24
+		c_top_border = 0
+		c_left_border = 0
+		c_bottom_border = 25
+		c_right_border = 25
+		c_starth = 0
+		c_startw = 0
+		c_strh = 0
+		c_strw = 0
+o_compute.size() 10000
+INFO: Finished shift_op.
+pad_input 384 1 24 24
+s_read[0] = 10000
+s_read[1] = 10400
+s_read[2] = 10000
+s_read[3] = 10400
+s_read[4] = 10816
+s_read[5] = 10400
+s_read[6] = 10000
+s_read[7] = 10400
+s_read[8] = 10000
+IH_REM 26 IW_REM 26
+end pad_input 384 1 24 24
+INFO: Call to conv_comp
+		c_ich = 384
+		c_och = 256
+		c_oh = 26
+		c_ow = 26
+		c_fh = 3
+		c_fw = 3
+		c_index = 9
+		c_str = 1
+		c_och_ops = 16
+		c_och_ops_out = 16
+		c_ich_ops = 24
+		c_add_ops = 1
+		c_ow_ops = 1
+		c_ow_ops_out = 1
+		c_bias_ops = 16
+		c_relu = 1
+		c_reuse = 1
+		c_ow_pack = 1
+		c_och_pack = 2
+		c_in_bits = 8
+		c_in_ibits = 3
+		c_w_bits = 8
+		c_w_ibits = -1
+		c_simd_bits = 2
+		c_simd = 32
+		c_mask = 31
+		c_in_bits_1x1 = 0
+		c_in_ibits_1x1 = 0
+		c_w_bits_1x1 = 0
+		c_w_ibits_1x1 = 0
+		c_simd_bits_1x1 = 2
+		c_simd_1x1 = 1
+		c_mask_1x1 = 0
+		c_depth = 0
+		c_data_to_shift = 0
+	INFO: Finished saving parameters.
+o_output[0].size() = 10816
+end conv_op 384 0
+INFO: Call to consume_stream
+		OCH: 512
+		OW: 13
+		OH: 13
+		ow_ops: 1
+		OPS: 16
+INFO: Finished consume_stream 
+INFO: Call to consume_stream
+		OCH: 256
+		OW: 26
+		OH: 26
+		ow_ops: 1
+		OPS: 16
+INFO: Finished consume_stream 
+INFO: Call to s2mm.
+		size: 1
+csim.exe: /home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/cc/include/nn2fpga/s2mm.h:21: void nn2fpga::s2mm(T_mem *, const unsigned int, hls::stream<T_stream> &) [T_mem = ap_ufixed<8, 3, AP_RND_CONV, AP_SAT, 0>, T_stream = ap_ufixed<8, 3, AP_RND_CONV, AP_SAT, 0>]: Assertion `stream.size() == size' failed.
+@E Simulation failed with unknown error.
+ERROR: [SIM 211-100] CSim failed with errors.
 INFO: [SIM 211-3] *************** CSIM finish ***************
-INFO: [HLS 200-111] Finished Command csim_design CPU user time: 5.82 seconds. CPU system time: 0.66 seconds. Elapsed time: 15.76 seconds; current allocated memory: 0.000 MB.
+INFO: [HLS 200-2161] Finished Command csim_design Elapsed time: 00:04:52; Allocated memory: 0.000 MB.
 4
     while executing
-"source /home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/nn2fpga/tcl/synth.tcl"
+"source /home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/nn2fpga/tcl/synth.tcl"
     ("uplevel" body line 1)
     invoked from within
 "uplevel \#0 [list source $tclfile] "
 
-INFO: [HLS 200-112] Total CPU user time: 6.92 seconds. Total CPU system time: 1.06 seconds. Total elapsed time: 36.85 seconds; peak allocated memory: 303.695 MB.
-INFO: [Common 17-206] Exiting vitis_hls at Sun Sep 29 15:02:44 2024...
+INFO: [HLS 200-112] Total CPU user time: 288.6 seconds. Total CPU system time: 3.26 seconds. Total elapsed time: 300.61 seconds; peak allocated memory: 384.020 MB.
