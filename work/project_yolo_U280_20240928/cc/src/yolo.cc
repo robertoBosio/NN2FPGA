@@ -4865,7 +4865,36 @@ void yolo(
 		s_net_25,
 		(hls::stream<std::nullptr_t>*)(nullptr)
 	);
+	
+	hls::stream<t_net_25_struct> s_net_25_2[1];
 
+	nn2fpga::act_tensor_hook <
+		t_net_25_struct,
+		c_node_conv_18_och,
+		c_node_conv_18_oh,
+		c_node_conv_18_ow,
+		c_node_conv_18_ops_out,
+		c_node_conv_18_ow_ops_out>
+	(
+		s_net_25,
+		s_net_25_2,
+		"out_25"
+	);
+
+	hls::stream<t_net_19_struct> s_net_19_2[1];
+
+	nn2fpga::act_tensor_hook <
+		t_net_19_struct,
+		c_consume_stream_node_consume_19_och,
+		c_consume_stream_node_consume_19_oh,
+		c_consume_stream_node_consume_19_ow,
+		16,
+		1>
+	(
+		s_net_19,
+		s_net_19_2,
+		"out_19"
+	);
 	nn2fpga::consume_stream <
 		t_net_19_struct,
 		t_net_19,
@@ -4875,9 +4904,10 @@ void yolo(
 		c_consume_stream_node_consume_19_ow_ops,
 		c_consume_stream_node_consume_19_ops>
 	(
-		s_net_19,
+		s_net_19_2,
 		o_outp1
 	);
+
 
 	nn2fpga::consume_stream <
 		t_net_25_struct,
@@ -4888,7 +4918,7 @@ void yolo(
 		c_consume_stream_node_consume_25_ow_ops,
 		c_consume_stream_node_consume_25_ops>
 	(
-		s_net_25,
+		s_net_25_2,
 		o_outp2
 	);
 
