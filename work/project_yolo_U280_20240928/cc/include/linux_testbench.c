@@ -149,7 +149,7 @@ int main(int argc, char *argv[])
 	XTop_wrapper_Set_inp_1(&top_wrap, inp_1_daddr);
 	XTop_wrapper_Set_c_params(&top_wrap, c_params_daddr);
 	XTop_wrapper_Set_o_outp1(&top_wrap, o_outp1_daddr);
-	XTop_wrapper_Set_o_outp1(&top_wrap, o_outp2_daddr);
+	XTop_wrapper_Set_o_outp2(&top_wrap, o_outp2_daddr);
 
 	gettimeofday(&t0, NULL);
 	XTop_wrapper_Start(&top_wrap);
@@ -170,7 +170,7 @@ int main(int argc, char *argv[])
 
 	unsigned char *temp_outp2;
 	temp_outp2 = (unsigned char *)malloc(n_out2);
-	xclSyncBO(device, o_outp1, XCL_BO_SYNC_BO_FROM_DEVICE, n_out2, 0);
+	xclSyncBO(device, o_outp2, XCL_BO_SYNC_BO_FROM_DEVICE, n_out2, 0);
 	ret = xclReadBO(device, o_outp2, temp_outp2, n_out2, 0);
 	assert(ret == 0);
 

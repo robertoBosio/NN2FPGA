@@ -497,6 +497,192 @@ bandwidth_adjust(hls::stream<din_t> din[c_ow_ops_in],
 #endif
 }
 
+// template<typename din_t,
+//          typename dcomp_t,
+//          typename dout_t,
+//          int ICH,
+//          int OCH,
+//          int IH,
+//          int IW,
+//          int OH,
+//          int OW,
+//          int c_fh,
+//          int c_fw,
+//          int c_str,
+//          int c_pad,
+//          int c_pos_h,
+//          int c_pos_w,
+//          int c_ow_ops,
+//          int c_ops,
+//          int c_ops_out>
+// void
+// shift_op(hls::stream<din_t>& din,
+//          hls::stream<dcomp_t>& o_compute,
+//          hls::stream<dout_t>& o_data)
+// {
+//   /* #pragma HLS inline */
+
+//   // Assert that c_ops is a multiple of c_ops_out
+//   static_assert(c_ops % c_ops_out == 0, "c_ops must be a multiple of c_ops_out");
+//   static_assert(c_ops >= c_ops_out, "c_ops must be bigger than c_ops_out");
+
+
+//   // constexpr int c_pad_index_h = c_pad * (c_fh - 1) / 2;
+//   // constexpr int c_pad_index_w = c_pad * (c_fw - 1) / 2;
+//   // constexpr int c_pad_index_h = c_pad;
+//   // constexpr int c_pad_index_w = c_pad;
+//   constexpr int FW = (c_fw + (c_ow_ops - 1) * c_str);
+
+//   // The window output is written as soon as the first data which falls
+//   // in the window_ops position is available
+//   // The window position is affected by the padding which adds data to 
+//   // the beginning of the tensor width
+//   constexpr int c_paddingh_shift = c_pos_h - c_pad;
+//   constexpr int c_paddingw_shift = c_pos_w - c_pad;
+  
+//   // Given the position, this is the left border of the tensor which is not surpassed by this position of the sliding window
+//   constexpr unsigned int c_top_border = (c_pos_h - c_pad >= 0) ? (c_pos_h - c_pad) : 0;
+//   constexpr unsigned int c_left_border = (c_pos_w - c_pad >= 0) ? (c_pos_w - c_pad) : 0;
+  
+//   // Given the position, this is the left border of the tensor which is not surpassed by this position of the sliding window
+//   constexpr unsigned int c_bottom_border = IH - ((c_fh - 1 - c_pos_h) - c_pad); 
+//   constexpr unsigned int c_right_border = IW - ((FW - 1 - c_pos_w) - c_pad); 
+  
+//   // No window output is written if the data is not in the window_ops position
+//   // At the end of the tensor width
+//   // The window position is affected by the padding which adds data to
+//   // the end of the tensor width
+//   constexpr int c_end_paddingh_shift = c_fh - 1 - c_pos_h - c_pad;
+//   constexpr int c_end_paddingw_shift = c_fw - 1 - c_pos_w - c_pad;
+
+//   // Given the weight stationary degree and the position in the window, the first pixel received varies
+//   // Selects from wich ow_ops stream read.
+//   constexpr int real_start_pos = (c_paddingw_shift >= 0) ? c_paddingw_shift : c_paddingw_shift + c_ow_ops * c_str;
+//   constexpr int c_startw = (real_start_pos % c_ow_ops > 0) ? (real_start_pos % c_ow_ops) : (c_ow_ops + real_start_pos) % c_ow_ops;
+//   constexpr int c_starth = 0;
+  
+//   // const int c_str_adj = (c_str == 1) ? 1 : (c_ow_ops);
+
+//   // Stride selects which pixels are sent for computations
+//   // constexpr int c_strw_adj = (c_str == 1) ? 1 : (FW % c_str);
+//   constexpr int c_strh = (c_paddingh_shift > 0) ? (c_paddingh_shift % c_str) : -1 * (c_paddingh_shift % c_str);
+//   // constexpr int c_strw = (c_paddingw_shift >= 0) ? (c_paddingw_shift % (c_str * c_str_adj)) : (FW - c_strw_adj + c_paddingw_shift) % (c_str * c_str_adj);
+  
+
+//   unsigned int c_strw = 0;
+//   if (c_pos_w - c_pad >= 0) {
+//     c_strw = (c_pos_w - c_pad) / c_ow_ops;
+//   } else {
+//     c_strw = (c_pos_w - c_pad + c_ow_ops * c_str) / c_ow_ops;
+//   }
+//   c_strw = c_strw % c_str;
+  
+//   din_t s_input;
+//   #pragma HLS aggregate variable=s_input
+//   #pragma HLS array_partition variable=s_input type=complete
+//   dcomp_t s_output;
+//   #pragma HLS array_partition variable=s_output.data type=complete
+
+// #ifndef __SYNTHESIS__
+//   std::cout << "INFO: Call to shift_op." << std::endl;
+//   std::cout << "\t\tICH = " << ICH << std::endl;
+//   std::cout << "\t\tIH = " << IH << std::endl;
+//   std::cout << "\t\tIW = " << IW << std::endl;
+//   std::cout << "\t\tc_fh = " << c_fh << std::endl;
+//   std::cout << "\t\tc_fw = " << c_fw << std::endl;
+//   std::cout << "\t\tc_str = " << c_str << std::endl;
+//   std::cout << "\t\tc_pad = " << c_pad << std::endl;
+//   std::cout << "\t\tc_pos_h = " << c_pos_h << std::endl;
+//   std::cout << "\t\tc_pos_w = " << c_pos_w << std::endl;
+//   std::cout << "\t\tc_ow_ops = " << c_ow_ops << std::endl;
+//   std::cout << "\t\tc_ops = " << c_ops << std::endl;
+//   std::cout << "\t\tc_ops_out = " << c_ops_out << std::endl;
+//   std::cout << "\t\tc_top_border = " << c_top_border << std::endl;
+//   std::cout << "\t\tc_left_border = " << c_left_border << std::endl;
+//   std::cout << "\t\tc_bottom_border = " << c_bottom_border << std::endl;
+//   std::cout << "\t\tc_right_border = " << c_right_border << std::endl;
+//   std::cout << "\t\tc_starth = " << c_starth << std::endl;
+//   std::cout << "\t\tc_startw = " << c_startw << std::endl;
+//   std::cout << "\t\tc_strh = " << c_strh << std::endl;
+//   std::cout << "\t\tc_strw = " << c_strw << std::endl;
+// #endif
+
+//   unsigned int s_index_w_str;
+//   unsigned int s_index_h_str = 0;
+
+//   for (auto s_index_h = c_starth; s_index_h < IH; s_index_h++,
+//             s_index_w_str = 0,
+//             s_index_h_str = (s_index_h_str == c_str - 1) ? 0
+//                                                          : s_index_h_str + 1) {
+
+//     for (auto s_index_w = c_startw; s_index_w < IW; s_index_w += c_ow_ops,
+//               s_index_w_str = (s_index_w_str == c_str - 1)
+//                                                       ? 0
+//                                                       : s_index_w_str + 1) {
+
+//       for (auto s_index_ich = 0; s_index_ich < ICH; s_index_ich += c_ops) {
+
+//         for (auto s_index_read = 0; s_index_read < c_ops;
+//              s_index_read += c_ops_out) {
+// #pragma HLS pipeline style = stp II = 1
+
+//           if (s_index_read == 0) {
+//             s_input = din.read();
+//           }
+//           bool s_compute_write = true;
+//           s_compute_write &= (s_index_h >= c_top_border);
+//           s_compute_write &= (s_index_h < c_bottom_border);
+//           s_compute_write &= (s_index_w >= c_left_border);
+//           s_compute_write &= (s_index_w < c_right_border);
+//           s_compute_write &= (s_index_h_str == (c_strh));
+//           s_compute_write &= (s_index_w_str == (c_strw));
+
+//           for (auto s_index_ops = 0; s_index_ops < c_ops_out; s_index_ops++) {
+//             s_output.data[0][s_index_ops] =
+//               s_input.data[0][s_index_read + s_index_ops];
+//           }
+
+//           s_output.last = s_input.last;
+//           if (s_compute_write) {
+//             o_compute.write(s_output);
+//           }
+//           if constexpr (std::is_same<dout_t, std::nullptr_t>::value == false) {
+//             o_data.write(s_output);
+//           }
+//         }
+//       }
+//     }
+//   }
+
+// #ifndef __SYNTHESIS__
+// #ifndef SKIP_ASSERTIONS
+//   if (din.size() > 0) {
+//     std::cout << "#### Not empty input stream" << std::endl;
+//     std::cout << "din.size() " << din.size() << std::endl;
+//   }
+//   assert(din.size() == 0);
+//   if constexpr (std::is_same<dout_t, std::nullptr_t>::value == false) {
+//     if (o_data.size() == 0) {
+//       std::cout << "#### Empty compute stream" << std::endl;
+//       std::cout << "o_data.size() " << o_data.size() << std::endl;
+//     }
+//     assert(o_data.size() > 0);
+//     std::cout << "o_data.size() " << o_data.size() << std::endl;
+//   }
+//   if ((IW != c_ow_ops * c_str)) {
+//     if (o_compute.size() == 0) {
+//       std::cout << "#### Empty compute stream" << std::endl;
+//       std::cout << "o_compute.size() " << o_compute.size() << std::endl;
+//     }
+//     std::cout << "o_compute.size() " << o_compute.size() << std::endl;
+//     assert(o_compute.size() > 0);
+//   }
+// #endif /* SKIP_ASSERTIONS */
+//   std::cout << "INFO: Finished shift_op." << std::endl;
+// #endif
+// }
+
+// }  // namespace nn2fpga
 template<typename din_t,
          typename dcomp_t,
          typename dout_t,
@@ -526,129 +712,108 @@ shift_op(hls::stream<din_t>& din,
   static_assert(c_ops % c_ops_out == 0, "c_ops must be a multiple of c_ops_out");
   static_assert(c_ops >= c_ops_out, "c_ops must be bigger than c_ops_out");
 
+  constexpr int c_pad_index_h = c_pad * (c_fh - 1) / 2;
+  constexpr int c_pad_index_w = c_pad * (c_fw - 1) / 2;
+  constexpr int IH_PAD = IH + c_pad_index_h * 2;
+  constexpr int IW_PAD = IW + c_pad_index_w * 2;
+  // constexpr int c_paddingh_shift = c_pos_h;
+  // constexpr int c_paddingw_shift = c_pos_w;
+  // constexpr int c_strideh_shift = (c_str - 1);
+  // constexpr int c_stridew_shift = (c_str - 1);
+  // constexpr int c_end_paddingh_shift = (c_fh - 1 - c_pos_h);
+  // constexpr int c_end_paddingw_shift = (c_fw + c_ow_ops - 2 - c_pos_w);
+  // constexpr int c_end_paddingw_shift = (c_fw - 1 - c_pos_w);
 
-  // constexpr int c_pad_index_h = c_pad * (c_fh - 1) / 2;
-  // constexpr int c_pad_index_w = c_pad * (c_fw - 1) / 2;
-  // constexpr int c_pad_index_h = c_pad;
-  // constexpr int c_pad_index_w = c_pad;
-  constexpr int FW = (c_fw + (c_ow_ops - 1) * c_str);
+  /* Constants for new version */
+  // constexpr int c_i_index = IH_PAD * IW_PAD * ICH;
+
+  // constexpr int c_endh = IH_PAD - c_pad_index_h;
+  // constexpr int c_endw = IW_PAD - c_pad_index_w + (c_fw - c_pos_w) % (c_ow_ops);
+  constexpr int FW = (c_fw+(c_ow_ops-1)*c_str);
 
   // The window output is written as soon as the first data which falls
   // in the window_ops position is available
   // The window position is affected by the padding which adds data to 
   // the beginning of the tensor width
-  constexpr int c_paddingh_shift = c_pos_h - c_pad;
-  constexpr int c_paddingw_shift = c_pos_w - c_pad;
-  
-  // Given the position, this is the left border of the tensor which is not surpassed by this position of the sliding window
-  constexpr unsigned int c_top_border = (c_pos_h - c_pad >= 0) ? (c_pos_h - c_pad) : 0;
-  constexpr unsigned int c_left_border = (c_pos_w - c_pad >= 0) ? (c_pos_w - c_pad) : 0;
-  
-  // Given the position, this is the left border of the tensor which is not surpassed by this position of the sliding window
-  constexpr unsigned int c_bottom_border = IH - ((c_fh - 1 - c_pos_h) - c_pad); 
-  constexpr unsigned int c_right_border = IW - ((FW - 1 - c_pos_w) - c_pad); 
-  
+  constexpr int c_paddingh_shift = c_pos_h - c_pad_index_h;
+  constexpr int c_paddingw_shift = c_pos_w - c_pad_index_w;
+
   // No window output is written if the data is not in the window_ops position
   // At the end of the tensor width
   // The window position is affected by the padding which adds data to
   // the end of the tensor width
-  constexpr int c_end_paddingh_shift = c_fh - 1 - c_pos_h - c_pad;
-  constexpr int c_end_paddingw_shift = c_fw - 1 - c_pos_w - c_pad;
+  constexpr int c_end_paddingh_shift = c_fh - 1 - c_pos_h - c_pad_index_h;
+  constexpr int c_end_paddingw_shift = c_fw - 1 - c_pos_w - c_pad_index_w;
 
-  // Given the weight stationary degree and the position in the window, the first pixel received varies
-  // Selects from wich ow_ops stream read.
-  constexpr int real_start_pos = (c_paddingw_shift >= 0) ? c_paddingw_shift : c_paddingw_shift + c_ow_ops * c_str;
-  constexpr int c_startw = (real_start_pos % c_ow_ops > 0) ? (real_start_pos % c_ow_ops) : (c_ow_ops + real_start_pos) % c_ow_ops;
+  // Given the weight stationary degree and the position in the window,
+  // the first pixel received varies
   constexpr int c_starth = 0;
-  
-  // const int c_str_adj = (c_str == 1) ? 1 : (c_ow_ops);
+  constexpr int c_startw = (c_paddingw_shift % c_ow_ops > 0) ? (c_paddingw_shift % c_ow_ops) : (c_ow_ops+c_paddingw_shift)%c_ow_ops;
+  // constexpr int c_startw = (c_paddingw_shift % c_ow_ops > 0) ? (c_paddingw_shift % c_ow_ops) : -1 * (c_paddingw_shift % c_ow_ops);
+  const int c_str_adj = (c_str == 1) ? 1 : (c_ow_ops);
 
   // Stride selects which pixels are sent for computations
-  // constexpr int c_strw_adj = (c_str == 1) ? 1 : (FW % c_str);
+  constexpr int c_strw_adj = (c_str == 1) ? 1 : (FW%c_str);
   constexpr int c_strh = (c_paddingh_shift > 0) ? (c_paddingh_shift % c_str) : -1 * (c_paddingh_shift % c_str);
-  // constexpr int c_strw = (c_paddingw_shift >= 0) ? (c_paddingw_shift % (c_str * c_str_adj)) : (FW - c_strw_adj + c_paddingw_shift) % (c_str * c_str_adj);
-  
-
-  unsigned int c_strw = 0;
-  if (c_pos_w - c_pad >= 0) {
-    c_strw = (c_pos_w - c_pad) / c_ow_ops;
-  } else {
-    c_strw = (c_pos_w - c_pad + c_ow_ops * c_str) / c_ow_ops;
-  }
-  c_strw = c_strw % c_str;
+  constexpr int c_strw = (c_paddingw_shift > 0) ? (c_paddingw_shift % (c_str*c_str_adj)) : (FW - c_strw_adj + c_paddingw_shift) % (c_str*c_str_adj);
   
   din_t s_input;
   #pragma HLS aggregate variable=s_input
   #pragma HLS array_partition variable=s_input type=complete
   dcomp_t s_output;
   #pragma HLS array_partition variable=s_output.data type=complete
+  
+  #ifndef __SYNTHESIS__
+    std::cout << "INFO: Call to shift_op." << std::endl;
+    std::cout << "\t\tICH = " << ICH << std::endl;
+    std::cout << "\t\tIH = " << IH << std::endl;
+    std::cout << "\t\tIW = " << IW << std::endl;
+    std::cout << "\t\tc_fh = " << c_fh << std::endl;
+    std::cout << "\t\tc_fw = " << c_fw << std::endl;
+    std::cout << "\t\tc_str = " << c_str << std::endl;
+    std::cout << "\t\tc_pad = " << c_pad << std::endl;
+    std::cout << "\t\tc_pos_h = " << c_pos_h << std::endl;
+    std::cout << "\t\tc_pos_w = " << c_pos_w << std::endl;
+    std::cout << "\t\tc_ow_ops = " << c_ow_ops << std::endl;
+    std::cout << "\t\tc_ops = " << c_ops << std::endl;
+    std::cout << "\t\tc_ops_out = " << c_ops_out << std::endl;
+  #endif
 
-#ifndef __SYNTHESIS__
-  std::cout << "INFO: Call to shift_op." << std::endl;
-  std::cout << "\t\tICH = " << ICH << std::endl;
-  std::cout << "\t\tIH = " << IH << std::endl;
-  std::cout << "\t\tIW = " << IW << std::endl;
-  std::cout << "\t\tc_fh = " << c_fh << std::endl;
-  std::cout << "\t\tc_fw = " << c_fw << std::endl;
-  std::cout << "\t\tc_str = " << c_str << std::endl;
-  std::cout << "\t\tc_pad = " << c_pad << std::endl;
-  std::cout << "\t\tc_pos_h = " << c_pos_h << std::endl;
-  std::cout << "\t\tc_pos_w = " << c_pos_w << std::endl;
-  std::cout << "\t\tc_ow_ops = " << c_ow_ops << std::endl;
-  std::cout << "\t\tc_ops = " << c_ops << std::endl;
-  std::cout << "\t\tc_ops_out = " << c_ops_out << std::endl;
-  std::cout << "\t\tc_top_border = " << c_top_border << std::endl;
-  std::cout << "\t\tc_left_border = " << c_left_border << std::endl;
-  std::cout << "\t\tc_bottom_border = " << c_bottom_border << std::endl;
-  std::cout << "\t\tc_right_border = " << c_right_border << std::endl;
-  std::cout << "\t\tc_starth = " << c_starth << std::endl;
-  std::cout << "\t\tc_startw = " << c_startw << std::endl;
-  std::cout << "\t\tc_strh = " << c_strh << std::endl;
-  std::cout << "\t\tc_strw = " << c_strw << std::endl;
-#endif
-
-  unsigned int s_index_w_str;
-  unsigned int s_index_h_str = 0;
-
-  for (auto s_index_h = c_starth; s_index_h < IH; s_index_h++,
-            s_index_w_str = 0,
-            s_index_h_str = (s_index_h_str == c_str - 1) ? 0
-                                                         : s_index_h_str + 1) {
-
-    for (auto s_index_w = c_startw; s_index_w < IW; s_index_w += c_ow_ops,
-              s_index_w_str = (s_index_w_str == c_str - 1)
-                                                      ? 0
-                                                      : s_index_w_str + 1) {
-
-      for (auto s_index_ich = 0; s_index_ich < ICH; s_index_ich += c_ops) {
-
-        for (auto s_index_read = 0; s_index_read < c_ops;
-             s_index_read += c_ops_out) {
-#pragma HLS pipeline style = stp II = 1
-
-          if (s_index_read == 0) {
-            s_input = din.read();
-          }
+  for (auto s_index_h = c_starth; s_index_h < IH; s_index_h++) {
+    for (auto s_index_w = c_startw; s_index_w < IW; s_index_w+=c_ow_ops) {
+      for (auto s_index_ich = 0; s_index_ich < ICH; s_index_ich+=c_ops) {
+        for (auto s_index_read = 0; s_index_read < c_ops; s_index_read+=c_ops_out) {
+          #pragma HLS pipeline style = stp II=1
+          auto s_data_read = s_index_read == 0;
+          if (s_data_read) s_input = din.read();
           bool s_compute_write = true;
-          s_compute_write &= (s_index_h >= c_top_border);
-          s_compute_write &= (s_index_h < c_bottom_border);
-          s_compute_write &= (s_index_w >= c_left_border);
-          s_compute_write &= (s_index_w < c_right_border);
+          auto s_index_h_str = s_index_h % c_str;
+          auto s_index_w_str = s_index_w % (c_str * c_str_adj);
+
+          s_compute_write &= (s_index_h >= c_paddingh_shift);
+          s_compute_write &= (s_index_h < (IH - c_end_paddingh_shift));
+          s_compute_write &= (s_index_w >= c_paddingw_shift);
+          s_compute_write &= (s_index_w < (IW - c_end_paddingw_shift));
           s_compute_write &= (s_index_h_str == (c_strh));
           s_compute_write &= (s_index_w_str == (c_strw));
 
+          #ifndef __SYNTHESIS__
+            #ifdef DEBUG_LINE
+              if (c_ow_ops == IW) {
+                // print s_compute_write sub-conditions
+                std::cout << (s_index_h >= c_paddingh_shift) << " " << (s_index_h < (IH - c_end_paddingh_shift)) << " " << (s_index_w >= c_paddingw_shift) << " " << (s_index_w < (IW - c_end_paddingw_shift)) << " " << (s_index_h_str == (c_strh)) << " " << (s_index_w_str == (c_strw)) << std::endl;
+                std::cout << "s_index_h " << s_index_h << " s_index_w " << s_index_w << " s_index_ich " << s_index_ich << " s_index_read " << s_index_read << std::endl;
+                std::cout << "s_compute_write " << s_compute_write << std::endl;
+              }
+            #endif
+          #endif
           for (auto s_index_ops = 0; s_index_ops < c_ops_out; s_index_ops++) {
-            s_output.data[0][s_index_ops] =
-              s_input.data[0][s_index_read + s_index_ops];
+            s_output.data[0][s_index_ops] = s_input.data[0][s_index_read+s_index_ops];
           }
 
           s_output.last = s_input.last;
-          if (s_compute_write) {
-            o_compute.write(s_output);
-          }
-          if constexpr (std::is_same<dout_t, std::nullptr_t>::value == false) {
-            o_data.write(s_output);
-          }
+          if (s_compute_write) o_compute.write(s_output);
+          if constexpr(std::is_same<dout_t, std::nullptr_t>::value == false) o_data.write(s_output);
         }
       }
     }
@@ -667,21 +832,18 @@ shift_op(hls::stream<din_t>& din,
       std::cout << "o_data.size() " << o_data.size() << std::endl;
     }
     assert(o_data.size() > 0);
-    std::cout << "o_data.size() " << o_data.size() << std::endl;
   }
   if ((IW != c_ow_ops * c_str)) {
     if (o_compute.size() == 0) {
       std::cout << "#### Empty compute stream" << std::endl;
       std::cout << "o_compute.size() " << o_compute.size() << std::endl;
     }
-    std::cout << "o_compute.size() " << o_compute.size() << std::endl;
     assert(o_compute.size() > 0);
   }
 #endif /* SKIP_ASSERTIONS */
   std::cout << "INFO: Finished shift_op." << std::endl;
 #endif
 }
-
+  
 }  // namespace nn2fpga
-
 #endif  // NN2FPGA_LINE_BUFFER_UTILS_H_

@@ -124,20 +124,50 @@ std::chrono::duration<double> networkSim(
 	mm2s_w.set_arg(0, buff_weights);
 	mm2s_w.set_arg(1, c_params_dim);
 
+	// auto s2mm_output = xrt::kernel(device, uuid, "s2mm_outputs");
+	// auto buff_output = xrt::bo(device, (int*)o_outp1, n_out, s2mm_output.group_id(0));
+	// auto s2mm_o = xrt::run(s2mm_output);
+	// s2mm_o.set_arg(0, buff_output);
+	// s2mm_o.set_arg(1, n_out);
+
+	// auto s2mm_output = xrt::kernel(device, uuid, "s2mm_outputs");
+	// auto buff_output = xrt::bo(device, (int*)o_outp1, n_out, s2mm_output.group_id(0));
+	// auto s2mm_o = xrt::run(s2mm_output);
+	// s2mm_o.set_arg(0, buff_output);
+	// s2mm_o.set_arg(1, n_out);
+
+	// s2mm_o.start();
+	// s2mm_o.start();
+
+	// auto start = std::chrono::high_resolution_clock::now();
+
+	// if (upload_weights_flag) {
+	// 	mm2s_w.start();
+	// }
+	// mm2s_a.start();
+	// s2mm_o.wait();
+	// s2mm_o.wait();
+
+	// auto end = std::chrono::high_resolution_clock::now();
+
+	// std::cout << "Synching d2h o_outp1" << std::endl;
+	// buff_output.sync(XCL_BO_SYNC_BO_FROM_DEVICE);
+
+	
 	auto s2mm_output = xrt::kernel(device, uuid, "s2mm_outputs");
-	auto buff_output = xrt::bo(device, (int*)o_outp1, n_out, s2mm_output.group_id(0));
+	auto buff_output = xrt::bo(device, (int*)o_outp1, n_out1, s2mm_output.group_id(0));
 	auto s2mm_o = xrt::run(s2mm_output);
 	s2mm_o.set_arg(0, buff_output);
-	s2mm_o.set_arg(1, n_out);
+	s2mm_o.set_arg(1, n_out1);
 
-	auto s2mm_output = xrt::kernel(device, uuid, "s2mm_outputs");
-	auto buff_output = xrt::bo(device, (int*)o_outp1, n_out, s2mm_output.group_id(0));
-	auto s2mm_o = xrt::run(s2mm_output);
-	s2mm_o.set_arg(0, buff_output);
-	s2mm_o.set_arg(1, n_out);
+	auto s2mm_output2 = xrt::kernel(device, uuid, "s2mm_outputs");
+	auto buff_output2 = xrt::bo(device, (int*)o_outp2, n_out2, s2mm_output.group_id(0));
+	auto s2mm_o2 = xrt::run(s2mm_output2);
+	s2mm_o2.set_arg(0, buff_output2);
+	s2mm_o2.set_arg(1, n_out2);
 
 	s2mm_o.start();
-	s2mm_o.start();
+	s2mm_o2.start();
 
 	auto start = std::chrono::high_resolution_clock::now();
 
@@ -146,12 +176,16 @@ std::chrono::duration<double> networkSim(
 	}
 	mm2s_a.start();
 	s2mm_o.wait();
-	s2mm_o.wait();
+	s2mm_o2.wait();
 
 	auto end = std::chrono::high_resolution_clock::now();
 
 	std::cout << "Synching d2h o_outp1" << std::endl;
 	buff_output.sync(XCL_BO_SYNC_BO_FROM_DEVICE);
+
+	std::cout << "Synching d2h o_outp2" << std::endl;
+	buff_output2.sync(XCL_BO_SYNC_BO_FROM_DEVICE);
+
 
 #endif /* CSIM */
 
