@@ -10,7 +10,7 @@
 #include "xrt.h"
 #endif /* UBUF_FLAG */
 
-#define PARAMS_DIM 8649648/8
+#define PARAMS_DIM 8649648
 #define ACT_DIM 416*416*3
 #define OUT_DIM2 512*13*13
 #define OUT_DIM1 256*26*26
@@ -180,6 +180,7 @@ int main(int argc, char *argv[])
 	
 	for (unsigned long i = 0; i < n_out2; ++i) {
 		printf("Output %lu: %u\n", i, temp_outp2[i]);
+	}
 	
 #ifdef UBUF_FLAG
 
