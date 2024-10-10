@@ -274,7 +274,7 @@ def inference_coco():
     outputs = 0
     with torch.no_grad():
         for images, labels in eval_dataset:
-            images_path = "/home-ssd/roberto/Documents/nn2fpga-container/NN2FPGA/models/tb/coco/hls_lab.jpeg"
+            images_path = "/home-ssd/teodoro/Github/work0/NNtwoFPGA_ROBERTO/NN2FPGA/models/tb/coco/hls_lab.jpeg"
             # image = torchvision.io.read_image(images_path)
             img = Image.open(images_path).convert('RGB')
             #resize the image to 416x416
@@ -289,7 +289,7 @@ def inference_coco():
             inferred_model = execute_onnx_and_make_model(inferred_model, {'images': np_images})
             break
 
-    print_acts_tensor('/model.0/id/act_quant/export_handler/Quant_output_0', inferred_model, ow_ops=1, och_ops=3) 
+    print_acts_tensor('/model.0/act/act_quant/export_handler/Quant_output_0', inferred_model, ow_ops=1, och_ops=16) 
 
 if __name__ == '__main__':
     inference_coco()

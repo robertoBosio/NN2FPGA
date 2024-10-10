@@ -1143,6 +1143,7 @@ def ilp(io_dict, off_chip_storage, model, file_name, board="ULTRA96v2", generate
 
     NUM_PORTS = (board_res["bram"] + board_res["uram"])
     NUM_DSP = board_res["dsp"]
+    NUM_DSP = 3000
     NUM_PORTS = int(NUM_PORTS * 0.85) * 2
 
     valid_par_solutions = generate_architectures(layers_info, NUM_DSP)

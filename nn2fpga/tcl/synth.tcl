@@ -11,7 +11,7 @@ source "${NN2FPGA_ROOT}/tcl/settings.tcl"
 #set SILVIA::LLVM_ROOT "${SILVIA::ROOT}/llvm-project/install"
 #set SILVIA::PASSES [list [dict create OP "muladd" MAX_CHAIN_LEN 3 OP_SIZE 4] [dict create OP "muladd" INLINE 1 MAX_CHAIN_LEN 3] [dict create OP "muladd" MUL_ONLY 1 INLINE 1]] 
 #set SILVIA::DEBUG 1
-
+puts "CSIM = ${CSIM}"
 set impl_sel "solution_0"
 set PRJ_NAME ${TOP_NAME}_${BOARD}
 
@@ -39,7 +39,9 @@ if {${SIMD_DSP} == 1} {
 if {${CSIM} == 1} {
   # add_files -cflags "  -g -D_GLIBCXX_DEBUG -Wall -Wextra -O2 -Icc/include -I${NN2FPGA_ROOT}/cc/include${simd_flag}" \
   #   cc/src/${TOP_NAME}.cc
-  add_files -cflags "-O3 -Icc/include -I${NN2FPGA_ROOT}/cc/include${simd_flag}" \
+  # add_files -cflags "-O3 -Icc/include -I${NN2FPGA_ROOT}/cc/include${simd_flag}" 
+  puts "hello add top_wrapper.cc"
+  add_files -cflags " -O3 -Icc/include -I${NN2FPGA_ROOT}/cc/include${simd_flag}" \
     cc/src/${TOP_NAME}.cc
 } else {
   add_files -cflags " -Icc/include -I${NN2FPGA_ROOT}/cc/include${simd_flag}" \
@@ -74,7 +76,8 @@ if {${CSIM} == 1} {
 if {${BOARD} == "PYNQ" || ${BOARD} == "ZC706"} { 
   create_clock -period 7
 } else {
-  create_clock -period 3.3
+  #create_clock -period 3.3
+  create_clock -period 5
 }
 
 # config_interface -m_axi_max_widen_bitwidth 0
@@ -95,11 +98,12 @@ config_compile -pipeline_style stp -enable_auto_rewind=false
 csynth_design
 #SILVIA::csynth_design
 
-export_design -flow syn
+export_design -flow impl
 #export_design
 
 if {${COSIM} == 1} {
-  cosim_design -trace_level all -tool xsim -wave_debug -argv ${CMD_ARGS}
+  #cosim_design -trace_level all -tool xsim -wave_debug -argv ${CMD_ARGS}
+  cosim_design -trace_level all -tool xcim -argv ${CMD_ARGS}
 }
 
 exit
