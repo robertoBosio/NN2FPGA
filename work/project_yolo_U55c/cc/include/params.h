@@ -10,7 +10,7 @@
 
 /************************* axi_to_stream *************************/
 typedef ap_uint<8> t_params_stream;
-// typedef ap_axiu<8, 0, 0, 0> t_params_axi_stream;
+typedef ap_axiu<8, 0, 0, 0> t_params_axi_stream;
 typedef uint8_t t_params_st;
 
 /************************* produce_stream *************************/
@@ -951,21 +951,23 @@ const int c_node_conv_18_och_pack = 2;
 const int c_net_25_add_ops = 8;
 
 /************************* consume_stream *************************/
-typedef hls::axis<t_net_25, 0, 0, 0> t_o_net_25;
+typedef hls::axis<t_net_19, 0, 0, 0> t_o_net_19;
 using t_out_mem1=t_net_19;
-using t_o_outp2=t_o_net_25;
-using t_o_data=t_o_net_25;
+using t_out_mem1_struct=t_net_19_struct;
+using t_o_outp1=t_o_net_19;
+using t_o_data=t_o_net_19;
 const int c_consume_stream_node_consume_19_och = 512;
 const int c_consume_stream_node_consume_19_ow = 13;
 const int c_consume_stream_node_consume_19_oh = 13;
 const int c_consume_stream_node_consume_19_ow_ops = 1;
-const int c_consume_stream_node_consume_19_ops = 16;
+const int c_consume_stream_node_consume_19_ops = 8;
 
 /************************* consume_stream *************************/
-typedef hls::axis<t_net_19, 0, 0, 0> t_o_net_19;
+typedef hls::axis<t_net_25, 0, 0, 0> t_o_net_25;
 using t_out_mem2=t_net_25;
-using t_o_outp1=t_o_net_19;
-using t_o_data=t_o_net_19;
+using t_out_mem2_struct=t_net_25_struct;
+using t_o_outp2=t_o_net_25;
+using t_o_data=t_o_net_25;
 const int c_consume_stream_node_consume_25_och = 256;
 const int c_consume_stream_node_consume_25_ow = 26;
 const int c_consume_stream_node_consume_25_oh = 26;

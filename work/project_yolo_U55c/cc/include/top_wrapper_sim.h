@@ -30,9 +30,10 @@ std::chrono::duration<double> networkSim(
 	}
 	file_weights.read(reinterpret_cast<char*>(c_params), 8649648 * sizeof(t_params_st));
 	file_weights.close();
-
+	
+	std::cout << "Parameters loaded" << std::endl;
 	auto start = std::chrono::high_resolution_clock::now();
-
+	std::cout << "Starting top_wrapper" << std::endl;
 	top_wrapper(
 		inp_1,
 		c_params,

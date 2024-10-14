@@ -28,8 +28,7 @@ mm2s_params(const T_mem* mem, hls::stream<T_stream>& stream, bool &s_init)
 		{
 #pragma HLS pipeline II = 1
 			T_stream s_data;
-			auto data = mem[it];
-			s_data = data;
+			s_data = mem[it];
 			stream.write(s_data);
 		}
 		s_init = true;
@@ -48,18 +47,21 @@ void yolo(
 	t_out_mem2* o_outp2
 ) {
 
-	#pragma HLS interface mode = ap_ctrl_hs port = return
-	#pragma HLS INTERFACE mode = m_axi port = c_params bundle = m_axi_w depth=8649648
-	#pragma HLS INTERFACE mode = m_axi port = inp_1 bundle = m_axi_a depth=519168
-	#pragma HLS INTERFACE mode = m_axi port = o_outp1 bundle = m_axi_o depth=78432
-	#pragma HLS INTERFACE mode = m_axi port = o_outp1 bundle = m_axi_o depth=173056
+
+
+	// #pragma HLS interface mode = ap_ctrl_hs port = return
+	// #pragma HLS dataflow disable_start_propagation
+	// #pragma HLS INTERFACE mode = m_axi port = c_params bundle = m_axi_w depth=8649648
+	// #pragma HLS INTERFACE mode = m_axi port = inp_1 bundle = m_axi_a depth=519168
+	// #pragma HLS INTERFACE mode = m_axi port = o_outp1 bundle = m_axi_o depth=78432
+	// #pragma HLS INTERFACE mode = m_axi port = o_outp2 bundle = m_axi_o2 depth=173056
 	// #pragma HLS interface mode=ap_ctrl_none port=return
 	static bool s_axi_to_stream_init_flag = false;
 	hls::stream<t_params_stream> s_axi_to_stream_out[1];
-	#pragma HLS stream variable=s_axi_to_stream_out depth=2 type=fifo
+	#pragma HLS stream variable=s_axi_to_stream_out depth=2*2 type=fifo
 	// #pragma HLS interface port=i_data_params mode=axis
 	hls::stream<t_net_5_struct> s_net_5[1];
-	#pragma HLS stream variable=s_net_5 depth=3 type=fifo
+	#pragma HLS stream variable=s_net_5 depth=2*3 type=fifo
 	// #pragma HLS interface port=i_inp_1 mode=axis
 	#pragma HLS dataflow disable_start_propagation
 	hls::stream<t_net_5_adj_struct> s_net_5_adj[4];
@@ -67,23 +69,23 @@ void yolo(
 	hls::stream<t_net_5_lb_struct> s_net_5_data[14];
 	hls::stream<std::nullptr_t> s_net_5_null[4];
 	hls::stream<t_net_5_lb_struct> s_net_5_pre_pad[18];
-	#pragma HLS stream variable=s_net_5_pre_pad depth=10 type=fifo
+	#pragma HLS stream variable=s_net_5_pre_pad depth=2*10 type=fifo
 	#pragma HLS bind_storage variable=s_net_5_pre_pad impl=AUTO type=fifo
-	#pragma HLS stream variable=s_net_5_data[0] depth=1 type=fifo
+	#pragma HLS stream variable=s_net_5_data[0] depth=2*1 type=fifo
 	#pragma HLS bind_storage variable=s_net_5_data[0] impl=AUTO type=fifo
-	#pragma HLS stream variable=s_net_5_data[1] depth=1 type=fifo
-	#pragma HLS stream variable=s_net_5_data[2] depth=104 type=fifo
-	#pragma HLS stream variable=s_net_5_data[3] depth=104 type=fifo
-	#pragma HLS stream variable=s_net_5_data[4] depth=104 type=fifo
-	#pragma HLS stream variable=s_net_5_data[5] depth=104 type=fifo
-	#pragma HLS stream variable=s_net_5_data[6] depth=1 type=fifo
-	#pragma HLS stream variable=s_net_5_data[7] depth=1 type=fifo
-	#pragma HLS stream variable=s_net_5_data[8] depth=104 type=fifo
-	#pragma HLS stream variable=s_net_5_data[9] depth=104 type=fifo
-	#pragma HLS stream variable=s_net_5_data[10] depth=104 type=fifo
-	#pragma HLS stream variable=s_net_5_data[11] depth=104 type=fifo
-	#pragma HLS stream variable=s_net_5_data[12] depth=1 type=fifo
-	#pragma HLS stream variable=s_net_5_data[13] depth=1 type=fifo
+	#pragma HLS stream variable=s_net_5_data[1] depth=2*1 type=fifo
+	#pragma HLS stream variable=s_net_5_data[2] depth=2*104 type=fifo
+	#pragma HLS stream variable=s_net_5_data[3] depth=2*104 type=fifo
+	#pragma HLS stream variable=s_net_5_data[4] depth=2*104 type=fifo
+	#pragma HLS stream variable=s_net_5_data[5] depth=2*104 type=fifo
+	#pragma HLS stream variable=s_net_5_data[6] depth=2*1 type=fifo
+	#pragma HLS stream variable=s_net_5_data[7] depth=2*1 type=fifo
+	#pragma HLS stream variable=s_net_5_data[8] depth=2*104 type=fifo
+	#pragma HLS stream variable=s_net_5_data[9] depth=2*2104 type=fifo
+	#pragma HLS stream variable=s_net_5_data[10] depth=2*104 type=fifo
+	#pragma HLS stream variable=s_net_5_data[11] depth=2*104 type=fifo
+	#pragma HLS stream variable=s_net_5_data[12] depth=2*1 type=fifo
+	#pragma HLS stream variable=s_net_5_data[13] depth=2*1 type=fifo
 	hls::stream<t_net_5_window_struct> s_net_5_compute[1];
 	#pragma HLS stream variable=s_net_5_compute depth=2 type=fifo
 	hls::stream<t_net_6_struct> s_net_6[4];
@@ -93,40 +95,40 @@ void yolo(
 	#pragma HLS array_reshape variable=c_node_conv_1_weight dim=3 type=complete
 	#pragma HLS array_reshape variable=c_node_conv_1_weight dim=1 type=complete
 	#pragma HLS array_partition variable=c_node_conv_1_weight off=true
-	#pragma HLS stream variable=s_net_6 depth=9 type=fifo
+	#pragma HLS stream variable=s_net_6 depth=2*9 type=fifo
 	hls::stream<t_net_6_adj_struct> s_net_6_adj[1];
-	#pragma HLS stream variable=s_net_6_adj depth=3 type=fifo
+	#pragma HLS stream variable=s_net_6_adj depth=2*3 type=fifo
 	hls::stream<t_net_6_lb_struct> s_net_6_data[3];
 	hls::stream<std::nullptr_t> s_net_6_null[1];
 	hls::stream<t_net_6_lb_struct> s_net_6_pre_pad[4];
-	#pragma HLS stream variable=s_net_6_pre_pad depth=65 type=fifo
+	#pragma HLS stream variable=s_net_6_pre_pad depth=2*65 type=fifo
 	#pragma HLS bind_storage variable=s_net_6_pre_pad impl=AUTO type=fifo
-	#pragma HLS stream variable=s_net_6_data[0] depth=2 type=fifo
+	#pragma HLS stream variable=s_net_6_data[0] depth=2*2 type=fifo
 	#pragma HLS bind_storage variable=s_net_6_data[0] impl=AUTO type=fifo
-	#pragma HLS stream variable=s_net_6_data[1] depth=832 type=fifo
-	#pragma HLS stream variable=s_net_6_data[2] depth=2 type=fifo
+	#pragma HLS stream variable=s_net_6_data[1] depth=2*832 type=fifo
+	#pragma HLS stream variable=s_net_6_data[2] depth=2*2 type=fifo
 	hls::stream<t_net_6_window_struct> s_net_6_compute[1];
-	#pragma HLS stream variable=s_net_6_compute depth=2 type=fifo
+	#pragma HLS stream variable=s_net_6_compute depth=2*2 type=fifo
 	hls::stream<t_net_7_struct> s_net_7[1];
-	#pragma HLS stream variable=s_net_7 depth=2 type=fifo
+	#pragma HLS stream variable=s_net_7 depth=2*2 type=fifo
 	hls::stream<t_net_7_adj_struct> s_net_7_adj[2];
-	#pragma HLS stream variable=s_net_7_adj depth=3 type=fifo
+	#pragma HLS stream variable=s_net_7_adj depth=2*3 type=fifo
 	hls::stream<t_net_7_lb_struct> s_net_7_data[10];
 	hls::stream<std::nullptr_t> s_net_7_null[2];
 	hls::stream<t_net_7_lb_struct> s_net_7_pre_pad[12];
-	#pragma HLS stream variable=s_net_7_pre_pad depth=10 type=fifo
+	#pragma HLS stream variable=s_net_7_pre_pad depth=2*10 type=fifo
 	#pragma HLS bind_storage variable=s_net_7_pre_pad impl=AUTO type=fifo
-	#pragma HLS stream variable=s_net_7_data[0] depth=4 type=fifo
+	#pragma HLS stream variable=s_net_7_data[0] depth=2*4 type=fifo
 	#pragma HLS bind_storage variable=s_net_7_data[0] impl=AUTO type=fifo
-	#pragma HLS stream variable=s_net_7_data[1] depth=4 type=fifo
-	#pragma HLS stream variable=s_net_7_data[2] depth=416 type=fifo
-	#pragma HLS stream variable=s_net_7_data[3] depth=416 type=fifo
-	#pragma HLS stream variable=s_net_7_data[4] depth=4 type=fifo
-	#pragma HLS stream variable=s_net_7_data[5] depth=4 type=fifo
-	#pragma HLS stream variable=s_net_7_data[6] depth=416 type=fifo
-	#pragma HLS stream variable=s_net_7_data[7] depth=416 type=fifo
-	#pragma HLS stream variable=s_net_7_data[8] depth=4 type=fifo
-	#pragma HLS stream variable=s_net_7_data[9] depth=4 type=fifo
+	#pragma HLS stream variable=s_net_7_data[1] depth=2*4 type=fifo
+	#pragma HLS stream variable=s_net_7_data[2] depth=2*416 type=fifo
+	#pragma HLS stream variable=s_net_7_data[3] depth=2*416 type=fifo
+	#pragma HLS stream variable=s_net_7_data[4] depth=2*4 type=fifo
+	#pragma HLS stream variable=s_net_7_data[5] depth=2*4 type=fifo
+	#pragma HLS stream variable=s_net_7_data[6] depth=2*416 type=fifo
+	#pragma HLS stream variable=s_net_7_data[7] depth=2*416 type=fifo
+	#pragma HLS stream variable=s_net_7_data[8] depth=2*4 type=fifo
+	#pragma HLS stream variable=s_net_7_data[9] depth=2*4 type=fifo
 	hls::stream<t_net_7_window_struct> s_net_7_compute[1];
 	#pragma HLS stream variable=s_net_7_compute depth=2 type=fifo
 	hls::stream<t_net_8_struct> s_net_8[2];
@@ -136,42 +138,42 @@ void yolo(
 	#pragma HLS array_reshape variable=c_node_conv_3_weight dim=3 type=complete
 	#pragma HLS array_reshape variable=c_node_conv_3_weight dim=1 type=complete
 	#pragma HLS array_partition variable=c_node_conv_3_weight off=true
-	#pragma HLS stream variable=s_net_8 depth=17 type=fifo
+	#pragma HLS stream variable=s_net_8 depth=2*17 type=fifo
 	hls::stream<t_net_8_adj_struct> s_net_8_adj[1];
-	#pragma HLS stream variable=s_net_8_adj depth=9 type=fifo
+	#pragma HLS stream variable=s_net_8_adj depth=2*9 type=fifo
 	hls::stream<t_net_8_lb_struct> s_net_8_data[3];
 	hls::stream<std::nullptr_t> s_net_8_null[1];
 	hls::stream<t_net_8_lb_struct> s_net_8_pre_pad[4];
-	#pragma HLS stream variable=s_net_8_pre_pad depth=129 type=fifo
+	#pragma HLS stream variable=s_net_8_pre_pad depth=2*129 type=fifo
 	#pragma HLS bind_storage variable=s_net_8_pre_pad impl=AUTO type=fifo
-	#pragma HLS stream variable=s_net_8_data[0] depth=8 type=fifo
+	#pragma HLS stream variable=s_net_8_data[0] depth=2*8 type=fifo
 	#pragma HLS bind_storage variable=s_net_8_data[0] impl=AUTO type=fifo
-	#pragma HLS stream variable=s_net_8_data[1] depth=1664 type=fifo
-	#pragma HLS stream variable=s_net_8_data[2] depth=8 type=fifo
+	#pragma HLS stream variable=s_net_8_data[1] depth=2*1664 type=fifo
+	#pragma HLS stream variable=s_net_8_data[2] depth=2*8 type=fifo
 	hls::stream<t_net_8_window_struct> s_net_8_compute[1];
-	#pragma HLS stream variable=s_net_8_compute depth=2 type=fifo
+	#pragma HLS stream variable=s_net_8_compute depth=2*2 type=fifo
 	hls::stream<t_net_9_struct> s_net_9[1];
-	#pragma HLS stream variable=s_net_9 depth=8 type=fifo
+	#pragma HLS stream variable=s_net_9 depth=2*8 type=fifo
 	hls::stream<t_net_9_adj_struct> s_net_9_adj[2];
-	#pragma HLS stream variable=s_net_9_adj depth=9 type=fifo
+	#pragma HLS stream variable=s_net_9_adj depth=2*9 type=fifo
 	hls::stream<t_net_9_lb_struct> s_net_9_data[10];
 	hls::stream<std::nullptr_t> s_net_9_null[2];
 	hls::stream<t_net_9_lb_struct> s_net_9_pre_pad[12];
-	#pragma HLS stream variable=s_net_9_pre_pad depth=10 type=fifo
+	#pragma HLS stream variable=s_net_9_pre_pad depth=2*10 type=fifo
 	#pragma HLS bind_storage variable=s_net_9_pre_pad impl=AUTO type=fifo
 	#pragma HLS stream variable=s_net_9_data[0] depth=8 type=fifo
 	#pragma HLS bind_storage variable=s_net_9_data[0] impl=AUTO type=fifo
-	#pragma HLS stream variable=s_net_9_data[1] depth=8 type=fifo
-	#pragma HLS stream variable=s_net_9_data[2] depth=416 type=fifo
-	#pragma HLS stream variable=s_net_9_data[3] depth=416 type=fifo
-	#pragma HLS stream variable=s_net_9_data[4] depth=8 type=fifo
-	#pragma HLS stream variable=s_net_9_data[5] depth=8 type=fifo
-	#pragma HLS stream variable=s_net_9_data[6] depth=416 type=fifo
-	#pragma HLS stream variable=s_net_9_data[7] depth=416 type=fifo
-	#pragma HLS stream variable=s_net_9_data[8] depth=8 type=fifo
-	#pragma HLS stream variable=s_net_9_data[9] depth=8 type=fifo
+	#pragma HLS stream variable=s_net_9_data[1] depth=2*8 type=fifo
+	#pragma HLS stream variable=s_net_9_data[2] depth=2*416 type=fifo
+	#pragma HLS stream variable=s_net_9_data[3] depth=2*416 type=fifo
+	#pragma HLS stream variable=s_net_9_data[4] depth=2*8 type=fifo
+	#pragma HLS stream variable=s_net_9_data[5] depth=2*8 type=fifo
+	#pragma HLS stream variable=s_net_9_data[6] depth=2*416 type=fifo
+	#pragma HLS stream variable=s_net_9_data[7] depth=2*416 type=fifo
+	#pragma HLS stream variable=s_net_9_data[8] depth=2*8 type=fifo
+	#pragma HLS stream variable=s_net_9_data[9] depth=2*8 type=fifo
 	hls::stream<t_net_9_window_struct> s_net_9_compute[1];
-	#pragma HLS stream variable=s_net_9_compute depth=2 type=fifo
+	#pragma HLS stream variable=s_net_9_compute depth=2*2 type=fifo
 	hls::stream<t_net_10_struct> s_net_10[2];
 	t_node_conv_5_weight_mem static c_node_conv_5_weight[9][128][16];
 	static bool s_node_conv_5_init_flag = false;
@@ -185,30 +187,30 @@ void yolo(
 	hls::stream<t_net_10_lb_struct> s_net_10_data[3];
 	hls::stream<std::nullptr_t> s_net_10_null[1];
 	hls::stream<t_net_10_lb_struct> s_net_10_pre_pad[4];
-	#pragma HLS stream variable=s_net_10_pre_pad depth=257 type=fifo
+	#pragma HLS stream variable=s_net_10_pre_pad depth=2*257 type=fifo
 	#pragma HLS bind_storage variable=s_net_10_pre_pad impl=AUTO type=fifo
-	#pragma HLS stream variable=s_net_10_data[0] depth=32 type=fifo
+	#pragma HLS stream variable=s_net_10_data[0] depth=2*32 type=fifo
 	#pragma HLS bind_storage variable=s_net_10_data[0] impl=AUTO type=fifo
-	#pragma HLS stream variable=s_net_10_data[1] depth=3328 type=fifo
-	#pragma HLS stream variable=s_net_10_data[2] depth=32 type=fifo
+	#pragma HLS stream variable=s_net_10_data[1] depth=2*3328 type=fifo
+	#pragma HLS stream variable=s_net_10_data[2] depth=2*32 type=fifo
 	hls::stream<t_net_10_window_struct> s_net_10_compute[1];
-	#pragma HLS stream variable=s_net_10_compute depth=2 type=fifo
+	#pragma HLS stream variable=s_net_10_compute depth=2*2 type=fifo
 	hls::stream<t_net_11_struct> s_net_11[1];
-	#pragma HLS stream variable=s_net_11 depth=32 type=fifo
+	#pragma HLS stream variable=s_net_11 depth=2*32 type=fifo
 	hls::stream<t_net_11_lb_struct> s_net_11_data[8];
 	hls::stream<std::nullptr_t> s_net_11_null[1];
 	hls::stream<t_net_11_lb_struct> s_net_11_pre_pad[9];
-	#pragma HLS stream variable=s_net_11_pre_pad depth=10 type=fifo
+	#pragma HLS stream variable=s_net_11_pre_pad depth=2*10 type=fifo
 	#pragma HLS bind_storage variable=s_net_11_pre_pad impl=AUTO type=fifo
-	#pragma HLS stream variable=s_net_11_data[0] depth=8 type=fifo
+	#pragma HLS stream variable=s_net_11_data[0] depth=2*8 type=fifo
 	#pragma HLS bind_storage variable=s_net_11_data[0] impl=AUTO type=fifo
-	#pragma HLS stream variable=s_net_11_data[1] depth=8 type=fifo
-	#pragma HLS stream variable=s_net_11_data[2] depth=416 type=fifo
-	#pragma HLS stream variable=s_net_11_data[3] depth=8 type=fifo
-	#pragma HLS stream variable=s_net_11_data[4] depth=8 type=fifo
-	#pragma HLS stream variable=s_net_11_data[5] depth=416 type=fifo
-	#pragma HLS stream variable=s_net_11_data[6] depth=8 type=fifo
-	#pragma HLS stream variable=s_net_11_data[7] depth=8 type=fifo
+	#pragma HLS stream variable=s_net_11_data[1] depth=2*8 type=fifo
+	#pragma HLS stream variable=s_net_11_data[2] depth=2*416 type=fifo
+	#pragma HLS stream variable=s_net_11_data[3] depth=2*8 type=fifo
+	#pragma HLS stream variable=s_net_11_data[4] depth=2*8 type=fifo
+	#pragma HLS stream variable=s_net_11_data[5] depth=2*416 type=fifo
+	#pragma HLS stream variable=s_net_11_data[6] depth=2*8 type=fifo
+	#pragma HLS stream variable=s_net_11_data[7] depth=2*8 type=fifo
 	hls::stream<t_net_11_window_struct> s_net_11_compute[1];
 	#pragma HLS stream variable=s_net_11_compute depth=2 type=fifo
 	hls::stream<t_net_12_struct> s_net_12[1];
@@ -222,36 +224,36 @@ void yolo(
 	hls::stream<t_net_12_lb_struct> s_net_12_data[3];
 	hls::stream<std::nullptr_t> s_net_12_null[1];
 	hls::stream<t_net_12_lb_struct> s_net_12_pre_pad[4];
-	#pragma HLS stream variable=s_net_12_pre_pad depth=513 type=fifo
+	#pragma HLS stream variable=s_net_12_pre_pad depth=2*513 type=fifo
 	#pragma HLS bind_storage variable=s_net_12_pre_pad impl=AUTO type=fifo
-	#pragma HLS stream variable=s_net_12_data[0] depth=128 type=fifo
+	#pragma HLS stream variable=s_net_12_data[0] depth=2*128 type=fifo
 	#pragma HLS bind_storage variable=s_net_12_data[0] impl=AUTO type=fifo
-	#pragma HLS stream variable=s_net_12_data[1] depth=6656 type=fifo
-	#pragma HLS stream variable=s_net_12_data[2] depth=128 type=fifo
+	#pragma HLS stream variable=s_net_12_data[1] depth=2*6656 type=fifo
+	#pragma HLS stream variable=s_net_12_data[2] depth=2*128 type=fifo
 	hls::stream<t_net_12_window_struct> s_net_12_compute[1];
-	#pragma HLS stream variable=s_net_12_compute depth=2 type=fifo
+	#pragma HLS stream variable=s_net_12_compute depth=2*2 type=fifo
 	hls::stream<t_net_13_struct> s_net_13[1];
-	#pragma HLS stream variable=s_net_13 depth=128 type=fifo
+	#pragma HLS stream variable=s_net_13 depth=2*128 type=fifo
 	hls::stream<t_net_13_adj_struct> s_net_13_adj[2];
-	#pragma HLS stream variable=s_net_13_adj depth=33 type=fifo
+	#pragma HLS stream variable=s_net_13_adj depth=2*33 type=fifo
 	hls::stream<t_net_13_lb_struct> s_net_13_data[10];
 	hls::stream<std::nullptr_t> s_net_13_null[2];
 	hls::stream<t_net_13_lb_struct> s_net_13_pre_pad[12];
-	#pragma HLS stream variable=s_net_13_pre_pad depth=10 type=fifo
+	#pragma HLS stream variable=s_net_13_pre_pad depth=2*10 type=fifo
 	#pragma HLS bind_storage variable=s_net_13_pre_pad impl=AUTO type=fifo
 	#pragma HLS stream variable=s_net_13_data[0] depth=32 type=fifo
 	#pragma HLS bind_storage variable=s_net_13_data[0] impl=AUTO type=fifo
-	#pragma HLS stream variable=s_net_13_data[1] depth=32 type=fifo
-	#pragma HLS stream variable=s_net_13_data[2] depth=416 type=fifo
-	#pragma HLS stream variable=s_net_13_data[3] depth=416 type=fifo
-	#pragma HLS stream variable=s_net_13_data[4] depth=32 type=fifo
-	#pragma HLS stream variable=s_net_13_data[5] depth=32 type=fifo
-	#pragma HLS stream variable=s_net_13_data[6] depth=416 type=fifo
-	#pragma HLS stream variable=s_net_13_data[7] depth=416 type=fifo
-	#pragma HLS stream variable=s_net_13_data[8] depth=32 type=fifo
-	#pragma HLS stream variable=s_net_13_data[9] depth=32 type=fifo
+	#pragma HLS stream variable=s_net_13_data[1] depth=2*32 type=fifo
+	#pragma HLS stream variable=s_net_13_data[2] depth=2*416 type=fifo
+	#pragma HLS stream variable=s_net_13_data[3] depth=2*416 type=fifo
+	#pragma HLS stream variable=s_net_13_data[4] depth=2*32 type=fifo
+	#pragma HLS stream variable=s_net_13_data[5] depth=2*32 type=fifo
+	#pragma HLS stream variable=s_net_13_data[6] depth=2*416 type=fifo
+	#pragma HLS stream variable=s_net_13_data[7] depth=2*416 type=fifo
+	#pragma HLS stream variable=s_net_13_data[8] depth=2*32 type=fifo
+	#pragma HLS stream variable=s_net_13_data[9] depth=2*32 type=fifo
 	hls::stream<t_net_13_window_struct> s_net_13_compute[1];
-	#pragma HLS stream variable=s_net_13_compute depth=2 type=fifo
+	#pragma HLS stream variable=s_net_13_compute depth=2*2 type=fifo
 	hls::stream<t_net_14_struct> s_net_14[2];
 	t_node_conv_9_weight_mem static c_node_conv_9_weight[9][2048][16];
 	static bool s_node_conv_9_init_flag = false;
@@ -260,27 +262,27 @@ void yolo(
 	#pragma HLS array_reshape variable=c_node_conv_9_weight dim=3 type=complete
 	#pragma HLS array_reshape variable=c_node_conv_9_weight dim=1 type=complete
 	#pragma HLS array_partition variable=c_node_conv_9_weight off=true
-	#pragma HLS stream variable=s_net_14 depth=129 type=fifo
+	#pragma HLS stream variable=s_net_14 depth=2*129 type=fifo
 	hls::stream<t_net_14_dup_0_struct> s_net_14_dup_0[2];
 	hls::stream<t_net_14_dup_1_struct> s_net_14_dup_1[2];
 	hls::stream<t_net_20_struct> s_net_14_dup_1_adj[1];
-	#pragma HLS stream variable=s_net_14_dup_0 depth=65 type=fifo
-	#pragma HLS stream variable=s_net_14_dup_1 depth=5324 type=fifo
+	#pragma HLS stream variable=s_net_14_dup_0 depth=2*65 type=fifo
+	#pragma HLS stream variable=s_net_14_dup_1 depth=2*5324 type=fifo
 	hls::stream<t_net_14_dup_0_adj_struct> s_net_14_dup_0_adj[1];
 	#pragma HLS stream variable=s_net_14_dup_0_adj depth=65 type=fifo
 	hls::stream<t_net_14_dup_0_lb_struct> s_net_14_dup_0_data[3];
 	hls::stream<std::nullptr_t> s_net_14_dup_0_null[1];
 	hls::stream<t_net_14_dup_0_lb_struct> s_net_14_dup_0_pre_pad[4];
-	#pragma HLS stream variable=s_net_14_dup_0_pre_pad depth=1025 type=fifo
+	#pragma HLS stream variable=s_net_14_dup_0_pre_pad depth=2*1025 type=fifo
 	#pragma HLS bind_storage variable=s_net_14_dup_0_pre_pad impl=AUTO type=fifo
-	#pragma HLS stream variable=s_net_14_dup_0_data[0] depth=256 type=fifo
+	#pragma HLS stream variable=s_net_14_dup_0_data[0] depth=2*256 type=fifo
 	#pragma HLS bind_storage variable=s_net_14_dup_0_data[0] impl=AUTO type=fifo
-	#pragma HLS stream variable=s_net_14_dup_0_data[1] depth=6656 type=fifo
-	#pragma HLS stream variable=s_net_14_dup_0_data[2] depth=256 type=fifo
+	#pragma HLS stream variable=s_net_14_dup_0_data[1] depth=2*6656 type=fifo
+	#pragma HLS stream variable=s_net_14_dup_0_data[2] depth=2*256 type=fifo
 	hls::stream<t_net_14_dup_0_window_struct> s_net_14_dup_0_compute[1];
-	#pragma HLS stream variable=s_net_14_dup_0_compute depth=2 type=fifo
+	#pragma HLS stream variable=s_net_14_dup_0_compute depth=2*2 type=fifo
 	hls::stream<t_net_15_struct> s_net_15[1];
-	#pragma HLS stream variable=s_net_15 depth=256 type=fifo
+	#pragma HLS stream variable=s_net_15 depth=2*256 type=fifo
 	hls::stream<t_net_15_lb_struct> s_net_15_data[8];
 	hls::stream<std::nullptr_t> s_net_15_null[1];
 	hls::stream<t_net_15_lb_struct> s_net_15_pre_pad[9];
@@ -288,13 +290,13 @@ void yolo(
 	#pragma HLS bind_storage variable=s_net_15_pre_pad impl=AUTO type=fifo
 	#pragma HLS stream variable=s_net_15_data[0] depth=64 type=fifo
 	#pragma HLS bind_storage variable=s_net_15_data[0] impl=AUTO type=fifo
-	#pragma HLS stream variable=s_net_15_data[1] depth=64 type=fifo
-	#pragma HLS stream variable=s_net_15_data[2] depth=832 type=fifo
-	#pragma HLS stream variable=s_net_15_data[3] depth=64 type=fifo
-	#pragma HLS stream variable=s_net_15_data[4] depth=64 type=fifo
-	#pragma HLS stream variable=s_net_15_data[5] depth=832 type=fifo
-	#pragma HLS stream variable=s_net_15_data[6] depth=64 type=fifo
-	#pragma HLS stream variable=s_net_15_data[7] depth=64 type=fifo
+	#pragma HLS stream variable=s_net_15_data[1] depth=2*64 type=fifo
+	#pragma HLS stream variable=s_net_15_data[2] depth=2*832 type=fifo
+	#pragma HLS stream variable=s_net_15_data[3] depth=2*64 type=fifo
+	#pragma HLS stream variable=s_net_15_data[4] depth=2*64 type=fifo
+	#pragma HLS stream variable=s_net_15_data[5] depth=2*832 type=fifo
+	#pragma HLS stream variable=s_net_15_data[6] depth=2*64 type=fifo
+	#pragma HLS stream variable=s_net_15_data[7] depth=2*64 type=fifo
 	hls::stream<t_net_15_window_struct> s_net_15_compute[1];
 	#pragma HLS stream variable=s_net_15_compute depth=2 type=fifo
 	hls::stream<t_net_16_struct> s_net_16[1];
@@ -305,7 +307,7 @@ void yolo(
 	#pragma HLS array_reshape variable=c_node_conv_11_weight dim=3 type=complete
 	#pragma HLS array_reshape variable=c_node_conv_11_weight dim=1 type=complete
 	#pragma HLS array_partition variable=c_node_conv_11_weight off=true
-	#pragma HLS stream variable=s_net_16 depth=65 type=fifo
+	#pragma HLS stream variable=s_net_16 depth=2*65 type=fifo
 	hls::stream<t_net_16_lb_struct> s_net_16_data[8];
 	hls::stream<std::nullptr_t> s_net_16_null[1];
 	hls::stream<t_net_16_lb_struct> s_net_16_pre_pad[9];
@@ -425,20 +427,22 @@ void yolo(
 	const int n_inp = 416 * 416 * 3 / 8;
 	const int n_out2 = 256 * 26 * 26;
 	const int n_out1 = 512 * 13 * 13;
-	hls::stream<t_params_stream, 8> i_data_params;
+	hls::stream<t_params_st, 8> i_data_params;
 	hls::stream<t_in_mem, 8> c_inp_1_stream;
 	hls::stream<t_out_mem1, 8> c_outp1_stream;
 	hls::stream<t_out_mem2, 8> c_outp2_stream;	
 	static bool init = false;
-
-	mm2s_params <t_params_st, t_params_stream, 8649648> (
+#ifndef __SYNTHESIS__
+	std::cout << "start" << std::endl;
+#endif
+	mm2s_params <t_params_st, t_params_st, 8649648> (
 		c_params,
 		i_data_params,
 		init
 	);
 	
 	nn2fpga::axi_to_stream <
-		t_params_stream,
+		t_params_st,
 		t_params_stream,
 		8649648>		//tot cycles
 	(
@@ -470,6 +474,9 @@ void yolo(
 		s_net_5
 	);
 
+#ifndef __SYNTHESIS__
+	std::cout << "produce 0 done" << std::endl;
+#endif
 	nn2fpga::bandwidth_adjust <
 		t_net_5_struct,
 		t_net_5_adj_struct,
@@ -3456,6 +3463,7 @@ void yolo(
 	);
 
 	hls::stream<t_net_15_adj_struct> s_net_15_adj[1];
+	#pragma HLS stream variable=s_net_15_adj depth=100
 	nn2fpga::bandwidth_adjust <
 		t_net_15_struct,
 		t_net_15_adj_struct,
@@ -4592,6 +4600,7 @@ void yolo(
 	);
 // new
 	hls::stream<t_net_18_dup_1_adj_struct> s_net_18_dup_1_adj[1];
+	#pragma HLS stream variable=s_net_18_dup_1_adj depth=100
 	nn2fpga::bandwidth_adjust <
 		t_net_18_struct,
 		t_net_18_dup_1_adj_struct,
