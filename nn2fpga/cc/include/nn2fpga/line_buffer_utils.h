@@ -600,7 +600,7 @@ shift_op(hls::stream<din_t>& din,
   std::cout << "\t\tc_strw = " << c_strw << std::endl;
 #endif
 
-  unsigned int s_index_w_str;
+  unsigned int s_index_w_str = 0;
   unsigned int s_index_h_str = 0;
 
   for (auto s_index_h = c_starth; s_index_h < IH; s_index_h++,
