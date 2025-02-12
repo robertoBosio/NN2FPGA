@@ -34,27 +34,38 @@ template<class t_output,
          class t_output_clip,
          class t_output_mask,
          class t_acc,
-         int c_relu>
+         int c_relu,
+         int c_silu>
 t_output
 quant_stream(t_acc i_acc)
 {
 #pragma HLS inline
 
   t_acc s_acc = i_acc;
+  t_output s_silu_in, s_silu_out, s_output;
 
   if constexpr (std::is_same<t_output_clip, std::nullptr_t>::value == false) {
     s_acc = t_output_clip(s_acc);
   }
 
-  if (c_relu == 1) {
-    s_acc = relu_op<t_acc>(s_acc);
-  }
-
   if constexpr (std::is_same<t_output_mask, std::nullptr_t>::value == false) {
     s_acc = t_output_mask(s_acc);
   }
+  
+  if (c_relu == 1) {
+    s_acc = relu_op<t_acc>(s_acc);
+    s_output = t_output(s_acc);
+  }
+  else if (c_silu == 1){
+    s_silu_in = t_output(s_acc);
+    s_silu_out = s_silu_in;
+    s_silu_out = silu <t_output, t_output, t_output> (s_silu_in);
+    s_output = t_output(s_silu_out);
+  }
+  else 
+    s_output = t_output(s_acc);
 
-  return t_output(s_acc);
+  return s_output;
 }
 
 template<class t_output,
@@ -62,13 +73,15 @@ template<class t_output,
          class t_output_mask,
          class t_add,
          class t_acc,
-         int c_relu>
+         int c_relu,
+         int c_silu>
 t_output
 quant_and_add_stream(t_acc i_acc, t_add i_add)
 {
 #pragma HLS inline
   
   t_acc s_acc = i_acc;
+  t_output s_silu_in, s_silu_out, s_output;
 
   // Post convolution quantization
   if constexpr (std::is_same<t_output_clip, std::nullptr_t>::value == false) {
@@ -84,10 +97,15 @@ quant_and_add_stream(t_acc i_acc, t_add i_add)
   
   if constexpr (c_relu == 1) {
     s_acc = relu_op<t_acc>(s_acc);
+    s_output = t_output(s_acc);
   }
-
+  else if (c_silu == 1){
+    s_silu_in = t_output(s_acc);
+    s_silu_out = silu <t_output, t_output, t_output> (s_silu_in);
+    s_output = t_output(s_silu_out);
+  }
   // Post activation quantization
-  return t_output(s_acc);
+  return s_output;
 }
 
 template<int pad_bits>
@@ -241,6 +259,7 @@ template<class t_input,
          int c_ow_pack,
          int c_och_pack,
          int c_relu,
+         int c_silu,
          int c_ich,
          int c_och,
          int c_bits,
@@ -419,7 +438,8 @@ conv_pipe(const t_input i_input,
                                    t_output_mask,
                                    t_add,
                                    t_acc,
-                                   c_relu>(
+                                   c_relu,
+                                   c_silu>(
                 s_acc[s_och_pack * c_ow_pack + s_ow_pack],
                 i_add[s_ow_pack + s_ow_ops][ich_idx_add + s_och_pack]);
           } else {
@@ -428,7 +448,8 @@ conv_pipe(const t_input i_input,
                            t_output_clip,
                            t_output_mask,
                            t_acc,
-                           c_relu>(s_acc[s_och_pack * c_ow_pack + s_ow_pack]);
+                           c_relu,
+                           c_silu>(s_acc[s_och_pack * c_ow_pack + s_ow_pack]);
           }
         }
       }
@@ -550,7 +571,8 @@ conv_pipe(const t_input i_input,
                            t_output_clip,
                            t_output_mask,
                            t_acc,
-                           c_relu>(s_acc[s_ow_pack]);
+                           c_relu,
+                           c_silu>(s_acc[s_ow_pack]);
           }
         }
       }
@@ -613,7 +635,8 @@ conv_pipe(const t_input i_input,
                                      t_output_mask,
                                      t_add,
                                      t_acc,
-                                     c_relu>(
+                                     c_relu,
+                                     c_silu>(
                   s_acc[s_ow_pack], i_add[s_ow_pack + s_ow_ops][ich_idx_add]);
             } else {
               s_output_struct[s_ow_ops + s_ow_pack][ops] =
@@ -621,7 +644,8 @@ conv_pipe(const t_input i_input,
                              t_output_clip,
                              t_output_mask,
                              t_acc,
-                             c_relu>(s_acc[s_ow_pack]);
+                             c_relu,
+                             c_silu>(s_acc[s_ow_pack]);
             }
           }
         }
@@ -687,7 +711,7 @@ conv_pipe(const t_input i_input,
 
         if constexpr (c_depth == 1) {
           s_output_struct[s_ow_ops][ich_idx] =
-            quant_stream<t_output, t_output_clip, t_output_mask, t_acc, c_relu>(
+            quant_stream<t_output, t_output_clip, t_output_mask, t_acc, c_relu, c_silu>(
               s_acc);
         }
       }
@@ -718,7 +742,8 @@ conv_pipe(const t_input i_input,
                                    t_output_mask,
                                    t_add,
                                    t_acc,
-                                   c_relu>(
+                                   c_relu,
+                                   c_silu>(
                 s_acc, i_add[s_ow_ops][ich_idx_add]);
           } else {
             s_output_struct[s_ow_ops][ops] =
@@ -726,7 +751,8 @@ conv_pipe(const t_input i_input,
                            t_output_clip,
                            t_output_mask,
                            t_acc,
-                           c_relu>(s_acc);
+                           c_relu,
+                           c_silu>(s_acc);
           }
         }
       }
@@ -778,6 +804,7 @@ template<class t_input_struct,
          int c_ow_ops,
          int c_ow_ops_out,
          int c_relu,
+         int c_silu,
          int c_reuse,
          int c_ow_pack,
          int c_och_pack,
@@ -1117,6 +1144,7 @@ conv_comp(hls::stream<t_input_struct> i_input[1],
                     c_ow_pack,
                     c_och_pack,
                     c_relu,
+                    c_silu,
                     c_ich,
                     c_och_depth,
                     c_in_bits,
@@ -1172,6 +1200,7 @@ conv_comp(hls::stream<t_input_struct> i_input[1],
                       c_ow_ops,
                       c_ow_pack,
                       c_och_pack,
+                      0,
                       0,
                       c_ich,
                       c_och_depth,
@@ -1295,14 +1324,14 @@ conv_comp(hls::stream<t_input_struct> i_input[1],
             for (auto s_och = 0; s_och < c_och_depth; s_och++) {
               std::cout <<  "PRE RES " << s_acc_buff[0][s_och*c_ow_ops+s_ow_ops] << std::endl;
               auto s_acc_log = quant_stream<
-                t_output, t_output_clip, t_output_mask, t_acc, c_relu
+                t_output, t_output_clip, t_output_mask, t_acc, c_relu, c_silu
               >(s_acc_buff[0][s_och*c_ow_ops+s_ow_ops]);
               std::cout <<  "RES " << s_acc_log << std::endl;
             }
             if constexpr(std::is_same<t_output_struct_1x1, std::nullptr_t>::value == false) {
               for (auto s_och = 0; s_och < c_och_depth; s_och++) {
                 auto s_acc_log = quant_stream<
-                  t_output_1x1, std::nullptr_t, std::nullptr_t, t_acc_1x1, 0
+                  t_output_1x1, std::nullptr_t, std::nullptr_t, t_acc_1x1, 0, 0
                 >(s_acc_1x1_buff[0][s_och*c_ow_ops+s_ow_ops]);
                 std::cout <<  "RES 1x1 " << s_acc_log << std::endl;
               }
@@ -1420,6 +1449,7 @@ template<typename t_input_struct, // input activation struct type
          const int c_simd_1x1,
          const int c_mask_1x1,
          const int c_relu,
+         const int c_silu,
          const int c_depth>
 void
 conv_comp_onchip_OW_OPS_OUT(
@@ -1725,6 +1755,7 @@ conv_comp_onchip_OW_OPS_OUT(
                     c_ow_pack,
                     c_och_pack,
                     c_relu,
+                    c_silu,
                     c_ich,
                     c_och_depth,
                     c_in_bits,
@@ -1780,6 +1811,7 @@ conv_comp_onchip_OW_OPS_OUT(
                       c_ow_ops,
                       c_ow_pack,
                       c_och_pack,
+                      0,
                       0,
                       c_ich,
                       c_och_depth,
@@ -1903,7 +1935,7 @@ conv_comp_onchip_OW_OPS_OUT(
             for (auto s_och = 0; s_och < c_och_depth; s_och++) {
               std::cout <<  "PRE RES " << s_acc_buff[0][s_och*c_ow_ops+s_ow_ops] << std::endl;
               auto s_acc_log = quant_stream<
-                t_output, t_output_clip, t_output_mask, t_acc, c_relu
+                t_output, t_output_clip, t_output_mask, t_acc, c_relu, c_silu,
               >(s_acc_buff[0][s_och*c_ow_ops+s_ow_ops]);
               std::cout <<  "RES " << s_acc_log << std::endl;
             }
@@ -2028,6 +2060,7 @@ template<typename t_input_struct, // input activation struct type
          const int c_simd_1x1,
          const int c_mask_1x1,
          const int c_relu,
+         const int c_silu,
          const int c_depth>
 void
 conv_comp_onchip_ICH(
@@ -2333,6 +2366,7 @@ conv_comp_onchip_ICH(
                     c_ow_pack,
                     c_och_pack,
                     c_relu,
+                    c_silu,
                     c_ich,
                     c_och_depth,
                     c_in_bits,
@@ -2388,6 +2422,7 @@ conv_comp_onchip_ICH(
                       c_ow_ops,
                       c_ow_pack,
                       c_och_pack,
+                      0,
                       0,
                       c_ich,
                       c_och_depth,
@@ -2511,14 +2546,14 @@ conv_comp_onchip_ICH(
             for (auto s_och = 0; s_och < c_och_depth; s_och++) {
               std::cout <<  "PRE RES " << s_acc_buff[0][s_och*c_ow_ops+s_ow_ops] << std::endl;
               auto s_acc_log = quant_stream<
-                t_output, t_output_clip, t_output_mask, t_acc, c_relu
+                t_output, t_output_clip, t_output_mask, t_acc, c_relu, c_silu
               >(s_acc_buff[0][s_och*c_ow_ops+s_ow_ops]);
               std::cout <<  "RES " << s_acc_log << std::endl;
             }
             if constexpr(std::is_same<t_output_struct_1x1, std::nullptr_t>::value == false) {
               for (auto s_och = 0; s_och < c_och_depth; s_och++) {
                 auto s_acc_log = quant_stream<
-                  t_output_1x1, std::nullptr_t, std::nullptr_t, t_acc_1x1, 0
+                  t_output_1x1, std::nullptr_t, std::nullptr_t, t_acc_1x1, 0, 0
                 >(s_acc_1x1_buff[0][s_och*c_ow_ops+s_ow_ops]);
                 std::cout <<  "RES 1x1 " << s_acc_log << std::endl;
               }
@@ -2636,6 +2671,7 @@ template<typename t_input_struct, // input activation struct type
          const int c_simd_1x1,
          const int c_mask_1x1,
          const int c_relu,
+         const int c_silu,
          const int c_depth>
 void
 conv_comp_onchip_OCH(
@@ -2941,6 +2977,7 @@ conv_comp_onchip_OCH(
                     c_ow_pack,
                     c_och_pack,
                     c_relu,
+                    c_silu,
                     c_ich,
                     c_och_depth,
                     c_in_bits,
@@ -2996,6 +3033,7 @@ conv_comp_onchip_OCH(
                       c_ow_ops,
                       c_ow_pack,
                       c_och_pack,
+                      0,
                       0,
                       c_ich,
                       c_och_depth,
@@ -3119,14 +3157,14 @@ conv_comp_onchip_OCH(
             for (auto s_och = 0; s_och < c_och_depth; s_och++) {
               std::cout <<  "PRE RES " << s_acc_buff[0][s_och*c_ow_ops+s_ow_ops] << std::endl;
               auto s_acc_log = quant_stream<
-                t_output, t_output_clip, t_output_mask, t_acc, c_relu
+                t_output, t_output_clip, t_output_mask, t_acc, c_relu, c_silu
               >(s_acc_buff[0][s_och*c_ow_ops+s_ow_ops]);
               std::cout <<  "RES " << s_acc_log << std::endl;
             }
             if constexpr(std::is_same<t_output_struct_1x1, std::nullptr_t>::value == false) {
               for (auto s_och = 0; s_och < c_och_depth; s_och++) {
                 auto s_acc_log = quant_stream<
-                  t_output_1x1, std::nullptr_t, std::nullptr_t, t_acc_1x1, 0
+                  t_output_1x1, std::nullptr_t, std::nullptr_t, t_acc_1x1, 0, 0
                 >(s_acc_1x1_buff[0][s_och*c_ow_ops+s_ow_ops]);
                 std::cout <<  "RES 1x1 " << s_acc_log << std::endl;
               }
@@ -3244,6 +3282,7 @@ template<typename t_input_struct, // input activation struct type
          const int c_simd_1x1,
          const int c_mask_1x1,
          const int c_relu,
+         const int c_silu,
          const int c_depth>
 void
 conv_comp_onchip(
@@ -3549,6 +3588,7 @@ conv_comp_onchip(
                     c_ow_pack,
                     c_och_pack,
                     c_relu,
+                    c_silu,
                     c_ich,
                     c_och_depth,
                     c_in_bits,
@@ -3604,6 +3644,7 @@ conv_comp_onchip(
                       c_ow_ops,
                       c_ow_pack,
                       c_och_pack,
+                      0,
                       0,
                       c_ich,
                       c_och_depth,
@@ -3727,14 +3768,14 @@ conv_comp_onchip(
             for (auto s_och = 0; s_och < c_och_depth; s_och++) {
               std::cout <<  "PRE RES " << s_acc_buff[0][s_och*c_ow_ops+s_ow_ops] << std::endl;
               auto s_acc_log = quant_stream<
-                t_output, t_output_clip, t_output_mask, t_acc, c_relu
+                t_output, t_output_clip, t_output_mask, t_acc, c_relu, c_silu
               >(s_acc_buff[0][s_och*c_ow_ops+s_ow_ops]);
               std::cout <<  "RES " << s_acc_log << std::endl;
             }
             if constexpr(std::is_same<t_output_struct_1x1, std::nullptr_t>::value == false) {
               for (auto s_och = 0; s_och < c_och_depth; s_och++) {
                 auto s_acc_log = quant_stream<
-                  t_output_1x1, std::nullptr_t, std::nullptr_t, t_acc_1x1, 0
+                  t_output_1x1, std::nullptr_t, std::nullptr_t, t_acc_1x1, 0, 0
                 >(s_acc_1x1_buff[0][s_och*c_ow_ops+s_ow_ops]);
                 std::cout <<  "RES 1x1 " << s_acc_log << std::endl;
               }
@@ -3857,6 +3898,7 @@ template<typename t_input_struct, // input activation struct type
          const int c_read_weight_1x1,
          const int c_read_bias_1x1,
          const int c_relu,
+         const int c_silu,
          const int c_depth>
 void
 conv_comp_wrap(
@@ -4155,6 +4197,7 @@ conv_comp_wrap(
                        c_simd_1x1,
                        c_mask_1x1,
                        c_relu,
+                       c_silu,
                        c_depth>(mem_bias,
                                 mem_weights,
                                 mem_bias_1x1,
@@ -4230,6 +4273,7 @@ conv_comp_wrap(
                        c_simd_1x1,
                        c_mask_1x1,
                        c_relu,
+                       c_silu,
                        c_depth>(mem_bias,
                                 mem_weights,
                                 mem_bias_1x1,
@@ -4306,6 +4350,7 @@ conv_comp_wrap(
               c_simd_1x1,
               c_mask_1x1,
               c_relu,
+              c_silu,
               c_depth>(mem_bias,
                        mem_weights,
                        mem_bias_1x1,
@@ -4381,6 +4426,7 @@ conv_comp_wrap(
                        c_simd_1x1,
                        c_mask_1x1,
                        c_relu,
+                       c_silu,
                        c_depth>(mem_bias,
                                 mem_weights,
                                 mem_bias_1x1,

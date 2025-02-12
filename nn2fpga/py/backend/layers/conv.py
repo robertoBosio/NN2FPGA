@@ -31,6 +31,7 @@ class Conv2D(Layer):
     # Graph optimizations
     merged_relu = None
     merged_add = None
+    merged_silu = None
     merged_pointwise = None
     merged_forward = False
 
@@ -163,6 +164,7 @@ def info(io_dict, node, node_name, init_info, tensors_info):
     img_ch   = ich * och
     relu     = False
     add      = False
+    silu     = False
     in_scale_factor = [None]
     in_bits = [None]
     in_signed = [None]
@@ -197,6 +199,7 @@ def info(io_dict, node, node_name, init_info, tensors_info):
     io_dict[node_name]["reuse"]  = 1
     io_dict[node_name]["relu"]   = relu
     io_dict[node_name]["add"]    = add
+    io_dict[node_name]["silu"]   = silu
     io_dict[node_name]["scale_factor"] = 0
     io_dict[node_name]["in_scale_factor"] = in_scale_factor
     io_dict[node_name]["bits"]    = 0
@@ -472,6 +475,7 @@ def parse_comp(name, node, streaming_params=False):
         block["template"].append({"name" : 0, "comment" : "bias reads per data 1x1"})
     
     block["template"].append("c_%s_relu" % name)
+    block["template"].append("c_%s_silu" % name)
     if (node["depth"]):
         block["template"].append({"name" : "1", "comment" : "depth"})
     else:
@@ -591,6 +595,8 @@ def parse_comp(name, node, streaming_params=False):
     block["defines"]["c_%s_ow" % name]             = ["const", node["ow"]]
     block["defines"]["c_%s_oh" % name]             = ["const", node["oh"]]
     block["defines"]["c_%s_relu" % name]           = ["const", int(node["relu"])]
+    print("Node ", name, " name ", node)
+    block["defines"]["c_%s_silu" % name]           = ["const", int(node["silu"])]
     block["defines"]["c_%s_stride" % name]         = ["const", node["stride"]]
     block["defines"]["c_%s_pad" % name]            = ["const", node["pad"]]
     block["defines"]["c_%s_ops" % name]            = ["const", node["ops"]]

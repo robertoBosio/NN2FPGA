@@ -50,6 +50,86 @@ def opt_pad(model, io_dict, log=False):
 
     return io_dict
 
+def opt_silu(model, io_dict, log=False):
+    """ Optimize silu layers by merging them togheter. """
+    # In current implementation, silu is made by mul, cast, add, clip and gather layers
+    
+    io_connect = extract_connections(model, io_dict)
+    
+    # ordered list of layers to be merged with the previous computation layer
+    silu_layers = ["gather", "clip", "add", "cast", "mul"]
+    
+    # Retrieve all the gather layers to chek if they are silu
+    gather_layers = [layer_name for layer_name, layer_info in io_dict.items() if "gather" in layer_info["type"]]
+    
+    
+    for layer_name in gather_layers:
+        
+        layers_to_remove = []
+        print(f"Layer {layer_name} type {io_dict[layer_name]['type']}")
+        # check if all the previous layers are silu
+        current_layer_name = layer_name
+        for i in range(1, len(silu_layers)):
+            # check if the current layer is the previous layer of the next silu step
+            input_layer_name = prev_layers(io_dict, io_connect, current_layer_name)
+            layers_to_remove.append(input_layer_name)
+            if input_layer_name is None or len(input_layer_name) > 1:
+                print(f"Error in opt_silu: silu layer \"{layer_name}\" with multiple inputs.")
+                exit(1)
+            if input_layer_name is None:
+                print(f"Error no input for {layer_name}")
+                break
+            if silu_layers[i] == io_dict[prev_layers(io_dict, io_connect, current_layer_name)[0]]["type"]:
+                #current layer is the previous layer of the next silu step
+                current_layer_name = input_layer_name[0]
+            else:
+                print(f"Error silu layer {silu_layers[i]} for {layer_name} not found")
+                break
+        # if all the previous layers are silu, merge them with the previous computation layer
+        if i == len(silu_layers) - 1:
+            current_merge_layer = layer_name
+            print(f"Silu layer found {layer_name}, layer to remove {layers_to_remove}")
+            for layer_to_remove in layers_to_remove:
+                print(f"Removing layer {layer_to_remove}")
+                remove_and_bypass_layer(io_dict, io_connect, layer_to_remove[0])
+            io_dict[layer_name]["silu"] = True
+            if log:
+                print(f"Silu layer \"{layer_name}\" merged with \"{input_layer_name}\".")
+                
+    return io_dict
+def opt_convsilu(model, io_dict, log=False):
+    """Optimize silu layers by merging them with the previous computation layer.""" 
+    
+    # Layers that supports activation functions
+    comp_layers = ["conv"]
+    
+    io_connect = extract_connections(model, io_dict)
+    
+    # Retrieve all the silu layers
+    silu_layers = [layer_name for layer_name, layer_info in io_dict.items() if "gather" in layer_info["type"]]
+    
+    for layer_name in silu_layers:
+        
+        input_layer_name = prev_layers(io_dict, io_connect, layer_name)
+        
+        if input_layer_name is None or len(input_layer_name) > 1:
+            print(f"Error in opt_silu: silu layer \"{layer_name}\" with multiple inputs.")
+            exit(1)
+            
+        input_layer_name = input_layer_name[0]
+        if io_dict[input_layer_name]["type"].lower() in comp_layers:
+            
+            io_dict[input_layer_name]["silu"] = True
+            if io_dict[layer_name]["output_quant"] is not None:
+                io_dict[input_layer_name]["output_quant"] = io_dict[layer_name]["output_quant"]
+            print(f"Removing layer {layer_name}")
+            remove_and_bypass_layer(io_dict, io_connect, layer_name)
+            
+            if log:
+                print(f"Silu layer \"{layer_name}\" merged with \"{input_layer_name}\".")
+                
+    return io_dict
+                
 def opt_relu(model, io_dict, log=False):
     """ Optimize relu layers by merging them with the previous computation layer. """
     
@@ -207,7 +287,7 @@ def fold_output_quant(model, io_dict, log=False):
             continue
 
         input_layer_name = input_layer_name[0]
-        if io_dict[input_layer_name]["type"].lower() in ["conv", "pool", "add", "relu", "produce"]:
+        if io_dict[input_layer_name]["type"].lower() in ["conv", "pool", "add", "relu", "gather", "produce"]:
 
             quant_layers_folding.append((layer_name, input_layer_name))
             if log:
@@ -326,7 +406,7 @@ def dag_sorting(model, io_dict):
         start_layer = start_layers[0]
     
     # Initializing layer index
-    accepted_layers = ["conv", "pool", "produce", "consume", "add", "relu", "duplicate"]
+    accepted_layers = ["conv", "pool", "produce", "consume", "add", "relu", "duplicate", "gather"]
     start_layers = [layer_name for layer_name, layer_info in io_dict.items() if layer_info["type"] in accepted_layers]
     for layer_name in start_layers:
         io_dict[layer_name]["layer_index"] = 0
@@ -335,7 +415,7 @@ def dag_sorting(model, io_dict):
     while len(node_list) != 0:
         current_node, level = node_list.pop(0)
         output_nodes = next_layers(io_dict, io_connect, current_node)
-        # print(f"Analizing {current_node} at level {level}")
+        print(f"Analizing {current_node} at level {level}")
 
         if output_nodes is not None:
             for node in output_nodes:
@@ -361,7 +441,7 @@ def opt_merge_pointwise(model, io_dict, log=False):
     # Retrieve all the pointwise layers 
     convadd_layers = [layer_name for layer_name, layer_info in io_dict.items() if layer_info["type"] == "conv" and layer_info["add"]]
     merge_candidate_layers = [io_connect[io_dict[layer_name]["input"][1]][0][0] for layer_name in convadd_layers]
-    pointwise_layers = [layer_name for layer_name in merge_candidate_layers if io_dict[layer_name]["fh"] == 1 and io_dict[layer_name]["fw"] == 1]
+    pointwise_layers = [layer_name for layer_name in merge_candidate_layers if io_dict[layer_name]["type"] == "conv" and io_dict[layer_name]["fh"] == 1 and io_dict[layer_name]["fw"] == 1]
 
     for layer_name in pointwise_layers:
 
@@ -445,7 +525,7 @@ def propagate_quant(model, io_dict, log=False):
     else:
         start_layer = start_layers[0]
     
-    accepted_layers = ["conv", "pool", "add"]
+    accepted_layers = ["conv", "pool", "add", "gather"]
     node_list = [start_layer]
     mark_set = set()
     mark_set.add(start_layer)
@@ -593,6 +673,12 @@ def opt_step(
         io_dict,
         log
     )
+    
+    io_dict = opt_silu(
+        inferred_model,
+        io_dict,
+        log
+    )
 
     # Folding quantization layers
 
@@ -646,6 +732,12 @@ def opt_step(
     if (check_dangling_relu(io_dict)):
         exit(-1)
 
+    io_dict = opt_convsilu(
+        inferred_model,
+        io_dict,
+        log
+    )
+    
     io_dict = dag_sorting(inferred_model, io_dict)
 
     io_dict = opt_merge_pointwise(

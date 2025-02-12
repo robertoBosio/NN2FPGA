@@ -831,6 +831,15 @@ def write_parallelism(io_dict, model, parallel_ops):
                 io_dict[node_name]["merge_node"]["ich_ops"] = ops[1]
                 io_dict[node_name]["merge_node"]["ow_ops"] = ops[2]
                 io_dict[node_name]["merge_node"]["reuse"] = ops[2]
+        # if layer is a silu ow_ops and ops are the one of the previous conv
+        if io_dict[node_name]["type"] == "gather" or io_dict[node_name]["type"] == "silu":
+            io_dict[node_name]["ow_ops"] = io_dict[node_name]["ow_ops_in"]
+            io_dict[node_name]["ops"] = io_dict[node_name]["in_ops"]
+            io_dict[node_name]["ow_ops_out"] = io_dict[node_name]["ow_ops_in"]
+            io_dict[node_name]["line_ops"] = io_dict[node_name]["in_ops"]
+            io_dict[node_name]["adjust_line_buffer"] = False
+            io_dict[node_name]["adjust_add"] = False
+            io_dict[node_name]["adjust_add_ow_ops_in"] = io_dict[node_name]["ow_ops_in"]
 
 
     graph = {}
@@ -843,7 +852,7 @@ def write_parallelism(io_dict, model, parallel_ops):
         start_layer = start_layers[0]
     
     # Initializing layer index
-    accepted_layers = ["conv", "pool", "produce", "consume", "add", "relu", "duplicate"]
+    accepted_layers = ["conv", "pool", "produce", "consume", "add", "relu", "duplicate", "gather", "silu"]
 
     node_list = [start_layer]
     marked_nodes = []
@@ -923,6 +932,8 @@ def write_parallelism(io_dict, model, parallel_ops):
                     io_dict[out_node]["adjust_ops"] = common_mult
         io_dict[node]["ops_out"] = scaling_out
         io_dict[out_node]["in_ops"] = scaling_out
+        
+        print(f"OPS of Node {node} -> {out_node} ({ow_ops_in} -> {ow_ops_out})")
 
         if ow_ops_in < ow_ops_out:
             if not io_dict[out_node]["adjust_line_buffer"]:

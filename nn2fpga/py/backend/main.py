@@ -14,6 +14,7 @@ import backend.layers.detect as detect
 import backend.layers.non_max_suppression as non_max_suppression
 import backend.layers.bandwidth_adjust as bandwidth_adjust
 import backend.layers.tensor_duplicator as tensor_duplicator
+import backend.layers.silu as silu
 import backend.graph as graph
 from backend.opt import dag_sorting as dag_sorting
 from backend.utils import *
@@ -254,7 +255,11 @@ def parse_all_main(io_dict, model, off_chip_storage=False):
             )
             no_output_gen = True
 
-
+        if 'gather' == node["type"]:
+            parsed_write.append(
+                silu.parse(name, node)
+            )
+            
         last_node_name = name
 
     if not no_output_gen:

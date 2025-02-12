@@ -16,6 +16,7 @@ import backend.layers.non_max_suppression as non_max_suppression
 import backend.layers.concat as concat
 import backend.layers.upsample as upsample
 import backend.layers.pad as pad
+import backend.layers.silu as silu
 from backend.layers.layer import Net
 
 def sanitize_string(string):
@@ -56,11 +57,15 @@ def remove_and_bypass_layer(io_dict, io_connect, layer_name, forward=True):
     """ 
 
     output_net_name = io_dict[layer_name]["output"][0]
-    input_net_name = io_dict[layer_name]["input"][0]
-
+    # If the layer is a gather layer, the input is the second input
+    if io_dict[layer_name]["type"] == "gather":
+        input_net_name = io_dict[layer_name]["input"][1]
+    else:
+        input_net_name = io_dict[layer_name]["input"][0]
     input_layer_names = prev_layers(io_dict, io_connect, layer_name)
     output_layer_names = next_layers(io_dict, io_connect, layer_name)
-
+    print(f"Input layers: {input_layer_names}")
+    print(f"Output layers: {output_layer_names}")
     if input_layer_names is None or output_layer_names is None:
         print(f"Error in remove_and_bypass_layer of \"{layer_name}\"")
         exit(-1)
@@ -148,7 +153,6 @@ def compute_depth_stream(io_dict, io_connect, net_name, starting_name, ops="ops"
     while layer_output != starting_name:
 
         node = io_dict[layer_output]
-
         net_receptive_field[0] += node["fh"]
         net_receptive_field[1] += node["fw"]
 
@@ -159,7 +163,11 @@ def compute_depth_stream(io_dict, io_connect, net_name, starting_name, ops="ops"
         else:
             node_latency = (node["ich"] / node["ich_ops"]) * (node["och"] / node["ops"])
 
-        other_net = io_dict[layer_output]["input"][0]
+        # the input of gather layer is the second input
+        if node["type"] == "gather":
+            other_net = io_dict[layer_output]["input"][1]
+        else:
+            other_net = io_dict[layer_output]["input"][0]
         layer_output = io_connect[other_net][0][0]
 
         ### Alternative version
@@ -545,6 +553,34 @@ def graph_info(model, init_info, object_detection=False, anchors=None, transform
             last_layer_name = node_name
             continue
         
+        if 'gather' in node.op_type.lower():
+            io_dict[node_name]["type"] = "gather"
+            io_dict = silu.info(
+                io_dict,
+                node,
+                node_name,
+                init_info,
+                tensors_info
+            )    
+            last_layer_name = node_name
+            continue
+        
+        if 'clip' in node.op_type.lower():
+            io_dict[node_name]["type"] = "clip"
+            last_layer_name = node_name
+            continue
+        
+        if 'cast' in node.op_type.lower():
+            io_dict[node_name]["type"] = "cast"
+            last_layer_name = node_name
+            continue
+        
+        if 'mul' in node.op_type.lower():
+            io_dict[node_name]["type"] = "mul"
+            last_layer_name = node_name
+            continue
+            
+         
         if cut_name == []:
             cut_name.append(last_layer_name)
             # Assign the graph output name to the cut layer

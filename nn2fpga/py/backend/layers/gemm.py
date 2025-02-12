@@ -33,6 +33,7 @@ def info(io_dict, node, node_name, init_info, tensors_info):
     img_ch   = ich*och
     relu     = False
     add      = False
+    silu     = False
     in_scale_factor = [None]
     in_bits = [None]
     in_signed = [None]
@@ -63,6 +64,7 @@ def info(io_dict, node, node_name, init_info, tensors_info):
     io_dict[node_name]["ow_ops"]     = 1
     io_dict[node_name]["ow_ops_out"]     = 1
     io_dict[node_name]["relu"]   = relu
+    io_dict[node_name]["silu"]   = silu
     io_dict[node_name]["add"]    = add
     io_dict[node_name]["scale_factor"] = 0
     io_dict[node_name]["in_scale_factor"] = in_scale_factor
