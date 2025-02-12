@@ -52,11 +52,11 @@ quant_stream(t_acc i_acc)
     s_acc = t_output_mask(s_acc);
   }
   
-  if (c_relu == 1) {
+  if constexpr (c_relu == 1) {
     s_acc = relu_op<t_acc>(s_acc);
     s_output = t_output(s_acc);
   }
-  else if (c_silu == 1){
+  else if constexpr (c_silu == 1){
     s_silu_in = t_output(s_acc);
     s_silu_out = s_silu_in;
     s_silu_out = silu <t_output, t_output, t_output> (s_silu_in);
@@ -99,11 +99,13 @@ quant_and_add_stream(t_acc i_acc, t_add i_add)
     s_acc = relu_op<t_acc>(s_acc);
     s_output = t_output(s_acc);
   }
-  else if (c_silu == 1){
+  else if constexpr (c_silu == 1){
     s_silu_in = t_output(s_acc);
     s_silu_out = silu <t_output, t_output, t_output> (s_silu_in);
     s_output = t_output(s_silu_out);
   }
+  else 
+    s_output = t_output(s_acc); 
   // Post activation quantization
   return s_output;
 }
