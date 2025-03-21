@@ -57,6 +57,11 @@ def main():
         if int(os.environ.get("OBJECT_DETECTION")) == 1:
             object_detection = True
 
+    silvia_packing = False
+    if "SILVIA_PACKING" in os.environ:
+        if int(os.environ.get("SILVIA_PACKING")) == 1:
+            silvia_packing = True
+
     onnx_model = ModelWrapper(onnx_path)
     cleanup_model(onnx_model)
     inferred_model = onnx_model.transform(infer_shapes.InferShapes())
@@ -107,6 +112,7 @@ def main():
         off_chip_storage=off_chip_storage,
         board=board, 
         dynamic_init=dynamic_init,
+        silvia_packing=silvia_packing,
         object_detection=object_detection,
         anchors=anchors,
         prj_root=PRJ_ROOT,

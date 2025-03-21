@@ -10,7 +10,7 @@ from backend.ilp_utils import find_common_mult
 from backend.graph import extract_connections, next_layers
 from backend.layers.weights import compute_bram_layer
 
-def packing_feature(operands_bitwidth, par):
+def packing_feature(operands_bitwidth, par, silvia_packing):
     """ Returns the number of operation that can be packed in a single DSP. 
     
     Arguments:
@@ -29,9 +29,15 @@ def packing_feature(operands_bitwidth, par):
         elif (par[0] % 2 == 0):
             return 2, (2, 1)
     elif (operand_bits == 4):
-        if (par[0] % 2 == 0 and par[2] % 2 == 0):
-            return 4, (2, 2)
-        elif (par[2] % 2 == 0):
+        if (silvia_packing):
+            if (par[0] % 4 == 0):
+                return 4, (4, 1)
+            if (par[2] % 4 == 0):
+                return 4, (1, 4)
+        else:
+            if (par[0] % 2 == 0 and par[2] % 2 == 0):
+                return 4, (2, 2)
+        if (par[2] % 2 == 0):
             return 2, (1, 2)
         elif (par[0] % 2 == 0):
             return 2, (2, 1)
@@ -91,7 +97,7 @@ def layers_extractions(io_dict):
 
     return layers_info
 
-def generate_architectures(layers_info, NUM_DSP):
+def generate_architectures(layers_info, NUM_DSP, silvia_packing):
     """Given a list of layers, generate all the valid parallelization for each layer. """
     
     valid_par_solutions = []
@@ -115,7 +121,7 @@ def generate_architectures(layers_info, NUM_DSP):
         
         # Clipping the maximum parallelization to the available DSPs, since it is not
         # possible that one layer uses all the DSPs, considering the packing
-        op_per_dsp, _ = packing_feature((layer["weight_bits"], layer["act_bits"]), (max_och_par, max_ich_par, max_ow_par))
+        op_per_dsp, _ = packing_feature((layer["weight_bits"], layer["act_bits"]), (max_och_par, max_ich_par, max_ow_par), silvia_packing)
         op_clip = (NUM_DSP / layer["kernel"]) * op_per_dsp
         
         valid_par_solutions.append(generate_valid_combinations(
@@ -123,7 +129,7 @@ def generate_architectures(layers_info, NUM_DSP):
 
     return valid_par_solutions
 
-def parallelismILP(layers_info, valid_par_solutions, NUM_DSP, NUM_PORTS, prj_root="/tmp"):
+def parallelismILP(layers_info, valid_par_solutions, NUM_DSP, NUM_PORTS, silvia_packing, prj_root="/tmp"):
     """ Find the parallelization for each layer that maximize the throughput of the network."""
 
     constraints_counter = 0
@@ -191,7 +197,7 @@ def parallelismILP(layers_info, valid_par_solutions, NUM_DSP, NUM_PORTS, prj_roo
         layer_par = valid_par_solutions[layer["index"]]
         
         for single_par in layer_par:
-            op_per_dsp, _ = packing_feature((layer["weight_bits"], layer["act_bits"]), single_par)
+            op_per_dsp, _ = packing_feature((layer["weight_bits"], layer["act_bits"]), single_par, silvia_packing)
             dsp_used = (np.prod(single_par) * layer["kernel"]) / op_per_dsp
             valid_dsp_solutions[-1].append(dsp_used)
     
@@ -299,7 +305,7 @@ def parallelismILP(layers_info, valid_par_solutions, NUM_DSP, NUM_PORTS, prj_roo
 
     return parallel_op, int(pulp.value(prob.objective)), sum([len(s) for s in valid_par_solutions]), constraints_counter, (end_time - start_time)
 
-def resourceILP(layers_info, model_II, valid_par_solutions, parallel_op, NUM_DSP, NUM_PORTS, prj_root="/tmp"):
+def resourceILP(layers_info, model_II, valid_par_solutions, parallel_op, NUM_DSP, NUM_PORTS, silvia_packing, prj_root="/tmp"):
     """ Given the throughput of the network, find the parallelization for each layer that minimize the resources usage."""
     
     # Creating a second dictionary in which merged convolution are splitted and
@@ -372,7 +378,7 @@ def resourceILP(layers_info, model_II, valid_par_solutions, parallel_op, NUM_DSP
         valid_dsp_solutions.append([])
         layer_par = clamped_valid_par_solutions[layer["index"]]
         for single_par in layer_par:
-            op_per_dsp, _ = packing_feature((layer["weight_bits"], layer["act_bits"]), single_par)
+            op_per_dsp, _ = packing_feature((layer["weight_bits"], layer["act_bits"]), single_par, silvia_packing)
             dsp_used = (np.prod(single_par) * layer["kernel"]) / op_per_dsp
             valid_dsp_solutions[-1].append(dsp_used)
     
@@ -687,7 +693,7 @@ def opt_steps(layers_info, parallel_op, valid_par_solutions, prj_root="/tmp"):
     else:
         return new_parallel_op
 
-def print_report(layers_info, layer_par, n_variables, n_constraints, model_II, time_spent, generate_report_file, prj_root="/tmp"):
+def print_report(layers_info, layer_par, n_variables, n_constraints, model_II, time_spent, silvia_packing, generate_report_file, prj_root="/tmp"):
     with open(generate_report_file, "a+") as f:
         print("="*40, file=f)
         print("== Parallelization report", file=f)
@@ -713,7 +719,7 @@ def print_report(layers_info, layer_par, n_variables, n_constraints, model_II, t
             bits = layer["weight_bits"][0]
             dsp = layer["kernel"] * och_ops * ich_ops * ow_ops
 
-            op_per_dsp, _ = packing_feature((layer["weight_bits"][0], layer["act_bits"][0]), layer_par[layer['name']])
+            op_per_dsp, _ = packing_feature((layer["weight_bits"][0], layer["act_bits"][0]), layer_par[layer['name']], silvia_packing)
             pack = str(op_per_dsp)
             dsp = dsp // op_per_dsp
 
@@ -758,7 +764,7 @@ def print_report(layers_info, layer_par, n_variables, n_constraints, model_II, t
                 iter = int(layer["total"] / (ich_ops * och_ops * ow_ops))
                 port = math.ceil(bits * och_ops * ich_ops / 72)
 
-                op_per_dsp, _ = packing_feature((layer["weight_bits"][1], layer["act_bits"][1]), layer_par[layer['name']])
+                op_per_dsp, _ = packing_feature((layer["weight_bits"][1], layer["act_bits"][1]), layer_par[layer['name']], silvia_packing)
                 pack = str(op_per_dsp)
                 dsp = dsp // op_per_dsp
                 
@@ -797,7 +803,7 @@ def print_report(layers_info, layer_par, n_variables, n_constraints, model_II, t
         f.write(tabulate(table_data, headers="firstrow", tablefmt="grid"))
         print("\n", file=f)
 
-def write_parallelism(io_dict, model, parallel_ops):
+def write_parallelism(io_dict, model, parallel_ops, silvia_packing):
 
     io_connect = extract_connections(model, io_dict)
 
@@ -1015,15 +1021,23 @@ def write_parallelism(io_dict, model, parallel_ops):
     print("Assigning packing")
     for name, node in io_dict.items():
         if node["type"] == "conv":
-            _, packing = packing_feature((node["weight_quant"]["bits"], node["input_quant"]["bits"]), [node["ops"], node["ich_ops"], node["ow_ops"]])
-            node["och_pack"] = packing[0]
-            node["ow_pack"] = packing[1]
-            print(f"Assigning packing for {name}: {packing}")
+            _, packing = packing_feature((node["weight_quant"]["bits"], node["input_quant"]["bits"]), [node["ops"], node["ich_ops"], node["ow_ops"]], silvia_packing)
+            if not silvia_packing:
+                node["och_pack"] = packing[0]
+                node["ow_pack"] = packing[1]
+                print(f"Assigning packing for {name}: {packing}")
 
-            if node["merge_1x1"]:
-                node["merge_node"]["och_pack"] = packing[0]
-                node["merge_node"]["ow_pack"] = packing[1]
-                print(f"Assigning packing for {name} (merge): {packing}")
+                if node["merge_1x1"]:
+                    node["merge_node"]["och_pack"] = packing[0]
+                    node["merge_node"]["ow_pack"] = packing[1]
+                    print(f"Assigning packing for {name} (merge): {packing}")
+            else:
+                node["och_pack"] = 1
+                node["ow_pack"] = 1
+                if node["merge_1x1"]:
+                    node["merge_node"]["och_pack"] = 1
+                    node["merge_node"]["ow_pack"] = 1
+
     return io_dict
 
 def check_adjustments(io_dict, model):
@@ -1115,7 +1129,7 @@ def check_adjustments(io_dict, model):
 
     return True
 
-def ilp(io_dict, off_chip_storage, model, file_name, board="ULTRA96v2", generate_report_file="tmp.rpt", prj_root="/tmp"):
+def ilp(io_dict, off_chip_storage, model, file_name, board="ULTRA96v2", silvia_packing=False, generate_report_file="tmp.rpt", prj_root="/tmp"):
 
     board_res = extract_board_info(board, prj_root)
     layers_info = layers_extractions(io_dict)
@@ -1124,13 +1138,13 @@ def ilp(io_dict, off_chip_storage, model, file_name, board="ULTRA96v2", generate
     NUM_DSP = board_res["dsp"]
     NUM_PORTS = int(NUM_PORTS * 0.85) * 2
 
-    valid_par_solutions = generate_architectures(layers_info, NUM_DSP)
-    layer_par, model_II, n_variables, n_constraints, time_spent = parallelismILP(layers_info, valid_par_solutions, NUM_DSP, NUM_PORTS, prj_root=prj_root)
-    layer_par = resourceILP(layers_info, model_II, valid_par_solutions, layer_par, NUM_DSP, NUM_PORTS, prj_root=prj_root)
+    valid_par_solutions = generate_architectures(layers_info, NUM_DSP, silvia_packing)
+    layer_par, model_II, n_variables, n_constraints, time_spent = parallelismILP(layers_info, valid_par_solutions, NUM_DSP, NUM_PORTS, silvia_packing, prj_root=prj_root)
+    layer_par = resourceILP(layers_info, model_II, valid_par_solutions, layer_par, NUM_DSP, NUM_PORTS, silvia_packing, prj_root=prj_root)
     layer_par = balanceILP(layers_info, model_II, valid_par_solutions, layer_par, NUM_PORTS, prj_root=prj_root)
     layer_par = opt_steps(layers_info, layer_par, valid_par_solutions, prj_root=prj_root)
-    io_dict = write_parallelism(io_dict, model, layer_par)
-    print_report(layers_info, layer_par, n_variables, n_constraints, model_II, time_spent, generate_report_file, prj_root=prj_root)
+    io_dict = write_parallelism(io_dict, model, layer_par, silvia_packing)
+    print_report(layers_info, layer_par, n_variables, n_constraints, model_II, time_spent, silvia_packing, generate_report_file, prj_root=prj_root)
 
     if (not check_adjustments(io_dict, model)):
         exit(-1)

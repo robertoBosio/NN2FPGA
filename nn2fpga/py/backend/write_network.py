@@ -44,6 +44,7 @@ def write_network(
     off_chip_storage=False,
     board="ULTRA96v2",
     dynamic_init=False,
+    silvia_packing=False,
     object_detection=False,
     anchors=[],
     prj_root="/tmp",
@@ -107,6 +108,7 @@ def write_network(
             inferred_model,
             file_name,
             board,
+            silvia_packing,
             generate_report_file,
             prj_root=prj_root
         )
