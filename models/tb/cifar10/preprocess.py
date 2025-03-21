@@ -20,7 +20,8 @@ def process_image(n_images, onnx_path, dataset):
     cleanup_model(onnx_model)
     inferred_model = onnx_model.transform(infer_shapes.InferShapes())
     inferred_model = inferred_model.transform(InferDataTypes())
-    
+   
+    input_name = inferred_model.graph.input[0].name 
     output_name = inferred_model.graph.output[0].name
     
     batch_size = 1
@@ -55,8 +56,7 @@ def process_image(n_images, onnx_path, dataset):
                 f_labels.write(np.asarray(labels).astype(np.uint32).tobytes())
 
                 np_images = np.expand_dims(images.numpy(), axis=0)
-                output_name = inferred_model.graph.output[0].name
-                outputs = execute_onnx(inferred_model, {'inp.1': np_images})
+                outputs = execute_onnx(inferred_model, {input_name : np_images})
                 outputs = outputs[output_name]
                 outputs = np.squeeze(outputs)
                 f_res.write(outputs.astype(np.float32).tobytes())
