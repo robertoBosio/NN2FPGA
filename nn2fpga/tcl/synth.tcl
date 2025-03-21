@@ -74,7 +74,7 @@ if {${CSIM} == 1} {
 if {${BOARD} == "PYNQ" || ${BOARD} == "ZC706"} { 
   create_clock -period 7
 } else {
-  create_clock -period 3.3
+  create_clock -period 4 
 }
 
 # config_interface -m_axi_max_widen_bitwidth 0
@@ -95,11 +95,12 @@ config_compile -pipeline_style stp -enable_auto_rewind=false
 csynth_design
 #SILVIA::csynth_design
 
-export_design -flow syn
+export_design -flow impl
 #export_design
 
 if {${COSIM} == 1} {
-  cosim_design -trace_level all -tool xsim -wave_debug -argv ${CMD_ARGS}
+  cosim_design -argv ${CMD_ARGS} 
+  #cosim_design -trace_level all -tool xsim -wave_debug -argv ${CMD_ARGS}
 }
 
 exit

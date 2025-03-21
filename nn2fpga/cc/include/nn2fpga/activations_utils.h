@@ -543,7 +543,7 @@ output_t silu(input_t x)
     x_abs[7] = x[7];
     
     y = lut<c_t>::c[x_abs];
-    
+    #pragma HLS array_partition variable=lut<c_t>::c complete
     #pragma HLS BIND_STORAGE variable=lut<c_t>::c type=rom_1p impl=lutram
 
     return y;

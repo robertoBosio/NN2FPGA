@@ -66,7 +66,7 @@ if __name__ == "__main__":
         print("Error: frequency (MHz) must be a positive integer number")
         sys.exit(0)
 
-    batch_size = 400
+    batch_size = 1
 
     if (sel_dataset == "cifar10"):
         dataloader = cifar10_dataloader
