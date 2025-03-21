@@ -1,21 +1,30 @@
-import os
-import sys
-#import onnx
-import qonnx
-from onnx import numpy_helper
 import numpy as np
+from onnx import numpy_helper
+
+def sanitize_string(string):
+    return string.replace(".", "_")
 
 def info(io_dict, node, node_name, init_info, tensors_info):
 
-    attributes = getattr(node, "attribute" )
+    attributes = getattr(node, "attribute")
 
-    input_shapes = tensors_info[node.input[0]].tensor_type.shape
+    input_shape = tensors_info[node.input[0]].tensor_type.shape
     output_shape = tensors_info[node.output[0]].tensor_type.shape
 
-    upsample_name   = io_dict[node_name]["input"][2]
-    upsample_info   = init_info[scale_name]
-    upsample_factor = numpy_helper.to_array(scale_info)[-1]
+    roi = init_info[sanitize_string(node.input[1])]
+    scales = init_info[sanitize_string(node.input[2])]
+    roi = numpy_helper.to_array(roi)
+    scales = numpy_helper.to_array(scales)
+    scales = np.array(scales, dtype=int)
 
+    # Currently not supporting roi, and only supporting 2D upsample
+    assert len(roi) == 0
+    assert len(scales) == 4
+    assert scales[0] == 1 and scales[1] == 1
+    assert scales[2] == scales[3]
+
+    upsample_factor = scales[2]
+    
     ich      = getattr(input_shape, 'dim')[1].dim_value
     ih       = getattr(input_shape, 'dim')[2].dim_value
     iw       = getattr(input_shape, 'dim')[3].dim_value

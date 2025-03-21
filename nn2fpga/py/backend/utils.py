@@ -194,12 +194,7 @@ def write_defines(fd, values, layer_name):
     for name, value in values.items():
 
         if value[0] == 'const':
-            fd.write(
-                "const int %s = %0d;\n" % (
-                    name,
-                    value[1]
-                )
-            )
+            fd.write(f"const int {name} = {value[1]};\n")
 
         if value[0] == 'const_float':
             fd.write(

@@ -1,16 +1,13 @@
-import os
-import sys
 import time
 import pulp
-from pulp.apis import PULP_CBC_CMD
-from tabulate import tabulate
 import math
 import numpy as np
+from pulp.apis import PULP_CBC_CMD
+from tabulate import tabulate
 from backend.utils import extract_board_info
 from backend.ilp_utils import generate_valid_combinations
 from backend.ilp_utils import find_common_mult
-from backend.ilp_utils import find_max_commond_div
-from backend.graph import extract_connections, prev_layers, next_layers
+from backend.graph import extract_connections, next_layers
 from backend.layers.weights import compute_bram_layer
 
 def packing_feature(operands_bitwidth, par):
@@ -803,16 +800,21 @@ def print_report(layers_info, layer_par, n_variables, n_constraints, model_II, t
 def write_parallelism(io_dict, model, parallel_ops):
 
     io_connect = extract_connections(model, io_dict)
-    print(parallel_ops)
 
     for node_name, ops in parallel_ops.items():
         # The pool layer accept only parallelization over ich
         if (io_dict[node_name]["type"] == "pool"):
             io_dict[node_name]["ops"] = ops[1]
-            io_dict[node_name]["ich_ops"] = ops[0]
+            io_dict[node_name]["ich_ops"] = ops[1]
             io_dict[node_name]["ow_ops"] = ops[2]
             io_dict[node_name]["ow_ops_out"] = ops[2]
             io_dict[node_name]["line_ops"] = ops[0]
+            io_dict[node_name]["adjust_line_buffer"] = False
+            io_dict[node_name]["adjust_add"] = False
+            io_dict[node_name]["adjust_add_ow_ops_in"] = ops[2]
+        elif (io_dict[node_name]["type"] == "produce"):
+            io_dict[node_name]["ops"] = 1
+            io_dict[node_name]["ow_ops"] = 1
         else:
             io_dict[node_name]["ops"] = ops[0]
             io_dict[node_name]["ich_ops"] = ops[1]
@@ -821,6 +823,9 @@ def write_parallelism(io_dict, model, parallel_ops):
             io_dict[node_name]["ow_ops_out"] = ops[2]
             io_dict[node_name]["line_ops"] = ops[1]
             io_dict[node_name]["dp"] = False
+            io_dict[node_name]["adjust_line_buffer"] = False
+            io_dict[node_name]["adjust_add"] = False
+            io_dict[node_name]["adjust_add_ow_ops_in"] = ops[2]
             if io_dict[node_name]["merge_1x1"]:
                 io_dict[node_name]["merge_node"]["ops"] = ops[0]
                 io_dict[node_name]["merge_node"]["ich_ops"] = ops[1]
@@ -828,215 +833,185 @@ def write_parallelism(io_dict, model, parallel_ops):
                 io_dict[node_name]["merge_node"]["reuse"] = ops[2]
 
 
-    # Propagating ops and ow_ops to input nodes to assign ops_out and ow_ops_out
-    print("Starting backward propagation of ops and ow_ops")
-    for name, node in io_dict.items():
-        if "ops" in node:
+    graph = {}
+    start_layers = [layer_name for layer_name, layer_info in io_dict.items() if layer_info["type"] == "produce"]
 
-            if (node["type"] == "produce"):
-                continue
+    if len(start_layers) > 1:
+        print("Error in dag_sorting: multiple start layers.")
+        exit(1)
+    else:
+        start_layer = start_layers[0]
+    
+    # Initializing layer index
+    accepted_layers = ["conv", "pool", "produce", "consume", "add", "relu", "duplicate"]
 
-            input_node_name = prev_layers(io_dict, io_connect, name)[0]
+    node_list = [start_layer]
+    marked_nodes = []
+    while len(node_list) != 0:
+        current_node = node_list.pop(0)
+        marked_nodes.append(current_node)
+        graph[current_node] = {"in" : [], "out" : []}
+        output_nodes = next_layers(io_dict, io_connect, current_node)
 
-            line_ops = node["line_ops"]
-            ow_ops = node["ow_ops"]
-            if "depth" in node:
-                if node["depth"]:
-                    line_ops = node["line_ops"]
+        if output_nodes is not None:
+            for node in output_nodes:
+                if node not in marked_nodes:
+                    node_list.append(node)
+            graph[current_node]["out"] = output_nodes
             
-            if "pool" == node["type"]:
-                line_ops = node["ops"]
-            
-            if "depth" in io_dict[input_node_name]:
-                if io_dict[input_node_name]["depth"]:
-                    ops_out = io_dict[input_node_name]["ich_ops"]
-                else:
-                    ops_out = io_dict[input_node_name]["ops"]
+    # Removing nodes without output, like consume nodes
+    graph = {k: v for k, v in graph.items() if v["out"] != []}
+    print("Graph:")
+    for node, info in graph.items():
+        print(f"\t{node} -> {info['out']}")
+
+    for node, info in graph.items():
+
+        # Retrieving the channel packing of the layer. If the layer is a depthwise
+        # convolution the packing is over the input channels.
+        ops_out = 0
+        if io_dict[node]["type"] == "pool":
+            ops_out = io_dict[node]["ops"]
+        elif io_dict[node]["type"] == "conv":
+            if io_dict[node]["depth"]:
+                ops_out = io_dict[node]["ich_ops"]
             else:
-                ops_out = io_dict[input_node_name]["ops"]
-
-            # Assigning as ops_out of the previous layer the mcm between the ops of previous layer and current ich_ops
-            io_dict[input_node_name]["ops_out"] = find_common_mult(ops_out, line_ops)
-            print(f"\tAssigning to node {input_node_name} ops_out = {io_dict[input_node_name]['ops_out']} as mcm between {ops_out} and {line_ops}")
-            # print(f'Could maybe done with {find_max_commond_div(ops_out, line_ops)}') 
-
-    # Propagating ops and ow_ops to output nodes to assign in_ops and ow_ops_in
-    print("Starting forward propagation of ops and ow_ops")
-    for name, node in io_dict.items():
-        if "ops" in node:
-            output_name = io_dict[name]["output"][0]
-            output_node_name = io_connect[output_name][1][0]
-            if io_dict[output_node_name]["type"] != "consume":
-                ops_out = node["ops_out"]
-                io_dict[output_node_name]["in_ops"] = ops_out
-            else:
-                io_dict[name]["ops_out"] = node["ops"]
-
-    # Input produce stream ops
-    print("Assigning ops to input produce stream")
-    print_layers = ["conv", "pool"]
-    for name, node in io_dict.items():
-        if node["type"] in print_layers:
-            # check if the input tensor is produced by a produce_stream node
-            input_name = node["input"][0]
-            input_node_name = io_connect[input_name][0][0]
-            if io_dict[input_node_name]["type"] == "produce":
-                io_dict[input_node_name]["ops"] = node["line_ops"]
-                io_dict[input_node_name]["ow_ops"] = 1
-                io_dict[name]["in_ops"] = node["line_ops"]
+                ops_out = io_dict[node]["ops"]
+        else:
+            ops_out = 1
         
-    # Check for necessary bandwidth adjustements for the line buffer
-    print("Starting line buffer adjustements over channels")
-    line_buffer_layers = ["conv", "pool", "gemm"]
-    for name, node in io_dict.items():
-        if node["type"] in line_buffer_layers:
-            if (node["in_ops"] % node["line_ops"]) != 0:
-                node["adjust_line_buffer"] = True
-                node["adjust_ops"] = find_common_mult(node["in_ops"],node["line_ops"])
-                print(f"\tAdjusting line buffer for {name} over channels: {node['in_ops']} -> {node['adjust_ops']} -> {node['line_ops']} (in_ops -> adjust_ops -> line_ops)")
-            else:
-                node["adjust_ops"] = node["in_ops"]
-                node["adjust_line_buffer"] = False
+        ow_ops_out = io_dict[node]["ow_ops"]
+        out_node = info["out"][0]
 
-    # Propagating ops and ow_ops to output nodes to assign in_ops and ow_ops_in
-    print("Starting adaptation of tensor width between layers")
-    for name, node in io_dict.items():
-        if "ow_ops" in node:
-            
-            output_node_name = next_layers(io_dict, io_connect, name)
-            if output_node_name is None:
-                continue
-            else:
-                output_node_name = output_node_name[0]
-            
-            if io_dict[output_node_name]["type"] != "consume":
-                next_node = io_dict[output_node_name]
-                print(f"Considering {name} -> {output_node_name}: {node['ow_ops']} -> {next_node['ow_ops']}")
+        # Retrieving the channel packing of the following layer. If the layer is a
+        # depthwise convolution the packing is over the input channels.
+        ops_in = 0
+        ow_ops_in = io_dict[out_node]["ow_ops"]
+        if io_dict[out_node]["type"] == "pool":
+            ops_in = io_dict[out_node]["ops"]
+        elif io_dict[out_node]["type"] == "conv":
+            ops_in = io_dict[out_node]["ich_ops"]
+        else:
+            ops_in = 1
+        
+        io_dict[out_node]["line_ops"] = ops_in
+        scaling_out = ops_out # Channel packing in output of the layer.
 
-                # Need to decrease ow
-                if (node["ow_ops"] > next_node["ow_ops"]):
-
-                    # Setting adjust down for next node line buffer
-                    next_node["adjust_line_buffer"] = True
-                    if (node['ow_ops'] % next_node['ow_ops'] != 0):
-
-                        # Since the parallelism is not a multiple, need to scale up and then down
-                        mcm_ow_ops = find_common_mult(node['ow_ops'], next_node['ow_ops'])
-                        if (mcm_ow_ops > node['ow']):
-                            print(f"Error: {name} -> {output_node_name} ow_ops_out {node['ow_ops_out']} > ow {node['ow']}")
-                            exit(-1)
-                        node["ow_ops_out"] = mcm_ow_ops
-                        next_node["ow_ops_in"] = mcm_ow_ops
-                    else:
-                        next_node["ow_ops_in"] = node["ow_ops"]
-                        node["ow_ops_out"] = node["ow_ops"]
-                    print(f"Adjusting {name} -> {output_node_name}: {node['ow_ops']} -> {node['ow_ops_out']} -> {next_node['ow_ops_in']} -> {next_node['ow_ops']}")
-                
-                # Need to increase ow only if not multiple of ow_ops
-                elif (node['ow_ops'] < next_node['ow_ops']):
-                    
-                    # Setting adjust down for next node line buffer
-                    if (next_node['ow_ops'] % node['ow_ops'] != 0):
-                        next_node["adjust_line_buffer"] = True
-                        mcm_ow_ops = find_common_mult(node['ow_ops'], next_node['ow_ops'])
-                        if (mcm_ow_ops > node['ow']):
-                            print(f"Error: {name} -> {output_node_name} ow_ops_out {node['ow_ops_out']} > ow {node['ow']}")
-                            exit(-1)
-                        node["ow_ops_out"] = mcm_ow_ops
-                        next_node["ow_ops_in"] = mcm_ow_ops
-                        print(f"Adjusting {name} -> {output_node_name}: {node['ow_ops']} -> {node['ow_ops_out']} -> {next_node['ow_ops_in']} -> {next_node['ow_ops']}")
-                    
-                    elif (node["type"] == "produce"):
-                        # Produce stream are fixed to ow_ops 1
-                        next_node["adjust_line_buffer"] = True
-                        node["ow_ops_out"] = node["ow_ops"]
-                        next_node["ow_ops_in"] = node["ow_ops"]
-                        print(f"Adjusting {name} -> {output_node_name}: {node['ow_ops']} -> {node['ow_ops_out']} -> {next_node['ow_ops_in']} -> {next_node['ow_ops']}")
-                    else:
-                        # Scaling up ow ops since they are multiple
-                        next_node["ow_ops_in"] = next_node["ow_ops"]
-                        node["ow_ops_out"] = next_node["ow_ops"] 
-                
-                else:
-                    next_node["ow_ops_in"] = next_node["ow_ops"]
-                    node["ow_ops_out"] = node["ow_ops"]
-
-    # Adjusting pool layer, since in_ops must be a multiple of ops
-    print("Adjusting pool layers")
-    for name, node in io_dict.items():
-        if node["type"] == "pool":
-            output_name = node["output"][0]
-            output_node_name = io_connect[output_name][1][0]
-            
-            # Assigning as ops the ops_out
-            node["ops"] = node["ops_out"]
-
-            # Right now node["ops"] is the ich_ops of the follwing layer.
-            if (node["in_ops"] < node["ops_out"] or node["in_ops"] % node["ops_out"] != 0):
-                node["ops"] = find_max_commond_div(node["in_ops"], node["ops_out"])
-                print(f"\tAdjusting pool layer {name} over channels: {node['in_ops']} -> {node['ops']} -> {node['ops_out']} (in_ops -> ops -> ops_out)")
-
-                # A pool cannot scale up over och_ops_out as convolution does, 
+        # Linebuffer can scale down channel packing.
+        # Convolution can scale up over och_ops_out.
+        # In case of not multiple channel packing, we need to use an adjust line buffer
+        if ops_in < ops_out:
+            if ops_out % ops_in != 0:
+                # A pool layer cannot scale up over och_ops_out as convolution does, 
                 # so we fix the lower-then-expected parallelization with a bandwidth adjust
                 # or by scaling down with the line buffer 
-                if (io_dict[output_node_name]["in_ops"] > node["ops"]):
-                    io_dict[output_node_name]["adjust_line_buffer"] = True
-                    io_dict[output_node_name]["adjust_ops"] = io_dict[output_node_name]["in_ops"]
-                    io_dict[output_node_name]["line_ops"] = io_dict[output_node_name]["in_ops"]
-                    print(f"\tAdjusting line buffer for {output_node_name} over channels: {io_dict[output_node_name]['in_ops']} -> {io_dict[output_node_name]['adjust_ops']} -> {io_dict[output_node_name]['line_ops']} (in_ops -> adjust_ops -> line_ops)")
+                common_mult = find_common_mult(ops_in, ops_out)
+                if io_dict[node]["type"] == "conv":
+                    scaling_out = common_mult
                 else:
-                    io_dict[output_node_name]["line_ops"] = io_dict[output_node_name]["in_ops"]
-                io_dict[output_node_name]["in_ops"] = node["ops"]
-
-    print("Adjusting line buffer for the last layer")
-    for name, node in io_dict.items():
-        if node["type"] in line_buffer_layers:
-            # check if the input tensor is produced by a produce_stream node
-            first_input_node_name = prev_layers(io_dict, io_connect, name)[0]
-            if io_dict[first_input_node_name]["type"] != "produce":
-                if "adjust_line_buffer" in node.keys():
-                    io_dict[first_input_node_name]["adjust_out"] = node["adjust_line_buffer"]
-                else:
-                    io_dict[first_input_node_name]["adjust_out"] = False
-
-            first_output_node_name = next_layers(io_dict, io_connect, name)[0]
-            if first_output_node_name == "consume_stream":
-                io_dict[name]["adjust_out"] = False
-    
-    # Check for necessary bandwidth adjustements for the add stream
-    print("Starting add stream adjustements")
-    for name, node in io_dict.items():
-        if node["type"] == "conv":
-            if node["add"]:
-
-                # obtain ops parallelism for the add stream
-                skip_producer_name = prev_layers(io_dict, io_connect, name)
-                skip_producer_name = skip_producer_name[1]
-                if (io_dict[skip_producer_name]["merge_1x1"]):
-                    add_ops = io_dict[skip_producer_name]["ops_out"]
-                else:
-                    # ich_ops because it's a forward
-                    add_ops = io_dict[skip_producer_name]["ich_ops"]
-
-                ow_ops = io_dict[skip_producer_name]["ow_ops_out"]
-                node["add_ops"] = add_ops
-
-                if (node["add_ops"] % node["ops"] != 0) or (node["ow_ops"] != ow_ops):
-                    node["adjust_add"] = True
-                    node["adjust_add_ops"] = find_common_mult(
-                        node["ops"], node["add_ops"])
-                    
-                    node["adjust_add_ow_ops_in"] = ow_ops
-                    if ow_ops % node["ow_ops"] != 0 and node["ow_ops"] % ow_ops != 0:
-                        print(f"Error: {name} ow_ops ({node['ow_ops']}) is not a multiple/divisor of ow_ops_out of {add_node_name} ({ow_ops})")
-
-                    print(f"\tAdjusting add stream for {name} over channels: {node['add_ops']} -> {node['adjust_add_ops']} -> {node['ops']} (add_ops -> adjust_add_ops -> ops)")
-                    print(f"\tAdjusting add stream for {name} over width: {ow_ops} -> {node['adjust_add_ow_ops_in']} -> {node['ow_ops']} (ow_ops_out -> adjust_add_ow_ops_in -> ow_ops)")
-                else:
-                    node["adjust_add"] = False
+                    io_dict[out_node]["adjust_line_buffer"] = True
+                    io_dict[out_node]["adjust_ops"] = common_mult
+        else:
+            if ops_in % ops_out == 0:
+                scaling_out = ops_in
             else:
-                node["adjust_add"] = False
+                common_mult = find_common_mult(ops_in, ops_out)
+                if io_dict[node]["type"] == "conv":
+                    scaling_out = common_mult
+                else:
+                    io_dict[out_node]["adjust_line_buffer"] = True
+                    io_dict[out_node]["adjust_ops"] = common_mult
+        io_dict[node]["ops_out"] = scaling_out
+        io_dict[out_node]["in_ops"] = scaling_out
+
+        if ow_ops_in < ow_ops_out:
+            if not io_dict[out_node]["adjust_line_buffer"]:
+                io_dict[out_node]["adjust_ops"] = io_dict[out_node]["in_ops"]
+            io_dict[out_node]["adjust_line_buffer"] = True
+            if ow_ops_out % ow_ops_in == 0:
+                io_dict[node]["ow_ops_out"] = ow_ops_out
+                io_dict[out_node]["ow_ops_in"] = ow_ops_out
+            else:
+                if io_dict[node]["type"] != "conv":
+                    print(f"Error: {node} -> {out_node} not able to match ow_ops between {ow_ops_in} and {ow_ops_out}")
+                    exit(-1)
+                common_mult = find_common_mult(ow_ops_in, ow_ops_out)
+                if common_mult > io_dict[node]["ow"]:
+                    print(f"Error: {node} -> {out_node} not able to find a common multiple between {ow_ops_in} and {ow_ops_out} lower than {io_dict[node]['ow']}")
+                    exit(-1)
+                io_dict[node]["ow_ops_out"] = common_mult
+                io_dict[out_node]["ow_ops_in"] = common_mult
+        elif ow_ops_in > ow_ops_out:
+            if ow_ops_in % ow_ops_out == 0:
+                if io_dict[node]["type"] == "conv":
+                    # Conv layer can scale up over ow_ops_out
+                    io_dict[node]["ow_ops_out"] = ow_ops_in
+                    io_dict[out_node]["ow_ops_in"] = ow_ops_in
+                else:
+                    if not io_dict[out_node]["adjust_line_buffer"]:
+                        io_dict[out_node]["adjust_ops"] = io_dict[out_node]["in_ops"]
+                    io_dict[out_node]["adjust_line_buffer"] = True
+                    io_dict[node]["ow_ops_out"] = ow_ops_out
+                    io_dict[out_node]["ow_ops_in"] = ow_ops_out
+            else:
+                if io_dict[node]["type"] != "conv":
+                    print(f"Error: {node} -> {out_node} not able to match ow_ops between {ow_ops_in} and {ow_ops_out}")
+                    exit(-1)
+                if not io_dict[out_node]["adjust_line_buffer"]:
+                    io_dict[out_node]["adjust_ops"] = io_dict[out_node]["in_ops"]
+                io_dict[out_node]["adjust_line_buffer"] = True
+                common_mult = find_common_mult(ow_ops_in, ow_ops_out)
+                if common_mult > io_dict[node]["ow"]:
+                    print(f"Error: {node} -> {out_node} not able to find a common multiple between {ow_ops_in} and {ow_ops_out} lower than {io_dict[node]['ow']}")
+                    exit(-1)
+                io_dict[node]["ow_ops_out"] = common_mult
+                io_dict[out_node]["ow_ops_in"] = common_mult
+        else:
+            io_dict[node]["ow_ops_out"] = ow_ops_out
+            io_dict[out_node]["ow_ops_in"] = ow_ops_in
+
+        if "adjust_line_buffer" in io_dict[out_node] and io_dict[out_node]["adjust_line_buffer"]:
+            print(f"Channels: Node {node} -> {out_node} ({io_dict[node]['ops_out']} -> {io_dict[out_node]['in_ops']} -> {io_dict[out_node]['adjust_ops']} -> {io_dict[out_node]['line_ops']})")
+        else:
+            print(f"Channels: Node {node} -> {out_node} ({io_dict[node]['ops_out']} -> {io_dict[out_node]['in_ops']} -> {io_dict[out_node]['line_ops']})")
         
+        print(f"Width: Node {node} -> {out_node} ({io_dict[node]['ow_ops_out']} -> {io_dict[out_node]['ow_ops_in']} -> {io_dict[out_node]['ow_ops']})")
+
+        for out_node in info["out"][1:]:
+            # These nodes must be only skip connections
+            ops_in = io_dict[out_node]["ops"]
+            ow_ops_in = io_dict[out_node]["ow_ops"]
+            if io_dict[node]["merge_1x1"]:
+                ops_out = io_dict[node]["ops_out"]
+            else:
+                # Forward node
+                ops_out = io_dict[node]["ich_ops"]
+            
+            ow_ops_out = io_dict[node]["ow_ops_out"]
+            io_dict[out_node]["add_ops"] = ops_out
+            io_dict[out_node]["adjust_add_ops"] = ops_in
+            if (ops_out < ops_in or ops_out % ops_in != 0):
+                io_dict[out_node]["adjust_add"] = True
+                io_dict[out_node]["adjust_add_ops"] = find_common_mult(ops_in, ops_out)
+                print(f"Channels: Node {node} -> Add {out_node} ({ops_out} -> {io_dict[out_node]['adjust_add_ops']} -> {io_dict[out_node]['ops']})")
+            
+            if (ow_ops_out > ow_ops_in):
+                if (ow_ops_out % ow_ops_in != 0):
+                    print(f"Error: {node} -> {out_node} not able to match ow_ops between {ow_ops_in} and {ow_ops_out}")
+                    exit(-1)
+                io_dict[out_node]["adjust_add"] = True
+                io_dict[out_node]["adjust_add_ow_ops_in"] = ow_ops_out
+            elif (ow_ops_in > ow_ops_out):
+                if (ow_ops_in % ow_ops_out != 0):
+                    print(f"Error: {node} -> {out_node} not able to match ow_ops between {ow_ops_in} and {ow_ops_out}")
+                    exit(-1)
+                io_dict[out_node]["adjust_add"] = True
+                io_dict[out_node]["adjust_add_ow_ops_in"] = ow_ops_out
+            
+    for node, info in graph.items():
+        if io_dict[node]["type"] == "produce":
+            io_dict[node]["ops"] = io_dict[node]["ops_out"]
+
     print("Assigning packing")
     for name, node in io_dict.items():
         if node["type"] == "conv":
@@ -1147,8 +1122,7 @@ def ilp(io_dict, off_chip_storage, model, file_name, board="ULTRA96v2", generate
 
     NUM_PORTS = (board_res["bram"] + board_res["uram"])
     NUM_DSP = board_res["dsp"]
-    NUM_DSP = 1800
-    NUM_PORTS = int(NUM_PORTS * 0.85)
+    NUM_PORTS = int(NUM_PORTS * 0.85) * 2
 
     valid_par_solutions = generate_architectures(layers_info, NUM_DSP)
     layer_par, model_II, n_variables, n_constraints, time_spent = parallelismILP(layers_info, valid_par_solutions, NUM_DSP, NUM_PORTS, prj_root=prj_root)

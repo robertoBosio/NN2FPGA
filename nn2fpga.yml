@@ -67,3 +67,4 @@ dependencies:
     - PyYAML
     - tqdm
     - matplotlib
+    - tabulate

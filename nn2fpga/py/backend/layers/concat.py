@@ -1,16 +1,13 @@
-import os
-import sys
-#import onnx
-import qonnx
-from onnx import numpy_helper
 import numpy as np
+from onnx import numpy_helper
 
 def info(io_dict, node, node_name, init_info, tensors_info):
 
     attributes = getattr(node, "attribute" )
+    axis = attributes[0].i
 
     input_shapes = [
-        tensors_info[input].tensor_type.shape in node.input
+        tensors_info[input].tensor_type.shape for input in node.input
     ]
     output_shape = tensors_info[node.output[0]].tensor_type.shape
 
@@ -28,15 +25,31 @@ def info(io_dict, node, node_name, init_info, tensors_info):
                 io_dict[name_iter]["input"][index] = "%s[%0d]" % (input_vector_name, i)
 
     ich = []
+    ih = 1
+    iw = 1
+    och = 1
+    oh = 1
+    ow = 1
     for input_shape in input_shapes: 
-        ich.append(getattr(input_shape, 'dim')[1].dim_value)
-        ih       = getattr(input_shape, 'dim')[2].dim_value
-        iw       = getattr(input_shape, 'dim')[3].dim_value
-    och      = getattr(output_shape, 'dim')[1].dim_value
-    oh       = getattr(output_shape, 'dim')[2].dim_value
-    ow       = getattr(output_shape, 'dim')[3].dim_value
+        i_shape = [dim.dim_value for dim in input_shape.dim]
+        print(i_shape)
+        if len(i_shape) > 1:
+            ich.append(i_shape[1])
+        if len(i_shape) > 2:
+            ih = i_shape[2]
+        if len(i_shape) > 3:
+            iw = i_shape[3]
+    o_shape = [dim.dim_value for dim in output_shape.dim]
+    if len(o_shape) > 1:
+        och = o_shape[1]
+    if len(o_shape) > 2:
+        oh = o_shape[2]
+    if len(o_shape) > 3:
+        ow = o_shape[3]
 
-    feature_map = oh*ow
+    if (axis < 0):
+        axis = len(o_shape) + axis
+    feature_map = np.prod([dim for i, dim in enumerate(o_shape) if i != axis])
 
     io_dict[node_name]["ich"]    = np.asarray(ich)
     io_dict[node_name]["ih"]     = ih

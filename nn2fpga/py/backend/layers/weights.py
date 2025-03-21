@@ -1287,30 +1287,32 @@ def parse_all(io_dict, model, prj_root="/tmp", board="KRIA", generate_report_fil
 def handle_streaming_params(io_dict, model, prj_root, board="KRIA"):
     """ This function handles the generation of the graph of streaming parameters, the computation of the number of weights to shift for each conv. """
     
-    def build_graph(io_dict, io_connect, start_node_name):
+    def build_graph(io_dict):
         """ Build the graph to stream the weights and biases """
         allowed_types = ["conv"]
         stream_graph = {}
-        stream_graph[start_node_name] = {}
-        stream_graph[start_node_name]["in"] = "axi_to_stream"
-        next_node_name = start_node_name
 
-        while (graph.next_layers(io_dict, io_connect, next_node_name) != None):
-            next_node_name = graph.next_layers(io_dict, io_connect, next_node_name)[0]
-            next_node = io_dict[next_node_name]
+        sorted_bfs = [(node_name, io_dict[node_name]["layer_index"]) for node_name in io_dict if (io_dict[node_name]["type"] in allowed_types)]
+        sorted_bfs = sorted(sorted_bfs, key=lambda x: (x[1], x[0]))
 
-            if (next_node["type"] in allowed_types):
-                stream_graph[start_node_name]["out"] = next_node_name
-                stream_graph[next_node_name] = {}
-                stream_graph[next_node_name]["in"] = start_node_name
-                start_node_name = next_node_name
+        prev_node_name = "axi_to_stream"
+        for i in range(len(sorted_bfs)):
+            stream_graph[sorted_bfs[i][0]] = {}
+            stream_graph[sorted_bfs[i][0]]["in"] = prev_node_name
+            if (i == len(sorted_bfs) - 1):
+                stream_graph[sorted_bfs[i][0]]["out"] = None
+            else:
+                stream_graph[sorted_bfs[i][0]]["out"] = sorted_bfs[i + 1][0]
+            prev_node_name = sorted_bfs[i][0]
 
-        stream_graph[start_node_name]["out"] = "null"
         return stream_graph
      
     board_res = utils.extract_board_info(board, prj_root)
     io_connect = graph.extract_connections(model, io_dict)
     uram_storage = board_res["uram"] > 0
+
+    # Building a graph based only on parameters streaming
+    graph_streaming = build_graph(io_dict)
     
     # Creating a new dictionary with all the information about parameters
     n_weights = []
@@ -1399,42 +1401,38 @@ def handle_streaming_params(io_dict, model, prj_root, board="KRIA"):
     # Compute the number of weights and biases for each layer 
     read_cycles_per_layer = {}
     for name, node in io_dict.items():
+        print(f"Node {name}")
         if (node["type"] == "conv"):
             weight_node = node["weight_quant"]
             read_cycles_per_layer[name] = num_of_words(weight_node["bits"], np.prod(weight_node["values"].shape), WIDTH_STREAM)
+            print(f"\tweights {read_cycles_per_layer[name]}")
             
             if (node["has_bias"]):
                 bias_node = node["bias_quant"]
                 read_cycles_per_layer[name] += num_of_words(bias_node["bits"], np.prod(bias_node["values"].shape), WIDTH_STREAM)
+                print(f"\tbias {read_cycles_per_layer[name]}")
             
             if (node["merge_1x1"]):
                 weight_node_1x1 = node["merge_node"]["weight_quant"]
                 read_cycles_per_layer[name] += num_of_words(weight_node_1x1["bits"], np.prod(weight_node_1x1["values"].shape), WIDTH_STREAM)
+                print(f"\tmerge weights {read_cycles_per_layer[name]}")
                 
                 if (node["merge_node"]["has_bias"]):
                     bias_node_1x1 = node["merge_node"]["bias_quant"]
                     read_cycles_per_layer[name] += num_of_words(bias_node_1x1["bits"], np.prod(bias_node_1x1["values"].shape), WIDTH_STREAM)
+                    print(f"\tmerge bias {read_cycles_per_layer[name]}")
 
 
     # Save the number of weights to shift for each layer 
     shift_cycles = {}
     cycles_to_shift = sum(read_cycles_per_layer.values())
-    for name, cycles in read_cycles_per_layer.items():
+    for name in graph_streaming:
+        cycles = read_cycles_per_layer[name]
         cycles_to_shift -= cycles
         shift_cycles[name] = int(cycles_to_shift)
+        print(f"{name} {cycles} {shift_cycles[name]}")
 
     fit = sorted_bind_storage(n_weights, board_res, uram_storage)
-
-    # Searching for the first layer name.
-    for name, node in io_dict.items():
-        if (node["type"] == "conv"):
-            input_layers = graph.prev_layers(io_dict, io_connect, name)
-            if io_dict[input_layers[0]]["type"] == "produce":
-                first_layer = name
-                break
-    
-    # Building a graph based only on parameters streaming
-    graph_streaming = build_graph(io_dict, io_connect, first_layer)
     
     return graph_streaming, shift_cycles, sum(read_cycles_per_layer.values()), n_weights, fit
 

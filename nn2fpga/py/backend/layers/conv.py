@@ -8,6 +8,75 @@ import numpy as np
 import backend.quant
 from backend.layers.quant import get_quant_type, get_quant_constant
 from backend.layers import weights
+from backend.layers.layer import Layer
+
+class Conv2D(Layer):
+
+    name = "Conv2D"
+    inputs = []
+    outputs = []
+
+    # Attributes of the layer
+    pads = [0, 0, 0, 0] # Default padding in the top, bottom, left, and right directions 
+    kernel = [1, 1] # Default kernel size
+    strides = [1, 1] # Default strides in the h and w directions
+    group = 1 # Default group
+
+    # Tensors shapes
+    input_tensor_shape = None
+    output_tensor_shape = None
+    weights_tensor_shape = None
+    bias_tensor_shape = None
+
+    # Graph optimizations
+    merged_relu = None
+    merged_add = None
+    merged_pointwise = None
+    merged_forward = False
+
+    # Tiling factors
+    tiling_factors = [1, 1, 1, 1] # Default tiling factors in the n, c, h, and w directions 
+
+    # Loops order
+    loops_order = None
+
+    def __init__(self, onnx_node, onnx_graph):
+        self.inputs = onnx_node.input
+        self.outputs = onnx_node.output
+        self.name = onnx_node.name
+        attributes = getattr(onnx_node, 'attribute')
+
+        for attribute in attributes:
+            if getattr(attribute, 'name') == "kernel_shape":
+                self.kernel = getattr(attribute, 'ints')
+            if getattr(attribute, 'name') == "strides":
+                self.strides = getattr(attribute, 'ints')
+            if getattr(attribute, 'name') == "pads":
+                self.pads = getattr(attribute, 'ints')
+            if getattr(attribute, 'name') == "group":
+                self.group = getattr(attribute, 'i')
+        
+        self.input_tensor_shape = onnx_graph[self.inputs[0]].get_tensor_shape()
+        self.output_tensor_shape = onnx_graph[self.outputs[0]].get_tensor_shape()
+        self.weights_tensor_shape = onnx_graph[self.inputs[1]].get_tensor_shape()
+        if len(self.inputs) > 2:
+            self.bias_tensor_shape = onnx_graph[self.inputs[2]].get_tensor_shape()
+
+    def has_bias(self):
+        return self.bias_tensor_shape is not None
+
+    def get_total_mac(self):
+        return np.prod(self.output_tensor_shape) * (self.input_tensor_shape[1] / self.group) * np.prod(self.kernel)
+
+    def get_input_tensor_size(self):
+        return np.prod(self.input_tensor_shape)
+
+    def get_weights_tensor_size(self):
+        return np.prod(self.weights_tensor_shape)
+
+    def parse(self):
+        return super().parse()
+        
 
 def chain_builder(node):
     """ Builds the DSPs chain for the accumulation process """
@@ -508,7 +577,6 @@ def parse_comp(name, node, streaming_params=False):
             [["data", "t_%s_acc" % output_1x1_name], ["last", "bool"]]
         ]
 
-        block["defines"]["c_%s_add_ops" % output_1x1_name]         = ["const", node["ops_out"]]
 
     block["defines"]["c_%s_ich" % name]            = ["const", node["ich"]]
     block["defines"]["c_%s_och" % name]            = ["const", node["och"]]
@@ -528,6 +596,8 @@ def parse_comp(name, node, streaming_params=False):
     block["defines"]["c_%s_ops" % name]            = ["const", node["ops"]]
     block["defines"]["c_%s_ops_out" % name]        = ["const", node["ops_out"]]
     # block["defines"]["c_%s_ops_1x1" % name]        = ["const", node["ops_1x1"]]
+
+    ### in_ops is not used by anyone!
     block["defines"]["c_%s_in_ops" % name]         = ["const", node["in_ops"]]
     block["defines"]["c_%s_ich_ops" % name]        = ["const", node["ich_ops"]]
     block["defines"]["c_%s_index" % name]          = ["const", node["kernel"]]
@@ -536,8 +606,13 @@ def parse_comp(name, node, streaming_params=False):
     block["defines"]["c_%s_ow_ops_out" % name]     = ["const", node["ow_ops_out"]]
     block["defines"]["c_%s_ow_pack" % name]        = ["const", node["ow_pack"]]
     block["defines"]["c_%s_och_pack" % name]       = ["const", node["och_pack"]]
+    
     if (node["has_forward"]):
         block["defines"]["c_%s_add_ops" % forward_name]         = ["const", node["ich_ops"]]
+    elif (node["merge_1x1"]):
+        block["defines"]["c_%s_add_ops" % output_1x1_name]         = ["const", node["ops_out"]]
+    else:
+        block["defines"][f"c_{output_name}_add_ops"]         = ["const", node["ops_out"]]
 
     block["args"] = []
     
