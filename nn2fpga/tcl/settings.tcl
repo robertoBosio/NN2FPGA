@@ -49,9 +49,9 @@ if {${BOARD} == "U280"} {
 }
 
 if {${BOARD} == "U250"} {
- set FPGA_PART "xcu280-fsvh2892-2L-e"
+ set FPGA_PART "xcu250-figd2104-2L-e"
 }
 
 if {${BOARD} == "U55C"} {
- set FPGA_PART "xcu280-fsvh2892-2L-e"
+ set FPGA_PART "xcu55c-fsvh2892-2L-e"
 }

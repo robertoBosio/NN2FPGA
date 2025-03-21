@@ -24,7 +24,7 @@ delete_project ${PRJ_NAME}_ip
 open_project ${PRJ_NAME}_ip
 set_top ${TOP_NAME}
 
-open_solution solution_nopack
+open_solution ${impl_sel}
 set_part ${FPGA_PART}
 
 if {${SIMD_DSP} == 1} {
@@ -64,7 +64,6 @@ add_files -tb ${TB_ROOT}/../py/utils
 add_files -tb ${PRJ_FULL_ROOT}/npy
 
 if {${CSIM} == 1} {
-  puts "CSIM: selected dataset is ${DATASET}"
   csim_design -argv ${CMD_ARGS}
   exit
 }

@@ -630,7 +630,6 @@ conv_pipe(const t_input i_input,
 
       t_acc s_acc = 0;
       t_acc s_acc_base = 0;
-      s_acc = 0;
 
       // If c_depth is 1 then there is no need to accumulate the previous
       // results
@@ -679,9 +678,10 @@ conv_pipe(const t_input i_input,
                 std::cout << "A" << s_index << " " << s_data << std::endl;
               #endif
             #endif
-            auto s_data = i_input[s_index_act][ich_idx];
-            s_data = t_input_mod(s_data);
+            t_input_mod s_data = i_input[s_index_act][ich_idx];
+            // std::cout << s_acc << "+" << s_data << "*" << i_weight[s_index][ich_idx][ops] << std::endl;
             s_acc += s_data * i_weight[s_index][ich_idx][ops];
+            // std::cout << s_acc << "+" << s_data << "*" << i_weight[s_index][ich_idx][ops] << std::endl;
           }
         }
 
@@ -1426,8 +1426,8 @@ conv_comp_onchip_OW_OPS_OUT(
   t_bias_st mem_bias[c_och / c_bias_ops][c_bias_ops],
   t_weight_st mem_weights[c_fh * c_fw][c_och * c_ich_groups / (c_och_ops * c_ich_ops)]
                          [c_och_ops * c_ich_ops],
-  t_bias_1x1_st mem_bias_1x1[c_och / c_bias_ops][c_bias_ops],
-  t_weight_1x1_st mem_weights_1x1[1][c_och * c_ich_groups / (c_och_ops * c_ich_ops)]
+  t_bias_1x1_st mem_bias_1x1[c_och_1x1 / c_bias_ops][c_bias_ops],
+  t_weight_1x1_st mem_weights_1x1[1][c_och_1x1 * c_ich_groups / (c_och_ops * c_ich_ops)]
                                  [c_och_ops * c_ich_ops],
 
   hls::stream<t_input_struct> i_input[1],
@@ -2034,8 +2034,8 @@ conv_comp_onchip_ICH(
   t_bias_st mem_bias[c_och / c_bias_ops][c_bias_ops],
   t_weight_st mem_weights[c_fh * c_fw][c_och * c_ich_groups / (c_och_ops * c_ich_ops)]
                          [c_och_ops * c_ich_ops],
-  t_bias_1x1_st mem_bias_1x1[c_och / c_bias_ops][c_bias_ops],
-  t_weight_1x1_st mem_weights_1x1[1][c_och * c_ich_groups / (c_och_ops * c_ich_ops)]
+  t_bias_1x1_st mem_bias_1x1[c_och_1x1 / c_bias_ops][c_bias_ops],
+  t_weight_1x1_st mem_weights_1x1[1][c_och_1x1 * c_ich_groups / (c_och_ops * c_ich_ops)]
                                  [c_och_ops * c_ich_ops],
 
   hls::stream<t_input_struct> i_input[1],
@@ -2642,8 +2642,8 @@ conv_comp_onchip_OCH(
   t_bias_st mem_bias[c_och / c_bias_ops][c_bias_ops],
   t_weight_st mem_weights[c_fh * c_fw][c_och * c_ich_groups / (c_och_ops * c_ich_ops)]
                          [c_och_ops * c_ich_ops],
-  t_bias_1x1_st mem_bias_1x1[c_och / c_bias_ops][c_bias_ops],
-  t_weight_1x1_st mem_weights_1x1[1][c_och * c_ich_groups / (c_och_ops * c_ich_ops)]
+  t_bias_1x1_st mem_bias_1x1[c_och_1x1 / c_bias_ops][c_bias_ops],
+  t_weight_1x1_st mem_weights_1x1[1][c_och_1x1 * c_ich_groups / (c_och_ops * c_ich_ops)]
                                  [c_och_ops * c_ich_ops],
 
   hls::stream<t_input_struct> i_input[1],
@@ -3250,8 +3250,8 @@ conv_comp_onchip(
   t_bias_st mem_bias[c_och / c_bias_ops][c_bias_ops],
   t_weight_st mem_weights[c_fh * c_fw][c_och * c_ich_groups / (c_och_ops * c_ich_ops)]
                          [c_och_ops * c_ich_ops],
-  t_bias_1x1_st mem_bias_1x1[c_och / c_bias_ops][c_bias_ops],
-  t_weight_1x1_st mem_weights_1x1[1][c_och * c_ich_groups / (c_och_ops * c_ich_ops)]
+  t_bias_1x1_st mem_bias_1x1[c_och_1x1 / c_bias_ops][c_bias_ops],
+  t_weight_1x1_st mem_weights_1x1[1][c_och_1x1 * c_ich_groups / (c_och_ops * c_ich_ops)]
                                  [c_och_ops * c_ich_ops],
 
   hls::stream<t_input_struct> i_input[1],
@@ -3866,8 +3866,8 @@ conv_comp_wrap(
   t_bias_st mem_bias[c_och / c_bias_ops][c_bias_ops],
   t_weight_st mem_weights[c_fh * c_fw][c_och * c_ich_groups / (c_och_ops * c_ich_ops)]
                          [c_och_ops * c_ich_ops],
-  t_bias_1x1_st mem_bias_1x1[c_och / c_bias_ops][c_bias_ops],
-  t_weight_1x1_st mem_weights_1x1[1][c_och * c_ich_groups / (c_och_ops * c_ich_ops)]
+  t_bias_1x1_st mem_bias_1x1[c_och_1x1 / c_bias_ops][c_bias_ops],
+  t_weight_1x1_st mem_weights_1x1[1][c_och_1x1 * c_ich_groups / (c_och_ops * c_ich_ops)]
                                  [c_och_ops * c_ich_ops],
   hls::stream<t_input_struct> i_input[1],
   hls::stream<t_add_struct> i_add[c_ow_ops],
@@ -3878,6 +3878,7 @@ conv_comp_wrap(
   /* Generic convolution with bias and weights inside */
   constexpr unsigned c_fsz = c_fh * c_fw;
   constexpr unsigned c_ch_weight = c_ich_groups * c_och / (c_och_ops * c_ich_ops);
+  constexpr unsigned c_ch_weight_1x1 = c_ich_groups * c_och_1x1 / (c_och_ops * c_ich_ops);
   
   /* The output ow_ops must be greater or equal and a multliples of ow_ops */
   static_assert(c_ow_ops_out >= c_ow_ops, "c_ow_ops_out >= c_ow_ops");
@@ -4014,7 +4015,7 @@ conv_comp_wrap(
                   false) {
 
       /* Storing weights 1x1 */
-      for (auto s_ch = 0; s_ch < c_ch_weight; s_ch++) {
+      for (auto s_ch = 0; s_ch < c_ch_weight_1x1; s_ch++) {
         for (auto s_ops = 0; s_ops < c_och_ops * c_ich_ops; s_ops++) {
 #pragma HLS pipeline off
           ap_uint<c_read_weight_1x1 * c_stream_bits> unpacked_data = 0;
@@ -4037,7 +4038,7 @@ conv_comp_wrap(
     if constexpr (std::is_same<t_bias_1x1_st, std::nullptr_t>::value == false) {
 
       /* Storing biases 1x1 */
-      const size_t c_loops_bias_1x1 = c_och / c_bias_ops;
+      const size_t c_loops_bias_1x1 = c_och_1x1 / c_bias_ops;
       for (auto s_ch = 0; s_ch < c_loops_bias_1x1; s_ch++) {
         for (auto s_ops = 0; s_ops < c_bias_ops; s_ops++) {
 #pragma HLS pipeline off

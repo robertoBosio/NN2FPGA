@@ -98,7 +98,8 @@ def parse(name, node, debug=False):
     output_name = input_name
     output_type_name = output_name.replace("_skip", "")
 
-    pad_value = int(node["pad"] * (node["fw"] - 1) / 2)
+    #pad_value = int(node["pad"] * (node["fw"] - 1) / 2)
+    pad_value = int(node["pad"])
 
     # window_depth = depth_simulator(dfh, dfw, ow_ops, stride, node["iw"], node["ih"], node["ich"], node["ich_ops"], node["pad"])
     

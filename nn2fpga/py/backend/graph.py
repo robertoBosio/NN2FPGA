@@ -16,6 +16,7 @@ import backend.layers.non_max_suppression as non_max_suppression
 import backend.layers.concat as concat
 import backend.layers.upsample as upsample
 import backend.layers.pad as pad
+from backend.layers.layer import Net
 
 def sanitize_string(string):
     return string.replace(".", "_")
@@ -375,25 +376,30 @@ def extract_tensors_info(model):
     """ Extracts the information about the tensors in the model. """
 
     tensors_info = {}
+    onnx_nets = []
 
     graph_input = model.graph.input
     for input in graph_input:
         tensors_info[input.name] = input.type
+        onnx_nets.append(Net(input.name, input.type.tensor_type.shape))
+        print(onnx_nets[-1])
 
     for info in model.graph.value_info:
         tensors_info[info.name] = info.type
+        onnx_nets.append(Net(info.name, info.type.tensor_type.shape))
+        print(onnx_nets[-1])
 
     graph_output = model.graph.output
     for output in graph_output:
         tensors_info[output.name] = output.type
+        onnx_nets.append(Net(output.name, output.type.tensor_type.shape))
+        print(onnx_nets[-1])
 
     return tensors_info
 
 def graph_info(model, init_info, object_detection=False, anchors=None, transform=False):
 
-    tensors_info = extract_tensors_info(
-        model
-    )
+    tensors_info = extract_tensors_info(model)
 
     # The dictionary reports all the layers which have a different input output
     # structure with respect to the original 1 input stream - 1 output stream

@@ -5,6 +5,7 @@ import qonnx
 from onnx import numpy_helper
 import numpy as np
 from backend.layers.quant import get_quant_type
+from backend.layers.layer import Layer
 
 def info(io_dict, tensors_info, graph_input_name, transform=False):
     """ Generate a specific layer block for the input layer. """
@@ -26,6 +27,9 @@ def info(io_dict, tensors_info, graph_input_name, transform=False):
     io_dict[node_name]["ich"]    = ich
     io_dict[node_name]["ih"]     = ih
     io_dict[node_name]["iw"]     = iw
+    io_dict[node_name]["och"]    = ich
+    io_dict[node_name]["oh"]     = ih
+    io_dict[node_name]["ow"]     = iw
     io_dict[node_name]["ops"]    = 1
     io_dict[node_name]["ow_ops"] = 1
     io_dict[node_name]["ow_ops_out"] = 1
@@ -226,4 +230,11 @@ def parse(name, node):
 
 
     return block
+
+class InputGenerator(Layer):
+
+    def __init__(self, name, dma_bitwidth):
+        super().__init__(name)
+        self.foldable = True
+        self.dma_bitwidth = dma_bitwidth
 

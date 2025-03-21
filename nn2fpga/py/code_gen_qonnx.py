@@ -47,11 +47,6 @@ def main():
         if int(os.environ.get("DYNAMIC_INIT")) == 1:
             dynamic_init = True
 
-    uram_storage = False
-    if "URAM_STORAGE" in os.environ:
-        if int(os.environ.get("URAM_STORAGE")) == 1:
-            uram_storage = True
-
     off_chip_storage = False
     if "OFF_CHIP_STORAGE" in os.environ:
         if int(os.environ.get("OFF_CHIP_STORAGE")) == 1:
@@ -67,16 +62,6 @@ def main():
         if int(os.environ.get("SILVIA_PACKING")) == 1:
             silvia_packing = True
 
-    # if "PACKING" in os.environ:
-    #     if int(os.environ.get("PACKING")) == 1:
-    #         packing = True
-    #     else:
-    #         packing = False
-
-    # onnx_path = "./onnx/Brevonnx_resnet_final_fx.onnx"
-    # onnx_path = "./onnx/Brevonnx_resnet8_final_fx.onnx"
-    # onnx_path = "./onnx/2layer.onnx"
-    #onnx_path = "./onnx/CNV_2W2A.onnx"
     onnx_model = ModelWrapper(onnx_path)
     cleanup_model(onnx_model)
     inferred_model = onnx_model.transform(infer_shapes.InferShapes())
@@ -127,7 +112,6 @@ def main():
         off_chip_storage=off_chip_storage,
         board=board, 
         dynamic_init=dynamic_init,
-        uram_storage=uram_storage,
         silvia_packing=silvia_packing,
         object_detection=object_detection,
         anchors=anchors,

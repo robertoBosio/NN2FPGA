@@ -81,8 +81,6 @@ def info(io_dict, node, node_name, init_info, tensors_info):
 
 def get_input_name(node):
     input_name  = node["input"][0]
-    if node["adjust_line_buffer"]:
-        input_name = input_name + "_adj"
     return input_name
 
 def get_output_name(node):
@@ -91,11 +89,16 @@ def get_output_name(node):
 def parse(name, node):
     input_name = get_input_name(node)
     input_type_name = input_name.replace("_skip", "")
+    if node["adjust_line_buffer"]:
+        input_type_name = input_name + "_adj"
     output_name = get_output_name(node)
     output_type_name = output_name.replace("_skip", "")
 
     block = {}
-    block["func"] = "pool_op"
+    if (node['is_adaptive']):
+        block["func"] = "global_pool_op"
+    else:
+        block["func"] = "pool_op"
 
     # Template parameters
     block["template"] = []
@@ -106,8 +109,8 @@ def parse(name, node):
     #     block["template"].append("t_%s_lb_struct" % input_type_name)
     #     block["template"].append("t_%s_lb" % input_type_name)
     else:
-        block["template"].append("t_%s_window_struct" % input_type_name)
-        block["template"].append("t_%s_window" % input_type_name)
+        block["template"].append("t_%s_window_struct" % input_name)
+        block["template"].append("t_%s_window" % input_name)
     block["template"].append("t_%s_struct" % output_type_name)
     block["template"].append("t_%s" % output_type_name)
     block["template"].append("t_%s_acc" % name)
@@ -117,23 +120,25 @@ def parse(name, node):
         block["template"].append(f"t_{name}_acc")
     block["template"].append("c_%s_ich" % name)
     block["template"].append("c_%s_och" % name)
-    block["template"].append("c_%s_iw" % name)
     block["template"].append("c_%s_ih" % name)
-    block["template"].append("c_%s_ow" % name)
+    block["template"].append("c_%s_iw" % name)
     block["template"].append("c_%s_oh" % name)
-    block["template"].append("c_%s_fw" % name)
-    block["template"].append("c_%s_fh" % name)
-    block["template"].append("c_%s_stride" % name)
-    block["template"].append("c_%s_pad" % name)
+    block["template"].append("c_%s_ow" % name)
+    if (not node['is_adaptive']):
+        block["template"].append("c_%s_fw" % name)
+        block["template"].append("c_%s_fh" % name)
+        block["template"].append("c_%s_stride" % name)
+        block["template"].append("c_%s_pad" % name)
     block["template"].append("c_%s_pool" % name)
-    block["template"].append("c_%s_ow_ops" % name)
+    if (not node['is_adaptive']):
+        block["template"].append("c_%s_ow_ops" % name)
     # block["template"].append("c_%s_ow_ops_out" % name)
     block["template"].append("c_%s_ops" % name)
     block["template"].append("c_%s_in_ops" % name)
 
     block["args"] = []
     if (node["is_adaptive"]):
-        block["args"].append("s_%s" % input_name)
+        block["args"].append("s_%s" % input_type_name)
     else:
         # if node["pad"] == 0:
         #     block["args"].append("s_%s_pre_pad" % input_name)
