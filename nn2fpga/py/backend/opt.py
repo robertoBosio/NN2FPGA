@@ -670,15 +670,6 @@ def opt_step(
 
     io_dict = dag_sorting(inferred_model, io_dict)
     
-    io_dict = opt_add(
-        inferred_model,
-        io_dict,
-        log
-    )
-
-    if (check_dangling_add(io_dict)):
-        exit(-1)
-    
     io_dict = opt_leakyrelu(
         inferred_model,
         io_dict,
@@ -694,9 +685,24 @@ def opt_step(
         log
     )
 
+    io_dict = opt_add(
+        inferred_model,
+        io_dict,
+        log
+    )
+
+    if (check_dangling_add(io_dict)):
+        exit(-1)
+
+    io_dict = opt_relu(
+        inferred_model,
+        io_dict,
+        log
+    )
+    
     if (check_dangling_relu(io_dict)):
         exit(-1)
- 
+
     io_dict = dag_sorting(inferred_model, io_dict)
    
     io_dict = opt_merge_pointwise(
