@@ -163,8 +163,8 @@ def info(io_dict, node, node_name, init_info, tensors_info):
     kernel   = fh * fw
     img_ch   = ich * och
     relu     = False
-    leakyrelu = False
     add      = False
+    leakyrelu     = False
     in_scale_factor = [None]
     in_bits = [None]
     in_signed = [None]
@@ -198,8 +198,8 @@ def info(io_dict, node, node_name, init_info, tensors_info):
     io_dict[node_name]["img_ch"] = img_ch
     io_dict[node_name]["reuse"]  = 1
     io_dict[node_name]["relu"]   = relu
-    io_dict[node_name]["leakyrelu"] = leakyrelu
     io_dict[node_name]["add"]    = add
+    io_dict[node_name]["leakyrelu"]   = leakyrelu
     io_dict[node_name]["scale_factor"] = 0
     io_dict[node_name]["in_scale_factor"] = in_scale_factor
     io_dict[node_name]["bits"]    = 0
