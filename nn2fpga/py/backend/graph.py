@@ -60,7 +60,11 @@ def remove_and_bypass_layer(io_dict, io_connect, layer_name, forward=True):
 
     input_layer_names = prev_layers(io_dict, io_connect, layer_name)
     output_layer_names = next_layers(io_dict, io_connect, layer_name)
-
+    print(f"Input layers: {input_layer_names}")
+    print(f"Output layers: {output_layer_names}")
+    print(f"Layer name: {layer_name}")
+    print(f"Input net name: {input_net_name}")
+    print(f"Output net name: {output_net_name}")
     if input_layer_names is None or output_layer_names is None:
         print(f"Error in remove_and_bypass_layer of \"{layer_name}\"")
         exit(-1)
@@ -345,8 +349,12 @@ def extract_connections(model, io_dict):
     io_connect = {}
 
     graph_input_name = sanitize_string(model.graph.input[0].name)
-    graph_output_name = sanitize_string(model.graph.output[0].name)
-
+    if len(model.graph.output) == 1:
+        graph_output_name = sanitize_string(model.graph.output[0].name)
+    else :
+        graph_output_names = []
+        for output in model.graph.output:
+            graph_output_names.append(sanitize_string(output.name))
     # This list is storing metadata of the connections between the output 
     # streams and the producers
     for node_name, io_info in io_dict.items():
@@ -364,6 +372,8 @@ def extract_connections(model, io_dict):
         for input_name in io_info["input"]:
         
             is_produce_stream = ("produce_stream" == node_name)
+            print(f"Node name: {node_name}")
+            print(f"input name: {input_name}")
             if (not is_produce_stream) and (input_name in io_connect.keys()):
                     io_connect[input_name][1].append(node_name)
 
@@ -415,9 +425,13 @@ def graph_info(model, init_info, object_detection=False, anchors=None, transform
             graph_input_name.name,
             transform=transform
         )
-    
-    graph_output_name = sanitize_string(model.graph.output[0].name)
-
+    graph_output_names = []
+    if len(model.graph.output) == 1:
+        graph_output_name = sanitize_string(model.graph.output[0].name)
+    else:
+        for output in model.graph.output:
+            graph_output_names.append(sanitize_string(output.name))
+            
     cut_name = []
     for node in model.graph.node:
 
@@ -488,13 +502,20 @@ def graph_info(model, init_info, object_detection=False, anchors=None, transform
             last_layer_name = node_name
             continue
 
-        if 'relu' in node.op_type.lower():
+        if 'relu' in node.op_type.lower() and "leaky" not in node.op_type.lower():
             io_dict[node_name]["type"] = "relu"
             io_dict[node_name]["output_quant"] = None
             
             last_layer_name = node_name
             continue
-
+        
+        if 'leakyrelu' in node.op_type.lower():
+            io_dict[node_name]["type"] = "leakyrelu"
+            io_dict[node_name]["output_quant"] = None
+            
+            last_layer_name = node_name
+            continue
+        
         if 'add' in node.op_type.lower() and cut_name == []:
             io_dict[node_name]["type"] = "add"
             io_dict[node_name]["output_quant"] = None
@@ -521,7 +542,7 @@ def graph_info(model, init_info, object_detection=False, anchors=None, transform
             last_layer_name = node_name
             continue
 
-        if 'concat' in node.op_type.lower() and cut_name == []:
+        if 'concat' in node.op_type.lower():
             io_dict = concat.info(
                 io_dict,
                 node,
@@ -533,7 +554,7 @@ def graph_info(model, init_info, object_detection=False, anchors=None, transform
             last_layer_name = node_name
             continue
         
-        if 'resize' in node.op_type.lower() and cut_name == []:
+        if 'resize' in node.op_type.lower():
             io_dict = upsample.info(
                 io_dict,
                 node,
@@ -574,13 +595,32 @@ def graph_info(model, init_info, object_detection=False, anchors=None, transform
     elif len(cut_name) == 1:
         if io_dict[last_layer_name]["output"][0] != graph_output_name:
             io_dict[last_layer_name]["output"][0] = graph_output_name
-    
-    
+    # check if graph output is a list
+    elif len(graph_output_names) > 1:
+        io_connect = extract_connections(model, io_dict)
+        for i, graph_out_name in enumerate(graph_output_names):
+            if graph_out_name in io_connect.keys():
+                last_layer = io_connect[graph_out_name][0][0]
+                print(f"Graph output name: {graph_out_name}")
+                print(f"Last layer name: {last_layer}")
+                io_dict[last_layer]["output"][0] = graph_out_name
+        
+    if (graph_output_names == []):
+        
+        io_dict = output_gen.info(
+            io_dict,
+            graph_output_name,
+            1
+        )
+    else:
     # Add a sink node to the graph
-    io_dict = output_gen.info(
-        io_dict,
-        graph_output_name
-    )
+        for i, graph_out in enumerate(graph_output_names):
+            print(f"Graph output name: {graph_out}")
+            io_dict = output_gen.info(
+                io_dict,
+                graph_out,
+                i
+            )
 
     return io_dict
 

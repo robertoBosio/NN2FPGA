@@ -59,7 +59,7 @@ def opt_relu(model, io_dict, log=False):
     io_connect = extract_connections(model, io_dict)
 
     # Retrieve all the relu layers
-    relu_layers = [layer_name for layer_name, layer_info in io_dict.items() if "relu" in layer_info["type"]]
+    relu_layers = [layer_name for layer_name, layer_info in io_dict.items() if "relu" == layer_info["type"]]
 
     for layer_name in relu_layers:
         
@@ -79,6 +79,38 @@ def opt_relu(model, io_dict, log=False):
             
             if log:
                 print(f"Relu layer \"{layer_name}\" merged with \"{input_layer_name}\".")
+
+    return io_dict
+
+def opt_leakyrelu(model, io_dict, log=False):
+    """ Optimize leaky relu layers by merging them with the previous computation layer. """
+    
+    # Layers that supports activation functions
+    comp_layers = ["conv"]
+
+    io_connect = extract_connections(model, io_dict)
+
+    # Retrieve all the leaky relu layers
+    leaky_relu_layers = [layer_name for layer_name, layer_info in io_dict.items() if "leakyrelu" in layer_info["type"]]
+
+    for layer_name in leaky_relu_layers:
+        
+        input_layer_name = prev_layers(io_dict, io_connect, layer_name)
+
+        if input_layer_name is None or len(input_layer_name) > 1:
+            print(f"Error in opt_leaky_relu: leaky relu layer \"{layer_name}\" with multiple inputs.")
+            exit(1)
+
+        input_layer_name = input_layer_name[0]
+        if io_dict[input_layer_name]["type"].lower() in comp_layers:
+
+            io_dict[input_layer_name]["leakyrelu"] = True
+            if io_dict[layer_name]["output_quant"] is not None:
+                io_dict[input_layer_name]["output_quant"] = io_dict[layer_name]["output_quant"]
+            remove_and_bypass_layer(io_dict, io_connect, layer_name)
+            
+            if log:
+                print(f"Leaky relu layer \"{layer_name}\" merged with \"{input_layer_name}\".")
 
     return io_dict
 
@@ -207,7 +239,7 @@ def fold_output_quant(model, io_dict, log=False):
             continue
 
         input_layer_name = input_layer_name[0]
-        if io_dict[input_layer_name]["type"].lower() in ["conv", "pool", "add", "relu", "produce"]:
+        if io_dict[input_layer_name]["type"].lower() in ["conv", "pool", "add", "relu", "produce", "leakyrelu", "concat", "upsample"]:
 
             quant_layers_folding.append((layer_name, input_layer_name))
             if log:
@@ -247,7 +279,7 @@ def fold_input_quant(model, io_dict, log=False):
             continue
 
         output_layer_name = output_layer_name[0]
-        if io_dict[output_layer_name]["type"].lower() in ["conv", "pool", "produce"]:
+        if io_dict[output_layer_name]["type"].lower() in ["conv", "pool", "produce", "concat", "upsample"]:
 
             quant_layers_folding.append((layer_name, output_layer_name))
             if log:
@@ -275,12 +307,23 @@ def check_dangling_relu(io_dict):
     """ Check for dangling relu layers. """
 
     # Retrieve all the relu layers
-    relu_layers = [layer_name for layer_name, layer_info in io_dict.items() if "relu" in layer_info["type"]]
+    relu_layers = [layer_name for layer_name, layer_info in io_dict.items() if "relu" == layer_info["type"]]
 
     for layer_name in relu_layers:
         print(f"Error in check_dangling_relu: relu layer \"{layer_name}\" has not been folded.")
 
     return len(relu_layers) > 0
+
+def check_dangling_leakyrelu(io_dict):
+    """ Check for dangling leaky relu layers. """
+
+    # Retrieve all the leaky relu layers
+    leaky_relu_layers = [layer_name for layer_name, layer_info in io_dict.items() if "leakyrelu" in layer_info["type"]]
+
+    for layer_name in leaky_relu_layers:
+        print(f"Error in check_dangling_leakyrelu: leaky relu layer \"{layer_name}\" has not been folded.")
+
+    return len(leaky_relu_layers) > 0
 
 def check_dangling_add(io_dict):
     """ Check for dangling add layers. """
@@ -305,7 +348,7 @@ def check_unquantized_layers(io_dict):
                 return True
 
         # Checking layers with input and output quantization
-        if (layer_info["type"].lower() in ["conv", "pool", "add"]):
+        if (layer_info["type"].lower() in ["conv", "pool", "add", "concat", "upsample"]):
             if layer_info["input_quant"] is None or layer_info["output_quant"] is None:
                 print(f"Error in check_unquantized_layers: layer \"{layer_name}\" has not been quantized.")
                 return True
@@ -326,7 +369,7 @@ def dag_sorting(model, io_dict):
         start_layer = start_layers[0]
     
     # Initializing layer index
-    accepted_layers = ["conv", "pool", "produce", "consume", "add", "relu", "duplicate"]
+    accepted_layers = ["conv", "pool", "produce", "consume", "add", "relu", "duplicate", "leakyrelu", "concat", "upsample"]
     start_layers = [layer_name for layer_name, layer_info in io_dict.items() if layer_info["type"] in accepted_layers]
     for layer_name in start_layers:
         io_dict[layer_name]["layer_index"] = 0
@@ -445,7 +488,7 @@ def propagate_quant(model, io_dict, log=False):
     else:
         start_layer = start_layers[0]
     
-    accepted_layers = ["conv", "pool", "add"]
+    accepted_layers = ["conv", "pool", "add", "concat", "upsample"]
     node_list = [start_layer]
     mark_set = set()
     mark_set.add(start_layer)
@@ -466,7 +509,6 @@ def propagate_quant(model, io_dict, log=False):
                         io_dict[current_node]["output_quant"] = io_dict[current_node]["input_quant"]
                         if log:
                             print(f"\tPropagating input quantization to output quantization for \"{current_node}\".")
-
                     if io_dict[node]["input_quant"] is None:
                         io_dict[node]["input_quant"] = io_dict[current_node]["output_quant"]
                         if log:
@@ -636,7 +678,16 @@ def opt_step(
 
     if (check_dangling_add(io_dict)):
         exit(-1)
-
+    
+    io_dict = opt_leakyrelu(
+        inferred_model,
+        io_dict,
+        log
+    )
+    
+    if (check_dangling_leakyrelu(io_dict)):
+        exit(-1)
+        
     io_dict = opt_relu(
         inferred_model,
         io_dict,
@@ -645,9 +696,9 @@ def opt_step(
 
     if (check_dangling_relu(io_dict)):
         exit(-1)
-
+ 
     io_dict = dag_sorting(inferred_model, io_dict)
-
+   
     io_dict = opt_merge_pointwise(
         inferred_model,
         io_dict,

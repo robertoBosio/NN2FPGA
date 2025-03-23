@@ -11,9 +11,13 @@ def info(io_dict, node, node_name, init_info, tensors_info):
     input_shape = tensors_info[node.input[0]].tensor_type.shape
     output_shape = tensors_info[node.output[0]].tensor_type.shape
 
-    roi = init_info[sanitize_string(node.input[1])]
+    # check if the node has the attribute 'roi' for bug in the onnx model https://github.com/fastmachinelearning/qonnx/issues/150
+    if init_info.get(sanitize_string(node.input[1])) is not None:
+        roi = init_info[sanitize_string(node.input[1])]
+        roi = numpy_helper.to_array(roi)
+    else :
+        roi = []
     scales = init_info[sanitize_string(node.input[2])]
-    roi = numpy_helper.to_array(roi)
     scales = numpy_helper.to_array(scales)
     scales = np.array(scales, dtype=int)
 
@@ -41,6 +45,7 @@ def info(io_dict, node, node_name, init_info, tensors_info):
     io_dict[node_name]["factor"]     = upsample_factor
     io_dict[node_name]["type"]   = 'upsample'
     io_dict[node_name]["scale_factor"] = 0
+    io_dict[node_name]["input_quant"] = None
 
     return io_dict
 

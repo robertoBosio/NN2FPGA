@@ -5,16 +5,16 @@ import qonnx
 from onnx import numpy_helper
 import numpy as np
 
-def info(io_dict, graph_output_name):
+def info(io_dict, graph_output_name, i):
 
-    node_name = "consume_stream"
+    node_name = "consume_stream_" + str(i)
 
     io_dict[node_name] = {}
     io_dict[node_name]["input"] = [graph_output_name]
     io_dict[node_name]["output"] = []
     io_dict[node_name]["type"] = 'consume'
     io_dict[node_name]["ow_ops"]     = 1
-
+    io_dict[node_name]["i"]     =  i
     return io_dict
 
 def parse(node, node_name):

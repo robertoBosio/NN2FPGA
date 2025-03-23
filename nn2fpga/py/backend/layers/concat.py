@@ -18,11 +18,11 @@ def info(io_dict, node, node_name, init_info, tensors_info):
         for name_iter, node_iter in io_dict.items():
             if input in node_iter["output"]:
                 index = node_iter["output"].index(input)
-                io_dict[name_iter]["output"][index] = "%s[%0d]" % (input_vector_name, i)
+                io_dict[name_iter]["output"][index] = "%s" % ( node_name + "_" + str(i))
 
             if input in node_iter["input"]:
                 index = node_iter["input"].index(input)
-                io_dict[name_iter]["input"][index] = "%s[%0d]" % (input_vector_name, i)
+                io_dict[name_iter]["input"][index] = "%s" % ( node_name + "_" + str(i))
 
     ich = []
     ih = 1
@@ -60,9 +60,18 @@ def info(io_dict, node, node_name, init_info, tensors_info):
     io_dict[node_name]["type"]   = 'concat'
     io_dict[node_name]["feature_map"] = feature_map
     io_dict[node_name]["scale_factor"] = 0
+    io_dict[node_name]["input_quant"] = None
 
     return io_dict
 
+def get_input_name(node):
+    for input_name in node["input"][0]:
+            return input_name
+        
+def get_output_name(node):
+    for output_name in node["output"][0]:
+            return output_name
+        
 def parse(parsed_write, node_name):
     
     input_name  = node["input"][0]
