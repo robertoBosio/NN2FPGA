@@ -272,8 +272,6 @@ def parse_comp(name, node, streaming_params=False):
     if (node["add"]):
         add_name = get_add_name(node)
         add_base_type_name = add_name.replace("_skip", "")
-        if (node["adjust_add"]):
-            add_name = add_name + "_adj"
         add_type_name = add_name
 
     output_name = get_output_name(node)

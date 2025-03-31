@@ -60,11 +60,7 @@ def remove_and_bypass_layer(io_dict, io_connect, layer_name, forward=True):
 
     input_layer_names = prev_layers(io_dict, io_connect, layer_name)
     output_layer_names = next_layers(io_dict, io_connect, layer_name)
-    print(f"Input layers: {input_layer_names}")
-    print(f"Output layers: {output_layer_names}")
-    print(f"Layer name: {layer_name}")
-    print(f"Input net name: {input_net_name}")
-    print(f"Output net name: {output_net_name}")
+
     if input_layer_names is None or output_layer_names is None:
         print(f"Error in remove_and_bypass_layer of \"{layer_name}\"")
         exit(-1)

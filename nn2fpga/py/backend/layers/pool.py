@@ -89,8 +89,6 @@ def get_output_name(node):
 def parse(name, node):
     input_name = get_input_name(node)
     input_type_name = input_name.replace("_skip", "")
-    if node["adjust_line_buffer"]:
-        input_type_name = input_name + "_adj"
     output_name = get_output_name(node)
     output_type_name = output_name.replace("_skip", "")
 

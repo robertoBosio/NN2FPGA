@@ -204,16 +204,15 @@ def parse_all_main(io_dict, model, off_chip_storage=False):
 
         if 'depth' == node["type"]:
             continue
-
+        
+        if 'adjust' == node["type"]:
+            if node["dim_adj"] == "i":
+                # get the name from the previous conv layer
+                parsed_write = parsed_write + bandwidth_adjust.parse(name, node, dim="i")
+            else:
+                # get the name from the previous conv layer
+                parsed_write = parsed_write + bandwidth_adjust.parse(name, node, dim="o", skip=True)
         if 'conv' == node["type"]:
-            if (node["adjust_line_buffer"]):
-                adjust_name = conv.get_input_name(node)
-                parsed_write = parsed_write + bandwidth_adjust.parse(name, node, adjust_name, "in_ops", "adjust_ops", "ow_ops", "ow_ops", dim="i")
-
-            if (node["adjust_add"]):
-                adjust_name = conv.get_add_name(node)
-                parsed_write = parsed_write + bandwidth_adjust.parse(name, node, adjust_name, "add_ops", "adjust_add_ops", "ow_ops", "adjust_add_ow_ops", dim="o", skip=True)
-
             parsed_write = parsed_write + line_buffer.parse(name, node)
             if (node["pad"] != 0) or (node["ow_ops"] > 1):
                 parsed_write.append(pad.parse(name, node))
@@ -223,9 +222,6 @@ def parse_all_main(io_dict, model, off_chip_storage=False):
             last_node = node
 
         if 'pool' == node["type"]:
-            if (node["adjust_line_buffer"]):
-                adjust_name = conv.get_input_name(node)
-                parsed_write = parsed_write + bandwidth_adjust.parse(name, node, adjust_name, "in_ops", "adjust_ops", "ow_ops", "ow_ops", dim="i")
             if (not node["is_adaptive"]):
                 parsed_write = parsed_write + line_buffer.parse(name, node)
                 parsed_write.append(

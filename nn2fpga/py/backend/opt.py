@@ -369,7 +369,7 @@ def dag_sorting(model, io_dict):
         start_layer = start_layers[0]
     
     # Initializing layer index
-    accepted_layers = ["conv", "pool", "produce", "consume", "add", "relu", "duplicate", "leakyrelu", "concat", "upsample"]
+    accepted_layers = ["conv", "pool", "produce", "consume", "add", "relu", "duplicate", "leakyrelu", "concat", "upsample", "adjust"]
     start_layers = [layer_name for layer_name, layer_info in io_dict.items() if layer_info["type"] in accepted_layers]
     for layer_name in start_layers:
         io_dict[layer_name]["layer_index"] = 0
@@ -536,6 +536,75 @@ def propagate_quant(model, io_dict, log=False):
     #             else:
     #                 print(f"Error in propagate_quant: no quantization propagated from \"{produce_node}\" to \"{layer_name}\".")
     
+    return io_dict
+def bandwidth_adjustment(model, io_dict, node, dim="i", log=False):
+    """ Adjust ow_ops and och_ops for two consecutive layers. """
+    io_connect = extract_connections(model, io_dict)
+    input_layer_name = prev_layers(io_dict, io_connect, node)
+    print(f"Adjusting bandwidth for {node} with input {input_layer_name}")
+    if len(input_layer_name) > 2:
+        print(f"Error in bandwidth_adjustment: layer \"{node}\" with multiple inputs.")
+        exit(1)
+    if dim == "i":
+        node_name = f"bandwidth_adjust_{input_layer_name}_line"
+    else:
+        node_name = f"bandwidth_adjust_{input_layer_name}_add"
+    if dim == "i":
+        input_layer_name = input_layer_name[0]
+    else:
+        input_layer_name = input_layer_name[1]
+        
+    io_dict[node_name] = {}
+    io_dict[node_name]["type"] = "adjust"
+    io_dict[node_name]["name"] = node_name
+    if dim == "i":
+        io_dict[node_name]["output"] = [io_dict[node]["input"][0]+"_adj_line"]
+        io_dict[node_name]["input"] = [io_dict[input_layer_name]["output"][0]]
+        io_dict[node]["input"][0] = io_dict[node_name]["output"][0]
+        io_dict[input_layer_name]["output"][0] = io_dict[node_name]["input"][0]
+    else :
+        io_dict[node_name]["output"] = [io_dict[node]["input"][1]+"_adj_add"]
+        io_dict[node_name]["input"] = [io_dict[input_layer_name]["output"][1]]
+        io_dict[node]["input"][1] = io_dict[node_name]["output"][0]
+        io_dict[input_layer_name]["output"][1] = io_dict[node_name]["input"][0]
+    print("AdjName ", node_name)
+    print("Input ", io_dict[node_name]["input"])
+    print("Output ", io_dict[node_name]["output"])
+    io_dict[node_name]["och"] = io_dict[node]["och"]
+    io_dict[node_name]["oh"] = io_dict[node]["oh"]
+    io_dict[node_name]["ow"] = io_dict[node]["ow"] 
+    io_dict[node_name]["fh"] = io_dict[node]["fh"]
+    io_dict[node_name]["fw"] = io_dict[node]["fw"]
+    io_dict[node_name]["stride"] = io_dict[node]["stride"]
+    io_dict[node_name]["pad"] = io_dict[node]["pad"]
+    io_dict[node_name]["ops"] = io_dict[node]["ops"]
+    
+    if io_dict[node]["type"].lower() == "conv":
+        io_dict[node_name]["depth"] = io_dict[node]["depth"]
+        
+    io_dict[node_name]["ich"] = io_dict[input_layer_name]["och"]
+    io_dict[node_name]["ih"] = io_dict[input_layer_name]["oh"]
+    io_dict[node_name]["iw"] = io_dict[input_layer_name]["ow"]
+
+    if dim == "i":
+        io_dict[node_name]["och_ops"] = io_dict[node]["adjust_ops"]
+        io_dict[node_name]["ow_ops"] = io_dict[node]["ow_ops"]
+        io_dict[node_name]["iw_ops"] = io_dict[input_layer_name]["ow_ops_out"]
+        io_dict[node_name]["ich_ops"] = io_dict[input_layer_name]["ops_out"]
+    else :
+        io_dict[node_name]["och_ops"] = io_dict[node]["ops"]
+        io_dict[node_name]["ow_ops"] = io_dict[node]["ow_ops"]
+        io_dict[node_name]["ich_ops"] = io_dict[node]["add_ops"]
+        io_dict[node_name]["iw_ops"] = io_dict[node]["adjust_add_ow_ops_in"]        
+
+    io_dict[node_name]["dim_adj"] = dim
+    
+    if log:
+        print(f"Bandwidth adjustment layer \"{node_name}\" added.")
+        print(f"och_ops {io_dict[node_name]['och_ops']}")
+        print(f"ow_ops {io_dict[node_name]['ow_ops']}")
+        print(f"ich_ops {io_dict[node_name]['ich_ops']}")
+        print(f"iw_ops {io_dict[node_name]['iw_ops']}")
     return io_dict
 
 def duplicate_tensor(model, io_dict, log=False):

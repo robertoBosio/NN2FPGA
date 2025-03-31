@@ -7,8 +7,9 @@ from tabulate import tabulate
 from backend.utils import extract_board_info
 from backend.ilp_utils import generate_valid_combinations
 from backend.ilp_utils import find_common_mult
-from backend.graph import extract_connections, next_layers
+from backend.graph import extract_connections, next_layers 
 from backend.layers.weights import compute_bram_layer
+from backend.opt import bandwidth_adjustment
 
 def packing_feature(operands_bitwidth, par):
     """ Returns the number of operation that can be packed in a single DSP. 
@@ -971,6 +972,7 @@ def write_parallelism(io_dict, model, parallel_ops):
             io_dict[out_node]["ow_ops_in"] = ow_ops_in
 
         if "adjust_line_buffer" in io_dict[out_node] and io_dict[out_node]["adjust_line_buffer"]:
+            bandwidth_adjustment(model, io_dict, out_node)
             print(f"Channels: Node {node} -> {out_node} ({io_dict[node]['ops_out']} -> {io_dict[out_node]['in_ops']} -> {io_dict[out_node]['adjust_ops']} -> {io_dict[out_node]['line_ops']})")
         else:
             print(f"Channels: Node {node} -> {out_node} ({io_dict[node]['ops_out']} -> {io_dict[out_node]['in_ops']} -> {io_dict[out_node]['line_ops']})")
@@ -1007,7 +1009,9 @@ def write_parallelism(io_dict, model, parallel_ops):
                     exit(-1)
                 io_dict[out_node]["adjust_add"] = True
                 io_dict[out_node]["adjust_add_ow_ops_in"] = ow_ops_out
-            
+            if io_dict[out_node]["adjust_add"]:
+                bandwidth_adjustment(model, io_dict, out_node, dim = "o")
+           
     for node, info in graph.items():
         if io_dict[node]["type"] == "produce":
             io_dict[node]["ops"] = io_dict[node]["ops_out"]
@@ -1032,6 +1036,8 @@ def check_adjustments(io_dict, model):
     io_connect = extract_connections(model, io_dict)
     
     for name, node in io_dict.items():
+     # TODO support also bandwith adjust
+     if io_dict[name]["type"] != "adjust":
         if "ops" in node:
             output_name = io_dict[name]["output"][0]
             output_node_name = io_connect[output_name][1][0]

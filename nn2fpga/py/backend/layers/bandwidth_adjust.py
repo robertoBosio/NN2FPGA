@@ -6,19 +6,24 @@ from onnx import numpy_helper
 import numpy as np
 import math
 
-def parse(name, node, adjust_name, in_ops, adjust_ops, ow_ops, ow_ops_in, dim="i", skip=False):
-    
-    node_name = "bandwidth_adjust_%s" % adjust_name
-    input_name = adjust_name
-    # input_type_name = input_name.replace("_skip", "")
+# def parse(name, node, ich_ops, och_ops, ow_ops, iw_ops, dim="i", skip=False):
+def parse(name, node, dim="i", skip=False):
+    input_name = node["input"][0]
+    node_name = "bandwidth_adjust_%s" % input_name
+    input_type_name = input_name.replace("_skip", "")
     input_type_name = input_name
-
-    output_name = input_name + "_adj"
+    
+    output_name = node["output"][0]
+    output_type_name = output_name.replace("_skip", "")
     output_type_name = output_name
+    
+    ich_ops = node["ich_ops"]
+    och_ops = node["och_ops"]
+    iw_ops = node["iw_ops"]
+    ow_ops = node["ow_ops"]
 
-    old_in_ops = node[in_ops]
-    node[in_ops] = node[adjust_ops]
-
+    dim = node["dim_adj"]
+    adjust_name = input_name
     block = {}
     block["func"] = "bandwidth_adjust"
 
@@ -29,10 +34,10 @@ def parse(name, node, adjust_name, in_ops, adjust_ops, ow_ops, ow_ops_in, dim="i
     block["template"].append("c_%s_%sch" % (node_name, dim))
     block["template"].append("c_%s_%sw" % (node_name, dim))
     block["template"].append("c_%s_%sh" % (node_name, dim))
-    block["template"].append("c_%s_ow_ops_in" % node_name)
+    block["template"].append("c_%s_iw_ops" % node_name)
     block["template"].append("c_%s_ow_ops" % node_name)
-    block["template"].append("c_%s_old_in_ops" % node_name)
-    block["template"].append("c_%s_in_ops" % node_name)
+    block["template"].append("c_%s_ich_ops" % node_name)
+    block["template"].append("c_%s_och_ops" % node_name)
     if skip:
         block["template"].append({"name": "true", "comment": "skip connection flag"})
     else:
@@ -45,7 +50,7 @@ def parse(name, node, adjust_name, in_ops, adjust_ops, ow_ops, ow_ops_in, dim="i
     # TODO: write the type declaration
     block["defines"] = {}
     block["defines"]["t_%s" % output_name] = ["type", "t_%s" % input_name.replace("_skip", "")]
-    output_ops = node[adjust_ops]
+    output_ops = node["och_ops"]
     output_vector_type = "std::array<t_%s, %0d>" % (input_name.replace("_skip", ""), output_ops)
     block["defines"]["t_%s_vector" % output_name] = ["type", output_vector_type]
 
@@ -64,10 +69,10 @@ def parse(name, node, adjust_name, in_ops, adjust_ops, ow_ops, ow_ops_in, dim="i
     block["defines"]["c_%s_%sch" % (node_name, dim)] = ["const", node["%sch" % dim]]
     block["defines"]["c_%s_%sh" % (node_name, dim)] = ["const", node["%sh" % dim]]
     block["defines"]["c_%s_%sw" % (node_name, dim)] = ["const", node["%sw" % dim]]
-    block["defines"]["c_%s_ow_ops_in" % (node_name)] = ["const", node["%s_in" % ow_ops_in]]
-    block["defines"]["c_%s_ow_ops" % (node_name)] = ["const", node["%s" % ow_ops]]
-    block["defines"]["c_%s_old_in_ops" % node_name] = ["const", old_in_ops]
-    block["defines"]["c_%s_in_ops" % node_name] = ["const", output_ops]
+    block["defines"]["c_%s_iw_ops" % (node_name)] = ["const", "%s" % iw_ops]
+    block["defines"]["c_%s_ow_ops" % (node_name)] = ["const", "%s" % ow_ops]
+    block["defines"]["c_%s_ich_ops" % node_name] = ["const", "%s" % ich_ops]
+    block["defines"]["c_%s_och_ops" % node_name] = ["const", "%s" % och_ops]
 
     block["output"] = []
     block["declare"] = []

@@ -117,10 +117,7 @@ def parse(name, node, debug=False):
             # Template parameters
             block["template"] = []
             if index < ow_ops:
-                if node["adjust_line_buffer"]:
-                    block["template"].append("t_%s_adj_struct" % input_type_name)
-                else:
-                    block["template"].append("t_%s_struct" % input_type_name)
+                block["template"].append("t_%s_struct" % input_type_name)
             else:
                 block["template"].append("t_%s_lb_struct" % input_type_name)
             block["template"].append("t_%s_lb_struct" % input_type_name)
@@ -156,11 +153,7 @@ def parse(name, node, debug=False):
             # the modulo we get the correct ow_ops stream moving that section of the tensor. pad_value
             # is used to adjust the position of the input in the line buffer.
             if index < ow_ops:
-                if node["adjust_line_buffer"]:
-                    block["args"].append("s_%s_adj[%0d]" % (input_name, (dfw - 1 - fw - pad_value)%ow_ops))
-                else:
-                    block["args"].append("s_%s[%0d]" % (input_name, (dfw - 1 - fw - pad_value)%ow_ops))
-                # block["args"].append("s_%s[%0d]" % (input_name, index))
+                block["args"].append("s_%s[%0d]" % (input_name, (dfw - 1 - fw - pad_value)%ow_ops))
             else:
                 block["args"].append(
                     "s_%s_data[%0d]" % (input_name, index-ow_ops)
