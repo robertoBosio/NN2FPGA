@@ -411,7 +411,7 @@ def opt_merge_pointwise(model, io_dict, log=False):
         # Retrieve the consumers of the input tensor
         input_tensor_net = io_dict[layer_name]["input"][0]
         tensor_consumers = io_connect[input_tensor_net][1]
-
+        tensor_producers = io_connect[input_tensor_net][0]
         # Removing from the consumers the pointwise layer
         tensor_consumers.remove(layer_name)
         
@@ -429,6 +429,13 @@ def opt_merge_pointwise(model, io_dict, log=False):
                 io_dict[merge_layer_name]["merge_node"]["name"] = layer_name
 
                 print(f'Extending {io_dict[merge_layer_name]["output"]} with {io_dict[layer_name]["output"]}')
+                add_stream = io_dict[layer_name]["output"][0]
+                new_stream_name = f"{add_stream}_merge"
+                io_dict[layer_name]["output"].remove(add_stream)
+                io_dict[layer_name]["output"].append(new_stream_name)
+                out_node = io_connect[add_stream][1][0]
+                io_dict[out_node]["input"].remove(add_stream)
+                io_dict[out_node]["input"].append(new_stream_name)
                 io_dict[merge_layer_name]["output"].extend(io_dict[layer_name]["output"])
                 
                 del io_dict[layer_name]
@@ -537,39 +544,48 @@ def propagate_quant(model, io_dict, log=False):
     #                 print(f"Error in propagate_quant: no quantization propagated from \"{produce_node}\" to \"{layer_name}\".")
     
     return io_dict
-def bandwidth_adjustment(model, io_dict, node, dim="i", log=False):
+def bandwidth_adjustment(model, io_dict, node, in_node, iw_ops, ow_ops, ich_ops, och_ops, output_index, dim="i", log=False):
     """ Adjust ow_ops and och_ops for two consecutive layers. """
-    io_connect = extract_connections(model, io_dict)
-    input_layer_name = prev_layers(io_dict, io_connect, node)
-    print(f"Adjusting bandwidth for {node} with input {input_layer_name}")
-    if len(input_layer_name) > 2:
-        print(f"Error in bandwidth_adjustment: layer \"{node}\" with multiple inputs.")
-        exit(1)
+    # io_connect = extract_connections(model, io_dict)
+    # input_layer_name = prev_layers(io_dict, io_connect, node)
+    print(f"Adjusting bandwidth for {node} with input {in_node}")
+    
+    dup = False
+    input_layer_name = in_node    
     if dim == "i":
-        node_name = f"bandwidth_adjust_{input_layer_name}_line"
+        # input_layer_name = input_layer_name[0]
+        node_name = f"bandwidth_adjust_{in_node}_to_{node}_line_{output_index}"
+    elif "dup" in in_node or "concat" in in_node.lower():
+        # input_layer_name = input_layer_name[0]
+        dup = True
+        node_name = f"bandwidth_adjust_{in_node}_to_{node}_{output_index}_dup"
     else:
-        node_name = f"bandwidth_adjust_{input_layer_name}_add"
-    if dim == "i":
-        input_layer_name = input_layer_name[0]
-    else:
-        input_layer_name = input_layer_name[1]
+        # input_layer_name = input_layer_name[0]
+        node_name = f"bandwidth_adjust_{in_node}_to_{node}_add_{output_index}"       
         
     io_dict[node_name] = {}
     io_dict[node_name]["type"] = "adjust"
     io_dict[node_name]["name"] = node_name
-    if dim == "i":
-        io_dict[node_name]["output"] = [io_dict[node]["input"][0]+"_adj_line"]
+    io_dict[node_name]["layer_index"] = io_dict[node]["layer_index"]
+    if dim == "i": # or dup:
+        io_dict[node_name]["output"] = [io_dict[node]["input"][output_index]+"_adj_line"]
         io_dict[node_name]["input"] = [io_dict[input_layer_name]["output"][0]]
-        io_dict[node]["input"][0] = io_dict[node_name]["output"][0]
+        io_dict[node]["input"][output_index] = io_dict[node_name]["output"][0]
         io_dict[input_layer_name]["output"][0] = io_dict[node_name]["input"][0]
     else :
-        io_dict[node_name]["output"] = [io_dict[node]["input"][1]+"_adj_add"]
-        io_dict[node_name]["input"] = [io_dict[input_layer_name]["output"][1]]
-        io_dict[node]["input"][1] = io_dict[node_name]["output"][0]
-        io_dict[input_layer_name]["output"][1] = io_dict[node_name]["input"][0]
-    print("AdjName ", node_name)
-    print("Input ", io_dict[node_name]["input"])
-    print("Output ", io_dict[node_name]["output"])
+        io_dict[node_name]["output"] = [io_dict[node]["input"][output_index] + "_adj_add"]
+        if len(io_dict[input_layer_name]["output"]) > 1:
+            io_dict[node_name]["input"] = [io_dict[input_layer_name]["output"][1]]
+        else:
+            io_dict[node_name]["input"] = [io_dict[input_layer_name]["output"][0]]
+        if len(io_dict[node]["input"]) > 1:
+            io_dict[node]["input"][output_index] = io_dict[node_name]["output"][0]
+        else:
+            io_dict[node]["input"][ouput_index] = io_dict[node_name]["output"][0]
+        if len(io_dict[input_layer_name]["output"]) > 1:
+            io_dict[input_layer_name]["output"][1] = io_dict[node_name]["input"][0]
+        else :
+            io_dict[input_layer_name]["output"][0] = io_dict[node_name]["input"][0]
     io_dict[node_name]["och"] = io_dict[node]["och"]
     io_dict[node_name]["oh"] = io_dict[node]["oh"]
     io_dict[node_name]["ow"] = io_dict[node]["ow"] 
@@ -586,17 +602,10 @@ def bandwidth_adjustment(model, io_dict, node, dim="i", log=False):
     io_dict[node_name]["ih"] = io_dict[input_layer_name]["oh"]
     io_dict[node_name]["iw"] = io_dict[input_layer_name]["ow"]
 
-    if dim == "i":
-        io_dict[node_name]["och_ops"] = io_dict[node]["adjust_ops"]
-        io_dict[node_name]["ow_ops"] = io_dict[node]["ow_ops"]
-        io_dict[node_name]["iw_ops"] = io_dict[input_layer_name]["ow_ops_out"]
-        io_dict[node_name]["ich_ops"] = io_dict[input_layer_name]["ops_out"]
-    else :
-        io_dict[node_name]["och_ops"] = io_dict[node]["ops"]
-        io_dict[node_name]["ow_ops"] = io_dict[node]["ow_ops"]
-        io_dict[node_name]["ich_ops"] = io_dict[node]["add_ops"]
-        io_dict[node_name]["iw_ops"] = io_dict[node]["adjust_add_ow_ops_in"]        
-
+    io_dict[node_name]["och_ops"] = och_ops
+    io_dict[node_name]["ich_ops"] = ich_ops
+    io_dict[node_name]["ow_ops"] = ow_ops
+    io_dict[node_name]["iw_ops"] = iw_ops
     io_dict[node_name]["dim_adj"] = dim
     
     if log:
@@ -605,6 +614,77 @@ def bandwidth_adjustment(model, io_dict, node, dim="i", log=False):
         print(f"ow_ops {io_dict[node_name]['ow_ops']}")
         print(f"ich_ops {io_dict[node_name]['ich_ops']}")
         print(f"iw_ops {io_dict[node_name]['iw_ops']}")
+    return io_dict
+
+def split_concat(model, io_dict, log=False):
+    """ Split a concat layer with more than 2 inputs into multiple layers. """
+    io_connect = extract_connections(model, io_dict)
+
+    # Retrieve all the concat layers
+    concat_layers = [layer_name for layer_name, layer_info in io_dict.items() if "concat" in layer_info["type"]]
+
+    for layer_name in concat_layers:
+
+        input_layer_names = prev_layers(io_dict, io_connect, layer_name)
+        output_layer_names = next_layers(io_dict, io_connect, layer_name)
+
+        if input_layer_names is None or output_layer_names is None:
+            print(f"Error in split_concat: concat layer \"{layer_name}\" with no input or output.")
+            exit(1)
+
+        if len(input_layer_names) > 2:
+            # Retrieve the consumers of the input tensor
+            input_tensor_net = io_dict[layer_name]["input"].copy()
+            # input_tensor_net = io_dict[layer_name]["input"]
+            print(f"Splitting concat layer {layer_name} with input {input_tensor_net}")
+            print(f"Inputs {input_layer_names}, tensors {io_dict[layer_name]['input']}")
+            print(f"Outputs {output_layer_names}, tensors {io_dict[layer_name]['output']}")
+            # Create new concact layer dividing the original one
+            input_len = len(input_tensor_net)
+            for i in range(input_len - 1):
+                new_concat_layer_name = f"{layer_name}_split_{i}"
+                
+                if i == 0:
+                    input_tensor_net_1 = input_tensor_net[i]
+                else:
+                    input_tensor_net_1 = io_dict[f"{layer_name}_split_{i-1}"]["output"][0]
+                
+                input_tensor_net_2 = input_tensor_net[i+1]
+                
+                print(f"Input tensor net 1 {input_tensor_net_1} input tensor net 2 {input_tensor_net_2}")
+                
+                io_dict[new_concat_layer_name] = {}
+                io_dict[new_concat_layer_name]["type"] = "concat"
+                io_dict[new_concat_layer_name]["name"] = new_concat_layer_name
+                io_dict[new_concat_layer_name]["output"] = [new_concat_layer_name]
+                io_dict[new_concat_layer_name]["input"] = [input_tensor_net_1, input_tensor_net_2]
+                io_dict[new_concat_layer_name]["factor"] = 2
+                io_dict[new_concat_layer_name]["iw"] = io_dict[input_layer_names[0]]["iw"]
+                io_dict[new_concat_layer_name]["ih"] = io_dict[input_layer_names[0]]["ih"]
+                io_dict[new_concat_layer_name]["och"] = io_dict[input_layer_names[0]]["och"] + io_dict[input_layer_names[1]]["och"]
+                io_dict[new_concat_layer_name]["ich"] = io_dict[input_layer_names[0]]["ich"]
+                io_dict[new_concat_layer_name]["oh"] = io_dict[input_layer_names[0]]["oh"]
+                io_dict[new_concat_layer_name]["ow"] = io_dict[input_layer_names[0]]["ow"]
+                io_dict[new_concat_layer_name]["fh"] = 1 
+                io_dict[new_concat_layer_name]["fw"] = 1 
+                io_dict[new_concat_layer_name]["feature_map"] = io_dict[layer_name]["feature_map"]
+                io_dict[new_concat_layer_name]["stride"] = 1 
+                io_dict[new_concat_layer_name]["pad"] = 0
+                io_dict[new_concat_layer_name]["in_ops"] = 1
+                io_dict[new_concat_layer_name]["iw_ops"] = 1
+                io_dict[new_concat_layer_name]["input_quant"] = io_dict[input_layer_names[i]]["input_quant"]
+                io_dict[new_concat_layer_name]["output_quant"] = io_dict[input_layer_names[i]]["output_quant"]
+                io_dict[new_concat_layer_name]["scale_factor"] = io_dict[layer_name]["scale_factor"]
+                io_dict[new_concat_layer_name]["ow_ops"] = io_dict[input_layer_names[i]]["ow_ops_out"]
+                io_dict[new_concat_layer_name]["total"] = 1
+                io_dict[new_concat_layer_name]["start_comp_layer"] = False
+                # Remove the first ith input from the original concat layer
+                io_dict[layer_name]["input"].remove(input_tensor_net[i])
+                print(f"Creating new concat layer {new_concat_layer_name} with inputs {input_tensor_net_1} and {input_tensor_net_2}")
+            # conncect last concat layer to the original concat layer output
+            # remove original concat as output from input layers
+            io_dict[new_concat_layer_name]["output"] = io_dict[layer_name]["output"]
+            del io_dict[layer_name]
     return io_dict
 
 def duplicate_tensor(model, io_dict, log=False):
@@ -626,7 +706,7 @@ def duplicate_tensor(model, io_dict, log=False):
 
         # Check that the producer is a convolution layer and it is the only producer
         # Right now only convolution layers are supported.
-        if not (len(producers) == 1 and io_dict[producers[0]]["type"].lower() in ["conv", "produce"]):
+        if not (len(producers) == 1 and io_dict[producers[0]]["type"].lower() in ["conv", "produce", "concat"]):
             continue
 
         # Create a new layer duplicating the tensor
@@ -638,18 +718,33 @@ def duplicate_tensor(model, io_dict, log=False):
         io_dict[layer_name]["input"] = [net_name]
         io_dict[layer_name]["factor"] = len(consumers)
         if io_dict[producers[0]]["type"].lower() == "conv":
+            io_dict[layer_name]["och"] = io_dict[producers[0]]["och"]
+            io_dict[layer_name]["oh"] = io_dict[producers[0]]["oh"]
+            io_dict[layer_name]["ow"] = io_dict[producers[0]]["ow"]
+            io_dict[layer_name]["fh"] = io_dict[producers[0]]["fh"]
+            io_dict[layer_name]["fw"] = io_dict[producers[0]]["fw"]
+            io_dict[layer_name]["stride"] = io_dict[producers[0]]["stride"]
+            io_dict[layer_name]["pad"] = io_dict[producers[0]]["pad"]
+            
+            
             io_dict[layer_name]["C"] = io_dict[producers[0]]["och"]
             io_dict[layer_name]["H"] = io_dict[producers[0]]["oh"]
             io_dict[layer_name]["W"] = io_dict[producers[0]]["ow"]
             io_dict[layer_name]["ops"] = io_dict[producers[0]]["ops_out"]
             io_dict[layer_name]["ow_ops"] = io_dict[producers[0]]["ow_ops_out"]
         else: 
+            io_dict[layer_name]["och"] = io_dict[producers[0]]["och"]
+            io_dict[layer_name]["oh"] = io_dict[producers[0]]["oh"]
+            io_dict[layer_name]["ow"] = io_dict[producers[0]]["ow"]
+            io_dict[layer_name]["ih"] = io_dict[producers[0]]["ih"]
+            io_dict[layer_name]["iw"] = io_dict[producers[0]]["iw"]
+            
             io_dict[layer_name]["C"] = io_dict[producers[0]]["ich"]
             io_dict[layer_name]["H"] = io_dict[producers[0]]["ih"]
             io_dict[layer_name]["W"] = io_dict[producers[0]]["iw"]
-            io_dict[layer_name]["ops"] = io_dict[producers[0]]["ops"]
-            io_dict[layer_name]["ow_ops"] = 1
-        print(f"Creating duplicate layer {layer_name} with producer {producers[0]} and parallelism {io_dict[producers[0]]['ops_out']}, {io_dict[producers[0]]['ow_ops_out']}")
+            io_dict[layer_name]["ops"] = io_dict[producers[0]]["ops_out"]
+            io_dict[layer_name]["ow_ops"] = 1 
+        print(f"Creating duplicate layer {layer_name} with producer {producers[0]} and parallelism {io_dict[layer_name]['ops']}, {io_dict[layer_name]['ow_ops']}")
         
         #Divide the the nets to compute depth
         id = 0
@@ -670,9 +765,10 @@ def duplicate_tensor(model, io_dict, log=False):
         start_layer = io_dict[producers[0]]["layer_index"]
         for consumer in consumers:
             new_net_name = f"{net_name}_dup_{id}"
+            print(f"Duplicating {new_net_name} with {consumer}")
             end_layer = io_dict[consumer]["layer_index"]
-            if (end_layer - start_layer) > 1:
-                io_dict[layer_name][f"depth_{new_net_name}"] = compute_depth_stream(io_dict, io_connect, new_net_name, producers[0])
+            # if (end_layer - start_layer) > 1:
+            #     io_dict[layer_name][f"depth_{new_net_name}"] = compute_depth_stream(io_dict, io_connect, new_net_name, producers[0])
             id += 1
         
         id = 0
@@ -763,6 +859,15 @@ def opt_step(
     if (check_dangling_add(io_dict)):
         exit(-1)
 
+    io_dict = opt_leakyrelu(
+        inferred_model,
+        io_dict,
+        log
+    )
+    
+    if (check_dangling_leakyrelu(io_dict)):
+        exit(-1)
+    
     io_dict = opt_relu(
         inferred_model,
         io_dict,
@@ -774,18 +879,32 @@ def opt_step(
 
     io_dict = dag_sorting(inferred_model, io_dict)
    
-    io_dict = opt_merge_pointwise(
-        inferred_model,
-        io_dict,
-        log
-    )
-
     io_dict = opt_merge_skip(
         inferred_model,
         io_dict,
         log
     )
 
+    io_dict = opt_merge_pointwise(
+        inferred_model,
+        io_dict,
+        log
+    )
+
+    io_dict = split_concat(
+        inferred_model,
+        io_dict,
+        log
+    )
+    
+    io_dict = dag_sorting(inferred_model, io_dict)
+    
+    io_dict = duplicate_tensor(
+        inferred_model,
+        io_dict,
+        log
+    )
+    
     for layer_name, layer_info in io_dict.items():
         print(f"Layer: {layer_name} {next_layers(io_dict, extract_connections(inferred_model, io_dict), layer_name)}")
         if "input_quant" in layer_info.keys() and layer_info["input_quant"] is not None:

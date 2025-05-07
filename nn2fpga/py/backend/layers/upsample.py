@@ -1,5 +1,6 @@
 import numpy as np
 from onnx import numpy_helper
+from backend.layers.quant import get_quant_type 
 
 def sanitize_string(string):
     return string.replace(".", "_")
@@ -46,12 +47,23 @@ def info(io_dict, node, node_name, init_info, tensors_info):
     io_dict[node_name]["type"]   = 'upsample'
     io_dict[node_name]["scale_factor"] = 0
     io_dict[node_name]["input_quant"] = None
+    io_dict[node_name]["ow_ops"] = 1
+    io_dict[node_name]["ops"] = 1
+    io_dict[node_name]["ich_ops"] = 1
+    io_dict[node_name]["ops_out"] = 1
+    io_dict[node_name]["total"] = 1
+    io_dict[node_name]["fw"] = 1
+    io_dict[node_name]["fh"] = 1
+    io_dict[node_name]["stride"] = 1
+    io_dict[node_name]["pad"] = 0
+    io_dict[node_name]["start_comp_layer"] = False
+    io_dict[node_name]["depth"] = False
 
     return io_dict
 
-def parse(parsed_write, node_name):
-    
-    input_name  = node["input"][0]
+def parse(name, node):
+    node_name = name
+    input_name  = node["input"][2]
     input_type_name = input_name.replace("_skip", "")
 
     output_name = node["output"][0]
@@ -63,16 +75,20 @@ def parse(parsed_write, node_name):
     # Template parameters
     block["template"] = []
     block["template"].append("t_%s_struct" % input_type_name)
+    block["template"].append("t_%s_struct" % output_type_name)
     block["template"].append("c_%s_ich" % node_name)
     block["template"].append("c_%s_ih" % node_name)
     block["template"].append("c_%s_iw" % node_name)
     block["template"].append("c_%s_factor" % node_name)
+    block["template"].append("c_%s_ops" % node_name)
+    block["template"].append("c_%s_ow_ops_in" % node_name)
 
     block["args"] = []
     block["args"].append("s_%s" % input_name)
     block["args"].append("s_%s" % output_name)
 
     block["defines"] = {}
+    output_type = get_quant_type(node["output_quant"]["signed"], node["output_quant"]["bits"], node["output_quant"]["scale_factor"])
     block["defines"]["t_%s" % output_name] = ["type", output_type]
     block["defines"]["t_%s_struct" % output_name] = [
         "struct",
@@ -82,6 +98,8 @@ def parse(parsed_write, node_name):
     block["defines"]["c_%s_ih" % node_name] = ["const", node["ih"]]
     block["defines"]["c_%s_iw" % node_name] = ["const", node["iw"]]
     block["defines"]["c_%s_factor" % node_name] = ["const", node["factor"]]
+    block["defines"]["c_%s_ops" % node_name] = ["const", node["ops"]]
+    block["defines"]["c_%s_ow_ops_in" % node_name] = ["const", node["ow_ops"]]
 
     if node["scale_factor"] is list:
         scale_factor = node["scale_factor"][0]

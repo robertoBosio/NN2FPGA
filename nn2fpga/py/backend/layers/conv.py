@@ -223,6 +223,7 @@ def info(io_dict, node, node_name, init_info, tensors_info):
     io_dict[node_name]["has_forward"] = False
     io_dict[node_name]["merge_1x1"] = False
     io_dict[node_name]["start_comp_layer"] = False
+    io_dict[node_name]["ops_out"] = 1
 
     # Supported quantizations for a convolutional layer
     io_dict[node_name]["input_quant"] = None            # Input quantization

@@ -5,6 +5,8 @@ import qonnx
 from onnx import numpy_helper
 import backend.layers.conv as conv
 import backend.layers.pool as pool
+import backend.layers.concat as concat
+import backend.layers.upsample as upsample
 import backend.layers.line_buffer as line_buffer
 import backend.layers.pad as pad
 import backend.layers.weights as weights
@@ -232,6 +234,18 @@ def parse_all_main(io_dict, model, off_chip_storage=False):
             )
             last_node = node
 
+        if 'concat' == node["type"]:
+            parsed_write.append(
+                concat.parse(name, node)
+            )
+            last_node = node
+        
+        if 'upsample' == node["type"]:
+            parsed_write.append(
+                upsample.parse(name, node)
+            )
+            last_node = node
+            
         # Just for the sake of constant definition
         # if 'const' == node["type"]:
         #     parsed_const = parsed_const + weights.parse_const(

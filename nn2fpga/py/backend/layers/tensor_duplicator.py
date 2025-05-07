@@ -17,7 +17,7 @@ def parse(name, node):
         block["defines"][f"t_{consumer}"] = ["alias", f"t_{producer}"]
         block["defines"][f"t_{consumer}_struct"] = ["alias", f"t_{producer}_struct"]
         block["defines"][f"t_{consumer}_vector"] = ["alias", f"t_{producer}_vector"]
-        block["defines"][f"c_{consumer}_add_ops"] = ["const", f"c_{producer}_add_ops"]
+        # block["defines"][f"c_{consumer}_add_ops"] = ["const", f"c_{producer}_add_ops"]
         declare = {}
         declare["name"] = f"s_{consumer}"
         declare["type"] = f"t_{consumer}_struct"

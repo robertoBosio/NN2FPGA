@@ -9,11 +9,11 @@ import math
 # def parse(name, node, ich_ops, och_ops, ow_ops, iw_ops, dim="i", skip=False):
 def parse(name, node, dim="i", skip=False):
     input_name = node["input"][0]
-    node_name = "bandwidth_adjust_%s" % input_name
+    output_name = node["output"][0]
+    node_name = "bandwidth_adjust_%s" % output_name
     input_type_name = input_name.replace("_skip", "")
     input_type_name = input_name
     
-    output_name = node["output"][0]
     output_type_name = output_name.replace("_skip", "")
     output_type_name = output_name
     

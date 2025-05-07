@@ -1,6 +1,7 @@
 import os
 import sys
 import math
+import numpy as np
 
 def find_divisors(layers_info):
     all_divisors = []
@@ -56,16 +57,18 @@ def generate_valid_parallelism(och, ich, iw, och_clip=2**10, ich_clip=2**10, iw_
 def generate_valid_combinations(och, ich, iw, och_clip=2**10, ich_clip=2**10, iw_clip=2**10, op_clip=2**20):
     """ Generate valid combinations of parallelization over ich, och and ow """
     combinations = []
-
+    
     def divisors(n, clip):
         return [i for i in range(1, n + 1) if (n % i == 0 and i <= clip)]
     
+    ich = np.asarray(ich)  # Ensure ich is a NumPy array
     for div_och in divisors(och, och_clip):
-        for div_ich in divisors(ich, ich_clip):
-            for div_iw in divisors(iw, iw_clip):
-                if (div_och * div_ich * div_iw <= op_clip):
-                    combinations.append((div_och, div_ich, div_iw))
-    return combinations 
+        for ich_i in np.nditer(ich):  # Iterate over ich if it's an array
+            for div_ich in divisors(ich_i, ich_clip):
+                for div_iw in divisors(iw, iw_clip):
+                    if div_och * div_ich * div_iw <= op_clip:
+                        combinations.append((div_och, div_ich, div_iw))
+    return combinations
 
 def find_range(divisors, ilp_value):
     low_bound = divisors[0]

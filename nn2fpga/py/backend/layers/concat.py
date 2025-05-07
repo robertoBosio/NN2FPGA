@@ -1,6 +1,6 @@
 import numpy as np
 from onnx import numpy_helper
-
+from backend.layers.quant import get_quant_type
 def info(io_dict, node, node_name, init_info, tensors_info):
 
     attributes = getattr(node, "attribute" )
@@ -50,8 +50,8 @@ def info(io_dict, node, node_name, init_info, tensors_info):
     if (axis < 0):
         axis = len(o_shape) + axis
     feature_map = np.prod([dim for i, dim in enumerate(o_shape) if i != axis])
-
-    io_dict[node_name]["ich"]    = np.asarray(ich)
+    #TODO : change now after the split opt only 2 input concat are needed
+    io_dict[node_name]["ich"]    = np.asarray(ich)[0]
     io_dict[node_name]["ih"]     = ih
     io_dict[node_name]["iw"]     = iw
     io_dict[node_name]["och"]    = och
@@ -61,6 +61,18 @@ def info(io_dict, node, node_name, init_info, tensors_info):
     io_dict[node_name]["feature_map"] = feature_map
     io_dict[node_name]["scale_factor"] = 0
     io_dict[node_name]["input_quant"] = None
+    io_dict[node_name]["iw_ops"] = 1
+    io_dict[node_name]["ow_ops"] = 1
+    io_dict[node_name]["ops"] = 1
+    io_dict[node_name]["ich_ops"] = 1
+    io_dict[node_name]["ops_out"] = 1
+    io_dict[node_name]["fw"] = 1
+    io_dict[node_name]["fh"] = 1
+    io_dict[node_name]["stride"] = 1
+    io_dict[node_name]["pad"] = 0
+    io_dict[node_name]["total"] = 1
+    io_dict[node_name]["start_comp_layer"] = False
+    io_dict[node_name]["depth"] = False
 
     return io_dict
 
@@ -72,36 +84,52 @@ def get_output_name(node):
     for output_name in node["output"][0]:
             return output_name
         
-def parse(parsed_write, node_name):
-    
-    input_name  = node["input"][0]
-    input_type_name = input_name.replace("_skip", "")
-
+def parse(name, node):
+    print("node ich ", node["ich"])
+    print("node input ", node["input"])
+    input_name1  = node["input"][0]
+    input_name2  = node["input"][1]
+    input_type_name1 = input_name1.replace("_skip", "")
+    input_type_name2 = input_name2.replace("_skip", "")
     output_name = node["output"][0]
     output_type_name = output_name.replace("_skip", "")
-
+    output_type = get_quant_type(node["output_quant"]["signed"],node["output_quant"]["bits"], node["output_quant"]["scale_factor"])
     block = {}
     block["func"] = "concat_op"
 
     # Template parameters
     block["template"] = []
-    block["template"].append("t_%s_struct" % input_type_name)
+    block["template"].append("t_%s_struct" % input_type_name1)
+    block["template"].append("t_%s_struct" % input_type_name2)
     block["template"].append("t_%s_struct" % output_type_name)
-    block["template"].append("c_%s_feature_map" % node_name)
+    block["template"].append("c_%s_ich1" % input_name1)
+    block["template"].append("c_%s_ich2" % input_name2)
+    block["template"].append("c_%s_feature_map" % name)
+    block["template"].append("c_%s_ops" % output_name)
+    block["template"].append("c_%s_ow_ops_in" % output_name)
+    block["template"].append("c_%s_ow_ops_out" % output_name)
+    block
 
     block["args"] = []
-    block["args"].append("s_%s" % input_name)
-    block["args"].append("c_%s_ich" % input_name)
+    block["args"].append("s_%s" % input_name1)
+    block["args"].append("s_%s" % input_name2)
     block["args"].append("s_%s" % output_name)
 
     block["defines"] = {}
     block["defines"]["t_%s" % output_name] = ["type", output_type]
+    output_vector_type = "std::array<t_%s, %0d>" % (output_type_name, node["ops"])
+    block["defines"]["t_%s_vector" % output_name] = ["type", output_vector_type]
     block["defines"]["t_%s_struct" % output_name] = [
         "struct",
-        [["data", "t_%s" % output_name], ["last", "bool"]]
+        [["data", "std::array<t_%s_vector, 1>" % output_type_name], ["last", "bool"]]
     ]
-    block["defines"]["c_%s_feature_map" % node_name] = ["const", node["feature_map"]]
-
+    block["defines"]["c_%s_feature_map" % name] = ["const", node["feature_map"]]
+    block["defines"]["c_%s_ich1" % input_name1] = ["const", node["ich"]]
+    block["defines"]["c_%s_ich2" % input_name2] = ["const", node["ich"]]
+    block["defines"]["c_%s_ops" % output_name] = ["const", node["ops"]]
+    block["defines"]["c_%s_ow_ops_in" % output_name] = ["const", node["ow_ops"]]
+    block["defines"]["c_%s_ow_ops_out" % output_name] = ["const", node["ow_ops"]]
+    
     if node["scale_factor"] is list:
         scale_factor = node["scale_factor"][0]
     else:
@@ -123,16 +151,22 @@ def parse(parsed_write, node_name):
     declare["dim"] = 1
     block["declare"].append(declare)
 
-    tmp = {}
-    tmp["name"] = "c_%s_ich" % name
-    tmp["type"] = "int" % name
-    tmp["is_array"] = True
-    tmp["is_const"] = True
-    size = node["ich"].shape
-    tmp["size"] = size
-    tmp["init"] = node["ich"]
-
-    block["declare"].append(tmp)
+    # tmp1 = {}
+    # tmp1["name"] = "c_%s_ich1" % name
+    # tmp1["type"] = "int" # % name
+    # tmp1["is_array"] = False
+    # tmp1["is_const"] = True
+    # tmp1["init"] = node["ich"]
+    
+    # tmp2 = {}
+    # tmp2["name"] = "c_%s_ich2" % name
+    # tmp2["type"] = "int" # % name
+    # tmp2["is_array"] = False
+    # tmp2["is_const"] = True
+    # tmp2["init"] = node["ich"]
+    
+    # block["declare"].append(tmp1)    
+    # block["declare"].append(tmp2)
 
     block["pragma"] = []
 

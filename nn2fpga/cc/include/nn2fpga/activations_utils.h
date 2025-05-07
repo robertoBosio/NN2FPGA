@@ -111,52 +111,109 @@ t_input relu_op(t_input i_data) {
 		return 0;
 }
 
-template <typename t_input, int c_feature_map, int c_concat>
+
+template <typename t_input, typename t_input1, typename t_output, size_t c_ich1, size_t c_ich2, size_t c_feature_map, size_t c_ops, size_t c_ow_ops_in, size_t c_ow_ops_out>
 void concat_op(
-  hls::stream<t_input> din[c_concat],
-  const int c_ich[c_concat],
-  hls::stream<t_input> &o_data
+  hls::stream<t_input> din1[c_ow_ops_in],
+  hls::stream<t_input1> din2[c_ow_ops_in],
+  hls::stream<t_output> o_data[c_ow_ops_out]
 ) {  
 
+#ifndef __SYNTHESIS__
+  std::cout << "INFO: Call to concat_op" << std::endl;
+  std::cout << "\t\tc_feature_map: " << c_feature_map << std::endl;
+  std::cout << "\t\tc_ich1: " << c_ich1 << std::endl;
+  std::cout << "\t\tc_ich2: " << c_ich2 << std::endl;
+  std::cout << "\t\tc_och: " << c_ich1 + c_ich2 << std::endl;
+  std::cout << "\t\tc_ops: " << c_ops << std::endl;
+  std::cout << "\t\tc_ow_ops_in: " << c_ow_ops_in << std::endl;
+  std::cout << "\t\tc_ow_ops_out: " << c_ow_ops_out << std::endl;
+#endif
+  bool s_last = false;
   for (auto s_feature_map = 0; s_feature_map < c_feature_map; s_feature_map++) {  
-    for (auto s_concat = 0; s_concat < c_concat; s_concat++) {  
-      for (auto s_ich = 0; s_ich < c_ich[s_concat]; s_ich++) {  
+    for (auto s_ich = 0; s_ich < c_ich1 + c_ich2; s_ich+=c_ops) {
     #pragma HLS pipeline style = stp
-        t_input s_data = din[s_concat].read();
-        o_data.write(s_data);
-      }
+        for (auto s_ow_ops = 0; s_ow_ops < c_ow_ops_in; s_ow_ops++) {
+          t_input s_data;
+          if (s_ich < c_ich1){
+            s_data = din1[s_ow_ops].read();
+          }
+          else{
+            s_data = din2[s_ow_ops].read();
+          }
+          //if last iteration on the wole feature map last is true
+          if (s_feature_map == c_feature_map - 1 && s_ich == c_ich1 + c_ich2 - c_ops && s_ow_ops == c_ow_ops_in - 1){
+            s_last = true;
+          }
+          s_data.last = s_last;
+          o_data[s_ow_ops].write(s_data);
+        }
     }
   }
+#ifndef __SYNTHESIS__
+  std::cout << "INFO: Finished concat_op" << std::endl;
+#endif
 }
 
-template <typename t_input, int c_ich, int c_ih, int c_iw, int c_upsample>
+template <typename t_input, typename t_output, size_t c_ich, size_t c_ih, size_t c_iw, size_t c_upsample,size_t c_ops, size_t c_ow_ops_in>
 void upsample_op(
-  hls::stream<t_input> &din,
-  hls::stream<t_input> &o_data
+  hls::stream<t_input> din[c_ow_ops_in],
+  hls::stream<t_output> o_data[1]
 ) {
+#ifndef __SYNTHESIS__
+  std::cout << "INFO: Call to upsample_op" << std::endl;
+  std::cout << "\t\tc_ich: " << c_ich << std::endl;
+  std::cout << "\t\tc_ih: " << c_ih << std::endl;
+  std::cout << "\t\tc_iw: " << c_iw << std::endl;
+  std::cout << "\t\tc_upsample: " << c_upsample << std::endl;
+  std::cout << "\t\tc_ops: " << c_ops << std::endl;
+  std::cout << "\t\tc_ow_ops_in: " << c_ow_ops_in << std::endl;
+#endif
 
-  auto upsample_buff = new t_input[c_ich][1][c_iw];
+  t_input upsample_buff[c_ich][1][c_iw];
+  bool s_last = false;
+  /* Loop over ih dimentions */
+  for(auto s_h = 0; s_h < c_ih ; s_h++) {
 
-  for (auto s_ih = 0; s_ih < c_ih; s_ih++) {  
-    for (auto s_upsample_h = 0; s_upsample_h < c_upsample; s_upsample_h++) {  
-      for (auto s_iw = 0; s_iw < c_iw; s_iw++) {  
-        for (auto s_upsample_w = 0; s_upsample_w < c_upsample; s_upsample_w++) {  
-          for (auto s_ich = 0; s_ich < c_ich; s_ich++) {  
-          #pragma HLS pipeline style = stp
-            t_input s_data;
-            if (s_upsample_w == 0 && s_upsample_h == 0) {
-              s_data = din.read();
-              o_data.write(s_data);
-              upsample_buff[s_ich][0][s_iw] = s_data;
-            } else {
-              s_data = upsample_buff[s_ich][0][s_iw];
-              o_data.write(s_data);
+    /* Loop over the upsample factor for h dimention */
+    for(auto s_upsample_h = 0; s_upsample_h < c_upsample; s_upsample_h++) {
+      
+      /* Loop over iw dimention*/
+      for(auto s_w = 0; s_w < c_iw ; s_w += c_ow_ops_in) {
+        
+        /* Loop over the stream in input */
+        for(auto s_ow_ops_in = 0; s_ow_ops_in < c_ow_ops_in; s_ow_ops_in++){
+      
+          /* Loop over the upsample factor */
+          for(auto s_upsample_w = 0; s_upsample_w < c_upsample; s_upsample_w++) {
+
+            /* Loop over the input channels */
+            for(auto s_ich = 0; s_ich < c_ich; s_ich+=c_ops) {
+#pragma HLS pipeline style = stp
+              t_input s_data[1];
+              if (s_upsample_w == 0 && s_upsample_h == 0) {
+                s_data[0] = din[s_ow_ops_in].read();
+                s_data[0].last = s_last;
+                o_data[0].write(s_data[0]);
+                upsample_buff[s_ich][0][s_w + s_ow_ops_in] = s_data[0];
+              } else {
+                s_data[0] = upsample_buff[s_ich][0][s_w + s_ow_ops_in];
+                //if last iteration on the wole feature map last is true
+                if (s_h == c_ih - 1 && s_w == c_iw - c_ow_ops_in && s_ich == c_ich - c_ops && s_upsample_w == c_upsample - 1 && s_upsample_h == c_upsample - 1){
+                  s_last = true;
+                }
+                s_data[0].last = s_last;
+                o_data[0].write(s_data[0]);
+              }
             }
           }
-        }
-      }
+        } 
+      } 
     }
   }
+#ifndef __SYNTHESIS__
+  std::cout << "INFO: Finished upsample_op" << std::endl;
+#endif
 }
 
 
