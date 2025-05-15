@@ -1030,7 +1030,15 @@ def write_parallelism(io_dict, model, parallel_ops):
                             io_dict[out_node]["adjust_add"] = True
                             io_dict[out_node]["adjust_add_ow_ops_in"] = ow_ops_out
                         if "adjust_add" in io_dict[out_node] and io_dict[out_node]["adjust_add"]:
-                            bandwidth_adjustment(model, io_dict, out_node, node, io_dict[out_node]["adjust_add_ow_ops_in"], io_dict[out_node]["ow_ops"], io_dict[out_node]["add_ops"], io_dict[out_node]["ops"], output_index, dim = "o")
+                            #check if we need to adjust for the add operation
+                            if io_dict[out_node]["add_ops"] % io_dict[out_node]["ops"] != 0:
+                                print(f"Note: {node} -> {out_node} not able to match add_ops between {io_dict[out_node]['add_ops']} and {io_dict[out_node]['ops']} with one bandwidth adjust")
+                                bandwidth_adjustment(model, io_dict, out_node, node, io_dict[out_node]["adjust_add_ow_ops_in"], io_dict[out_node]["ow_ops"], io_dict[out_node]["add_ops"],io_dict[out_node]["adjust_add_ops"] , output_index, dim = "o")
+                                bandwidth_name = f"bandwidth_adjust_{node}_to_{out_node}_add_{output_index}"
+                                bandwidth_adjustment(model, io_dict, out_node, bandwidth_name, io_dict[out_node]["ow_ops"], io_dict[out_node]["ow_ops"], io_dict[out_node]["adjust_add_ops"], io_dict[out_node]["ops"], output_index, dim = "o")
+                                io_dict[out_node]["adjust_add_ops"] = io_dict[out_node]["ops"]
+                            else:
+                                bandwidth_adjustment(model, io_dict, out_node, node, io_dict[out_node]["adjust_add_ow_ops_in"], io_dict[out_node]["ow_ops"], io_dict[out_node]["add_ops"], io_dict[out_node]["ops"], output_index, dim = "o")
                         
     for node, info in graph.items():
         if io_dict[node]["type"] == "produce":
