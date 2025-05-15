@@ -112,10 +112,10 @@ t_input relu_op(t_input i_data) {
 }
 
 
-template <typename t_input, typename t_input1, typename t_output, size_t c_ich1, size_t c_ich2, size_t c_feature_map, size_t c_ops, size_t c_ow_ops_in, size_t c_ow_ops_out>
+template <typename t_input1, typename t_input2, typename t_output, size_t c_ich1, size_t c_ich2, size_t c_feature_map, size_t c_ops, size_t c_ow_ops_in, size_t c_ow_ops_out>
 void concat_op(
-  hls::stream<t_input> din1[c_ow_ops_in],
-  hls::stream<t_input1> din2[c_ow_ops_in],
+  hls::stream<t_input1> din1[c_ow_ops_in],
+  hls::stream<t_input2> din2[c_ow_ops_in],
   hls::stream<t_output> o_data[c_ow_ops_out]
 ) {  
 
@@ -134,12 +134,14 @@ void concat_op(
     for (auto s_ich = 0; s_ich < c_ich1 + c_ich2; s_ich+=c_ops) {
     #pragma HLS pipeline style = stp
         for (auto s_ow_ops = 0; s_ow_ops < c_ow_ops_in; s_ow_ops++) {
-          t_input s_data;
+          t_output s_data;
           if (s_ich < c_ich1){
-            s_data = din1[s_ow_ops].read();
+            auto tmp = din1[s_ow_ops].read();
+            s_data = *reinterpret_cast<t_output*>(&tmp);// din1[s_ow_ops].read();
           }
           else{
-            s_data = din2[s_ow_ops].read();
+            auto tmp = din2[s_ow_ops].read();
+            s_data = *reinterpret_cast<t_output*>(&tmp);//din2[s_ow_ops].read();
           }
           //if last iteration on the wole feature map last is true
           if (s_feature_map == c_feature_map - 1 && s_ich == c_ich1 + c_ich2 - c_ops && s_ow_ops == c_ow_ops_in - 1){
@@ -194,7 +196,7 @@ void upsample_op(
               if (s_upsample_w == 0 && s_upsample_h == 0) {
                 s_data[0] = din[s_ow_ops_in].read();
                 s_data[0].last = s_last;
-                o_data[0].write(s_data[0]);
+                o_data[0].write(*reinterpret_cast<t_output*>(&s_data[0]));
                 upsample_buff[s_ich][0][s_w + s_ow_ops_in] = s_data[0];
               } else {
                 s_data[0] = upsample_buff[s_ich][0][s_w + s_ow_ops_in];
@@ -203,7 +205,7 @@ void upsample_op(
                   s_last = true;
                 }
                 s_data[0].last = s_last;
-                o_data[0].write(s_data[0]);
+                o_data[0].write(*reinterpret_cast<t_output*>(&s_data[0]));
               }
             }
           }
