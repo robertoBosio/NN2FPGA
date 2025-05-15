@@ -272,7 +272,7 @@ void bandwidth_adjust_down_down(hls::stream<din_t> din[c_ow_ops_in],
          s_ow_ops_in += c_ow_ops_out) {
 
       /* Loop over the ICH dimension */
-      for (auto s_ich = 0; s_ich < ICH; s_ich += c_ops_out) {
+      for (auto s_ich = 0; s_ich < ICH; s_ich += c_ops_in) {
 
         /* Loop over the packets in the ICH dimension */
         for (auto s_i = 0; s_i < c_ops_in; s_i += c_ops_out) {
@@ -286,13 +286,17 @@ void bandwidth_adjust_down_down(hls::stream<din_t> din[c_ow_ops_in],
 
             /* Select the input stream to read from */
             auto s_i_read = s_ow_ops_in + s_ow_ops_out;
-            
+
             if (s_i == 0) {
               s_read = din[s_i_read].read();
             }
 
             /* Loop over the c_ops_out packet inside a c_ops_in one */
             for (auto s_j = 0; s_j < c_ops_out; s_j++) {
+              #ifndef __SYNTHESIS__
+              std::cout << "s_i " << s_i << " s_j " << s_j << std::endl;
+              std::cout << "s_i + s_j " << s_i + s_j << std::endl;
+              #endif
               s_write[s_ow_ops_out].data[0][s_j] = s_read.data[0][s_j + s_i];
             }
 
@@ -467,7 +471,7 @@ bandwidth_adjust(hls::stream<din_t> din[c_ow_ops_in],
   }
 
 #ifndef __SYNTHESIS__
-#ifndef SKIP_ASSERTIONS
+// #ifndef SKIP_ASSERTIONS
   // Check that all the input streams are empty
   for (auto s_i = 0; s_i < c_ow_ops_in; s_i++) {
     if (din[s_i].size() > 0) {
@@ -478,14 +482,14 @@ bandwidth_adjust(hls::stream<din_t> din[c_ow_ops_in],
   }
   // Check that all the output streams are not empty
   for (auto s_i = 0; s_i < c_ow_ops_out; s_i++) {
-    if (o_data[s_i].size() == 0) {
+    // if (o_data[s_i].size() == 0) {
       std::cout << "#### Empty output stream" << std::endl;
       std::cout << "o_data[" << s_i << "] = " << o_data[s_i].size()
                 << std::endl;
-    }
+    // }
     assert(o_data[s_i].size() > 0);
   }
-#endif /* SKIP_ASSERTIONS */
+// #endif /* SKIP_ASSERTIONS */
   std::cout << "INFO: Finished bandwidth_adjust " << std::endl;
 #endif
 }
