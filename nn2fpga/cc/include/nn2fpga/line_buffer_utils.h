@@ -293,10 +293,6 @@ void bandwidth_adjust_down_down(hls::stream<din_t> din[c_ow_ops_in],
 
             /* Loop over the c_ops_out packet inside a c_ops_in one */
             for (auto s_j = 0; s_j < c_ops_out; s_j++) {
-              #ifndef __SYNTHESIS__
-              std::cout << "s_i " << s_i << " s_j " << s_j << std::endl;
-              std::cout << "s_i + s_j " << s_i + s_j << std::endl;
-              #endif
               s_write[s_ow_ops_out].data[0][s_j] = s_read.data[0][s_j + s_i];
             }
 
