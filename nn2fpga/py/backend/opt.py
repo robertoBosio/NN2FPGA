@@ -743,7 +743,10 @@ def duplicate_tensor(model, io_dict, log=False):
             io_dict[layer_name]["H"] = io_dict[producers[0]]["ih"]
             io_dict[layer_name]["W"] = io_dict[producers[0]]["iw"]
             io_dict[layer_name]["ops"] = io_dict[producers[0]]["ops_out"]
-            io_dict[layer_name]["ow_ops"] = 1 
+            if "ow_ops_out" in io_dict[producers[0]].keys():
+                io_dict[layer_name]["ow_ops"] = io_dict[producers[0]]["ow_ops_out"]
+            else:   
+                io_dict[layer_name]["ow_ops"] = io_dict[producers[0]]["ow_ops"] 
         print(f"Creating duplicate layer {layer_name} with producer {producers[0]} and parallelism {io_dict[layer_name]['ops']}, {io_dict[layer_name]['ow_ops']}")
         
         #Divide the the nets to compute depth

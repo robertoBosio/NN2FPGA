@@ -1056,6 +1056,17 @@ def write_parallelism(io_dict, model, parallel_ops):
                 node["merge_node"]["och_pack"] = packing[0]
                 node["merge_node"]["ow_pack"] = packing[1]
                 print(f"Assigning packing for {name} (merge): {packing}")
+    
+    print("Correcting duplicate")
+    for name, node in io_dict.items():
+        if node["type"] == "duplicate":
+            in_name = node["input"][0]
+            in_node = io_connect[in_name][0][0]
+            if io_dict[in_node]["type"] == "conv":
+                node["ow_ops"] = io_dict[in_node]["ow_ops_out"]
+            else :
+                node["ow_ops"] = io_dict[in_node]["ow_ops"]
+            node["ops"] = io_dict[in_node]["ops"]
     return io_dict
 
 def check_adjustments(io_dict, model):
