@@ -323,6 +323,99 @@ template<typename din_t,
          size_t c_ops_out,
          bool SKIP>
 void
+bandwidth_adjust_up_down(hls::stream<din_t> din[c_ow_ops_in],
+                          hls::stream<dout_t> o_data[c_ow_ops_out])
+{
+  static_assert(c_ow_ops_out % c_ow_ops_in == 0,
+                "c_ow_ops_out is not a multiple of c_ow_ops_in");
+  static_assert(c_ow_ops_out >= c_ow_ops_in,
+                "c_ow_ops_out is not bigger than c_ow_ops_in");
+  static_assert(c_ops_in % c_ops_out == 0,
+                "c_ops_out is not a multiple of c_ops_in");
+  static_assert(c_ops_out <= c_ops_in, "c_ops_in is not bigger than c_ops_out");
+#ifndef __SYNTHESIS__
+  std::cout << "INFO: Call to bandwidth_adjust_up_down" << std::endl;
+  std::cout << "\t\tICH = " << ICH << std::endl;
+  std::cout << "\t\tIH = " << IH << std::endl;
+  std::cout << "\t\tIW = " << IW << std::endl;
+  std::cout << "\t\tc_ow_ops_in = " << c_ow_ops_in << std::endl;
+  std::cout << "\t\tc_ow_ops_out = " << c_ow_ops_out << std::endl;
+  std::cout << "\t\tc_ops_in = " << c_ops_in << std::endl;
+  std::cout << "\t\tc_ops_out = " << c_ops_out << std::endl;
+#endif
+  constexpr int c_ich_iter = ICH / c_ops_in;
+  dout_t s_write[c_ow_ops_out];
+
+  /* Loop on all the tensor with windows of dimension c_ow_ops_in*/
+  for (auto s_index = 0; s_index < IH * IW; s_index += c_ow_ops_out) {
+
+    /* Loop over the streams in input*/
+    for (auto s_ow_ops_out = 0; s_ow_ops_out < c_ow_ops_out;
+         s_ow_ops_out += c_ow_ops_in) {
+
+      /* Loop over the ICH dimension */
+      for (auto s_ich = 0; s_ich < ICH; s_ich += c_ops_in) {
+
+        /* Loop over the packets in the ICH dimension */
+        for (auto s_i = 0; s_i < c_ops_in; s_i += c_ops_out) {
+
+#pragma HLS pipeline style = stp II = 1
+
+          /* Loop over c_ow_ops_out stream in input in parallel */
+          for (auto s_ow_ops_in = 0; s_ow_ops_in < c_ow_ops_in; s_ow_ops_in++) {
+            din_t s_read;
+
+            /* Select the input stream to read from */
+            auto s_i_read = s_ow_ops_out + s_ow_ops_in;
+            s_read = din[s_i_read].read();
+
+            /* Loop over the c_ops_out packet inside a c_ops_in one */
+            for (auto s_j = 0; s_j < c_ops_out; s_j++) {
+              s_write[s_ow_ops_out].data[0][s_i + s_j] = s_read.data[0][s_j];
+            }
+
+            /* If the packet is finished then write it */
+            if (s_i == (c_ops_in - c_ops_out)) {
+
+              /* Skip connections do not need to propagate the last signal */
+              if constexpr (!SKIP) {
+                s_write[s_ow_ops_out].last = s_read.last;
+              }
+              o_data[s_ow_ops_out].write(s_write[s_ow_ops_out]);
+#ifndef __SYNTHESIS__
+#ifdef DEBUG_BANDWIDTH
+              for (auto s_i = 0; s_i < c_ow_ops_out; s_i++) {
+                for (auto s_j = 0; s_j < c_ops_out; s_j++) {
+                  std::cout << "s_bandwidth[" << s_i << "][" << s_j
+                            << "] = " << s_write[s_i].data[0][s_j] << std::endl;
+                }
+              }
+#endif
+#ifdef DEBUG_LAST
+              std::cout << "s_write[" << s_ow_ops_out
+                        << "].last = " << s_write[s_ow_ops_out].last
+                        << std::endl;
+#endif
+#endif
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+template<typename din_t,
+         typename dout_t,
+         size_t ICH,
+         size_t IH,
+         size_t IW,
+         size_t c_ow_ops_in,
+         size_t c_ow_ops_out,
+         size_t c_ops_in,
+         size_t c_ops_out,
+         bool SKIP>
+void
 bandwidth_adjust_up_up(hls::stream<din_t> din[c_ow_ops_in],
                     hls::stream<dout_t> o_data[c_ow_ops_out])
 {
@@ -454,16 +547,32 @@ bandwidth_adjust(hls::stream<din_t> din[c_ow_ops_in],
   }
   else
   {
-    bandwidth_adjust_up_up<din_t,
-                           dout_t,
-                           ICH,
-                           IH,
-                           IW,
-                           c_ow_ops_in,
-                           c_ow_ops_out,
-                           c_ops_in,
-                           c_ops_out,
-                           SKIP>(din, o_data);
+    if constexpr (c_ops_out >= c_ops_in)
+    {
+      bandwidth_adjust_up_up<din_t,
+                             dout_t,
+                             ICH,
+                             IH,
+                             IW,
+                             c_ow_ops_in,
+                             c_ow_ops_out,
+                             c_ops_in,
+                             c_ops_out,
+                             SKIP>(din, o_data);
+    }
+    else
+    {
+      bandwidth_adjust_up_down<din_t,
+                               dout_t,
+                               ICH,
+                               IH,
+                               IW,
+                               c_ow_ops_in,
+                               c_ow_ops_out,
+                               c_ops_in,
+                               c_ops_out,
+                               SKIP>(din, o_data);
+    }
   }
 
 #ifndef __SYNTHESIS__

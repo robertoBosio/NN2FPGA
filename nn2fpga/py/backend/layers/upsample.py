@@ -90,9 +90,11 @@ def parse(name, node):
     block["defines"] = {}
     output_type = get_quant_type(node["output_quant"]["signed"], node["output_quant"]["bits"], node["output_quant"]["scale_factor"])
     block["defines"]["t_%s" % output_name] = ["type", output_type]
+    output_vector_type = "std::array<t_%s, %0d>" % (output_type_name, node["ops"])
+    block["defines"]["t_%s_vector" % output_name] = ["type", output_vector_type]
     block["defines"]["t_%s_struct" % output_name] = [
         "struct",
-        [["data", "t_%s" % output_name], ["last", "bool"]]
+        [["data", "std::array<t_%s_vector, 1>" % output_type_name], ["last", "bool"]] 
     ]
     block["defines"]["c_%s_ich" % node_name] = ["const", node["ich"]]
     block["defines"]["c_%s_ih" % node_name] = ["const", node["ih"]]
