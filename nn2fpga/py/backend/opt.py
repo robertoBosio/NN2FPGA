@@ -544,34 +544,27 @@ def propagate_quant(model, io_dict, log=False):
     #                 print(f"Error in propagate_quant: no quantization propagated from \"{produce_node}\" to \"{layer_name}\".")
     
     return io_dict
-def bandwidth_adjustment(model, io_dict, node, in_node, iw_ops, ow_ops, ich_ops, och_ops, output_index, dim="i", log=False):
+def bandwidth_adjustment(model, io_dict, node, in_node, iw_ops, ow_ops, ich_ops, och_ops, input_index, output_index, dim="i", log=False):
     """ Adjust ow_ops and och_ops for two consecutive layers. """
     # io_connect = extract_connections(model, io_dict)
     # input_layer_name = prev_layers(io_dict, io_connect, node)
     print(f"Adjusting bandwidth for {node} with input {in_node}")
     
-    dup = False
     input_layer_name = in_node    
     if dim == "i":
-        # input_layer_name = input_layer_name[0]
         node_name = f"bandwidth_adjust_{in_node}_to_{node}_line_{output_index}"
-    elif "dup" in in_node or "concat" in in_node.lower():
-        # input_layer_name = input_layer_name[0]
-        dup = True
-        node_name = f"bandwidth_adjust_{in_node}_to_{node}_{output_index}_dup"
     else:
-        # input_layer_name = input_layer_name[0]
         node_name = f"bandwidth_adjust_{in_node}_to_{node}_add_{output_index}"       
         
     io_dict[node_name] = {}
     io_dict[node_name]["type"] = "adjust"
     io_dict[node_name]["name"] = node_name
     io_dict[node_name]["layer_index"] = io_dict[node]["layer_index"]
-    if dim == "i": # or dup:
+    if dim == "i":
         io_dict[node_name]["output"] = [io_dict[node]["input"][output_index]+"_adj_line"]
-        io_dict[node_name]["input"] = [io_dict[input_layer_name]["output"][0]]
+        io_dict[node_name]["input"] = [io_dict[input_layer_name]["output"][input_index]]
         io_dict[node]["input"][output_index] = io_dict[node_name]["output"][0]
-        io_dict[input_layer_name]["output"][0] = io_dict[node_name]["input"][0]
+        io_dict[input_layer_name]["output"][input_index] = io_dict[node_name]["input"][0]
     else :
         io_dict[node_name]["output"] = [io_dict[node]["input"][output_index] + "_adj_add"]
         if len(io_dict[input_layer_name]["output"]) > 1:

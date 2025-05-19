@@ -853,6 +853,19 @@ def write_parallelism(io_dict, model, parallel_ops):
     else:
         start_layer = start_layers[0]
     
+    print("Correcting duplicate")
+    for name, node in io_dict.items():
+        if node["type"] == "duplicate":
+            in_name = node["input"][0]
+            in_node = io_connect[in_name][0][0]
+            if io_dict[in_node]["type"] == "conv":
+                node["ow_ops"] = io_dict[in_node]["ow_ops_out"]
+                node["ow_ops_out"] = io_dict[in_node]["ow_ops_out"]
+            else :
+                node["ow_ops"] = io_dict[in_node]["ow_ops"]
+                node["ow_ops_out"] = io_dict[in_node]["ow_ops"]
+            node["ops"] = io_dict[in_node]["ops"] 
+    
     # Initializing layer index
     accepted_layers = ["conv", "pool", "produce", "consume", "add", "relu", "duplicate", "concat" ,"upsample"]
 
@@ -990,7 +1003,7 @@ def write_parallelism(io_dict, model, parallel_ops):
                         if "adjust_line_buffer" in io_dict[out_node] and io_dict[out_node]["adjust_line_buffer"] and "adjust_ops" in io_dict[out_node]:
                         #TODO remove adjust_ops from convolution
                             print("Adjusting line buffer for node in -> node out ", node, out_node)
-                            bandwidth_adjustment(model, io_dict, out_node, node, io_dict[node]["ow_ops_out"], io_dict[out_node]["ow_ops"], io_dict[node]["ops_out"], io_dict[out_node]["adjust_ops"], output_index)
+                            bandwidth_adjustment(model, io_dict, out_node, node, io_dict[node]["ow_ops_out"], io_dict[out_node]["ow_ops"], io_dict[node]["ops_out"], io_dict[out_node]["adjust_ops"], input_index, output_index)
                         else:
                             print(f"Channels: Node {node} -> {out_node} ({io_dict[node]['ops_out']} -> {io_dict[out_node]['in_ops']} -> {io_dict[out_node]['line_ops']})")
             
@@ -1033,12 +1046,12 @@ def write_parallelism(io_dict, model, parallel_ops):
                             #check if we need to adjust for the add operation
                             if io_dict[out_node]["add_ops"] % io_dict[out_node]["ops"] != 0:
                                 print(f"Note: {node} -> {out_node} not able to match add_ops between {io_dict[out_node]['add_ops']} and {io_dict[out_node]['ops']} with one bandwidth adjust")
-                                bandwidth_adjustment(model, io_dict, out_node, node, io_dict[out_node]["adjust_add_ow_ops_in"], io_dict[out_node]["ow_ops"], io_dict[out_node]["add_ops"],io_dict[out_node]["adjust_add_ops"] , output_index, dim = "o")
+                                bandwidth_adjustment(model, io_dict, out_node, node, io_dict[out_node]["adjust_add_ow_ops_in"], io_dict[out_node]["ow_ops"], io_dict[out_node]["add_ops"],io_dict[out_node]["adjust_add_ops"] , input_index, output_index, dim = "o")
                                 bandwidth_name = f"bandwidth_adjust_{node}_to_{out_node}_add_{output_index}"
-                                bandwidth_adjustment(model, io_dict, out_node, bandwidth_name, io_dict[out_node]["ow_ops"], io_dict[out_node]["ow_ops"], io_dict[out_node]["adjust_add_ops"], io_dict[out_node]["ops"], output_index, dim = "o")
+                                bandwidth_adjustment(model, io_dict, out_node, bandwidth_name, io_dict[out_node]["ow_ops"], io_dict[out_node]["ow_ops"], io_dict[out_node]["adjust_add_ops"], io_dict[out_node]["ops"], input_index, output_index, dim = "o")
                                 io_dict[out_node]["adjust_add_ops"] = io_dict[out_node]["ops"]
                             else:
-                                bandwidth_adjustment(model, io_dict, out_node, node, io_dict[out_node]["adjust_add_ow_ops_in"], io_dict[out_node]["ow_ops"], io_dict[out_node]["add_ops"], io_dict[out_node]["ops"], output_index, dim = "o")
+                                bandwidth_adjustment(model, io_dict, out_node, node, io_dict[out_node]["adjust_add_ow_ops_in"], io_dict[out_node]["ow_ops"], io_dict[out_node]["add_ops"], io_dict[out_node]["ops"], input_index, output_index, dim = "o")
                         
     for node, info in graph.items():
         if io_dict[node]["type"] == "produce":
@@ -1056,17 +1069,7 @@ def write_parallelism(io_dict, model, parallel_ops):
                 node["merge_node"]["och_pack"] = packing[0]
                 node["merge_node"]["ow_pack"] = packing[1]
                 print(f"Assigning packing for {name} (merge): {packing}")
-    
-    print("Correcting duplicate")
-    for name, node in io_dict.items():
-        if node["type"] == "duplicate":
-            in_name = node["input"][0]
-            in_node = io_connect[in_name][0][0]
-            if io_dict[in_node]["type"] == "conv":
-                node["ow_ops"] = io_dict[in_node]["ow_ops_out"]
-            else :
-                node["ow_ops"] = io_dict[in_node]["ow_ops"]
-            node["ops"] = io_dict[in_node]["ops"]
+
     return io_dict
 
 def check_adjustments(io_dict, model):
