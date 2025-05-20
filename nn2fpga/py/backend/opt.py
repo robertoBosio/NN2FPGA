@@ -566,6 +566,7 @@ def bandwidth_adjustment(model, io_dict, node, in_node, iw_ops, ow_ops, ich_ops,
         io_dict[node]["input"][output_index] = io_dict[node_name]["output"][0]
         io_dict[input_layer_name]["output"][input_index] = io_dict[node_name]["input"][0]
     else :
+        # TODO use input_index and output_index instead of ifs
         io_dict[node_name]["output"] = [io_dict[node]["input"][output_index] + "_adj_add"]
         if len(io_dict[input_layer_name]["output"]) > 1:
             io_dict[node_name]["input"] = [io_dict[input_layer_name]["output"][1]]

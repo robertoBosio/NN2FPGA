@@ -371,7 +371,7 @@ bandwidth_adjust_up_down(hls::stream<din_t> din[c_ow_ops_in],
 
             /* Loop over the c_ops_out packet inside a c_ops_in one */
             for (auto s_j = 0; s_j < c_ops_out; s_j++) {
-              s_write[s_ow_ops_out].data[0][s_i + s_j] = s_read.data[0][s_j];
+              s_write[s_ow_ops_out].data[0][s_j] = s_read.data[0][s_i + s_j];
             }
 
             /* If the packet is finished then write it */
@@ -428,7 +428,7 @@ bandwidth_adjust_up_up(hls::stream<din_t> din[c_ow_ops_in],
   static_assert(c_ops_out >= c_ops_in, "c_ops_out is not bigger than c_ops_in");
 
 #ifndef __SYNTHESIS__
-  std::cout << "INFO: Call to bandwidth_adjust_up" << std::endl;
+  std::cout << "INFO: Call to bandwidth_adjust_up_up" << std::endl;
   std::cout << "\t\tICH = " << ICH << std::endl;
   std::cout << "\t\tIH = " << IH << std::endl;
   std::cout << "\t\tIW = " << IW << std::endl;

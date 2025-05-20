@@ -864,7 +864,8 @@ def write_parallelism(io_dict, model, parallel_ops):
             else :
                 node["ow_ops"] = io_dict[in_node]["ow_ops"]
                 node["ow_ops_out"] = io_dict[in_node]["ow_ops"]
-            node["ops"] = io_dict[in_node]["ops"] 
+            node["ops"] = io_dict[in_node]["ops"]
+            node["ops_out"] = io_dict[in_node]["ops"]
     
     # Initializing layer index
     accepted_layers = ["conv", "pool", "produce", "consume", "add", "relu", "duplicate", "concat" ,"upsample"]
