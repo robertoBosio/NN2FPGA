@@ -866,6 +866,8 @@ def write_parallelism(io_dict, model, parallel_ops):
                 node["ow_ops_out"] = io_dict[in_node]["ow_ops"]
             node["ops"] = io_dict[in_node]["ops"]
             node["ops_out"] = io_dict[in_node]["ops"]
+            print(f"\t{node['name']} -> Width: {in_node} ({node['ow_ops']} -> {io_dict[in_node]['ow_ops']})")
+            print(f"\t{node['name']} -> Channels: {in_node} ({node['ops_out']} -> {io_dict[in_node]['ops']})")
     
     # Initializing layer index
     accepted_layers = ["conv", "pool", "produce", "consume", "add", "relu", "duplicate", "concat" ,"upsample"]
@@ -902,7 +904,7 @@ def write_parallelism(io_dict, model, parallel_ops):
                     print(f"\t\t{input_name} -> {io_dict[node]['output'][input_index]} ({input_index} -> {output_index})")
                     
                     ops_out = 0
-                    if io_dict[node]["type"] == "pool":
+                    if io_dict[node]["type"] == "pool" or io_dict[node]["type"] == "duplicate" or io_dict[node]["type"] == "concat":
                         ops_out = io_dict[node]["ops"]
                     elif io_dict[node]["type"] == "conv":
                         if io_dict[node]["depth"]:
@@ -918,7 +920,7 @@ def write_parallelism(io_dict, model, parallel_ops):
                         # depthwise convolution the packing is over the input channels.
                         ops_in = 0
                         ow_ops_in = io_dict[out_node]["ow_ops"]
-                        if io_dict[out_node]["type"] == "pool":
+                        if io_dict[out_node]["type"] == "pool" or io_dict[out_node]["type"] == "duplicate" or io_dict[out_node]["type"] == "concat":
                             ops_in = io_dict[out_node]["ops"]
                         elif io_dict[out_node]["type"] == "conv":
                             ops_in = io_dict[out_node]["ich_ops"]
@@ -952,7 +954,9 @@ def write_parallelism(io_dict, model, parallel_ops):
                                 else:
                                     io_dict[out_node]["adjust_line_buffer"] = True
                                     io_dict[out_node]["adjust_ops"] = common_mult
-                        io_dict[node]["ops_out"] = scaling_out
+                        
+                        if io_dict[node]["type"] != "duplicate":        
+                            io_dict[node]["ops_out"] = scaling_out
                         io_dict[out_node]["in_ops"] = scaling_out
 
                         if ow_ops_in < ow_ops_out:
@@ -1005,6 +1009,7 @@ def write_parallelism(io_dict, model, parallel_ops):
                         #TODO remove adjust_ops from convolution
                             print("Adjusting line buffer for node in -> node out ", node, out_node)
                             bandwidth_adjustment(model, io_dict, out_node, node, io_dict[node]["ow_ops_out"], io_dict[out_node]["ow_ops"], io_dict[node]["ops_out"], io_dict[out_node]["adjust_ops"], input_index, output_index)
+                            print(f"Channels: Node {node} -> {out_node} ({io_dict[node]['ops_out']} -> {io_dict[out_node]['in_ops']} -> {io_dict[out_node]['line_ops']}) , adjusted {io_dict[out_node]['adjust_ops']}")
                         else:
                             print(f"Channels: Node {node} -> {out_node} ({io_dict[node]['ops_out']} -> {io_dict[out_node]['in_ops']} -> {io_dict[out_node]['line_ops']})")
             
