@@ -560,26 +560,16 @@ def bandwidth_adjustment(model, io_dict, node, in_node, iw_ops, ow_ops, ich_ops,
     io_dict[node_name]["type"] = "adjust"
     io_dict[node_name]["name"] = node_name
     io_dict[node_name]["layer_index"] = io_dict[node]["layer_index"]
+    
     if dim == "i":
         io_dict[node_name]["output"] = [io_dict[node]["input"][output_index]+"_adj_line"]
-        io_dict[node_name]["input"] = [io_dict[input_layer_name]["output"][input_index]]
-        io_dict[node]["input"][output_index] = io_dict[node_name]["output"][0]
-        io_dict[input_layer_name]["output"][input_index] = io_dict[node_name]["input"][0]
-    else :
-        # TODO use input_index and output_index instead of ifs
-        io_dict[node_name]["output"] = [io_dict[node]["input"][output_index] + "_adj_add"]
-        if len(io_dict[input_layer_name]["output"]) > 1:
-            io_dict[node_name]["input"] = [io_dict[input_layer_name]["output"][1]]
-        else:
-            io_dict[node_name]["input"] = [io_dict[input_layer_name]["output"][0]]
-        if len(io_dict[node]["input"]) > 1:
-            io_dict[node]["input"][output_index] = io_dict[node_name]["output"][0]
-        else:
-            io_dict[node]["input"][ouput_index] = io_dict[node_name]["output"][0]
-        if len(io_dict[input_layer_name]["output"]) > 1:
-            io_dict[input_layer_name]["output"][1] = io_dict[node_name]["input"][0]
-        else :
-            io_dict[input_layer_name]["output"][0] = io_dict[node_name]["input"][0]
+    else:
+        io_dict[node_name]["output"] = [io_dict[node]["input"][output_index]+"_adj_add"]
+
+    io_dict[node_name]["input"] = [io_dict[input_layer_name]["output"][input_index]]
+    io_dict[node]["input"][output_index] = io_dict[node_name]["output"][0]
+    io_dict[input_layer_name]["output"][input_index] = io_dict[node_name]["input"][0]
+        
     io_dict[node_name]["och"] = io_dict[node]["och"]
     io_dict[node_name]["oh"] = io_dict[node]["oh"]
     io_dict[node_name]["ow"] = io_dict[node]["ow"] 

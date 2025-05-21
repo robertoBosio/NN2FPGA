@@ -1049,10 +1049,10 @@ def write_parallelism(io_dict, model, parallel_ops):
                                 print(f"Note: {node} -> {out_node} not able to match add_ops between {io_dict[out_node]['add_ops']} and {io_dict[out_node]['ops']} with one bandwidth adjust")
                                 bandwidth_adjustment(model, io_dict, out_node, node, io_dict[out_node]["adjust_add_ow_ops_in"], io_dict[out_node]["ow_ops"], io_dict[out_node]["add_ops"],io_dict[out_node]["adjust_add_ops"] , input_index, output_index, dim = "o")
                                 bandwidth_name = f"bandwidth_adjust_{node}_to_{out_node}_add_{output_index}"
-                                bandwidth_adjustment(model, io_dict, out_node, bandwidth_name, io_dict[out_node]["ow_ops"], io_dict[out_node]["ow_ops"], io_dict[out_node]["adjust_add_ops"], io_dict[out_node]["ops"], input_index, output_index, dim = "o")
+                                bandwidth_adjustment(model, io_dict, out_node, bandwidth_name, io_dict[out_node]["ow_ops"], io_dict[out_node]["ow_ops"], io_dict[out_node]["adjust_add_ops"], io_dict[out_node]["ops"], 0 , output_index, dim = "o")
                                 io_dict[out_node]["adjust_add_ops"] = io_dict[out_node]["ops"]
                             else:
-                                bandwidth_adjustment(model, io_dict, out_node, node, io_dict[out_node]["adjust_add_ow_ops_in"], io_dict[out_node]["ow_ops"], io_dict[out_node]["add_ops"], io_dict[out_node]["ops"], input_index, output_index, dim = "o")
+                                bandwidth_adjustment(model, io_dict, out_node, node, io_dict[out_node]["adjust_add_ow_ops_in"], io_dict[out_node]["ow_ops"], io_dict[out_node]["add_ops"], io_dict[out_node]["ops"], input_index , output_index, dim = "o")
                         
     for node, info in graph.items():
         if io_dict[node]["type"] == "produce":
@@ -1173,6 +1173,7 @@ def ilp(io_dict, off_chip_storage, model, file_name, board="ULTRA96v2", generate
 
     NUM_PORTS = (board_res["bram"] + board_res["uram"])
     NUM_DSP = board_res["dsp"]
+    NUM_DSP = 1800
     NUM_PORTS = int(NUM_PORTS * 0.85) * 2
 
     valid_par_solutions = generate_architectures(layers_info, NUM_DSP)
