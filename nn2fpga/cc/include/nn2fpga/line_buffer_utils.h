@@ -355,14 +355,12 @@ bandwidth_adjust_up_down(hls::stream<din_t> din[c_ow_ops_in],
       /* Loop over the ICH dimension */
       for (auto s_ich = 0; s_ich < ICH; s_ich += c_ops_in) {
 
-        /* Loop over the packets in the ICH dimension */
-        for (auto s_i = 0; s_i < c_ops_in; s_i += c_ops_out) {
-
 #pragma HLS pipeline style = stp II = 1
-
-          /* Loop over c_ow_ops_out stream in input in parallel */
-          for (auto s_ow_ops_in = 0; s_ow_ops_in < c_ow_ops_in; s_ow_ops_in++) {
-            din_t s_read;
+        /* Loop over c_ow_ops_out stream in input in parallel */
+        for (auto s_ow_ops_in = 0; s_ow_ops_in < c_ow_ops_in; s_ow_ops_in++) {
+          din_t s_read;
+          /* Loop over the packets in the ICH dimension */
+          for (auto s_i = 0; s_i < c_ops_in; s_i += c_ops_out) {
 
             /* Select the input stream to read from */
             auto s_i_read = s_ow_ops_out + s_ow_ops_in;
