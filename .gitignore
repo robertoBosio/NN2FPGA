@@ -142,7 +142,6 @@ MemoryManagement/
 backup/
 *MemoryWeights*
 runs/
-*.txt
 cifar-10/
 .Xil/
 data
