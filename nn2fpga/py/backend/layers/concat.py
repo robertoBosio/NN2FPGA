@@ -148,7 +148,7 @@ def parse(name, node):
     declare["name"] = "s_%s" % output_name
     declare["type"] = "t_%s_struct" % output_name
     declare["is_array"] = True
-    declare["dim"] = 1
+    declare["dim"] = node["ow_ops"]
     block["declare"].append(declare)
 
     # tmp1 = {}

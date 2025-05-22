@@ -655,6 +655,7 @@ def split_concat(model, io_dict, log=False):
                 io_dict[new_concat_layer_name]["stride"] = 1 
                 io_dict[new_concat_layer_name]["pad"] = 0
                 io_dict[new_concat_layer_name]["in_ops"] = 1
+                io_dict[new_concat_layer_name]["ops_out"] = 1
                 io_dict[new_concat_layer_name]["iw_ops"] = 1
                 io_dict[new_concat_layer_name]["input_quant"] = io_dict[input_layer_names[i]]["input_quant"]
                 io_dict[new_concat_layer_name]["output_quant"] = io_dict[input_layer_names[i]]["output_quant"]

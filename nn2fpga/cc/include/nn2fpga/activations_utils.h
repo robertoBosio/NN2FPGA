@@ -130,7 +130,7 @@ void concat_op(
   std::cout << "\t\tc_ow_ops_out: " << c_ow_ops_out << std::endl;
 #endif
   bool s_last = false;
-  for (auto s_feature_map = 0; s_feature_map < c_feature_map; s_feature_map++) {  
+  for (auto s_feature_map = 0; s_feature_map < c_feature_map; s_feature_map+= c_ow_ops_out) {  
     for (auto s_ich = 0; s_ich < c_ich1 + c_ich2; s_ich+=c_ops) {
     #pragma HLS pipeline style = stp
         for (auto s_ow_ops = 0; s_ow_ops < c_ow_ops_in; s_ow_ops++) {
