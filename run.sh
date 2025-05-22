@@ -11,6 +11,7 @@ USER_ID="$(id -u)"
 GROUP_ID="$(id -g)"
 XILINX_DIR="/tools/Xilinx"
 XRT_DIR="/opt/xilinx/xrt"
+XILINX_VERSION="2024.2"
 DATASET_DIR="/home-ssd/datasets"
 WORKSPACE_ROOT_DIR="/workspace"
 
@@ -42,5 +43,8 @@ docker run -it --rm \
     --env NVIDIA_VISIBLE_DEVICES=all \
     --env NVIDIA_DRIVER_CAPABILITIES=all \
     --env NN2FPGA_ROOT_DIR="${WORKSPACE_ROOT_DIR}/NN2FPGA" \
+    --env XILINX_DIR="${XILINX_DIR}" \
+    --env XRT_DIR="${XRT_DIR}" \
+    --env XILINX_VERSION="${XILINX_VERSION}" \
     "${IMAGE_NAME}" \
     bash

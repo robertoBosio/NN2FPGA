@@ -28,6 +28,7 @@ RUN groupadd --gid ${GROUP_ID} ${USERNAME} && \
     useradd --uid ${USER_ID} --gid ${GROUP_ID} --no-create-home --no-log-init ${USERNAME}
 
 # Set workspace and environment variables
+WORKDIR ${NN2FPGA_ROOT_DIR}
 ENV HOME=/home/${USERNAME}
 ENV PATH=${PATH}:${HOME}/.local/bin
 ENV HISTFILE=.docker_bash_history
@@ -40,13 +41,10 @@ COPY requirements.txt .
 RUN python3 -m pip install --upgrade pip && \
     python3 -m pip install -r requirements.txt
 
-WORKDIR ${NN2FPGA_ROOT_DIR}/deps/SILVIA
-
-# Ensure scripts are executable
-RUN chmod +x install_llvm.sh build_pass.sh && \
-    ./install_llvm.sh && \
-    ./build_pass.sh
-
 # Switch to user
 USER ${USERNAME}
-WORKDIR ${NN2FPGA_ROOT_DIR}
+
+COPY docker/entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/entrypoint.sh
+ENTRYPOINT ["entrypoint.sh"]
+CMD ["bash"]
