@@ -3,6 +3,7 @@ FROM nvidia/cuda:12.1.0-base-ubuntu22.04
 ARG USERNAME
 ARG USER_ID
 ARG GROUP_ID
+ARG NN2FPGA_ROOT_DIR
 
 ENV DEBIAN_FRONTEND=noninteractive
 

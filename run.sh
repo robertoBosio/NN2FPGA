@@ -25,6 +25,7 @@ if ! docker image inspect ${IMAGE_NAME} > /dev/null 2>&1; then
         --build-arg USERNAME="${USERNAME}" \
         --build-arg USER_ID="${USER_ID}" \
         --build-arg GROUP_ID="${GROUP_ID}" \
+        --build-arg NN2FPGA_ROOT_DIR="${WORKSPACE_ROOT_DIR}/NN2FPGA" \
         -t "${IMAGE_NAME}" .
 fi
 
