@@ -27,6 +27,7 @@ if ! docker image inspect ${IMAGE_NAME} > /dev/null 2>&1; then
         --build-arg USER_ID="${USER_ID}" \
         --build-arg GROUP_ID="${GROUP_ID}" \
         --build-arg NN2FPGA_ROOT_DIR="${WORKSPACE_ROOT_DIR}/NN2FPGA" \
+        --build-arg HISTORY_FILE="${HISTORY_FILE}" \
         -t "${IMAGE_NAME}" .
 fi
 
@@ -34,7 +35,6 @@ fi
 docker run -it --rm \
     --name "${CONTAINER_NAME}" \
     -v "${WORKSPACE_DIR}:${WORKSPACE_ROOT_DIR}" \
-    -v "${HISTORY_FILE}:${WORKSPACE_ROOT_DIR}/NN2FPGA/.docker_bash_history" \
     -v "${XILINX_DIR}:${XILINX_DIR}" \
     -v "${XRT_DIR}:${XRT_DIR}" \
     -v "${DATASET_DIR}:/home/datasets" \
