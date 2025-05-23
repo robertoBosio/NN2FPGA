@@ -5,7 +5,6 @@ set -e
 IMAGE_NAME="nn2fpga-container-image"
 CONTAINER_NAME="nn2fpga-container"
 WORKSPACE_DIR="$(pwd)/.."
-HISTORY_FILE="${WORKSPACE_DIR}/NN2FPGA/.docker_bash_history"
 USERNAME="$(whoami)"
 USER_ID="$(id -u)"
 GROUP_ID="$(id -g)"
@@ -27,7 +26,6 @@ if ! docker image inspect ${IMAGE_NAME} > /dev/null 2>&1; then
         --build-arg USER_ID="${USER_ID}" \
         --build-arg GROUP_ID="${GROUP_ID}" \
         --build-arg NN2FPGA_ROOT_DIR="${WORKSPACE_ROOT_DIR}/NN2FPGA" \
-        --build-arg HISTORY_FILE="${HISTORY_FILE}" \
         -t "${IMAGE_NAME}" .
 fi
 
