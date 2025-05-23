@@ -16,7 +16,7 @@ RUN apt-get update && apt-get upgrade -y && \
     libsqlite3-dev liblzma-dev libncurses5-dev zip time udev \
     libudev-dev python3 python3-pip python3-venv cmake libgtk2.0-dev \
     pkg-config libavcodec-dev libavformat-dev libswscale-dev \
-    locales libncurses5 libtinfo5 libncursesw5-dev tmux \
+    locales libncurses5 libtinfo5 libncursesw5-dev unzip \
     && rm -rf /var/lib/apt/lists/*
 
 # Set up locale
