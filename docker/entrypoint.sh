@@ -67,7 +67,7 @@ export XILINX_VITIS="${VITIS_PATH}"
 export XILINX_HLS="${HLS_PATH}"
 export XILINX_XRT="/opt/xilinx/xrt"
 export SILVIA_ROOT="${SILVIA_DIR}"
-export SILVIA_LLVM_ROOT="${SILVIA_DIR}/llvm-project/llvm"
+export SILVIA_LLVM_ROOT="${SILVIA_DIR}/llvm-project/install"
 
 # Run user-supplied command
 exec "$@"
