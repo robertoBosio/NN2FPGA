@@ -5,7 +5,7 @@ set -e
 IMAGE_NAME="nn2fpga-container-image"
 CONTAINER_NAME="nn2fpga-container"
 WORKSPACE_DIR="$(pwd)/.."
-HISTORY_FILE="${WORKSPACE_DIR}/.docker_bash_history"
+HISTORY_FILE="${WORKSPACE_DIR}/NN2FPGA/.docker_bash_history"
 USERNAME="$(whoami)"
 USER_ID="$(id -u)"
 GROUP_ID="$(id -g)"
