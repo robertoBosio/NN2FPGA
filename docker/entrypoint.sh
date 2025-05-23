@@ -3,10 +3,10 @@ set -e
 
 # Read project root from environment, with fallback
 SILVIA_DIR="${NN2FPGA_ROOT_DIR}/deps/SILVIA"
-PASS_LIB_PATH="${PASS_BUILD_DIR}/build/SILVIAMuladd/LLVMSILVIAMuladd.so"
-VIVADO_PATH="${XILINX_DIR}/Vivado/${XILINX_VERSION}"
-VITIS_PATH="${XILINX_DIR}/Vitis/${XILINX_VERSION}"
-HLS_PATH="${XILINX_DIR}/Vitis_HLS/${XILINX_VERSION}"
+PASS_LIB_PATH="${SILVIA_DIR}/build/SILVIAMuladd/LLVMSILVIAMuladd.so"
+VIVADO_PATH="${XILINX_DIR}/Xilinx/Vivado/${XILINX_VERSION}"
+VITIS_PATH="${XILINX_DIR}/Xilinx/Vitis/${XILINX_VERSION}"
+HLS_PATH="${XILINX_DIR}/Xilinx/Vitis_HLS/${XILINX_VERSION}"
 
 echo "Project root: $NN2FPGA_ROOT_DIR"
 echo "Sourcing Xilinx tools from $XILINX_DIR"
@@ -36,15 +36,15 @@ echo "Looking for compiled pass at: $PASS_LIB_PATH"
 if [ ! -f "$PASS_LIB_PATH" ]; then
     echo "LLVM pass not found — compiling..."
 
-    cd "$PROJECT_ROOT/tools"
-    chmod +x install_llvm.sh compile_pass.sh
+    cd "$SILVIA_DIR"
+    chmod +x install_llvm.sh build_pass.sh
 
     if ! ./install_llvm.sh; then
         echo "install_llvm.sh failed." >&2
         exit 1
     fi
 
-    if ! ./compile_pass.sh; then
+    if ! ./build_pass.sh; then
         echo "compile_pass.sh failed." >&2
         exit 1
     fi
@@ -53,6 +53,8 @@ if [ ! -f "$PASS_LIB_PATH" ]; then
         echo "Compilation finished, but LLVM pass not found at $PASS_LIB_PATH" >&2
         exit 1
     fi
+
+    cd $NN2FPGA_ROOT_DIR
 
     echo "LLVM pass compiled successfully."
 else
@@ -65,7 +67,7 @@ export XILINX_VITIS="${VITIS_PATH}"
 export XILINX_HLS="${HLS_PATH}"
 export XILINX_XRT="/opt/xilinx/xrt"
 export SILVIA_ROOT="${SILVIA_DIR}"
-export SILVIA_LLVM_ROOT="${SILVIA_DIR}/llvm-project/llvm"
+export SILVIA_LLVM_ROOT="$SILIVA_DIR/llvm-project/llvm"
 
 # Run user-supplied command
 exec "$@"
