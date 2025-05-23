@@ -59,5 +59,13 @@ else
     echo "LLVM pass already compiled. Skipping rebuild."
 fi
 
+# Set up environment variables
+export XILINX_VIVADO="${VIVADO_PATH}"
+export XILINX_VITIS="${VITIS_PATH}"
+export XILINX_HLS="${HLS_PATH}"
+export XILINX_XRT="/opt/xilinx/xrt"
+export SILVIA_ROOT="${SILVIA_DIR}"
+export SILVIA_LLVM_ROOT="${SILIVA_DIR}/llvm-project/llvm"
+
 # Run user-supplied command
 exec "$@"
