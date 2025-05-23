@@ -13,6 +13,7 @@ XRT_DIR="/opt/xilinx/xrt"
 XILINX_VERSION="2024.2"
 DATASET_DIR="/home-ssd/datasets"
 WORKSPACE_ROOT_DIR="/workspace"
+HISTORY_FILE="$(pwd)/.docker_bash_history"
 
 # ----- Ensure bash history file exists -----
 touch "${HISTORY_FILE}"
