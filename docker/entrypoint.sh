@@ -7,6 +7,7 @@ PASS_LIB_PATH="${SILVIA_DIR}/build/SILVIAMuladd/LLVMSILVIAMuladd.so"
 VIVADO_PATH="${XILINX_DIR}/Xilinx/Vivado/${XILINX_VERSION}"
 VITIS_PATH="${XILINX_DIR}/Xilinx/Vitis/${XILINX_VERSION}"
 HLS_PATH="${XILINX_DIR}/Xilinx/Vitis_HLS/${XILINX_VERSION}"
+HOME="/tmp/homedir"
 
 echo "Project root: $NN2FPGA_ROOT_DIR"
 echo "Sourcing Xilinx tools from $XILINX_DIR"
@@ -54,12 +55,14 @@ if [ ! -f "$PASS_LIB_PATH" ]; then
         exit 1
     fi
 
-    cd $NN2FPGA_ROOT_DIR
 
     echo "LLVM pass compiled successfully."
 else
     echo "LLVM pass already compiled. Skipping rebuild."
 fi
+
+mkdir -p "$HOME"
+mkdir -p "$HOME/.Xilinx"
 
 # Set up environment variables
 export XILINX_VIVADO="${VIVADO_PATH}"
@@ -68,6 +71,9 @@ export XILINX_HLS="${HLS_PATH}"
 export XILINX_XRT="/opt/xilinx/xrt"
 export SILVIA_ROOT="${SILVIA_DIR}"
 export SILVIA_LLVM_ROOT="${SILVIA_DIR}/llvm-project/install"
+export HOME="${HOME}"
+
+cd $NN2FPGA_ROOT_DIR/nn2fpga
 
 # Run user-supplied command
 exec "$@"
