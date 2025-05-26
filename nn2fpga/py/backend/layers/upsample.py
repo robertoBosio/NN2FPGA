@@ -4,43 +4,55 @@ from onnx import numpy_helper
 def sanitize_string(string):
     return string.replace(".", "_")
 
+def get_shape_from_type(tensor_type):
+    return [d.dim_value for d in tensor_type.shape.dim]
+
 def info(io_dict, node, node_name, init_info, tensors_info):
+    input_name = node.input[0]
+    input_shape = get_shape_from_type(tensors_info[input_name].tensor_type)
+    output_shape = get_shape_from_type(tensors_info[node.output[0]].tensor_type)
 
-    attributes = getattr(node, "attribute")
+    # Handle roi, scales, sizes
+    roi = scales = sizes = None
 
-    input_shape = tensors_info[node.input[0]].tensor_type.shape
-    output_shape = tensors_info[node.output[0]].tensor_type.shape
-
-    roi = init_info[sanitize_string(node.input[1])]
-    scales = init_info[sanitize_string(node.input[2])]
-    roi = numpy_helper.to_array(roi)
-    scales = numpy_helper.to_array(scales)
-    scales = np.array(scales, dtype=int)
-
-    # Currently not supporting roi, and only supporting 2D upsample
-    assert len(roi) == 0
-    assert len(scales) == 4
-    assert scales[0] == 1 and scales[1] == 1
-    assert scales[2] == scales[3]
-
-    upsample_factor = scales[2]
+    if len(node.input) > 1 and sanitize_string(node.input[1]) in init_info:
+        roi = numpy_helper.to_array(init_info[sanitize_string(node.input[1])])
+    if len(node.input) > 2 and sanitize_string(node.input[2]) in init_info:
+        scales = numpy_helper.to_array(init_info[sanitize_string(node.input[2])])
+    if len(node.input) > 3 and sanitize_string(node.input[3]) in init_info:
+        sizes = numpy_helper.to_array(init_info[sanitize_string(node.input[3])])
     
-    ich      = getattr(input_shape, 'dim')[1].dim_value
-    ih       = getattr(input_shape, 'dim')[2].dim_value
-    iw       = getattr(input_shape, 'dim')[3].dim_value
-    och      = getattr(output_shape, 'dim')[1].dim_value
-    oh       = getattr(output_shape, 'dim')[2].dim_value
-    ow       = getattr(output_shape, 'dim')[3].dim_value
+    # Basic validation
+    if scales is not None and sizes is not None:
+        raise ValueError("Resize node should provide either 'scales' or 'sizes', not both.")
 
-    io_dict[node_name]["ich"]    = ich
-    io_dict[node_name]["ih"]     = ih
-    io_dict[node_name]["iw"]     = iw
-    io_dict[node_name]["och"]    = och
-    io_dict[node_name]["oh"]     = oh
-    io_dict[node_name]["ow"]     = ow
-    io_dict[node_name]["factor"]     = upsample_factor
-    io_dict[node_name]["type"]   = 'upsample'
-    io_dict[node_name]["scale_factor"] = 0
+    if scales is not None:
+        # Only handle 2D upsampling
+        assert len(scales) == 4, f"Unexpected scales length: {len(scales)}"
+        assert scales[0] == 1 and scales[1] == 1, "Only spatial scaling supported"
+        assert scales[2] == scales[3], "Only uniform scale supported"
+        upsample_factor = int(scales[2])
+    elif sizes is not None:
+        # Infer scale factor from input/output shape
+        assert len(sizes) == 4, f"Unexpected sizes length: {len(sizes)}"
+        scale_h = sizes[2] / input_shape[2]
+        scale_w = sizes[3] / input_shape[3]
+        assert scale_h == scale_w, "Only uniform scaling supported"
+        upsample_factor = int(scale_h)
+    else:
+        raise ValueError("Resize node must provide either 'scales' or 'sizes'")
+
+    io_dict[node_name] = {
+        "ich": input_shape[1],
+        "ih": input_shape[2],
+        "iw": input_shape[3],
+        "och": output_shape[1],
+        "oh": output_shape[2],
+        "ow": output_shape[3],
+        "factor": upsample_factor,
+        "type": "upsample",
+        "scale_factor": 0,
+    }
 
     return io_dict
 
