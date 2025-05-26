@@ -132,14 +132,14 @@ def init(file_name, parsed_write, object_detection=False, off_chip_storage=False
         fd.write(") {\n")
         fd.write("\n")
 
-def handle_parameters(io_dict, model, board, off_chip_storage, prj_root, generate_report_file): 
+def handle_parameters(io_dict, model, board, off_chip_storage, prj_root, generate_report_file, sorted_bfs): 
     
     # Writing the separate file for the memory management only in case of off-chip.
     # In the other case the memory management is handled directly by the conv.
     if off_chip_storage: 
         block = weights.parse_main(io_dict)
     else:
-        graph_streaming, shift_cycles, tot_cycles, n_weights, fit = weights.handle_streaming_params(io_dict, model, prj_root, board)
+        graph_streaming, shift_cycles, tot_cycles, n_weights, fit = weights.handle_streaming_params(io_dict, model, prj_root, board, sorted_bfs)
         for name, node in io_dict.items():
             if 'conv' == node["type"]:
                 node["shift_cycles"] = shift_cycles[name]
@@ -174,6 +174,18 @@ def handle_parameters(io_dict, model, board, off_chip_storage, prj_root, generat
         "uint8_t"
     ]
     return block
+def sort_dag(model, io_dict):
+    """
+    Sort the DAG in a BFS order.
+    """
+    # Sorting the nodes in a BFS order
+    io_dict = dag_sorting(model, io_dict)
+    sorted_bfs = []
+    for name, node in io_dict.items():
+        sorted_bfs.append((name, node["layer_index"]))
+
+    sorted_bfs = sorted(sorted_bfs, key=lambda x: x[1])
+    return sorted_bfs
 
 def parse_all_main(io_dict, model, off_chip_storage=False):
 
@@ -184,12 +196,8 @@ def parse_all_main(io_dict, model, off_chip_storage=False):
     io_connect = graph.extract_connections(model, io_dict)
 
     # Sorting the nodes in a BFS order
-    io_dict = dag_sorting(model, io_dict)
-    sorted_bfs = []
-    for name, node in io_dict.items():
-        sorted_bfs.append((name, node["layer_index"]))
-
-    sorted_bfs = sorted(sorted_bfs, key=lambda x: x[1])
+    sorted_bfs = sort_dag(model, io_dict)
+    
     print(sorted_bfs)
     for name, _ in sorted_bfs:
         node = io_dict[name]
@@ -326,7 +334,8 @@ def write(
     else:
         ap_ctrl = "ap_ctrl_none"
 
-    parsed_write_mem = handle_parameters(io_dict, model, board, off_chip_storage, prj_root, generate_report_file)
+    sorted_bfs = sort_dag(model, io_dict)
+    parsed_write_mem = handle_parameters(io_dict, model, board, off_chip_storage, prj_root, generate_report_file, sorted_bfs)
     parsed_write, parsed_const = parse_all_main(io_dict, model, off_chip_storage)
     parsed_write.insert(0, parsed_write_mem)
     

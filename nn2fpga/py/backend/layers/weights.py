@@ -1283,36 +1283,40 @@ def parse_all(io_dict, model, prj_root="/tmp", board="KRIA", generate_report_fil
 
     print_report(n_weights, fit, generate_report_file)
     return parsed_write
+def build_graph(io_dict, sorted_bfs):
+    """ Build the graph to stream the weights and biases using provided sorted BFS order """
+    stream_graph = {}
+    prev_node_name = "axi_to_stream"
 
-def handle_streaming_params(io_dict, model, prj_root, board="KRIA"):
+    for i, (name, _) in enumerate(sorted_bfs):
+        if io_dict[name]["type"] != "conv":
+            continue  # only include conv layers
+
+        stream_graph[name] = {
+            "in": prev_node_name,
+            "out": None if i == len(sorted_bfs) - 1 else next_conv_name(sorted_bfs, i + 1, io_dict)
+        }
+        prev_node_name = name
+
+    return stream_graph
+
+def next_conv_name(sorted_bfs, start_idx, io_dict):
+    for i in range(start_idx, len(sorted_bfs)):
+        name, _ = sorted_bfs[i]
+        if io_dict[name]["type"] == "conv":
+            return name
+    return None
+
+def handle_streaming_params(io_dict, model, prj_root, board="KRIA", sorted_bfs=None):
     """ This function handles the generation of the graph of streaming parameters, the computation of the number of weights to shift for each conv. """
     
-    def build_graph(io_dict):
-        """ Build the graph to stream the weights and biases """
-        allowed_types = ["conv"]
-        stream_graph = {}
-
-        sorted_bfs = [(node_name, io_dict[node_name]["layer_index"]) for node_name in io_dict if (io_dict[node_name]["type"] in allowed_types)]
-        sorted_bfs = sorted(sorted_bfs, key=lambda x: (x[1], x[0]))
-
-        prev_node_name = "axi_to_stream"
-        for i in range(len(sorted_bfs)):
-            stream_graph[sorted_bfs[i][0]] = {}
-            stream_graph[sorted_bfs[i][0]]["in"] = prev_node_name
-            if (i == len(sorted_bfs) - 1):
-                stream_graph[sorted_bfs[i][0]]["out"] = None
-            else:
-                stream_graph[sorted_bfs[i][0]]["out"] = sorted_bfs[i + 1][0]
-            prev_node_name = sorted_bfs[i][0]
-
-        return stream_graph
      
     board_res = utils.extract_board_info(board, prj_root)
     io_connect = graph.extract_connections(model, io_dict)
     uram_storage = board_res["uram"] > 0
 
     # Building a graph based only on parameters streaming
-    graph_streaming = build_graph(io_dict)
+    graph_streaming = build_graph(io_dict, sorted_bfs)
     
     # Creating a new dictionary with all the information about parameters
     n_weights = []

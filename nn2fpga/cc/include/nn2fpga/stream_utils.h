@@ -377,7 +377,7 @@ act_windowbuffer_hook(hls::stream<data_t> dinStream[1],
   std::cout << "HOOK FUNCTION ACTIVATION WINDOW BUFFER" << std::endl;
   std::ofstream file_stream;
   file_stream.open(
-    "/home/roberto/Documents/NN2FPGA/nn2fpga/tmp/logs/" +
+    "/home-ssd/teodoro/Github/work0/NN2FPGA/nn2fpga/tmp/logs/" +
     name + "_acts.txt");
   for (auto h = 0; h < H; h++) {
     for (auto w = 0; w < W; w += w_step) {
@@ -422,7 +422,7 @@ act_shiftop_hook(hls::stream<data_t> &dinStream,
   std::cout << "HOOK FUNCTION ACTIVATION SHIFT_OP" << std::endl;
   std::ofstream file_stream;
   file_stream.open(
-    "/home/roberto/Documents/NN2FPGA/nn2fpga/tmp/logs/" +
+    "/home-ssd/teodoro/Github/work0/NN2FPGA/nn2fpga/tmp/logs/" +
     name + "_acts.txt");
   for (auto h = 0; h < H; h++) {
     for (auto w = w_pos; w < W; w += w_step) {
