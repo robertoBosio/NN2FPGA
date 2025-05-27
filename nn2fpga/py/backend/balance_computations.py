@@ -865,14 +865,22 @@ def write_parallelism(io_dict, model, parallel_ops):
                 node["ow_ops"] = io_dict[in_node]["ow_ops"]
                 node["ow_ops_out"] = io_dict[in_node]["ow_ops"]
             node["ops"] = io_dict[in_node]["ops"]
+            node["in_ops"] = io_dict[in_node]["ops"]
             node["ops_out"] = io_dict[in_node]["ops"]
             print(f"\t{node['name']} -> Width: {in_node} ({node['ow_ops']} -> {io_dict[in_node]['ow_ops']})")
             print(f"\t{node['name']} -> Channels: {in_node} ({node['ops_out']} -> {io_dict[in_node]['ops']})")
     
     print("Correcting concat")
     for name, node in io_dict.items():
+        # check the inputs of the concat node and select the minimum ops as the output ops
         if node["type"] == "concat":
-            node["ops_out"] = node["ops"]
+            in_names = node["input"]
+            in_nodes = [io_connect[in_name][0][0] for in_name in in_names]
+            min_ops = min([io_dict[in_node]["ops"] for in_node in in_nodes])
+            min_ow_ops = min([io_dict[in_node]["ow_ops"] for in_node in in_nodes])
+            node["ops"] = min_ops
+            node["in_ops"] = min_ops
+            node["ops_out"] = min_ops
     # Initializing layer index
     accepted_layers = ["conv", "pool", "produce", "consume", "add", "relu", "duplicate", "concat" ,"upsample"]
 
@@ -908,8 +916,10 @@ def write_parallelism(io_dict, model, parallel_ops):
                     print(f"\t\t{input_name} -> {io_dict[node]['output'][input_index]} ({input_index} -> {output_index})")
                     
                     ops_out = 0
-                    if io_dict[node]["type"] == "pool" or io_dict[node]["type"] == "duplicate" or io_dict[node]["type"] == "concat":
+                    if io_dict[node]["type"] == "pool":
                         ops_out = io_dict[node]["ops"]
+                    elif io_dict[node]["type"] == "concat" or io_dict[node]["type"] == "duplicate":
+                        ops_out = io_dict[node]["in_ops"]
                     elif io_dict[node]["type"] == "conv":
                         if io_dict[node]["depth"]:
                             ops_out = io_dict[node]["ich_ops"]
@@ -924,8 +934,10 @@ def write_parallelism(io_dict, model, parallel_ops):
                         # depthwise convolution the packing is over the input channels.
                         ops_in = 0
                         ow_ops_in = io_dict[out_node]["ow_ops"]
-                        if io_dict[out_node]["type"] == "pool" or io_dict[out_node]["type"] == "duplicate" or io_dict[out_node]["type"] == "concat":
+                        if io_dict[out_node]["type"] == "pool":
                             ops_in = io_dict[out_node]["ops"]
+                        elif io_dict[out_node]["type"] == "concat" or io_dict[out_node]["type"] == "duplicate":
+                            ops_in = io_dict[out_node]["in_ops"]
                         elif io_dict[out_node]["type"] == "conv":
                             ops_in = io_dict[out_node]["ich_ops"]
                         else:
@@ -987,7 +999,7 @@ def write_parallelism(io_dict, model, parallel_ops):
                                     io_dict[node]["ow_ops_out"] = ow_ops_in
                                     io_dict[out_node]["ow_ops_in"] = ow_ops_in
                                 else:
-                                    if not io_dict[out_node]["adjust_line_buffer"]:
+                                    if "adjust_line_buffer" in io_dict[out_node] and not io_dict[out_node]["adjust_line_buffer"]:
                                         io_dict[out_node]["adjust_ops"] = io_dict[out_node]["in_ops"]
                                     io_dict[out_node]["adjust_line_buffer"] = True
                                     io_dict[node]["ow_ops_out"] = ow_ops_out
@@ -1062,7 +1074,21 @@ def write_parallelism(io_dict, model, parallel_ops):
                                 io_dict[out_node]["adjust_add_ops"] = io_dict[out_node]["ops"]
                             else:
                                 bandwidth_adjustment(model, io_dict, out_node, node, io_dict[out_node]["adjust_add_ow_ops_in"], io_dict[out_node]["ow_ops"], io_dict[out_node]["add_ops"], io_dict[out_node]["ops"], input_index , output_index, dim = "o")
-                        
+                                
+                    # check if the ops_out of concat node is still the same as the ops_in and ops
+                    if io_dict[out_node]["type"] == "concat" or io_dict[out_node]["type"] == "duplicate":
+                        if io_dict[out_node]["ops_out"] != io_dict[out_node]["in_ops"]:
+                            print(f"Warning: Layer {out_node} ops_out ({io_dict[out_node]['ops_out']}) is not equal to in_ops ({io_dict[out_node]['in_ops']})")
+                            print(f"Setting ops_out to in_ops: {io_dict[out_node]['ops_out']} -> {io_dict[out_node]['in_ops']}, ops = {io_dict[out_node]['ops']}")
+                            # impose the ops_out to be equal to in_ops
+                            io_dict[out_node]["ops_out"] = io_dict[out_node]["in_ops"] 
+                    if io_dict[node]["type"] == "concat" or io_dict[node]["type"] == "duplicate":
+                        if io_dict[node]["ops_out"] != io_dict[node]["in_ops"]:
+                            print(f"Warning: Layer {node} ops_out ({io_dict[node]['ops_out']}) is not equal to in_ops ({io_dict[node]['in_ops']})")
+                            print(f"Setting ops_out to in_ops: {io_dict[node]['ops_out']} -> {io_dict[node]['in_ops']}, ops = {io_dict[node]['ops']}")
+                            # impose the ops_out to be equal to in_ops
+                            io_dict[node]["ops_out"] = io_dict[node]["in_ops"]    
+                              
     for node, info in graph.items():
         if io_dict[node]["type"] == "produce":
             io_dict[node]["ops"] = io_dict[node]["ops_out"]
@@ -1095,13 +1121,6 @@ def check_adjustments(io_dict, model):
             output_node_name = io_connect[output_name][1][0]
 
             if io_dict[output_node_name]["type"] != "consume":
-                if node["type"] == "concat":
-                    if node["ops"] != node["ops_out"]:
-                        print(f"Error: {name} ops ({node['ops']}) is not equal to ops_out ({node['ops_out']}).")
-                        return False
-                    if node["ow_ops"] != node["ow_ops_out"]:
-                        print(f"Error: {name} ow_ops ({node['ow_ops']}) is not equal to ow_ops_out ({node['ow_ops_out']}).")
-                        return False
                 # Checking conv layers
                 if node["type"] == "conv" and node["depth"] == False:
                     if (node["ops"] > node["ops_out"]):
@@ -1161,7 +1180,21 @@ def check_adjustments(io_dict, model):
                     if (node["in_ops"] < node["ops"]):
                         print(f"Error: {name} in_ops ({node['in_ops']}) is smaller than ops ({node['ops']}).")
                         return False
-                
+                # Checking concat layers
+                if node["type"] == "concat":
+                    if( node["in_ops"] != node["ops_out"]):
+                        #check inputs ops_out
+                        print(f"Error: {name} in_ops ({node['in_ops']}) is not equal to ops_out ({node['ops_out']}).")
+                        return False
+                    if (node["ow_ops"] != node["ow_ops_out"]):
+                        print(f"Error: {name} ow_ops ({node['ow_ops']}) is not equal to ow_ops_out ({node['ow_ops_out']}).")
+                        return False
+                # Checking duplicate layers
+                if node["type"] == "duplicate":
+                    if (node["in_ops"] != node["ops_out"]):
+                        #check inputs ops_out
+                        print(f"Error: {name} in_ops ({node['in_ops']}) is not equal to ops_out ({node['ops_out']}).")
+                        return False
                 # Checking bandwidth adjust
                 if "bandwidth_adjust" in node:
                     if (node["in_ops"] % node["adjust_ops"] != 0):

@@ -117,7 +117,7 @@ def parse(name, node):
 
     block["defines"] = {}
     block["defines"]["t_%s" % output_name] = ["type", output_type]
-    output_vector_type = "std::array<t_%s, %0d>" % (output_type_name, node["ops"])
+    output_vector_type = "std::array<t_%s, %0d>" % (output_type_name, node["ops_out"])
     block["defines"]["t_%s_vector" % output_name] = ["type", output_vector_type]
     block["defines"]["t_%s_struct" % output_name] = [
         "struct",
@@ -126,7 +126,7 @@ def parse(name, node):
     block["defines"]["c_%s_feature_map" % name] = ["const", node["feature_map"]]
     block["defines"]["c_%s_ich1" % input_name1] = ["const", node["ich"]]
     block["defines"]["c_%s_ich2" % input_name2] = ["const", node["ich"]]
-    block["defines"]["c_%s_ops" % output_name] = ["const", node["ops"]]
+    block["defines"]["c_%s_ops" % output_name] = ["const", node["ops_out"]]
     block["defines"]["c_%s_ow_ops_in" % output_name] = ["const", node["ow_ops"]]
     block["defines"]["c_%s_ow_ops_out" % output_name] = ["const", node["ow_ops"]]
     
