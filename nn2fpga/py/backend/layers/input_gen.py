@@ -1,35 +1,28 @@
 import os
 import sys
-#import onnx
 import qonnx
-from onnx import numpy_helper
 import numpy as np
+from onnx import numpy_helper
 from backend.layers.quant import get_quant_type
-from backend.layers.layer import Layer
+from backend.utils import get_shape_from_value_info
 
 def info(io_dict, tensors_info, graph_input_name, transform=False):
     """ Generate a specific layer block for the input layer. """
     
     node_name = "produce_stream"
-    input_shape = tensors_info[graph_input_name].tensor_type.shape
-    graph_input_name = graph_input_name.replace(".", "_")
-
-    ich      = getattr(input_shape, 'dim')[1].dim_value
-    ih       = getattr(input_shape, 'dim')[2].dim_value
-    iw       = getattr(input_shape, 'dim')[3].dim_value
+    input_shape = get_shape_from_value_info(tensors_info[graph_input_name])
 
     io_dict[node_name] = {}
     io_dict[node_name]["input"] = [graph_input_name]
     io_dict[node_name]["output"] = [graph_input_name]
     io_dict[node_name]["is_constant"] = False
     io_dict[node_name]["type"] = 'produce'
-
-    io_dict[node_name]["ich"]    = ich
-    io_dict[node_name]["ih"]     = ih
-    io_dict[node_name]["iw"]     = iw
-    io_dict[node_name]["och"]    = ich
-    io_dict[node_name]["oh"]     = ih
-    io_dict[node_name]["ow"]     = iw
+    io_dict[node_name]["ich"]    = input_shape[1]
+    io_dict[node_name]["ih"]     = input_shape[2]
+    io_dict[node_name]["iw"]     = input_shape[3]
+    io_dict[node_name]["och"]    = input_shape[1]
+    io_dict[node_name]["oh"]     = input_shape[2]
+    io_dict[node_name]["ow"]     = input_shape[3]
     io_dict[node_name]["ops"]    = 1
     io_dict[node_name]["ow_ops"] = 1
     io_dict[node_name]["ow_ops_out"] = 1
@@ -230,11 +223,4 @@ def parse(name, node):
 
 
     return block
-
-class InputGenerator(Layer):
-
-    def __init__(self, name, dma_bitwidth):
-        super().__init__(name)
-        self.foldable = True
-        self.dma_bitwidth = dma_bitwidth
 

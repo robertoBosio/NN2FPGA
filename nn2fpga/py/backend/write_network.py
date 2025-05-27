@@ -62,8 +62,7 @@ def write_network(
     init_info = {}
 
     for info in model.graph.initializer:
-        info_name = info.name.replace(".", "_")
-        init_info[info_name] = info
+        init_info[info.name] = info
 
     
     # Save the original stdout and stderr

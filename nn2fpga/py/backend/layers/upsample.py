@@ -47,6 +47,8 @@ def info(io_dict, node, node_name, init_info, tensors_info):
     io_dict[node_name]["factor"] = upsample_factor
     io_dict[node_name]["type"] = "upsample"
     io_dict[node_name]["scale_factor"] = 0
+    io_dict[node_name]["input_quant"] = None
+    io_dict[node_name]["output_quant"] = None
 
     return io_dict
 

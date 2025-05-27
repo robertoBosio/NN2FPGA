@@ -186,6 +186,9 @@ def fold_params_quant(model, io_dict, init_info, log=False):
 def fold_output_quant(model, io_dict, log=False):
     """ Fold quantization layers inside input layers. """
 
+    if log:
+        print("\n\n -- Folding output quantization layers --")
+    
     io_connect = extract_connections(model, io_dict)
 
     # Retrieve all the quantization layers, excluding weights and biases
@@ -207,7 +210,7 @@ def fold_output_quant(model, io_dict, log=False):
             continue
 
         input_layer_name = input_layer_name[0]
-        if io_dict[input_layer_name]["type"].lower() in ["conv", "pool", "add", "relu", "produce"]:
+        if io_dict[input_layer_name]["type"].lower() in ["conv", "pool", "add", "relu", "produce", "upsample"]:
 
             quant_layers_folding.append((layer_name, input_layer_name))
             if log:
@@ -225,6 +228,9 @@ def fold_output_quant(model, io_dict, log=False):
 
 def fold_input_quant(model, io_dict, log=False):
     """ Fold quantization layers inside output layers. """
+
+    if log:
+        print("\n\n -- Folding input quantization layers --")
 
     io_connect = extract_connections(model, io_dict)
 
@@ -247,7 +253,7 @@ def fold_input_quant(model, io_dict, log=False):
             continue
 
         output_layer_name = output_layer_name[0]
-        if io_dict[output_layer_name]["type"].lower() in ["conv", "pool", "produce"]:
+        if io_dict[output_layer_name]["type"].lower() in ["conv", "pool", "produce", "upsample"]:
 
             quant_layers_folding.append((layer_name, output_layer_name))
             if log:
@@ -315,33 +321,43 @@ def check_unquantized_layers(io_dict):
 def dag_sorting(model, io_dict):
     """ Sort the layers of the model in a Directed Acyclic Graph (DAG). """
 
+    print("\n\n -- DAG sorting --")
     io_connect = extract_connections(model, io_dict)
 
     start_layers = [layer_name for layer_name, layer_info in io_dict.items() if layer_info["type"] == "produce"]
 
     if len(start_layers) > 1:
-        print("Error in dag_sorting: multiple start layers.")
-        exit(1)
+        raise Exception("Error in dag_sorting: multiple start layers found.")
     else:
         start_layer = start_layers[0]
     
     # Initializing layer index
-    accepted_layers = ["conv", "pool", "produce", "consume", "add", "relu", "duplicate"]
+    accepted_layers = ["conv", "pool", "produce", "consume", "add", "relu", "duplicate", "upsample"]
     start_layers = [layer_name for layer_name, layer_info in io_dict.items() if layer_info["type"] in accepted_layers]
     for layer_name in start_layers:
-        io_dict[layer_name]["layer_index"] = 0
+        io_dict[layer_name]["layer_index"] = -1
 
     node_list = [(start_layer, 0)]
+    io_dict[start_layer]["layer_index"] = 0
     while len(node_list) != 0:
         current_node, level = node_list.pop(0)
         output_nodes = next_layers(io_dict, io_connect, current_node)
-        # print(f"Analizing {current_node} at level {level}")
+        print(f"Analizing {current_node} at level {level}")
 
         if output_nodes is not None:
-            for node in output_nodes:
-                if (level + 1 > io_dict[node]["layer_index"]):
-                    io_dict[node]["layer_index"] = level + 1
-                    node_list.append((node, level + 1))
+            for frontier_node in output_nodes:
+                
+                # Check that all the inputs to the frontier have already an index assigned.
+                input_nodes = prev_layers(io_dict, io_connect, frontier_node)
+                print(f"Input nodes for {frontier_node}: {input_nodes}")
+                frontier = all(io_dict[input_node]["layer_index"] != -1 for input_node in input_nodes)
+                print(f"Frontier for {frontier_node}: {frontier}")
+                
+                if frontier:
+                    io_dict[frontier_node]["layer_index"] = level + 1
+                    node_list.append((frontier_node, level + 1))
+                    if level > 1000:
+                        raise Exception("Error in dag_sorting: too many layers in the model, possible infinite loop.")
 
     # Assigning to layers attached to produce nodes a boolean flag
     # Will be used in balance computation to recognize layers that 
@@ -434,18 +450,20 @@ def opt_merge_skip(model, io_dict, log=False):
 
 def propagate_quant(model, io_dict, log=False):
     """ Propagate output quantization to input quantization of the next layer, if not already present. """
+    
+    if log:
+        print("\n\n -- Propagate quantization --")
 
     io_connect = extract_connections(model, io_dict)
     
     start_layers = [layer_name for layer_name, layer_info in io_dict.items() if layer_info["type"] == "produce"]
 
     if len(start_layers) > 1:
-        print("Error in propagate_quant: multiple start layers.")
-        exit(1)
+        raise Exception("Multiple start layers found in propagate_quant.")
     else:
         start_layer = start_layers[0]
     
-    accepted_layers = ["conv", "pool", "add"]
+    accepted_layers = ["conv", "pool", "add", "upsample"]
     node_list = [start_layer]
     mark_set = set()
     mark_set.add(start_layer)
@@ -458,9 +476,7 @@ def propagate_quant(model, io_dict, log=False):
             for node in output_nodes:
                 if io_dict[node]["type"] in accepted_layers:
                     if io_dict[current_node]["output_quant"] is None and io_dict[current_node]["input_quant"] is None:
-                        print(f"Error in propagate_quant: no input/output quantization for layer \"{current_node}\".")
-                        exit(1)
-                    
+                        raise Exception(f"Error in propagate_quant: no input/output quantization for layer \"{current_node}\".")
 
                     if io_dict[current_node]["output_quant"] is None and io_dict[current_node]["input_quant"] is not None:
                         io_dict[current_node]["output_quant"] = io_dict[current_node]["input_quant"]

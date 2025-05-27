@@ -53,7 +53,7 @@ def sanitize_string(string: str) -> str:
     Returns:
         str: The sanitized string with dots replaced by underscores.
     """
-    return string.replace(".", "_")
+    return string.replace(".", ".")
 
 def extract_board_info(board, prj_root):
     """ Read the board json file and returns a dictionary with the available resources"""
