@@ -17,9 +17,7 @@ import backend.layers.concat as concat
 import backend.layers.upsample as upsample
 import backend.layers.pad as pad
 from backend.layers.layer import Net
-
-def sanitize_string(string):
-    return string.replace(".", "_")
+from backend.utils import sanitize_string
 
 def next_layers(io_dict, io_connect, layer_name):
     """Return the layers connected in output to the current layer. """ 
@@ -350,6 +348,8 @@ def extract_connections(model, io_dict):
     # This list is storing metadata of the connections between the output 
     # streams and the producers
     for node_name, io_info in io_dict.items():
+        print(f"Node {node_name}")
+        print(f" with inputs {io_info['input']} and outputs {io_info['output']}")
         for output_name in io_info["output"]:
 
             # Done to recognize vector connections
@@ -432,11 +432,17 @@ def graph_info(model, init_info, object_detection=False, anchors=None, transform
 
         for input in node.input:
             input_name = sanitize_string(input)
-            io_dict[node_name]["input"].append(input_name)
+
+            # Check if the input is not an empty string
+            if input_name != "":
+                io_dict[node_name]["input"].append(input_name)
 
         for output in node.output:
             output_name = sanitize_string(output)
-            io_dict[node_name]["output"].append(output_name)
+            
+            # Check if the output is not an empty string
+            if output_name != "":
+                io_dict[node_name]["output"].append(output_name)
 
         if 'conv' in node.op_type.lower():
             io_dict = conv.info(

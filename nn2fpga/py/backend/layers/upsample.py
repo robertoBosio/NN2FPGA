@@ -1,16 +1,12 @@
 import numpy as np
 from onnx import numpy_helper
-
-def sanitize_string(string):
-    return string.replace(".", "_")
-
-def get_shape_from_type(tensor_type):
-    return [d.dim_value for d in tensor_type.shape.dim]
+from backend.utils import sanitize_string
+from backend.utils import get_shape_from_value_info
 
 def info(io_dict, node, node_name, init_info, tensors_info):
     input_name = node.input[0]
-    input_shape = get_shape_from_type(tensors_info[input_name].tensor_type)
-    output_shape = get_shape_from_type(tensors_info[node.output[0]].tensor_type)
+    input_shape = get_shape_from_value_info(tensors_info[input_name])
+    output_shape = get_shape_from_value_info(tensors_info[node.output[0]])
 
     # Handle roi, scales, sizes
     roi = scales = sizes = None
@@ -42,17 +38,15 @@ def info(io_dict, node, node_name, init_info, tensors_info):
     else:
         raise ValueError("Resize node must provide either 'scales' or 'sizes'")
 
-    io_dict[node_name] = {
-        "ich": input_shape[1],
-        "ih": input_shape[2],
-        "iw": input_shape[3],
-        "och": output_shape[1],
-        "oh": output_shape[2],
-        "ow": output_shape[3],
-        "factor": upsample_factor,
-        "type": "upsample",
-        "scale_factor": 0,
-    }
+    io_dict[node_name]["ich"] = input_shape[1]
+    io_dict[node_name]["ih"] = input_shape[2]
+    io_dict[node_name]["iw"] = input_shape[3]
+    io_dict[node_name]["och"] = output_shape[1]
+    io_dict[node_name]["oh"] = output_shape[2]
+    io_dict[node_name]["ow"] = output_shape[3]
+    io_dict[node_name]["factor"] = upsample_factor
+    io_dict[node_name]["type"] = "upsample"
+    io_dict[node_name]["scale_factor"] = 0
 
     return io_dict
 

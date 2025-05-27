@@ -1,6 +1,59 @@
 import os
 import sys
 import json
+import onnx
+from onnx import TypeProto, TensorShapeProto
+
+def extract_attrs(node, names):
+    return {attr.name: attr for attr in node.attribute if attr.name in names}
+
+def get_shape_from_value_info(value_info: onnx.TypeProto) -> list[int]:
+    if not value_info.HasField("tensor_type"):
+        raise TypeError("TypeProto does not contain tensor_type")
+    return get_shape_from_type(value_info.tensor_type)
+
+def get_shape_from_type(tensor_type: TypeProto.Tensor) -> list[int]:
+    """
+    Extracts the shape from an ONNX TensorTypeProto object.
+
+    Args:
+        tensor_type: An ONNX TypeProto.Tensor object.
+
+    Returns:
+        A list of integers representing the shape of the tensor.
+    """
+    if not isinstance(tensor_type, onnx.TypeProto.Tensor):
+        raise TypeError("Expected a TypeProto.Tensor")
+
+    shape = tensor_type.shape
+    if shape is None or not isinstance(shape, TensorShapeProto):
+        raise ValueError("Invalid or missing shape")
+
+    dims = []
+    for dim in shape.dim:
+        if dim.HasField("dim_value"):
+            dims.append(dim.dim_value)
+        elif dim.HasField("dim_param"):
+            dims.append(-1)  # symbolic dimension (can choose any placeholder)
+        else:
+            dims.append(-1)  # unknown dimension
+    
+    if len(dims) < 4:
+        # Pad the shape to 4 dimensions if necessary
+        dims = [1] * (4 - len(dims)) + dims
+
+    return dims
+
+def sanitize_string(string: str) -> str:
+    """ Sanitizes a string by replacing dots with underscores.
+    
+    Args:
+        string (str): The input string to sanitize.
+    
+    Returns:
+        str: The sanitized string with dots replaced by underscores.
+    """
+    return string.replace(".", "_")
 
 def extract_board_info(board, prj_root):
     """ Read the board json file and returns a dictionary with the available resources"""

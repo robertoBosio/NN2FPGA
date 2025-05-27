@@ -1,10 +1,11 @@
-
 import os
 import sys
-#import onnx
 import qonnx
-from onnx import numpy_helper
 import numpy as np
+from onnx import numpy_helper
+from backend.utils import sanitize_string
+from backend.utils import get_shape_from_value_info
+from backend.utils import extract_attrs
 
 def get_quant_constant(signed, bit_width, scale_factor, acc_reg=False):
     return int(bit_width), int(bit_width+scale_factor)
@@ -28,62 +29,84 @@ def get_quant_type(signed, bit_width, scale_factor, acc_reg=False, narrow=False)
     return type_name
 
 def info(io_dict, node, node_name, init_info, tensors_info):
+    """ Extract information from the IntQuant node.
+    From qonnx specification 0.4.0, IntQuant node has the following inputs:
+    - X: the input tensor to be quantized
+    - scale : a tensor containing the scale factor for quantization
+    - zeropt: a tensor containing the zero-point for quantization
+    - bitwidth: the bit width for quantization
+    Attributes:
+    - signed: whether the quantization is signed or not
+    - narrow: whether the quantization is narrow or not
+    - rounding_mode: the rounding mode for quantization
+    Outputs:
+    - Y: the quantized output tensor
+    """
 
-    scale_name   = io_dict[node_name]["input"][1]
-    scale_info   = init_info[scale_name]
-    scale_factor = numpy_helper.to_array(scale_info)
-    scale_factor = np.log2(scale_factor)
-
-    attributes = getattr(node, "attribute")
-    narrow = attributes[0].i
-    signed = attributes[2].i
-
-    bits_name   = io_dict[node_name]["input"][3]
-    bits_info   = init_info[bits_name]
-    bits        = numpy_helper.to_array(bits_info)
+    input_name = node.input[0]
+    input_shape = get_shape_from_value_info(tensors_info[input_name])
+    output_shape = get_shape_from_value_info(tensors_info[node.output[0]])
     
-    assert bits.ndim == 0, "bits should be a scalar"
+    # Handle scale, zeropt, bitwidth
+    scale = zeropt = bitwidth = None
 
-    input_shape = tensors_info[node.input[0]].tensor_type.shape
-    output_shape = tensors_info[node.output[0]].tensor_type.shape
+    if len(node.input) > 1 and sanitize_string(node.input[1]) in init_info:
+        scale = numpy_helper.to_array(init_info[sanitize_string(node.input[1])])
+    if len(node.input) > 2 and sanitize_string(node.input[2]) in init_info:
+        zeropt = numpy_helper.to_array(init_info[sanitize_string(node.input[2])])
+    if len(node.input) > 3 and sanitize_string(node.input[3]) in init_info:
+        bitwidth = numpy_helper.to_array(init_info[sanitize_string(node.input[3])])
+    
+    # Basic validation
+    if scale is None or zeropt is None or bitwidth is None:
+        raise ValueError("Scale, zeropt and bitwidth initializers must all be provided")
 
-    if len(getattr(input_shape, 'dim')) == 4:
-        ich      = getattr(input_shape, 'dim')[1].dim_value
-        ih       = getattr(input_shape, 'dim')[2].dim_value
-        iw       = getattr(input_shape, 'dim')[3].dim_value
-        och      = getattr(output_shape, 'dim')[1].dim_value
-        oh       = getattr(output_shape, 'dim')[2].dim_value
-        ow       = getattr(output_shape, 'dim')[3].dim_value
-    else:
-        ich      = getattr(input_shape, 'dim')[0].dim_value
-        och      = getattr(output_shape, 'dim')[0].dim_value
-        ih       = 1
-        iw       = 1
-        oh       = 1
-        ow       = 1
+    # Right now only per tensor quantization is supported.
+    if scale.ndim > 1:
+        raise ValueError(f"Scale must be a scalar, got array with shape {scale.shape}")
+    if zeropt.ndim > 1:
+        raise ValueError(f"Zero-point must be a scalar, got array with shape {zeropt.shape}")
+    if bitwidth.ndim > 1:
+        raise ValueError(f"Bitwidth must be a scalar, got array with shape {bitwidth.shape}")
 
-    # Clip bits to 16
-    if int(bits) > 16:
-        bits = 16
+    scale_val    = float(scale.item())
+    zeropt_val   = int(zeropt.item())
+    bitwidth_val = int(bitwidth.item())
+
+    # Only symmetric quantization is supported.
+    if zeropt_val != 0:
+        raise ValueError(f"Only symmetric quantization supported: zero-point must be 0, got {zeropt_val}")
+
+    # Only power of two scales are supported.
+    log2_scale = np.log2(scale_val)
+    rounded_log2_scale = round(log2_scale)
+    if not np.isclose(log2_scale, rounded_log2_scale, atol=1e-6):
+        print(f"Warning: scale={scale_val} of IntQuant node {node_name} is not a power of two. Approximating from {log2_scale} to {rounded_log2_scale}.", file=sys.stderr)
+
+    scale_factor = rounded_log2_scale
+    bitwidth = min(bitwidth_val, 16)  # Limit bitwidth to 16 bits
+    
+    attrs  = extract_attrs(node, {"narrow", "signed", "rounding_mode"})
+    narrow = attrs.get("narrow", None).i if "narrow" in attrs else 0
+    signed = attrs.get("signed", None).i if "signed" in attrs else 0
 
     io_dict[node_name]["narrow"] = narrow
     io_dict[node_name]["type"] = "quant"
     io_dict[node_name]["scale_factor"] = scale_factor
     io_dict[node_name]["signed"] = signed
-    io_dict[node_name]["bits"] = int(bits)
+    io_dict[node_name]["bits"] = bitwidth
     io_dict[node_name]["clip"] = scale_factor
     io_dict[node_name]["mask"] = scale_factor
     io_dict[node_name]["clip_signed"] = signed
     io_dict[node_name]["mask_signed"] = signed
-    io_dict[node_name]["clip_bits"] = int(bits)
-    io_dict[node_name]["mask_bits"] = int(bits)
-    io_dict[node_name]["ich"]  = ich
-    io_dict[node_name]["ih"]   = ih
-    io_dict[node_name]["iw"]   = iw
-    io_dict[node_name]["och"]  = och
-    io_dict[node_name]["oh"]   = oh
-    io_dict[node_name]["ow"]   = ow
-    io_dict[node_name]["data_type"] = get_quant_type(signed, bits, scale_factor, acc_reg=False, narrow=narrow)
-
+    io_dict[node_name]["clip_bits"] = bitwidth
+    io_dict[node_name]["mask_bits"] = bitwidth
+    io_dict[node_name]["ich"]  = input_shape[1]
+    io_dict[node_name]["ih"]   = input_shape[2]
+    io_dict[node_name]["iw"]   = input_shape[3]
+    io_dict[node_name]["och"]  = output_shape[1]
+    io_dict[node_name]["oh"]   = output_shape[2]
+    io_dict[node_name]["ow"]   = output_shape[3]
+    io_dict[node_name]["data_type"] = get_quant_type(signed, bitwidth, scale_factor, acc_reg=False, narrow=narrow)
 
     return io_dict
