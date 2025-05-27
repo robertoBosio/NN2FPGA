@@ -342,16 +342,14 @@ def dag_sorting(model, io_dict):
     while len(node_list) != 0:
         current_node, level = node_list.pop(0)
         output_nodes = next_layers(io_dict, io_connect, current_node)
-        print(f"Analizing {current_node} at level {level}")
+        # print(f"Analizing {current_node} at level {level}")
 
         if output_nodes is not None:
             for frontier_node in output_nodes:
                 
                 # Check that all the inputs to the frontier have already an index assigned.
                 input_nodes = prev_layers(io_dict, io_connect, frontier_node)
-                print(f"Input nodes for {frontier_node}: {input_nodes}")
                 frontier = all(io_dict[input_node]["layer_index"] != -1 for input_node in input_nodes)
-                print(f"Frontier for {frontier_node}: {frontier}")
                 
                 if frontier:
                     io_dict[frontier_node]["layer_index"] = level + 1
