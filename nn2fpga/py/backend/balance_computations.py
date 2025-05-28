@@ -963,6 +963,9 @@ def write_parallelism(io_dict, model, parallel_ops):
                         else:
                             if ops_in % ops_out == 0:
                                 scaling_out = ops_in
+                                if io_dict[out_node]["type"] == "pool":
+                                    io_dict[out_node]["adjust_line_buffer"] = True
+                                    io_dict[out_node]["adjust_ops"] = ops_in
                             else:
                                 common_mult = find_common_mult(ops_in, ops_out)
                                 if io_dict[node]["type"] == "conv":
@@ -1119,7 +1122,7 @@ def check_adjustments(io_dict, model):
         if "ops" in node:
             output_name = io_dict[name]["output"][0]
             output_node_name = io_connect[output_name][1][0]
-
+            
             if io_dict[output_node_name]["type"] != "consume":
                 # Checking conv layers
                 if node["type"] == "conv" and node["depth"] == False:

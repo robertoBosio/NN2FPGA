@@ -11,7 +11,10 @@ def info(io_dict, node, node_name, init_info, tensors_info):
 
     input_shape = tensors_info[node.input[0]].tensor_type.shape
     output_shape = tensors_info[node.output[0]].tensor_type.shape
-
+    
+    # ignore parameters that are not needed for the upsample
+    io_dict[node_name]["input"] = [io_dict[node_name]["input"][0]]
+    
     # check if the node has the attribute 'roi' for bug in the onnx model https://github.com/fastmachinelearning/qonnx/issues/150
     if init_info.get(sanitize_string(node.input[1])) is not None:
         roi = init_info[sanitize_string(node.input[1])]
@@ -63,7 +66,7 @@ def info(io_dict, node, node_name, init_info, tensors_info):
 
 def parse(name, node):
     node_name = name
-    input_name  = node["input"][2]
+    input_name  = node["input"][0]
     input_type_name = input_name.replace("_skip", "")
 
     output_name = node["output"][0]

@@ -691,7 +691,7 @@ def duplicate_tensor(model, io_dict, log=False):
 
         # Check that the producer is a convolution layer and it is the only producer
         # Right now only convolution layers are supported.
-        if not (len(producers) == 1 and io_dict[producers[0]]["type"].lower() in ["conv", "produce", "concat"]):
+        if not (len(producers) == 1 and io_dict[producers[0]]["type"].lower() in ["conv", "produce", "concat", "pool"]):
             continue
 
         # Create a new layer duplicating the tensor
@@ -727,7 +727,10 @@ def duplicate_tensor(model, io_dict, log=False):
             io_dict[layer_name]["C"] = io_dict[producers[0]]["ich"]
             io_dict[layer_name]["H"] = io_dict[producers[0]]["ih"]
             io_dict[layer_name]["W"] = io_dict[producers[0]]["iw"]
-            io_dict[layer_name]["ops"] = io_dict[producers[0]]["ops_out"]
+            if "ops_out" in io_dict[producers[0]].keys():
+                io_dict[layer_name]["ops"] = io_dict[producers[0]]["ops_out"]
+            else:
+                io_dict[layer_name]["ops"] = io_dict[producers[0]]["ops"]
             if "ow_ops_out" in io_dict[producers[0]].keys():
                 io_dict[layer_name]["ow_ops"] = io_dict[producers[0]]["ow_ops_out"]
             else:   
