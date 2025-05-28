@@ -1,6 +1,5 @@
 import numpy as np
 from onnx import numpy_helper
-from backend.quant import *
 from backend.graph import *
 
 def opt_flatten(io_dict, model, log=False):

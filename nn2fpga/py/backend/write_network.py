@@ -1,17 +1,24 @@
 import sys
 import time
 import threading
-from qonnx.transformation import infer_shapes
+from qonnx.transformation.infer_shapes import InferShapes
+from qonnx.transformation.infer_datatypes import InferDataTypes
+from qonnx.core.modelwrapper import ModelWrapper
 
 from backend.graph import *
 from backend.opt import *
 import backend.layers.weights as weights
 import backend.balance_computations as balance_computations
-import backend.balance_reuse as balance_reuse
 import backend.main as main
 import backend.sim as sim
+import backend.transformation as transformation
+from backend.custom_op.producestream import ProduceStream
+from backend.custom_op.consumestream import ConsumeStream
+import qonnx.custom_op.general as general
+from qonnx.custom_op.registry import getCustomOp
 
 from onnx import numpy_helper
+from onnx import helper, OperatorSetIdProto
 import numpy as np
 
 class StatusThread(threading.Thread):
@@ -55,15 +62,21 @@ def write_network(
 
     print(f"\nCurrent log file: {generate_log_file}\n")
 
+    model.model.opset_import.append(
+        OperatorSetIdProto(domain="backend.custom_op", version=1)
+    )
+
     # Cases in which a master axi interface is needed
+
     ap_ctrl_chain = off_chip_storage
-    inferred_model = model.transform(infer_shapes.InferShapes())
-
-    init_info = {}
-
-    for info in model.graph.initializer:
-        init_info[info.name] = info
-
+    model = model.transform(transformation.CustomInferShapes())
+    print(model.check_all_tensor_shapes_specified())
+    model = model.transform(transformation.InsertProduceStream())
+    model = model.transform(transformation.InsertConsumeStream())
+    model = model.transform(transformation.CustomInferShapes())
+    model = model.transform(InferDataTypes())
+    print(model.check_all_tensor_shapes_specified())
+    model.save("produce_stream.onnx")
     
     # Save the original stdout and stderr
     original_stdout = sys.stdout
@@ -124,50 +137,6 @@ def write_network(
 
         status_thread.stop()
         status_thread.join()
-        # status_thread = StatusThread("Hardware quantization", original_stdout)
-        # status_thread.start()
-
-        # io_dict = hw_quant(
-        #     model,
-        #     io_dict
-        # )
-
-        # status_thread.stop()
-        # status_thread.join()
-        # status_thread = StatusThread("Weights packeting", original_stdout)
-        # status_thread.start()
-
-        # io_dict = weights.weights_info(
-        #     inferred_model,
-        #     io_dict,
-        #     init_info,
-        #     off_chip_storage,
-        #     dynamic_init,
-        # )
-
-        # if off_chip_storage:
-        #     io_dict = balance_reuse.ilp(
-        #         io_dict
-        #     )
-        
-        # status_thread.stop()
-        # status_thread.join()
-        # status_thread = StatusThread("Share reuse", original_stdout)
-        # status_thread.start()
-
-        # # 2 times to be sure that both weights and conv are updated
-        # io_dict = share_reuse(
-        #     inferred_model,
-        #     io_dict
-        # )
-
-        # io_dict = share_reuse(
-        #     inferred_model,
-        #     io_dict
-        # )
-
-        # status_thread.stop()
-        # status_thread.join()
         status_thread = StatusThread("Renaming", original_stdout)
         status_thread.start()
 

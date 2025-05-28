@@ -16,7 +16,6 @@ import backend.layers.non_max_suppression as non_max_suppression
 import backend.layers.concat as concat
 import backend.layers.upsample as upsample
 import backend.layers.pad as pad
-from backend.layers.layer import Net
 from backend.utils import sanitize_string
 
 def next_layers(io_dict, io_connect, layer_name):
@@ -381,19 +380,13 @@ def extract_tensors_info(model):
     graph_input = model.graph.input
     for input in graph_input:
         tensors_info[input.name] = input.type
-        onnx_nets.append(Net(input.name, input.type.tensor_type.shape))
-        print(onnx_nets[-1])
 
     for info in model.graph.value_info:
         tensors_info[info.name] = info.type
-        onnx_nets.append(Net(info.name, info.type.tensor_type.shape))
-        print(onnx_nets[-1])
 
     graph_output = model.graph.output
     for output in graph_output:
         tensors_info[output.name] = output.type
-        onnx_nets.append(Net(output.name, output.type.tensor_type.shape))
-        print(onnx_nets[-1])
 
     return tensors_info
 

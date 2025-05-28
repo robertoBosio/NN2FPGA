@@ -4,7 +4,6 @@ import sys
 import qonnx
 from onnx import numpy_helper
 import numpy as np
-import backend.quant
 from backend.layers.quant import get_quant_type, get_quant_constant
 
 def info(io_dict, node, node_name, init_info, tensors_info):

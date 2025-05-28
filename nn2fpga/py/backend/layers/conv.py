@@ -5,7 +5,6 @@ import qonnx
 import math
 from onnx import numpy_helper
 import numpy as np
-import backend.quant
 from backend.layers.quant import get_quant_type, get_quant_constant
 from backend.layers import weights
 
