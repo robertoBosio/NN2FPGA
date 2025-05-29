@@ -193,7 +193,7 @@ def parse(name, node):
     block["defines"]["c_%s_ow_ops" % name]         = ["const", node["ow_ops"]]
     # block["defines"]["c_%s_ow_ops_out" % name]     = ["const", node["ow_ops_out"]]
     block["defines"]["c_%s_ops" % name]            = ["const", node["ops"]]
-    block["defines"]["c_%s_in_ops" % name]         = ["const", node["in_ops"]]
+    block["defines"]["c_%s_in_ops" % name]         = ["const", node["ops"]]
 
     block["declare"] = []
 
