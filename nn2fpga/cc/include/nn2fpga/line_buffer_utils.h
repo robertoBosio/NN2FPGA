@@ -363,9 +363,10 @@ bandwidth_adjust_up_down(hls::stream<din_t> din[c_ow_ops_in],
           for (auto s_i = 0; s_i < c_ops_in; s_i += c_ops_out) {
 
             /* Select the input stream to read from */
-            auto s_i_read = s_ow_ops_out + s_ow_ops_in;
-            s_read = din[s_i_read].read();
-
+            auto s_i_read = s_ow_ops_in;
+            if (s_i == 0) {
+              s_read = din[s_i_read].read();
+            }
             /* Loop over the c_ops_out packet inside a c_ops_in one */
             for (auto s_j = 0; s_j < c_ops_out; s_j++) {
               s_write[s_ow_ops_out].data[0][s_j] = s_read.data[0][s_i + s_j];

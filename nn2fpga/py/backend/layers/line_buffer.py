@@ -139,7 +139,7 @@ def parse(name, node, debug=False):
             block["template"].append("%0d" % (dfw - 1 - fw))
             block["template"].append("c_%s_ow_ops" % name)
             if index < ow_ops:
-                if node["adjust_line_buffer"]:
+                if "adjust_ops" in node:
                     block["template"].append("%0d" % node["adjust_ops"])
                 else:
                     block["template"].append("%0d" % node["in_ops"])

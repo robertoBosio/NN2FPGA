@@ -389,7 +389,7 @@ def parse_comp(name, node, streaming_params=False):
     block["template"].append("c_%s_ich_ops" % name)
     
     if (node["add"]):
-        if node["adjust_add"]:
+        if "adjust_add_ops" in node:
             block["template"].append({"name" : node["adjust_add_ops"], "comment" : "add ops"})
         else:
             block["template"].append("c_%s_add_ops" % add_name)
