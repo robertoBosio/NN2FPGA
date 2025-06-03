@@ -1,6 +1,5 @@
 from qonnx.transformation.base import Transformation
 from qonnx.core.modelwrapper import ModelWrapper
-from backend.custom_op.producestream import ProduceStream
 from onnx import helper
 
 class InsertTensorDuplicator(Transformation):
@@ -12,7 +11,6 @@ class InsertTensorDuplicator(Transformation):
     def apply(self, model: ModelWrapper) -> tuple[ModelWrapper, bool]:
         fork_nodes = [node for node in model.graph.node if model.is_fork_node(node)]
         for node in fork_nodes:
-            print(f"Inserting TensorDuplicator for fork node: {node.name}")
             
             fork_out = node.output[0]  
             consumers = model.find_consumers(fork_out)
