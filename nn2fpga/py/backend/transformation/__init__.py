@@ -1,4 +1,5 @@
 from backend.transformation.custom_infershape import CustomInferShapes
 from backend.transformation.insert_consume_stream import InsertConsumeStream
 from backend.transformation.insert_produce_stream import InsertProduceStream
+from backend.transformation.insert_tensor_duplicator import InsertTensorDuplicator
 from backend.transformation.supported_partition import SupportedPartition
