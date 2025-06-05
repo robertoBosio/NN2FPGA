@@ -1,6 +1,6 @@
 import onnx
 import numpy as np
-from onnx import helper, numpy_helper, TensorProto
+from onnx import helper, numpy_helper, TensorProto, AttributeProto
 from qonnx.util.basic import get_by_name
 from qonnx.core.modelwrapper import ModelWrapper
 from qonnx.transformation.base import Transformation
@@ -36,15 +36,24 @@ def is_constant_input_node(model: ModelWrapper, node: onnx.NodeProto) -> bool:
     init_names = {init.name for init in model.graph.initializer}
     return all(inp in init_names for inp in node.input)
 
+import numpy as np
+import onnx
+from onnx import AttributeProto
+from qonnx.util.basic import get_by_name
 
-def check_attribute(node: onnx.NodeProto, attr_name: str, expected_value, reasons: list, optional = False) -> bool:
-    """ Check if the attribute is present and has the expected value.
+
+def check_attribute(
+    node: onnx.NodeProto, attr_name: str, expected_value, reasons: list, optional=False
+) -> bool:
+    """Check if the attribute is present and has the expected value.
+
     Args:
         node (onnx.NodeProto): The node to check.
         attr_name (str): The name of the attribute to check.
         expected_value: The expected value of the attribute.
         reasons (list): A list to append reasons for failure.
         optional (bool): If True, the attribute is optional and its absence is not an error.
+
     Returns:
         bool: True if the attribute is present and has the expected value, False otherwise.
     """
@@ -53,20 +62,39 @@ def check_attribute(node: onnx.NodeProto, attr_name: str, expected_value, reason
         if not optional:
             reasons.append(f"Attribute {attr_name} not found")
         return optional
-    
-    if attribute.type == TensorProto.FLOAT:
+
+    if attribute.type == AttributeProto.FLOAT:
         if not np.isclose(attribute.f, expected_value):
-            reasons.append(f"Attribute {attribute.name} has unexpected value {attribute.f}, expected {expected_value}")
+            reasons.append(
+                f"Attribute {attribute.name} has unexpected value {attribute.f}, expected {expected_value}"
+            )
             return False
-    elif attribute.type == TensorProto.INT64:
+    elif attribute.type == AttributeProto.INT:
         if attribute.i != expected_value:
-            reasons.append(f"Attribute {attribute.name} has unexpected value {attribute.i}, expected {expected_value}")
+            reasons.append(
+                f"Attribute {attribute.name} has unexpected value {attribute.i}, expected {expected_value}"
+            )
             return False
-    elif attribute.type == TensorProto.STRING:
+    elif attribute.type == AttributeProto.STRING:
         if attribute.s.decode() != expected_value:
-            reasons.append(f"Attribute {attribute.name} has unexpected value {attribute.s.decode()}, expected {expected_value}")
+            reasons.append(
+                f"Attribute {attribute.name} has unexpected value {attribute.s.decode()}, expected {expected_value}"
+            )
             return False
+    elif attribute.type == AttributeProto.INTS:
+        if not np.array_equal(list(attribute.ints), expected_value):
+            reasons.append(
+                f"Attribute {attribute.name} has unexpected value {list(attribute.ints)}, expected {expected_value}"
+            )
+            return False
+    else:
+        reasons.append(
+            f"Attribute {attribute.name} has unsupported type {attribute.type}"
+        )
+        return False
+
     return True
+
 
 def check_params_quant(model: ModelWrapper, node: onnx.NodeProto, reasons: list) -> bool: 
     """ Check params Quant node. Right now, it is only supported symmetric quantization, 
@@ -201,11 +229,10 @@ def is_fpga_supported_op(model: ModelWrapper, node: onnx.NodeProto) -> bool:
     # Per operation checks
     elif node.op_type == "Conv":
 
-
         # Check Conv activation quantization
         act_quant = model.find_producer(node.input[0])
         is_supported = is_supported and check_act_quant(model, act_quant, reasons)
-        
+
         # Check Conv weight quantization
         weight_quant = model.find_producer(node.input[1])
         is_supported = is_supported and check_params_quant(model, weight_quant, reasons)
@@ -216,6 +243,33 @@ def is_fpga_supported_op(model: ModelWrapper, node: onnx.NodeProto) -> bool:
             is_supported = is_supported and check_params_quant(
                 model, bias_quant, reasons
             )
+
+        # Check Conv attributes
+        # Only supported 2D convolutions with square kernels
+        kernel_shape = get_by_name(node.attribute, "kernel_shape")
+        if (
+            kernel_shape is None
+            or len(kernel_shape.ints) != 2
+            or not (kernel_shape.ints[0] == kernel_shape.ints[1])
+        ):
+            reasons.append(f"Kernel shape must be a 2D tensor with equal values")
+            is_supported = False
+
+        # Only supported depthwise convolutions with group size equal to input channels
+        group = get_by_name(node.attribute, "group")
+        if group is None or (group.i != 1 and group.i != model.get_tensor_shape(node.input[0])[1]):
+            reasons.append(f"Group must be 1 or equal to input channels")
+            is_supported = False
+
+        # Only supported Conv without dilations
+        if not check_attribute(node, "dilations", [1, 1], reasons):
+            is_supported = False
+
+        # Only supported Conv with equal strides on both dimensions
+        strides = get_by_name(node.attribute, "strides")
+        if strides is None or len(strides.ints) != 2 or not strides.ints[0] == strides.ints[1]:
+            reasons.append(f"Strides must be a 2D tensor with equal values")
+            is_supported = False
 
     elif node.op_type == "Gemm":
         # Right now, Gemm is only supported as a fully connected layer with quantized inputs and weights.
@@ -313,25 +367,25 @@ def is_fpga_supported_op(model: ModelWrapper, node: onnx.NodeProto) -> bool:
         # Check Concat attributes
         if not check_attribute(node, "axis", 1, reasons):
             is_supported = False
-    
+
     elif node.op_type in ["Reshape", "Flatten"]:
 
         input_shape = model.get_tensor_shape(node.input[0])
         if input_shape is None or len(input_shape) != 4:
             reasons.append(f"Input must be a 4D tensor")
             is_supported = False
-        
+
         # Check last two dimensions of the input tensor
         if input_shape[-2] != 1 or input_shape[-1] != 1:
             reasons.append(f"Reshape/Flatten only supported with last two dimensions as 1")
             is_supported = False
-        
+
         # Check output shape to be a identical to input shape
         output_shape = model.get_tensor_shape(node.output[0])
         if output_shape[0:2] != input_shape[0:2]:
             reasons.append(f"Output shape must be identical to input shape")
             is_supported = False
-        
+
     elif node.op_type in FPGA_SUPPORTED_QUANTIZED_ACTIVATIONS:
 
         # Check activation quantization
