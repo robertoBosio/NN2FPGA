@@ -1,53 +1,430 @@
 import onnx
 import numpy as np
+from onnx import helper, numpy_helper, TensorProto
+from qonnx.util.basic import get_by_name
 from qonnx.core.modelwrapper import ModelWrapper
 from qonnx.transformation.base import Transformation
 from qonnx.transformation.create_generic_partitions import PartitionFromDict
 
-FPGA_SUPPORTED_ACTIVATIONS = {
-    "Relu",
+FPGA_SUPPORTED_QUANTIZED_ACTIVATIONS = {
+    "LeakyRelu",
     "Sigmoid",
-    "Swish"
+    "Swish",
 }
 
 FPGA_SUPPORTED_OPS = {
-    "Conv",
-    "Gemm",
-    "Pool",
-    "MaxPool",
+    "Add",
     "AveragePool",
+    "Concat",
+    "Conv",
+    "Flatten",
+    "Gemm",
     "GlobalAveragePool",
     "GlobalMaxPool",
-    "Concat",
-    "Upsample",
-    "Resize",
-    "Add",
-    "Quant",
     "IntQuant",
+    "MaxPool",
+    "Quant",
+    "Relu",
+    "Reshape",
+    "Resize",
 }
 
-FPGA_SUPPORTED_OPS.update(FPGA_SUPPORTED_ACTIVATIONS)
-
-def is_fpga_supported_op(model: ModelWrapper, node: onnx.NodeProto) -> bool:
-    """ Check if the operation is supported by FPGA. """
-    if node.op_type in FPGA_SUPPORTED_OPS:
-        return True
-    return False
+FPGA_SUPPORTED_OPS.update(FPGA_SUPPORTED_QUANTIZED_ACTIVATIONS)
 
 def is_constant_input_node(model: ModelWrapper, node: onnx.NodeProto) -> bool:
     """ Check if the node is a constant input node. """
     init_names = {init.name for init in model.graph.initializer}
     return all(inp in init_names for inp in node.input)
 
+
+def check_attribute(node: onnx.NodeProto, attr_name: str, expected_value, reasons: list, optional = False) -> bool:
+    """ Check if the attribute is present and has the expected value.
+    Args:
+        node (onnx.NodeProto): The node to check.
+        attr_name (str): The name of the attribute to check.
+        expected_value: The expected value of the attribute.
+        reasons (list): A list to append reasons for failure.
+        optional (bool): If True, the attribute is optional and its absence is not an error.
+    Returns:
+        bool: True if the attribute is present and has the expected value, False otherwise.
+    """
+    attribute = get_by_name(node.attribute, attr_name)
+    if attribute is None:
+        if not optional:
+            reasons.append(f"Attribute {attr_name} not found")
+        return optional
+    
+    if attribute.type == TensorProto.FLOAT:
+        if not np.isclose(attribute.f, expected_value):
+            reasons.append(f"Attribute {attribute.name} has unexpected value {attribute.f}, expected {expected_value}")
+            return False
+    elif attribute.type == TensorProto.INT64:
+        if attribute.i != expected_value:
+            reasons.append(f"Attribute {attribute.name} has unexpected value {attribute.i}, expected {expected_value}")
+            return False
+    elif attribute.type == TensorProto.STRING:
+        if attribute.s.decode() != expected_value:
+            reasons.append(f"Attribute {attribute.name} has unexpected value {attribute.s.decode()}, expected {expected_value}")
+            return False
+    return True
+
+def check_params_quant(model: ModelWrapper, node: onnx.NodeProto, reasons: list) -> bool: 
+    """ Check params Quant node. Right now, it is only supported symmetric quantization, 
+    with full range of values (narrow=0).
+    Args:
+        model (ModelWrapper): The ONNX model to check, wrapped in QONNX ModelWrapper.
+        node (onnx.NodeProto): The node to check for activation quantization.
+        reasons (list): A list to append reasons for failure.
+    Returns:
+        bool: True if the quantization is supported, False otherwise.
+    """
+
+    graph = model.graph
+
+    if node is None or (node.op_type != "IntQuant" and node.op_type != "Quant"):
+        reasons.append(f"Parameters Quant not found")
+        return False
+
+    # Check if node has initializers. If not, it is an activation Quant node.
+    if not is_constant_input_node(model, node):
+        reasons.append(f"Parameters Quant must have initializers")
+        return False
+
+    # Check not narrow quantization
+    if not check_attribute(node, "narrow", 0, reasons):
+        return False
+    if not check_attribute(node, "rounding_mode", "ROUND", reasons):
+        return False
+
+    # Get scale and zero_point initializers
+    zeropt_name = node.input[2]
+    zeropt = numpy_helper.to_array(get_by_name(graph.initializer, zeropt_name))
+
+    # Check symmetric quantization
+    if not np.allclose(zeropt, 0):
+        reasons.append(f"Parameters Quant with unsupported asymmetric quantization")
+        return False
+
+    return True
+
+def check_act_quant(model: ModelWrapper, node: onnx.NodeProto, reasons: list) -> bool: 
+    """ Check activation Quant node. Right now, it is only supported per tensor quantization, 
+    with full range of values (narrow=0).
+    Args:
+        model (ModelWrapper): The ONNX model to check, wrapped in QONNX ModelWrapper.
+        node (onnx.NodeProto): The node to check for activation quantization.
+        reasons (list): A list to append reasons for failure.
+    Returns:
+        bool: True if the quantization is supported, False otherwise.
+    """
+
+    graph = model.graph
+
+    if node is None or (node.op_type != "IntQuant" and node.op_type != "Quant"):
+        reasons.append(f"Activation Quant not found")
+        return False
+
+    # Check if node has initializers. If so, it isn't an activation Quant node.
+    if is_constant_input_node(model, node):
+        reasons.append(f"Activation Quant must not have initializers")
+        return False
+
+    # Check not narrow quantization
+    if not check_attribute(node, "narrow", 0, reasons):
+        return False
+    if not check_attribute(node, "rounding_mode", "ROUND", reasons):
+        return False
+
+    # Get scale and zero_point initializers
+    scale_name = node.input[1]
+    zeropt_name = node.input[2]
+    scale = numpy_helper.to_array(get_by_name(graph.initializer, scale_name))
+    zeropt = numpy_helper.to_array(get_by_name(graph.initializer, zeropt_name))
+
+    # Check if per-channel (length > 1)
+    if scale.ndim > 1 or zeropt.ndim > 1:
+        reasons.append(f"Activation Quant with unspported per-channel quantization")
+        return False  # Per-channel quantization is not supported for activations.
+
+    return True
+
+def check_input_same_quant(model: ModelWrapper, node: onnx.NodeProto, reasons: list) -> bool:
+    """ Check if the input quantizations of multi-input operations are the same.
+    Args:
+        model (ModelWrapper): The ONNX model to check, wrapped in QONNX ModelWrapper.
+        node (onnx.NodeProto): The node to check for input quantization.
+        reasons (list): A list to append reasons for failure.
+    Returns:
+        bool: True if the input quantizations are the same, False otherwise.
+    """
+
+    graph = model.graph
+    input_names = node.input
+    supported = True
+
+    # Get the quantization parameters for each input
+    scales = []
+    zeropts = []
+    for input_name in input_names:
+        
+        # Retrieve Quant node
+        quant_node = model.find_producer(input_name)
+
+        if not check_act_quant(model, quant_node, reasons):
+            supported = False
+            continue
+        
+        # Get scale and zero_point initializers
+        scale_name = quant_node.input[1]
+        zeropt_name = quant_node.input[2]
+        scale = numpy_helper.to_array(get_by_name(graph.initializer, scale_name))
+        zeropt = numpy_helper.to_array(get_by_name(graph.initializer, zeropt_name))
+        scales.append(scale)
+        zeropts.append(zeropt)
+
+    # Check if all scales and zero points are the same
+    if any(not np.array_equal(s, scales[0]) for s in scales) or any(not np.array_equal(z, zeropts[0]) for z in zeropts):
+        reasons.append(f"Not all inputs have the same quantization parameters")
+        supported = False
+
+    return supported
+
+def is_fpga_supported_op(model: ModelWrapper, node: onnx.NodeProto) -> bool:
+    """ Check if the operation is supported by NN2FPGA. """
+
+    reasons = []
+    is_supported = True
+    if node.op_type not in FPGA_SUPPORTED_OPS:
+        reasons.append(f"Not supported operation")
+        is_supported = False
+
+    # Per operation checks
+    elif node.op_type == "Conv":
+
+
+        # Check Conv activation quantization
+        act_quant = model.find_producer(node.input[0])
+        is_supported = is_supported and check_act_quant(model, act_quant, reasons)
+        
+        # Check Conv weight quantization
+        weight_quant = model.find_producer(node.input[1])
+        is_supported = is_supported and check_params_quant(model, weight_quant, reasons)
+
+        # Check Conv bias quantization
+        if len(node.input) > 2:
+            bias_quant = model.find_producer(node.input[2])
+            is_supported = is_supported and check_params_quant(
+                model, bias_quant, reasons
+            )
+
+    elif node.op_type == "Gemm":
+        # Right now, Gemm is only supported as a fully connected layer with quantized inputs and weights.
+
+        # Check Gemm activation quantization
+        act_quant = model.find_producer(node.input[0])
+        is_supported = is_supported and check_act_quant(model, act_quant, reasons)
+
+        # Check Gemm weight quantization
+        weight_quant = model.find_producer(node.input[1])
+        is_supported = is_supported and check_params_quant(model, weight_quant, reasons)
+
+        # Check Gemm bias quantization
+        if len(node.input) > 2:
+            bias_quant = model.find_producer(node.input[2])
+            is_supported = is_supported and check_params_quant(
+                model, bias_quant, reasons
+            )
+
+        # Check Gemm attributes
+        if not check_attribute(node, "alpha", 1.0, reasons):
+            is_supported = False
+        if not check_attribute(node, "beta", 1.0, reasons):
+            is_supported = False
+        if not check_attribute(node, "transA", 0, reasons, optional=True):
+            is_supported = False
+        if not check_attribute(node, "transB", 1, reasons):
+            is_supported = False
+
+        # Check input tensor shape to be a 2D tensor
+        input_tensor = model.get_tensor_shape(node.input[0])
+        if len(input_tensor) != 2 and not (
+            len(input_tensor) == 4 and input_tensor[2:] == [1, 1]
+        ):
+            reasons.append(f"Unsupported input tensor shape")
+            is_supported = False
+
+    elif node.op_type == "Resize":
+        # Right now, Resize is only supported as an upsampling operation.
+
+        # Check Resize activation quantization
+        act_quant = model.find_producer(node.input[0])
+        is_supported = is_supported and check_act_quant(model, act_quant, reasons)
+
+        # Check Resize attributes
+        if not check_attribute(
+            node, "coordinate_transformation_mode", "asymmetric", reasons
+        ):
+            is_supported = False
+        if not check_attribute(node, "mode", "nearest", reasons):
+            is_supported = False
+
+        # Roi is not supported in Resize
+        roi, scales = node.input[1:3]
+        if roi != "":
+            is_supported = False
+
+        # Scales must be present and of form [1.0, 1.0, s, s]
+        if scales == "":
+            is_supported = False
+        else:
+            scales_init = numpy_helper.to_array(
+                get_by_name(model.graph.initializer, scales)
+            )
+
+            if (
+                scales_init.shape[0] != 4
+                or not np.allclose(scales_init[0:2], [1.0, 1.0])
+                or not np.isclose(scales_init[2], scales_init[3])
+            ):
+                is_supported = False
+
+    elif node.op_type in [
+        "MaxPool",
+        "AveragePool",
+        "GlobalAveragePool",
+        "GlobalMaxPool",
+    ]:
+
+        # Check Pool activation quantization
+        act_quant = model.find_producer(node.input[0])
+        is_supported = is_supported and check_act_quant(model, act_quant, reasons)
+
+    elif node.op_type in "Add":
+
+        # Check if all inputs have the same quantization
+        if not check_input_same_quant(model, node, reasons):
+            is_supported = False
+
+    elif node.op_type == "Concat":
+        # Check if all inputs have the same quantization
+        if not check_input_same_quant(model, node, reasons):
+            is_supported = False
+
+        # Check Concat attributes
+        if not check_attribute(node, "axis", 1, reasons):
+            is_supported = False
+    
+    elif node.op_type in ["Reshape", "Flatten"]:
+
+        input_shape = model.get_tensor_shape(node.input[0])
+        if input_shape is None or len(input_shape) != 4:
+            reasons.append(f"Input must be a 4D tensor")
+            is_supported = False
+        
+        # Check last two dimensions of the input tensor
+        if input_shape[-2] != 1 or input_shape[-1] != 1:
+            reasons.append(f"Reshape/Flatten only supported with last two dimensions as 1")
+            is_supported = False
+        
+        # Check output shape to be a identical to input shape
+        output_shape = model.get_tensor_shape(node.output[0])
+        if output_shape[0:2] != input_shape[0:2]:
+            reasons.append(f"Output shape must be identical to input shape")
+            is_supported = False
+        
+    elif node.op_type in FPGA_SUPPORTED_QUANTIZED_ACTIVATIONS:
+
+        # Check activation quantization
+        act_quant = model.find_producer(node.input[0])
+        is_supported = is_supported and check_act_quant(model, act_quant, reasons)
+
+    if not is_supported:
+        print(
+            f"Node {node.name} of type {node.op_type} is not supported for FPGA execution. Reasons: {', '.join(reasons)}"
+        )
+    return is_supported
+
+class PreProcessPartitionModel(Transformation):
+    """ Pre-process the model to ensure it is suitable for qonnx partitioning.
+    This transformation modifies the model to handle Resize nodes with empty inputs.
+    It adds dummy initializers and attributes to track which inputs were originally empty.
+    """
+    
+    def apply(self, model: ModelWrapper) -> tuple[ModelWrapper, bool]:
+        """ Apply the pre-processing transformation to the model. """
+        graph = model.graph
+
+        for node in [n for n in graph.node if n.op_type == "Resize"]:
+
+            input_mask = []
+            for i, inp in enumerate(node.input):
+                if inp == "":
+                    # Mark this index as originally empty
+                    input_mask.append(1)
+                    # Create dummy initializer
+                    dummy_name = f"{node.name}_dummy_input_{i}"
+                    dummy_tensor = helper.make_tensor(
+                        name=dummy_name,
+                        data_type=TensorProto.FLOAT,
+                        dims=[1],  # Scalar or 1D dummy input
+                        vals=[1.0],
+                    )
+                    graph.initializer.append(dummy_tensor)
+                    node.input[i] = dummy_name
+                else:
+                    input_mask.append(0)
+
+            # Save the input mask as an attribute
+            mask_attr = helper.make_attribute("__resize_input_mask", input_mask)
+            node.attribute.append(mask_attr)
+        
+        return (model, False)
+
+class PostProcessPartitionModel(Transformation):
+    """ Post-process the model to restore ONNX compliance after partitioning.
+    """
+    
+    def apply(self, model: ModelWrapper) -> tuple[ModelWrapper, bool]:
+        graph = model.graph
+        dummy_inputs = []
+
+        for node in [n for n in graph.node if n.op_type == "Resize"]:
+
+            attr_map = {a.name: a for a in node.attribute}
+            if "__resize_input_mask" not in attr_map:
+                continue
+
+            input_mask = attr_map["__resize_input_mask"].ints
+            for i, mask_value in enumerate(input_mask):
+                if mask_value == 1:
+                    dummy_inputs.append(node.input[i])
+                    node.input[i] = ""
+
+            # Remove the temporary attribute
+            node.attribute.remove(attr_map["__resize_input_mask"])
+
+        # Filter out dummy initializers
+        remaining_initializers = [
+            init for init in graph.initializer if init.name not in dummy_inputs
+        ]
+
+        # Clear and replace initializers
+        del graph.initializer[:]
+        graph.initializer.extend(remaining_initializers)
+
+        return (model, False)
+
 class SupportedPartition(Transformation):
-    """ Partition the model into a single partition containing only operations supported by FPGA. 
-    All other operations are removed from the model. """
+    """ Extracts from the ONNX a single partition containing only operations supported by FPGA.
+    All the other operations are assigned to CPU.
+    """
 
     def __init__(self, partition_directory: str = "partitions"):
         super().__init__()
         self.partition_directory = partition_directory
 
     def apply(self, model: ModelWrapper) -> tuple[ModelWrapper, bool]:
+        print("\nPartitioning model into FPGA and CPU partitions.")
         graph = model.graph
         node_to_partition = {}
         value_to_partition = {}
@@ -63,11 +440,13 @@ class SupportedPartition(Transformation):
             partition = "CPU"
 
             if is_fpga_supported_op(model, node):
-                # Check if all inputs are already from FPGA-allocated values
-                if all(value_to_partition.get(inp, "CPU") == "FPGA" for inp in node.input):
-                    partition = "FPGA"
+                # Check if all inputs are already from FPGA-allocated values.
+                # Exclude empty inputs (e.g., for optional inputs)
 
-            node_to_partition[node.name] = partition
+                assert all(inp in value_to_partition for inp in node.input if inp != ""), \
+                    f"Node {node.name} has inputs not in value_to_partition: {node.input}"
+                if all(value_to_partition.get(inp, "CPU") == "FPGA" for inp in node.input if inp != ""):
+                    partition = "FPGA"
 
             # Record partition for this node
             node_to_partition[node.name] = partition
@@ -82,14 +461,24 @@ class SupportedPartition(Transformation):
             if op_node is not None:
                 node_to_partition[node.name] = node_to_partition[op_node.name]
 
-        
         # Create a partition dictionary
         node_list = [node.name for node in graph.node]
         partition_dict = {
             "FPGA": [node_list.index(node) for node, part in node_to_partition.items() if part == "FPGA"]
         }
 
-        # Create a partition from the dictionary
-        model = model.transform(PartitionFromDict(partition_dict, self.partition_directory))
+        # Pre-process the model to ensure it is suitable for partitioning
+        model = model.transform(PreProcessPartitionModel())
 
-        return (model, False)
+        # Create a partition from the dictionary
+        parent_model = model.transform(PartitionFromDict(partition_dict, self.partition_directory))
+
+        # Post-process the partitioned model to restore ONNX compliance
+        parent_model = parent_model.transform(PostProcessPartitionModel())
+
+        FPGA_model = ModelWrapper(self.partition_directory + "/partition_FPGA.onnx")
+        FPGA_model = FPGA_model.transform(PostProcessPartitionModel())
+        FPGA_model.save(self.partition_directory + "/partition_FPGA.onnx")
+        print(f"Out of {len(graph.node)} nodes, {len(partition_dict['FPGA'])} nodes are assigned to FPGA partition.")
+
+        return (parent_model, False)
