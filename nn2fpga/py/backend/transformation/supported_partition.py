@@ -475,10 +475,11 @@ class SupportedPartition(Transformation):
 
         # Post-process the partitioned model to restore ONNX compliance
         parent_model = parent_model.transform(PostProcessPartitionModel())
+        parent_model.save(self.partition_directory + "/wrapper_model.onnx")
 
+        # Load the FPGA partition model
         FPGA_model = ModelWrapper(self.partition_directory + "/partition_FPGA.onnx")
         FPGA_model = FPGA_model.transform(PostProcessPartitionModel())
-        FPGA_model.save(self.partition_directory + "/partition_FPGA.onnx")
-        print(f"Out of {len(graph.node)} nodes, {len(partition_dict['FPGA'])} nodes are assigned to FPGA partition.")
 
-        return (parent_model, False)
+        print(f"Out of {len(graph.node)} nodes, {len(partition_dict['FPGA'])} nodes are assigned to FPGA partition.")
+        return (FPGA_model, False)

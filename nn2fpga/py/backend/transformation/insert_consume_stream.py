@@ -2,6 +2,7 @@ from qonnx.transformation.base import Transformation
 from qonnx.core.modelwrapper import ModelWrapper
 from backend.custom_op.consumestream import ConsumeStream
 from onnx import helper
+from qonnx.util.basic import get_by_name
 
 class InsertConsumeStream(Transformation):
     """
@@ -20,20 +21,14 @@ class InsertConsumeStream(Transformation):
             consume_node = helper.make_node(
                 op_type="ConsumeStream",
                 domain="backend.custom_op",
-                outputs=[orig_output_name],
-                inputs=[consume_stream_output],
+                outputs=[consume_stream_output],
+                inputs=[orig_output_name],
                 ow_ops=1,
                 och_ops=1,
                 name=f"ConsumeStream_{i}"
             )
 
-            # Replace all uses of this input
-            for node in model.graph.node:
-                node_outputs = list(node.output)
-                for j, node_out in enumerate(node_outputs):
-                    if node_out == orig_output_name:
-                        node.output[j] = consume_stream_output
-
+            get_by_name(model.graph.output, orig_output_name).name = consume_stream_output 
             new_nodes.append(consume_node)
 
         # Insert all new nodes at the beginning
