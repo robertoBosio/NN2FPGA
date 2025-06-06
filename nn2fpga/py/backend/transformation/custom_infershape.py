@@ -38,7 +38,6 @@ class CustomInferShapes(Transformation):
                 
                 model.graph.node.remove(node)
 
-        model.save("temp_model.onnx")  # Save the model temporarily
         inferred = model.transform(InferShapes())
 
         # Restore the original nn2fpga nodes
