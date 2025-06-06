@@ -262,14 +262,22 @@ def is_fpga_supported_op(model: ModelWrapper, node: onnx.NodeProto) -> bool:
             is_supported = False
 
         # Only supported Conv without dilations
-        if not check_attribute(node, "dilations", [1, 1], reasons):
+        dilations = get_by_name(node.attribute, "dilations")
+        if dilations is not None and any(d != 1 for d in dilations.ints):
+            reasons.append(f"Dilations must have all values equal to 1")
             is_supported = False
 
         # Only supported Conv with equal strides on both dimensions
         strides = get_by_name(node.attribute, "strides")
-        if strides is None or len(strides.ints) != 2 or not strides.ints[0] == strides.ints[1]:
-            reasons.append(f"Strides must be a 2D tensor with equal values")
-            is_supported = False
+        if strides is not None:
+            strides = list(strides.ints)
+            strides = [1] * (3 - len(strides)) + strides  # Ensure strides has 3 elements
+            if strides[1] != strides[2]:
+                reasons.append(f"Strides must have equal H, W values.")
+                is_supported = False
+            if strides[0] != 1:
+                reasons.append(f"Strides over channels is not supported.")
+                is_supported = False
 
     elif node.op_type == "Gemm":
         # Right now, Gemm is only supported as a fully connected layer with quantized inputs and weights.
@@ -345,8 +353,33 @@ def is_fpga_supported_op(model: ModelWrapper, node: onnx.NodeProto) -> bool:
     elif node.op_type in [
         "MaxPool",
         "AveragePool",
-        "GlobalAveragePool",
+    ]:
+
+        # Check Pool activation quantization
+        act_quant = model.find_producer(node.input[0])
+        is_supported = is_supported and check_act_quant(model, act_quant, reasons)
+
+        # Only supported Pool without dilations
+        dilations = get_by_name(node.attribute, "dilations")
+        if dilations is not None and any(d != 1 for d in dilations.ints):
+            reasons.append(f"Dilations must have all values equal to 1")
+            is_supported = False
+        
+        # Only supported Pool with equal strides on both dimensions
+        strides = get_by_name(node.attribute, "strides")
+        if strides is not None:
+            strides = list(strides.ints)
+            strides = [1] * (3 - len(strides)) + strides  # Ensure strides has 3 elements
+            if strides[1] != strides[2]:
+                reasons.append(f"Strides must have equal H, W values.")
+                is_supported = False
+            if strides[0] != 1:
+                reasons.append(f"Strides over channels is not supported.")
+                is_supported = False
+    
+    elif node.op_type in [
         "GlobalMaxPool",
+        "GlobalAveragePool",
     ]:
 
         # Check Pool activation quantization
