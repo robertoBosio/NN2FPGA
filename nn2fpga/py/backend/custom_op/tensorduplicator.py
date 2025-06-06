@@ -21,14 +21,17 @@ class TensorDuplicator(CustomOp):
     
     def make_shape_compatible_op(self, model: ModelWrapper):
         node = self.onnx_node
-        identity_node = helper.make_node(
-            "Identity",
-            inputs=[node.input[0]],
-            outputs=node.output,
-            name=f"{node.name}_identity"
-        )
-        return identity_node
-    
+        shape_compatible_nodes = [] 
+        for i in range(self.get_nodeattr("copies")):
+            identity_node = helper.make_node(
+                "Identity",
+                inputs=[node.input[0]],
+                outputs=[node.output[i]],
+                name=f"{node.name}_identity_{i}"
+            )
+            shape_compatible_nodes.append(identity_node)
+        return shape_compatible_nodes
+
     def execute_node(self, context, graph):
         node = self.onnx_node
         input_name = node.input[0]

@@ -22,17 +22,34 @@ class CustomInferShapes(Transformation):
                 # Replace nn2fpga custom op with its shape-compatible ONNX equivalent
                 nn2fpga_node = getCustomOp(node)
                 onnx_node = nn2fpga_node.make_shape_compatible_op(model)
-                onnx_node.name = node.name
-                subs.append([node, onnx_node, node_ind])
+
+                if isinstance(onnx_node, list):
+                    # If the shape-compatible op returns a list (TensorDuplicator), we need to handle each node separately
+                    node_list = []
+                    for i, onnx_sub_node in enumerate(onnx_node):
+                        node_list.append(onnx_sub_node)
+                        model.graph.node.insert(node_ind + 1, onnx_sub_node)
+                    subs.append([node, node_list, node_ind])
+
+                else:
+                    # If it's a single node, we can handle it directly
+                    subs.append([node, onnx_node, node_ind])
+                    model.graph.node.insert(node_ind, onnx_node)
                 
-                model.graph.node.insert(node_ind, onnx_node)
                 model.graph.node.remove(node)
 
+        model.save("temp_model.onnx")  # Save the model temporarily
         inferred = model.transform(InferShapes())
 
         # Restore the original nn2fpga nodes
         for nn2fpga_node, onnx_node, node_ind in subs:
             inferred.graph.node.insert(node_ind, nn2fpga_node)
-            inferred.graph.node.remove(onnx_node)
+            if isinstance(onnx_node, list):
+                # If the shape-compatible op returned a list, we need to restore each node
+                for sub_node in onnx_node:
+                    inferred.graph.node.remove(sub_node)
+            else:
+                # If it's a single node, we can remove it directly
+                inferred.graph.node.remove(onnx_node)
 
         return (inferred, False)

@@ -36,12 +36,6 @@ def is_constant_input_node(model: ModelWrapper, node: onnx.NodeProto) -> bool:
     init_names = {init.name for init in model.graph.initializer}
     return all(inp in init_names for inp in node.input)
 
-import numpy as np
-import onnx
-from onnx import AttributeProto
-from qonnx.util.basic import get_by_name
-
-
 def check_attribute(
     node: onnx.NodeProto, attr_name: str, expected_value, reasons: list, optional=False
 ) -> bool:
