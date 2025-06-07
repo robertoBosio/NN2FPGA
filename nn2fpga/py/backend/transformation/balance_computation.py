@@ -176,6 +176,7 @@ def layers_extractions(model: ModelWrapper) -> list:
 
             input_shape = model.get_tensor_shape(node.input[0])
             output_shape = model.get_tensor_shape(node.output[0])
+        
 
             # Ensure input and output shapes are 4D (NCHW format)
             input_shape = [1] * (4 - len(input_shape)) + input_shape
@@ -184,13 +185,14 @@ def layers_extractions(model: ModelWrapper) -> list:
             if node.op_type == "Conv":
                 kernel_shape = get_by_name(node.attribute, "kernel_shape").ints
                 kernel = int(math.prod(kernel_shape))
-                depth = get_by_name(node.attribute, "group").i == input_shape[1]
+                group = get_by_name(node.attribute, "group").i
                 ops = (
                     output_shape[1]
                     * output_shape[2]
                     * output_shape[3]
                     * input_shape[1]
                     * kernel
+                    // group
                 )
                 weight_bits = extract_quant_bitwidth(
                     model.find_producer(node.input[1]), model
@@ -198,12 +200,13 @@ def layers_extractions(model: ModelWrapper) -> list:
                 act_bits = extract_quant_bitwidth(
                     model.find_producer(node.input[0]), model
                 )
+                depth = group == input_shape[1] 
 
             elif node.op_type in ["GlobalAveragePool", "GlobalMaxPool"]:
                 kernel_shape = (input_shape[2], input_shape[3])
                 kernel = int(math.prod(kernel_shape))
                 depth = True
-                ops = output_shape[2] * output_shape[3] * input_shape[1] * kernel
+                ops = math.prod(input_shape)
                 act_bits = extract_quant_bitwidth(
                     model.find_producer(node.input[0]), model
                 )
@@ -213,7 +216,7 @@ def layers_extractions(model: ModelWrapper) -> list:
                 kernel_shape = get_by_name(node.attribute, "kernel_shape").ints
                 kernel = int(math.prod(kernel_shape))
                 depth = True
-                ops = output_shape[1] * output_shape[2] * input_shape[1] * kernel
+                ops = math.prod(output_shape) * kernel
                 act_bits = extract_quant_bitwidth(
                     model.find_producer(node.input[0]), model
                 )
@@ -289,7 +292,8 @@ def parallelismILP(layers_info, valid_par_solutions, NUM_DSP, NUM_PORTS, silvia_
         valid_iter_solutions.append([])
         layer_iter = layer["total"]
         for single_par in layer_par:
-            valid_iter_solutions[-1].append(layer_iter // np.prod(single_par))
+            unroll_factor = layer["kernel"] * np.prod(single_par)
+            valid_iter_solutions[-1].append(layer_iter // unroll_factor)
 
     # valid_dsp_solutions stores the DSPs used for each valid solution
     # considering the possible packing
@@ -419,8 +423,78 @@ def parallelismILP(layers_info, valid_par_solutions, NUM_DSP, NUM_PORTS, silvia_
         for s in range(len(layer)):
             if int(layer_binary_variables[i][s].value()) == 1:
                 parallel_op[f"{layers_info[i]['name']}"] = layer[s]
-
+    print(f"Parallelization chosen: {parallel_op}")
     return parallel_op, int(pulp.value(prob.objective)), sum([len(s) for s in valid_par_solutions]), constraints_counter, (end_time - start_time)
+
+def print_report(layers_info, layer_par, n_variables, n_constraints, model_II, time_spent, silvia_packing, generate_report_file, prj_root="/tmp"):
+    with open(generate_report_file, "a+") as f:
+        print("="*40, file=f)
+        print("== Parallelization report", file=f)
+        print("="*40, file=f)
+        print(f"Number of variables: \t\t\t{n_variables}", file=f)
+        print(f"Number of constraints:\t\t\t{n_constraints}", file=f)
+        print(f"Time to solve: \t\t\t\t\t{time_spent:.2f}s", file=f)
+        print(f"Initiation interval: \t\t\t{model_II}cc", file=f)
+        print(f"Theorical throughput @ 200MHz: \t{1000000000.0 / (model_II * 5):.2f}FPS\n", file=f)
+        table_data = []
+
+        #header row
+        header = ["Layer name", "ICH", "OCH", "OW", "ich_ops", "och_ops", "ow_ops", "DSPs", "PORTs", "Iter"]
+        table_data.append(header)
+
+        DSPs = 0
+        PORTs = 0
+        for i, layer in enumerate(layers_info):
+            pack = False
+            ow_ops = layer_par[layer["name"]][2]
+            ich_ops = layer_par[layer["name"]][1]
+            och_ops = layer_par[layer["name"]][0]
+
+            port = dsp = 0
+            if (layer["type"] == "Conv"):
+                bits = layer["weight_bits"]
+                dsp = layer["kernel"] * och_ops * ich_ops * ow_ops
+
+                op_per_dsp, _ = packing_feature((layer["weight_bits"], layer["act_bits"]), layer_par[layer['name']], silvia_packing)
+                pack = str(op_per_dsp)
+                dsp = dsp // op_per_dsp
+                weights = layer["ich"] * layer["och"] * layer["kernel"]
+                if layer["depth"]:
+                    weights = layer["ich"] * layer["kernel"]
+
+                port = compute_bram_layer(bits, weights,  och_ops * ich_ops * layer["kernel"])
+
+            iter = int(layer["total"] / (ich_ops * och_ops * ow_ops * layer["kernel"]))
+            PORTs += port
+            DSPs += dsp
+
+            string_dsp = f"{dsp}"
+            if pack:
+                string_dsp += f" ({pack})"
+    
+            name = layer['name']
+            
+            row_data = [
+                name,
+                layer['ich'],
+                layer['och'],
+                layer['ow'],
+                ich_ops,
+                och_ops,
+                ow_ops,
+                string_dsp,
+                port,
+                iter
+            ]
+
+            table_data.append(row_data)
+        
+        footer = ["Totals", "", "", "", "", "", "", DSPs, PORTs, ""]
+        table_data.append(footer)
+
+        # Print the tabulated data to the file
+        f.write(tabulate(table_data, headers="firstrow", tablefmt="grid"))
+        print("\n", file=f)
 
 class BalanceComputation(Transformation):
     """
@@ -448,7 +522,7 @@ class BalanceComputation(Transformation):
         Returns:
             tuple: A tuple containing the transformed model and a boolean indicating if the transformation was applied.
         """
-        
+
         board_res = read_board_info(
             board=model.get_metadata_prop("board_name"),
             prj_root=self.nn2fpga_root
@@ -462,10 +536,33 @@ class BalanceComputation(Transformation):
         layers_info = layers_extractions(model)
 
         # Generate valid parallelization solutions for each layer
-        valid_par_solutions = generate_architectures(layers_info, NUM_DSP, board_res["axi_bitwidth"], self.silvia_packing)
-        
+        valid_par_solutions = generate_architectures(
+            layers_info, NUM_DSP, board_res["axi_bitwidth"], self.silvia_packing
+        )
+
         # Balance the computation load across the model using ILP
-        layer_par, model_II, n_variables, n_constraints, time_spent = parallelismILP(layers_info, valid_par_solutions, NUM_DSP, NUM_PORTS, self.silvia_packing, self.nn2fpga_root)
+        layer_par, model_II, n_variables, n_constraints, time_spent = parallelismILP(
+            layers_info,
+            valid_par_solutions,
+            NUM_DSP,
+            NUM_PORTS,
+            self.silvia_packing,
+            self.nn2fpga_root,
+        )
+
+        # Print the report
+        generate_report_file = f"{self.nn2fpga_root}/balance_computation.rpt"
+        print_report(
+            layers_info,
+            layer_par,
+            n_variables,
+            n_constraints,
+            model_II,
+            time_spent,
+            self.silvia_packing,
+            generate_report_file,
+            prj_root=self.nn2fpga_root,
+        )
 
         print(f"Balanced model with II {model_II} using {n_variables} variables and {n_constraints} constraints in {time_spent:.2f}s")
         return (model, False)
