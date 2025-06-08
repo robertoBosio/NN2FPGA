@@ -1,7 +1,10 @@
 name: nn2fpga
 channels:
   - defaults
+  - conda-forge
 dependencies:
+  - compilers
+  - opencv==4.5.3
   - _libgcc_mutex=0.1=main
   - _openmp_mutex=5.1=1_gnu
   - ca-certificates=2023.01.10=h06a4308_0

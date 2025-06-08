@@ -2,9 +2,10 @@ export MEM := memory_management
 export NAME := network
 export CC := gcc
 export CXX := g++
-export VITIS_HLS_ROOT := /eda/xilinx/Vitis_HLS/2022.2
+export VITIS_HLS_ROOT := $$XILINX_HLS
+export VIVADO_VERSION := $(shell basename $$XILINX_VIVADO)
 export BOARD_PATH := \
-	/home/filippo/.Xilinx/Vivado/2022.2/xhub/board_store/xilinx_board_store
+	$$HOME/.Xilinx/Vivado/$(VIVADO_VERSION)/xhub/board_store/xilinx_board_store
 export DEPS := $(NAME).h
 export COSIM := 0
 export CSIM := 0
@@ -23,6 +24,5 @@ export TEST_ROOT := $(shell cd .. && pwd)/models
 export TB_ROOT := $(TEST_ROOT)/tb
 export PLATFORM := xilinx_u280_gen3x16_xdma_1_202211_1/xilinx_u280_gen3x16_xdma_1_202211_1.xpfm
 export PYTHON := python3
-export VIVADO_VERSION := 2023.2
-export OPENCV := /usr/local/include/opencv4
-# export LD_LIBRARY_PATH := $(LD_LIBRARY_PATH):/usr/lib64/:/usr/local/lib64/
+export OPENCV := /usr/local/include/opencv4:$$CONDA_PREFIX/include/opencv4
+export LD_LIBRARY_PATH := $$LD_LIBRARY_PATH:/usr/lib64/:/usr/local/lib64/:$$HOME/.local/lib/:$$HOME/.local/lib64/:$$CONDA_PREFIX_1/lib/:$$CONDA_PREFIX/lib/

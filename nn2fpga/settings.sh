@@ -1,4 +1,5 @@
-
+# This file is only to export Xilinx environment variables
+# Ignore this file or update to match your desire
 if [ $# -eq 0 ]; then
     echo "Usage: source settings.sh <Version>"
     return
