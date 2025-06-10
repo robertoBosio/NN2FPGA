@@ -291,6 +291,9 @@ def parse_all_main(io_dict, model, off_chip_storage=False):
         last_node_name = name
         
         if "consume" == node["type"]:
+            # take the input node and the input name
+            last_node_name = io_connect[io_dict[name]["input"][0]][0][0]
+            last_node = io_dict[last_node_name]
             if not no_output_gen:
                 parsed_write.append(
                     output_gen.parse(last_node, last_node_name, node["index_out"])
