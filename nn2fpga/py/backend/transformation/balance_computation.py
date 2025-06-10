@@ -423,28 +423,42 @@ def parallelismILP(layers_info, valid_par_solutions, NUM_DSP, NUM_PORTS, silvia_
         for s in range(len(layer)):
             if int(layer_binary_variables[i][s].value()) == 1:
                 parallel_op[f"{layers_info[i]['name']}"] = layer[s]
-    print(f"Parallelization chosen: {parallel_op}")
+    
     return parallel_op, int(pulp.value(prob.objective)), sum([len(s) for s in valid_par_solutions]), constraints_counter, (end_time - start_time)
 
 def print_report(layers_info, layer_par, n_variables, n_constraints, model_II, time_spent, silvia_packing, generate_report_file, prj_root="/tmp"):
     with open(generate_report_file, "a+") as f:
-        print("="*40, file=f)
+        print("=" * 40, file=f)
         print("== Parallelization report", file=f)
-        print("="*40, file=f)
+        print("=" * 40, file=f)
         print(f"Number of variables: \t\t\t{n_variables}", file=f)
         print(f"Number of constraints:\t\t\t{n_constraints}", file=f)
         print(f"Time to solve: \t\t\t\t\t{time_spent:.2f}s", file=f)
         print(f"Initiation interval: \t\t\t{model_II}cc", file=f)
-        print(f"Theorical throughput @ 200MHz: \t{1000000000.0 / (model_II * 5):.2f}FPS\n", file=f)
+        print(
+            f"Theorical throughput @ 200MHz: \t{1000000000.0 / (model_II * 5):.2f}FPS\n",
+            file=f,
+        )
         table_data = []
 
-        #header row
-        header = ["Layer name", "ICH", "OCH", "OW", "ich_ops", "och_ops", "ow_ops", "DSPs", "PORTs", "Iter"]
+        # header row
+        header = [
+            "Layer name",
+            "ICH",
+            "OCH",
+            "OW",
+            "ich_ops",
+            "och_ops",
+            "ow_ops",
+            "DSPs",
+            "PORTs",
+            "Iter",
+        ]
         table_data.append(header)
 
         DSPs = 0
         PORTs = 0
-        for i, layer in enumerate(layers_info):
+        for layer in layers_info:
             pack = False
             ow_ops = layer_par[layer["name"]][2]
             ich_ops = layer_par[layer["name"]][1]
@@ -471,9 +485,9 @@ def print_report(layers_info, layer_par, n_variables, n_constraints, model_II, t
             string_dsp = f"{dsp}"
             if pack:
                 string_dsp += f" ({pack})"
-    
+
             name = layer['name']
-            
+
             row_data = [
                 name,
                 layer['ich'],
@@ -488,7 +502,7 @@ def print_report(layers_info, layer_par, n_variables, n_constraints, model_II, t
             ]
 
             table_data.append(row_data)
-        
+
         footer = ["Totals", "", "", "", "", "", "", DSPs, PORTs, ""]
         table_data.append(footer)
 

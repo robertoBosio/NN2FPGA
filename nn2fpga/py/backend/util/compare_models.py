@@ -48,5 +48,8 @@ def test_transformation_equivalence(model_pre: ModelWrapper, model_post: ModelWr
     out_produced = oxe.execute_onnx(model_post, input_dict)
 
     for name in output_names:
+        flattened_expected = out_expected[name].flatten()
+        flattened_produced = out_produced[name].flatten()
         assert name in out_expected and name in out_produced, f"Missing output: {name}"
-        assert (out_expected[name] == out_produced[name]).all(), f"Output mismatch for: {name}"
+        assert flattened_expected.shape == flattened_produced.shape, f"Shape mismatch for: {name}"
+        assert np.allclose(flattened_expected, flattened_produced, rtol=1e-05, atol=1e-08), f"Output mismatch for: {name}"

@@ -1,5 +1,8 @@
 import sys
 import os
+from backend.util.qonnx_patch import patch_qonnx_ops
+patch_qonnx_ops()
+
 from backend.write_network import write_network
 from qonnx.core.modelwrapper import ModelWrapper
 from qonnx.transformation import infer_shapes
@@ -63,11 +66,11 @@ def main():
             silvia_packing = True
 
     onnx_model = ModelWrapper(onnx_path)
-    cleanup_model(onnx_model)
-    inferred_model = onnx_model.transform(infer_shapes.InferShapes())
-    inferred_model = inferred_model.transform(InferDataTypes())
-    #write_network( inferred_model , off_chip_storage = False 1)
-    inferred_model.set_tensor_datatype("global_in", DataType["UINT8"])
+    # cleanup_model(onnx_model)
+    # inferred_model = onnx_model.transform(infer_shapes.InferShapes())
+    # inferred_model = inferred_model.transform(InferDataTypes())
+    # #write_network( inferred_model , off_chip_storage = False 1)
+    # inferred_model.set_tensor_datatype("global_in", DataType["UINT8"])
     #assert inferred_model.check_all_tensor_shapes_specified(), "There are still tensors that are not specified"
     
     if "BOARD" not in os.environ:
@@ -107,7 +110,7 @@ def main():
         os.remove(generate_log_file)
 
     write_network(
-        inferred_model,
+        onnx_model,
         file_name = top_name,
         off_chip_storage=off_chip_storage,
         board=board, 

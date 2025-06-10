@@ -1,4 +1,5 @@
 from qonnx.transformation.base import Transformation
+from qonnx.transformation.general import SortGraph
 from qonnx.custom_op.registry import getCustomOp
 from qonnx.core.modelwrapper import ModelWrapper
 from qonnx.transformation.infer_shapes import InferShapes
@@ -38,6 +39,8 @@ class CustomInferShapes(Transformation):
                 
                 model.graph.node.remove(node)
 
+
+        model = model.transform(SortGraph())
         inferred = model.transform(InferShapes())
 
         # Restore the original nn2fpga nodes
@@ -51,4 +54,7 @@ class CustomInferShapes(Transformation):
                 # If it's a single node, we can remove it directly
                 inferred.graph.node.remove(onnx_node)
 
+        # Check if the model has all tensor shapes specified
+        if not inferred.check_all_tensor_shapes_specified():
+            raise ValueError("Not all tensor shapes are specified after custom shape inference.")
         return (inferred, False)
