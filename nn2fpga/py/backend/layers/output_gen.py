@@ -56,11 +56,18 @@ def parse(node, node_name, i):
     block["defines"]["t_out_mem%s" % i] = ["alias", "t_%s" % input_type_name]
     block["defines"]["t_o_outp%s" % i] = ["alias", "t_o_%s" % output_type_name]
     block["defines"]["t_o_data%s" % i] = ["alias", "t_o_%s" % output_type_name]
-    block["defines"]["c_%s_och" % node_name] = ["const", node["och"]]
-    block["defines"]["c_%s_ow" % node_name] = ["const", node["ow"]]
-    block["defines"]["c_%s_oh" % node_name] = ["const", node["oh"]]
+    if node["type"] == "adjust":
+        block["defines"]["c_%s_och" % node_name] = ["const", node["ich"]]
+        block["defines"]["c_%s_ow" % node_name] = ["const", node["iw"]]
+        block["defines"]["c_%s_oh" % node_name] = ["const", node["ih"]]
+        block["defines"]["c_%s_ops" % node_name] = ["const", node["och_ops"]]
+    else:   
+        block["defines"]["c_%s_och" % node_name] = ["const", node["och"]]
+        block["defines"]["c_%s_ow" % node_name] = ["const", node["ow"]]
+        block["defines"]["c_%s_oh" % node_name] = ["const", node["oh"]]
+        block["defines"]["c_%s_ops" % node_name] = ["const", node["ops"]]
+
     block["defines"]["c_%s_ow_ops" % node_name] = ["const", 1]
-    block["defines"]["c_%s_ops" % node_name] = ["const", node["ops"]]
 
     block["output"] = ["outp%s" % i]
     block["declare"] = []
