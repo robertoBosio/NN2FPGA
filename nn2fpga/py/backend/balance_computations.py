@@ -866,10 +866,10 @@ def write_parallelism(io_dict, model, parallel_ops):
             print(f"\t{node['name']} -> Width: {in_node} ({node['ow_ops']} -> {io_dict[in_node]['ow_ops']})")
             print(f"\t{node['name']} -> Channels: {in_node} ({node['ops_out']} -> {io_dict[in_node]['ops']})")
     
-    print("Correcting concat")
+    print("Correcting concat and upsample")
     for name, node in io_dict.items():
         # check the inputs of the concat node and select the minimum ops as the output ops
-        if node["type"] == "concat":
+        if node["type"] == "concat" or node["type"] == "upsample":
             in_names = node["input"]
             in_nodes = [io_connect[in_name][0][0] for in_name in in_names]
             min_ops = min([io_dict[in_node]["ops"] for in_node in in_nodes])
@@ -911,7 +911,7 @@ def write_parallelism(io_dict, model, parallel_ops):
                     adjust_line_buffer = False
                     adjust_add = False
                     ops_out = 0
-                    if io_dict[node]["type"] == "pool" or io_dict[node]["type"] == "concat":
+                    if io_dict[node]["type"] == "pool" or io_dict[node]["type"] == "concat" or io_dict[node]["type"] == "upsample":
                         ops_out = io_dict[node]["ops"]
                     elif io_dict[node]["type"] == "duplicate":
                         ops_out = io_dict[node]["in_ops"]
@@ -929,7 +929,7 @@ def write_parallelism(io_dict, model, parallel_ops):
                         # depthwise convolution the packing is over the input channels.
                         ops_in = 0
                         ow_ops_in = io_dict[out_node]["ow_ops"]
-                        if io_dict[out_node]["type"] == "pool" or io_dict[out_node]["type"] == "concat":
+                        if io_dict[out_node]["type"] == "pool" or io_dict[out_node]["type"] == "concat" or io_dict[out_node]["type"] == "upsample":
                             ops_in = io_dict[out_node]["ops"]
                         elif io_dict[out_node]["type"] == "duplicate":
                             ops_in = io_dict[out_node]["in_ops"]
@@ -958,7 +958,7 @@ def write_parallelism(io_dict, model, parallel_ops):
                         elif ops_in > ops_out:
                             if ops_in % ops_out == 0:
                                 scaling_out = ops_in
-                                if io_dict[out_node]["type"] == "pool":
+                                if io_dict[out_node]["type"] == "pool" or io_dict[out_node]["type"] == "conv" or io_dict[out_node]["type"] == "upsample" or io_dict[out_node]["type"] == "duplicate":
                                     adjust_line_buffer = True
                                     io_dict[out_node]["adjust_ops"] = ops_in
                             else:
@@ -969,17 +969,17 @@ def write_parallelism(io_dict, model, parallel_ops):
                                     adjust_line_buffer = True
                                     io_dict[out_node]["adjust_ops"] = common_mult
                         
-                        if io_dict[node]["type"] != "duplicate" and io_dict[node]["type"] != "concat":        
+                        if io_dict[node]["type"] != "duplicate" and io_dict[node]["type"] != "concat" and io_dict[node]["type"] != "upsample":        
                             io_dict[node]["ops_out"] = scaling_out
                         else:
                             io_dict[node]["ops_out"] = io_dict[node]["ops"]
                             
-                        if io_dict[out_node]["type"] != "duplicate" and io_dict[out_node]["type"] != "concat":
+                        if io_dict[out_node]["type"] != "duplicate" and io_dict[out_node]["type"] != "concat" and io_dict[out_node]["type"] != "upsample":
                             io_dict[out_node]["in_ops"] = scaling_out
                         else:
                             io_dict[out_node]["in_ops"] = io_dict[out_node]["ops"]
                         
-                        if io_dict[out_node]["type"] == "concat":
+                        if io_dict[out_node]["type"] == "concat" or io_dict[out_node]["type"] == "upsample":
                             if ops_in != ops_out:
                                 adjust_line_buffer = True
                                 io_dict[out_node]["adjust_ops"] = ops_in
@@ -1179,7 +1179,7 @@ def check_adjustments(io_dict, model):
                         print(f"Error: {name} in_ops ({node['in_ops']}) is smaller than ops ({node['ops']}).")
                         return False
                 # Checking concat layers
-                if node["type"] == "concat":
+                if node["type"] == "concat" or node["type"] == "upsample":
                     if( node["in_ops"] != node["ops_out"]):
                         #check inputs ops_out
                         print(f"Error: {name} in_ops ({node['in_ops']}) is not equal to ops_out ({node['ops_out']}).")

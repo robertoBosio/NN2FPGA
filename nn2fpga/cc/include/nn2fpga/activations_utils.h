@@ -128,6 +128,8 @@ void concat_op(
   std::cout << "\t\tc_ops: " << c_ops << std::endl;
   std::cout << "\t\tc_ow_ops_in: " << c_ow_ops_in << std::endl;
   std::cout << "\t\tc_ow_ops_out: " << c_ow_ops_out << std::endl;
+  std::cout << "\t\tsize of din1[0]: " << din1[0].size() << std::endl;
+  std::cout << "\t\tsize of din2[0]: " << din2[0].size() << std::endl;
 #endif
   bool s_last = false;
   for (auto s_feature_map = 0; s_feature_map < c_feature_map; s_feature_map+= c_ow_ops_out) {  
@@ -154,6 +156,9 @@ void concat_op(
   }
 #ifndef __SYNTHESIS__
   std::cout << "INFO: Finished concat_op" << std::endl;
+  std::cout << "INFO: Size of o_data: " << o_data[0].size() << std::endl;
+  std::cout << "INFO: Size of din1[0]: " << din1[0].size() << std::endl;
+  std::cout << "INFO: Size of din2[0]: " << din2[0].size() << std::endl;
 #endif
 }
 

@@ -52,9 +52,11 @@ def info(io_dict, node, node_name, init_info, tensors_info):
     feature_map = np.prod([dim for i, dim in enumerate(o_shape) if i != axis])
     #TODO : change now after the split opt only 2 input concat are needed
     io_dict[node_name]["ich"]    = np.asarray(ich)[0]
+    io_dict[node_name]["ich1"]  = ich[0]
+    io_dict[node_name]["ich2"]  = ich[1]
     io_dict[node_name]["ih"]     = ih
     io_dict[node_name]["iw"]     = iw
-    io_dict[node_name]["och"]    = och
+    io_dict[node_name]["och"]    = ich[0] + ich[1]
     io_dict[node_name]["oh"]     = oh
     io_dict[node_name]["ow"]     = ow
     io_dict[node_name]["type"]   = 'concat'
@@ -124,8 +126,8 @@ def parse(name, node):
         [["data", "std::array<t_%s_vector, 1>" % output_type_name], ["last", "bool"]]
     ]
     block["defines"]["c_%s_feature_map" % name] = ["const", node["feature_map"]]
-    block["defines"]["c_%s_ich1" % input_name1] = ["const", node["ich"]]
-    block["defines"]["c_%s_ich2" % input_name2] = ["const", node["ich"]]
+    block["defines"]["c_%s_ich1" % input_name1] = ["const", node["ich1"]]
+    block["defines"]["c_%s_ich2" % input_name2] = ["const", node["ich2"]]
     block["defines"]["c_%s_ops" % output_name] = ["const", node["ops"]]
     block["defines"]["c_%s_ow_ops_in" % output_name] = ["const", node["ow_ops"]]
     block["defines"]["c_%s_ow_ops_out" % output_name] = ["const", node["ow_ops"]]

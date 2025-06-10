@@ -563,22 +563,27 @@ def bandwidth_adjustment(model, io_dict, node, in_node, iw_ops, ow_ops, ich_ops,
     
     if dim == "i":
         io_dict[node_name]["output"] = [io_dict[node]["input"][output_index]+"_adj_line"]
+        if io_dict[node]["type"].lower() != "consume":
+            io_dict[node_name]["och"] = io_dict[in_node]["och"]
+            io_dict[node_name]["ow"] = io_dict[node]["iw"]
+            io_dict[node_name]["oh"] = io_dict[node]["ih"]
     else:
         io_dict[node_name]["output"] = [io_dict[node]["input"][output_index]+"_adj_add"]
+        io_dict[node_name]["och"] = io_dict[node]["och"]
+        io_dict[node_name]["ow"] = io_dict[node]["ow"]
+        io_dict[node_name]["oh"] = io_dict[node]["oh"]
 
     io_dict[node_name]["input"] = [io_dict[input_layer_name]["output"][input_index]]
     io_dict[node]["input"][output_index] = io_dict[node_name]["output"][0]
     io_dict[input_layer_name]["output"][input_index] = io_dict[node_name]["input"][0]
+
+    if io_dict[node]["type"].lower() != "consume" and io_dict[node]["type"].lower() != "duplicate" :
+        io_dict[node_name]["fh"] = io_dict[node]["fh"]
+        io_dict[node_name]["fw"] = io_dict[node]["fw"]
+        io_dict[node_name]["stride"] = io_dict[node]["stride"]
+        io_dict[node_name]["pad"] = io_dict[node]["pad"]
+        io_dict[node_name]["ops"] = io_dict[node]["ops"]
         
-    io_dict[node_name]["och"] = io_dict[node]["och"]
-    io_dict[node_name]["oh"] = io_dict[node]["oh"]
-    io_dict[node_name]["ow"] = io_dict[node]["ow"] 
-    io_dict[node_name]["fh"] = io_dict[node]["fh"]
-    io_dict[node_name]["fw"] = io_dict[node]["fw"]
-    io_dict[node_name]["stride"] = io_dict[node]["stride"]
-    io_dict[node_name]["pad"] = io_dict[node]["pad"]
-    io_dict[node_name]["ops"] = io_dict[node]["ops"]
-    
     if io_dict[node]["type"].lower() == "conv":
         io_dict[node_name]["depth"] = io_dict[node]["depth"]
         
@@ -645,8 +650,13 @@ def split_concat(model, io_dict, log=False):
                 io_dict[new_concat_layer_name]["factor"] = 2
                 io_dict[new_concat_layer_name]["iw"] = io_dict[input_layer_names[0]]["iw"]
                 io_dict[new_concat_layer_name]["ih"] = io_dict[input_layer_names[0]]["ih"]
-                io_dict[new_concat_layer_name]["och"] = io_dict[input_layer_names[0]]["och"] + io_dict[input_layer_names[1]]["och"]
                 io_dict[new_concat_layer_name]["ich"] = io_dict[input_layer_names[0]]["ich"]
+                io_connect = extract_connections(model, io_dict)
+                input_layer_1 = io_connect[input_tensor_net_1][0][0]
+                input_layer_2 = io_connect[input_tensor_net_2][0][0]
+                io_dict[new_concat_layer_name]["ich1"] = io_dict[input_layer_1]["och"]
+                io_dict[new_concat_layer_name]["ich2"] = io_dict[input_layer_2]["och"]
+                io_dict[new_concat_layer_name]["och"] = io_dict[input_layer_1]["och"] + io_dict[input_layer_2]["och"]
                 io_dict[new_concat_layer_name]["oh"] = io_dict[input_layer_names[0]]["oh"]
                 io_dict[new_concat_layer_name]["ow"] = io_dict[input_layer_names[0]]["ow"]
                 io_dict[new_concat_layer_name]["fh"] = 1 
@@ -724,7 +734,7 @@ def duplicate_tensor(model, io_dict, log=False):
             io_dict[layer_name]["ih"] = io_dict[producers[0]]["ih"]
             io_dict[layer_name]["iw"] = io_dict[producers[0]]["iw"]
             
-            io_dict[layer_name]["C"] = io_dict[producers[0]]["ich"]
+            io_dict[layer_name]["C"] = io_dict[producers[0]]["och"]
             io_dict[layer_name]["H"] = io_dict[producers[0]]["ih"]
             io_dict[layer_name]["W"] = io_dict[producers[0]]["iw"]
             if "ops_out" in io_dict[producers[0]].keys():
@@ -895,6 +905,8 @@ def opt_step(
         io_dict,
         log
     )
+    
+    io_dict = dag_sorting(inferred_model, io_dict)
     
     for layer_name, layer_info in io_dict.items():
         print(f"Layer: {layer_name} {next_layers(io_dict, extract_connections(inferred_model, io_dict), layer_name)}")

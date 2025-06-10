@@ -363,13 +363,13 @@ bandwidth_adjust_up_down(hls::stream<din_t> din[c_ow_ops_in],
           for (auto s_i = 0; s_i < c_ops_in; s_i += c_ops_out) {
 
             /* Select the input stream to read from */
-            auto s_i_read = s_ow_ops_in;
+            auto s_i_write = s_ow_ops_out + s_ow_ops_in;
             if (s_i == 0) {
-              s_read = din[s_i_read].read();
+              s_read = din[s_ow_ops_in].read();
             }
             /* Loop over the c_ops_out packet inside a c_ops_in one */
             for (auto s_j = 0; s_j < c_ops_out; s_j++) {
-              s_write[s_ow_ops_out].data[0][s_j] = s_read.data[0][s_i + s_j];
+              s_write[s_i_write].data[0][s_j] = s_read.data[0][s_i + s_j];
             }
 
             /* If the packet is finished then write it */
@@ -377,9 +377,10 @@ bandwidth_adjust_up_down(hls::stream<din_t> din[c_ow_ops_in],
 
               /* Skip connections do not need to propagate the last signal */
               if constexpr (!SKIP) {
-                s_write[s_ow_ops_out].last = s_read.last;
+                s_write[s_i_write].last = s_read.last;
               }
-              o_data[s_ow_ops_out].write(s_write[s_ow_ops_out]);
+            }
+            o_data[s_i_write].write(s_write[s_i_write]);
 #ifndef __SYNTHESIS__
 #ifdef DEBUG_BANDWIDTH
               for (auto s_i = 0; s_i < c_ow_ops_out; s_i++) {
@@ -390,12 +391,12 @@ bandwidth_adjust_up_down(hls::stream<din_t> din[c_ow_ops_in],
               }
 #endif
 #ifdef DEBUG_LAST
-              std::cout << "s_write[" << s_ow_ops_out
-                        << "].last = " << s_write[s_ow_ops_out].last
+              std::cout << "s_write[" << s_i_write
+                        << "].last = " << s_write[s_i_write].last
                         << std::endl;
 #endif
 #endif
-            }
+            
           }
         }
       }
