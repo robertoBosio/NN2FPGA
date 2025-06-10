@@ -20,7 +20,7 @@ def info(io_dict, graph_output_name, i):
 
 def parse(node, node_name, i):
     
-    # node_name = "consume_stream"
+    node_name = "consume_stream_" + str(i)
     input_name = node["output"][-1]
     input_name = input_name.replace("s_", "")
     input_type_name = input_name.replace("_skip", "")
