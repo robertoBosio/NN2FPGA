@@ -130,8 +130,8 @@ int main(int argc, char** argv) {
   std::cout << "Sending " << c_batch << " images." << std::endl;
   t_in_mem *mem_activations;
   posix_memalign((void**)&mem_activations, 4096, c_index * c_batch * sizeof(t_in_mem));
-  t_out_mem *mem_outputs;
-  posix_memalign((void**)&mem_outputs, 4096, CLASSES * c_batch * sizeof(t_out_mem));
+  t_out_mem1 *mem_outputs;
+  posix_memalign((void**)&mem_outputs, 4096, CLASSES * c_batch * sizeof(t_out_mem1));
   
   std::cout << "Allocated " << c_index * c_batch << " ap_uint<64> for activations." << std::endl;
   std::cout << "Allocated " << CLASSES * c_batch << " ap_uint<8> for output results." << std::endl;
@@ -213,12 +213,12 @@ int main(int argc, char** argv) {
   unsigned int correct = 0;
   bool passed = true;
   for (int image = 0; image < c_batch; image++) {
-    t_out_mem max_value = INT32_MIN;
+    t_out_mem1 max_value = INT32_MIN;
     int max_index = 0;
     std::cout << image << " image" << std::endl;
     for (int g = 0; g < CLASSES; g++) {
       auto data = mem_outputs[g + image * CLASSES];
-      t_out_mem expected_data = expected_results[g + image * CLASSES];
+      t_out_mem1 expected_data = expected_results[g + image * CLASSES];
       ap_int<c_act_width> data_int[2];
       data_int[0].range(c_act_width - 1, 0) = data.range(c_act_width - 1, 0);
       data_int[1].range(c_act_width - 1, 0) = expected_data.range(c_act_width - 1, 0);

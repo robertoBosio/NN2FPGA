@@ -81,6 +81,7 @@ def init(file_name, parsed_write, prj_root="/tmp"):
         fd.write("std::chrono::duration<double> networkSim(\n")
 
         input_args = []
+        num_out = 0
         # Must be passed from testbench to retrieve .xclbin file
         input_args.append("\tint argc")
         input_args.append("\tchar** argv")
@@ -88,7 +89,11 @@ def init(file_name, parsed_write, prj_root="/tmp"):
 
         # TODO: insert support for more than one array of input and output
         input_args.append("\tconst unsigned int n_inp")
-        input_args.append("\tconst unsigned int n_out")
+        for layer in parsed_write:
+            if "consume_stream" == layer["func"]:
+                for name in layer["output"]:
+                    index_out = layer["index_out"]
+                    input_args.append(f"\tconst unsigned int n_out{index_out}")
 
         for layer in parsed_write:
             if "produce_stream" == layer["func"]:
@@ -98,8 +103,10 @@ def init(file_name, parsed_write, prj_root="/tmp"):
         for layer in parsed_write:
             if "consume_stream" == layer["func"]:
                 for name in layer["output"]:
-                    input_args.append("\tt_out_mem* o_%s" % name)
-
+                    num_out += 1
+                    index_out = layer["index_out"]
+                    input_args.append(f"\tt_out_mem{index_out}* o_{name}")
+                        
         for i, args in enumerate(input_args):
             if i == len(input_args) - 1:
                 fd.write(f"{args}\n")
@@ -309,11 +316,17 @@ def body(file_name, parsed_write, prj_root="/tmp"):
                     fd.write("\t\tc_%s_stream,\n" % (name))
 
         fd.write(f"\t\ti_data_params,\n")
-
+        n_out = 0
+        output_names = []
         for layer in parsed_write:
             if "consume_stream" == layer["func"]:
-                for name in layer["output"]:
-                    fd.write("\t\tc_%s_stream\n" % (name))
+                n_out += len(layer["output"])
+                output_names.extend(layer["output"])
+        for name in output_names:
+            if name != output_names[-1]:
+                fd.write("\t\tc_%s_stream,\n" % (name))
+            else:
+                fd.write("\t\tc_%s_stream\n" % (name))
 
         fd.write("\t);\n\n")
         fd.write("\tauto end = std::chrono::high_resolution_clock::now();\n\n")
@@ -322,6 +335,7 @@ def body(file_name, parsed_write, prj_root="/tmp"):
         for layer in parsed_write:
             if "consume_stream" == layer["func"]:
                 for name in layer["output"]:
+                    index_out = layer["index_out"]
                     s2mm_layer = {}
                     s2mm_layer["func"] = "s2mm"
                     s2mm_layer["args"] = []
@@ -330,10 +344,10 @@ def body(file_name, parsed_write, prj_root="/tmp"):
                     s2mm_layer["uram_input"] = []
                     s2mm_layer["output"] = []
                     s2mm_layer["template"] = []
-                    s2mm_layer["template"].append("t_out_mem")
+                    s2mm_layer["template"].append(f"t_out_mem{index_out}")
                     s2mm_layer["template"].append("t_o_%s" % (name))
                     s2mm_layer["args"].append("o_%s" % name)
-                    s2mm_layer["args"].append("n_out")
+                    s2mm_layer["args"].append("n_out%d" % index_out)
                     s2mm_layer["args"].append("c_%s_stream" % name)
                     s2mm_layer["declare"] = []
                     s2mm_layer["declare"].append(tmp)
@@ -346,20 +360,20 @@ def body(file_name, parsed_write, prj_root="/tmp"):
                     d_function["includes"].append("nn2fpga/s2mm.h")
                     d_function["includes"].append("params.h")
                     d_function["arguments"] = []
-                    d_function["arguments"].append(f"t_out_mem* o_{name}")
-                    d_function["arguments"].append(f"const unsigned int n_out")
+                    d_function["arguments"].append(f"t_out_mem{index_out}* o_{name}")
+                    d_function["arguments"].append(f"const unsigned int n_out{index_out}")
                     d_function["arguments"].append(f"hls::stream<t_o_{name}>& c_{name}_stream")
                     d_function["parameters"] = []
                     d_function["parameters"].append(f"o_{name}")
-                    d_function["parameters"].append(f"n_out")
+                    d_function["parameters"].append(f"n_out{index_out}")
                     d_function["parameters"].append(f"c_{name}_stream")
                     d_function["function_name"] = "nn2fpga::s2mm"
                     d_function["template"] = []
-                    d_function["template"].append(f"t_out_mem")
+                    d_function["template"].append(f"t_out_mem{index_out}")
                     d_function["template"].append(f"t_o_{name}")
                     write_templated_converted("s2mm_outputs", d_function, prj_root)
-                    connectivity.append(f"sp=s2mm_outputs_1.o_{name}:DDR[0]")
-                    connectivity.append(f"sc={file_name}_1.o_outp1:s2mm_outputs_1.c_{name}_stream")
+                    connectivity.append(f"sp=s2mm_outputs_{index_out}.o_{name}:DDR[0]")
+                    connectivity.append(f"sc={file_name}_1.o_outp{index_out}:s2mm_outputs_{index_out}.c_{name}_stream")
                     write_func(fd, s2mm_layer)
         
         if (vitis_flow):
@@ -417,10 +431,10 @@ def body(file_name, parsed_write, prj_root="/tmp"):
                 if "consume_stream" == layer["func"]:
                     if (len(layer["output"]) > 0):
                         fd.write(f"\tauto s2mm_output = xrt::kernel(device, uuid, \"s2mm_outputs\");\n")
-                        fd.write("\tauto buff_output = xrt::bo(device, (int*)o_outp1, n_out, s2mm_output.group_id(0));\n")
+                        fd.write(f"\tauto buff_output = xrt::bo(device, (int*)o_outp{index_out}, n_out{index_out}, s2mm_output.group_id(0));\n")
                         fd.write("\tauto s2mm_o = xrt::run(s2mm_output);\n")
                         fd.write("\ts2mm_o.set_arg(0, buff_output);\n")
-                        fd.write("\ts2mm_o.set_arg(1, n_out);\n\n")
+                        fd.write(f"\ts2mm_o.set_arg(1, n_out{index_out});\n\n")
                         output_kernels.append("s2mm_o")
 
             for ker in output_kernels:
@@ -444,7 +458,7 @@ def body(file_name, parsed_write, prj_root="/tmp"):
             
             fd.write("\n\tauto end = std::chrono::high_resolution_clock::now();\n\n")
 
-            fd.write("\tstd::cout << \"Synching d2h o_outp1\" << std::endl;\n")
+            fd.write(f"\tstd::cout << \"Synching d2h o_outp{index_out}\" << std::endl;\n")
             fd.write("\tbuff_output.sync(XCL_BO_SYNC_BO_FROM_DEVICE);\n")
             fd.write("\n")
             

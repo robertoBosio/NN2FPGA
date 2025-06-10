@@ -79,11 +79,19 @@ def init(file_name, parsed_write, object_detection=False, off_chip_storage=False
                         type = dict["type"]
                         fd.write(f"\thls::stream<{type}> &{name},\n")
 
+        num_outputs = 0
+        output_names = []
         for layer in parsed_write:
             if "consume_stream" == layer["func"]:
-                for name in layer["output"]:
-                    fd.write("\thls::stream<t_o_%s> &o_%s\n" % (name, name))
+                num_outputs += len(layer["output"])
+                output_names.extend(layer["output"])
+            # if "consume_stream" == layer["func"]
 
+        for name in output_names:
+            if name == output_names[-1]:
+                fd.write("\thls::stream<t_o_%s> &o_%s\n" % (name, name))
+            else:
+                fd.write("\thls::stream<t_o_%s> &o_%s,\n" % (name, name))
         fd.write(");\n\n")
         fd.write(f"#endif  /*__{file_name.upper()}__H__ */")
     
@@ -124,10 +132,17 @@ def init(file_name, parsed_write, object_detection=False, off_chip_storage=False
                         type = dict["type"]
                         fd.write(f"\thls::stream<{type}> &{name},\n")
 
+        num_outputs = 0
+        output_names = []
         for layer in parsed_write:
             if "consume_stream" == layer["func"]:
-                for name in layer["output"]:
-                    fd.write("\thls::stream<t_o_%s> &o_%s\n" % (name, name))
+                num_outputs += len(layer["output"])
+                output_names.extend(layer["output"])
+        for layer in output_names:
+            if layer == output_names[-1]:
+                fd.write("\thls::stream<t_o_%s> &o_%s\n" % (layer, layer))
+            else:
+                fd.write("\thls::stream<t_o_%s> &o_%s,\n" % (layer, layer))
 
         fd.write(") {\n")
         fd.write("\n")
@@ -274,11 +289,25 @@ def parse_all_main(io_dict, model, off_chip_storage=False):
 
 
         last_node_name = name
+        
+        if "consume" == node["type"]:
+            if not no_output_gen:
+                parsed_write.append(
+                    output_gen.parse(last_node, last_node_name, node["index_out"])
+                )
+            else:
+                # If the last node is not an output_gen, we need to add the
+                # output_gen for the last node
+                if not no_output_gen:
+                    parsed_write.append(
+                        output_gen.parse(last_node, last_node_name)
+                    )
+            no_output_gen = False 
 
-    if not no_output_gen:
-        parsed_write.append(
-            output_gen.parse(last_node, last_node_name)
-        )
+    # if not no_output_gen:
+    #     parsed_write.append(
+    #         output_gen.parse(last_node, last_node_name)
+    #     )
 
     return parsed_write, parsed_const
 

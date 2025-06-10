@@ -228,6 +228,27 @@ def get_dataset(dataset, cifar=10, sample_size=None):
         train_dataset = dataset(**train_args)
         eval_dataset = dataset(**val_args)
     
+    elif dataset == 'fotovoltaic':
+        IMG_SIZE = 640
+        BASE_DIR = "/home-ssd/datasets/Imagenet/"
+        transforms_sel = fotovoltaic_transform 
+        train_args = {
+            'train': True,
+            'transform': transforms_sel(is_training=True, IMAGE_SIZE=IMG_SIZE),
+            'root': BASE_DIR,
+            'sample_size': sample_size
+        }
+        val_args = {
+            'train': False,
+            'transform': transforms_sel(is_training=False, IMAGE_SIZE=IMG_SIZE),
+            'root': BASE_DIR,
+            'sample_size': None
+        }
+        dataset = ImageNet
+        input_shape = (1, 3, IMG_SIZE, IMG_SIZE)
+        train_dataset = dataset(**train_args)
+        eval_dataset = dataset(**val_args) 
+    
     elif dataset == 'vww':
         print('#### Selected VWW!')
         IMG_SIZE = 96

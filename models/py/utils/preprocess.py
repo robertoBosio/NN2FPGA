@@ -243,3 +243,22 @@ def imagenet_transform(is_training=True, IMAGE_SIZE=256, center_crop_shape=224):
             transforms.ToTensor(),
             transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
         ])
+        
+def fotovoltaic_transform(is_training=True, IMAGE_SIZE=640, center_crop_shape=640):
+    if is_training:
+        return transforms.Compose([
+            # transforms.RandomRotation(10),
+            # transforms.RandomHorizontalFlip(),
+            # transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4),
+            transforms.Resize(IMAGE_SIZE),
+            transforms.CenterCrop(center_crop_shape),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+        ])
+    else:
+        return transforms.Compose([
+            transforms.Resize(IMAGE_SIZE),
+            transforms.CenterCrop(center_crop_shape),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+        ])
