@@ -42,7 +42,8 @@ quant_stream(t_acc i_acc)
 #pragma HLS inline
 
   t_acc s_acc = i_acc;
-  t_output s_leakyrelu_in, s_leakyrelu_out, s_output;
+  t_output_clip s_leakyrelu_in;
+  t_output s_leakyrelu_out, s_output;
 
   if constexpr (std::is_same<t_output_clip, std::nullptr_t>::value == false) {
     s_acc = t_output_clip(s_acc);
@@ -57,9 +58,9 @@ quant_stream(t_acc i_acc)
     s_output = t_output(s_acc);
   }
   else if constexpr (c_leakyrelu == 1){
-    s_leakyrelu_in = t_output(s_acc);
-    s_leakyrelu_out = s_leakyrelu_in;
-    s_leakyrelu_out = leakyrelu <t_output, t_output, t_output> (s_leakyrelu_in);
+    s_leakyrelu_in = t_output_clip(s_acc);
+    // s_leakyrelu_out = s_leakyrelu_in;
+    s_leakyrelu_out = leakyrelu <t_output_clip, t_output_clip, t_output_clip> (s_leakyrelu_in);
     s_output = t_output(s_leakyrelu_out);
   }
   else 
@@ -81,7 +82,8 @@ quant_and_add_stream(t_acc i_acc, t_add i_add)
 #pragma HLS inline
   
   t_acc s_acc = i_acc;
-  t_output s_leakyrelu_in, s_leakyrelu_out, s_output;
+  t_output_mask s_leakyrelu_in;
+  t_output s_leakyrelu_out, s_output;
 
   // Post convolution quantization
   if constexpr (std::is_same<t_output_clip, std::nullptr_t>::value == false) {
@@ -100,8 +102,8 @@ quant_and_add_stream(t_acc i_acc, t_add i_add)
     s_output = t_output(s_acc);
   }
   else if constexpr (c_leakyrelu == 1){
-    s_leakyrelu_in = t_output(s_acc);
-    s_leakyrelu_out = leakyrelu <t_output, t_output, t_output> (s_leakyrelu_in);
+    s_leakyrelu_in = t_output_mask(s_acc);
+    s_leakyrelu_out = leakyrelu <t_output_mask, t_output_mask, t_output_mask> (s_leakyrelu_in);
     s_output = t_output(s_leakyrelu_out);
   }
   else 

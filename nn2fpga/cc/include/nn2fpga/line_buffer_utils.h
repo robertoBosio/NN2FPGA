@@ -1,6 +1,6 @@
 #ifndef NN2FPGA_LINE_BUFFER_UTILS_H_
 #define NN2FPGA_LINE_BUFFER_UTILS_H_
-
+// #define DEBUG_LAST
 #include "ap_int.h"
 #include "hls_stream.h"
 #include "debug.h"
@@ -213,9 +213,11 @@ bandwidth_adjust_down_up(hls::stream<din_t> din[c_ow_ops_in],
                         << std::endl;
 #endif
 #ifdef DEBUG_LAST
+              if constexpr (!SKIP) {
               std::cout << "s_write[" << s_ow_ops_out
                         << "].last = " << s_write[s_ow_ops_out].last
                         << std::endl;
+              }
 #endif
 #endif
             }
@@ -304,6 +306,24 @@ void bandwidth_adjust_down_down(hls::stream<din_t> din[c_ow_ops_in],
               }
             }
             o_data[s_ow_ops_out].write(s_write[s_ow_ops_out]);
+
+#ifndef __SYNTHESIS__
+#ifdef DEBUG_BANDWIDTH
+              for (auto s_i = 0; s_i < c_ow_ops_out; s_i++) {
+                for (auto s_j = 0; s_j < c_ops_out; s_j++) {
+                  std::cout << "s_bandwidth[" << s_i << "][" << s_j
+                            << "] = " << s_write[s_i].data[0][s_j] << std::endl;
+                }
+              }
+#endif
+#ifdef DEBUG_LAST
+            if constexpr (!SKIP) {
+              std::cout << "s_write[" << s_ow_ops_out
+                        << "].last = " << s_write[s_ow_ops_out].last
+                        << std::endl;
+            }
+#endif
+#endif
           }
         }
       }
@@ -330,7 +350,7 @@ bandwidth_adjust_up_down(hls::stream<din_t> din[c_ow_ops_in],
   static_assert(c_ow_ops_out >= c_ow_ops_in,
                 "c_ow_ops_out is not bigger than c_ow_ops_in");
   static_assert(c_ops_in % c_ops_out == 0,
-                "c_ops_out is not a multiple of c_ops_in");
+                "c_ops_in is not a multiple of c_ops_out");
   static_assert(c_ops_out <= c_ops_in, "c_ops_in is not bigger than c_ops_out");
 #ifndef __SYNTHESIS__
   std::cout << "INFO: Call to bandwidth_adjust_up_down" << std::endl;
@@ -391,9 +411,11 @@ bandwidth_adjust_up_down(hls::stream<din_t> din[c_ow_ops_in],
               }
 #endif
 #ifdef DEBUG_LAST
+            if constexpr (!SKIP) {
               std::cout << "s_write[" << s_i_write
                         << "].last = " << s_write[s_i_write].last
                         << std::endl;
+            }
 #endif
 #endif
             
@@ -487,9 +509,11 @@ bandwidth_adjust_up_up(hls::stream<din_t> din[c_ow_ops_in],
               }
 #endif
 #ifdef DEBUG_LAST
+if constexpr (!SKIP) {
               std::cout << "s_write[" << s_ow_ops_out
                         << "].last = " << s_write[s_ow_ops_out].last
                         << std::endl;
+}
 #endif
 #endif
             }

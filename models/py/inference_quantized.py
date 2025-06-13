@@ -158,7 +158,7 @@ def image_from_file(file_path):
 
 def inference_imagenet():
     # onnx_path = "../test/onnx/mobilenet_v2_a8w8b16_71.734.onnx"
-    onnx_path = "../test/onnx/resnet18_a8w8b16_69.362.onnx"
+    onnx_path = "../onnx/resnet18_a8w8b16_69.362.onnx"
     onnx_model = ModelWrapper(onnx_path)
     cleanup_model(onnx_model)
     inferred_model = onnx_model.transform(infer_shapes.InferShapes())
@@ -204,7 +204,7 @@ def inference_imagenet():
 def inference_cifar10():
     # onnx_path = "../test/onnx/resnet8.onnx"
     # onnx_path = "../test/onnx/resnet20_a8w8b16.onnx"
-    onnx_path = "../test/onnx/adder2d_expanded.onnx"
+    onnx_path = "../onnx/resnet8.onnx"
     onnx_model = ModelWrapper(onnx_path)
     cleanup_model(onnx_model)
     inferred_model = onnx_model.transform(infer_shapes.InferShapes())
@@ -224,13 +224,13 @@ def inference_cifar10():
             np_images = images.numpy()
             np_images = np.expand_dims(np_images, axis=0)
 
-            inferred_model = execute_onnx_and_make_model(inferred_model, {'global_in': np_images})
+            inferred_model = execute_onnx_and_make_model(inferred_model, {'inp.1': np_images})
             break
     
     print_acts_tensor('DequantizeLinear_35_out0', inferred_model, ow_ops=2, och_ops=2) 
 
 def inference_cifar10_4bit():
-    onnx_path = "../test/onnx/resnet8_a4w4b32.onnx"
+    onnx_path = "../onnx/resnet8_a4w4b32.onnx"
     onnx_model = ModelWrapper(onnx_path)
     cleanup_model(onnx_model)
     inferred_model = onnx_model.transform(infer_shapes.InferShapes())
@@ -255,5 +255,44 @@ def inference_cifar10_4bit():
     
     print_acts_tensor('DequantizeLinear_25_out0', inferred_model, ow_ops=4, och_ops=4) 
 
+def inference_fotovoltaic():
+    import copy
+    onnx_path = "../onnx/fotov640_final_scaleoutLR_q.onnx"
+    onnx_model = ModelWrapper(onnx_path)
+    inferred_model = onnx_model
+    # cleanup_model(onnx_model)
+    # inferred_model = onnx_model.transform(infer_shapes.InferShapes())
+    # inferred_model = inferred_model.transform(InferDataTypes())
+    log_name = "fotovoltaic"
+
+    # hook the intermediate tensors with their name
+    os.system(f"mkdir -p tmp/logs/{log_name}")
+
+    train_dataset, eval_dataset, input_shape = get_dataset("fotovoltaic")
+    
+    correct = 0
+    total = 0
+    outputs = 0
+    with torch.no_grad():
+        for images, labels in eval_dataset:
+            
+            np_images = images.numpy()
+            np_images = (np.expand_dims(np_images, axis=0))
+
+            # Input dictionary only for model inputs
+            input_dict = {"global_in": np_images.astype(np.float32)}
+            execution_context = execute_onnx(inferred_model, input_dict, True)
+            new_model = copy.deepcopy(inferred_model)
+            for i in execution_context.keys():
+                if execution_context[i] is not None:
+                    new_model.set_initializer(i, execution_context[i])
+            for vi in new_model.graph.value_info:
+                new_model.graph.output.append(vi)
+            # executed_model = execute_onnx(inferred_model, input_dict, True) 
+            # inferred_model = execute_onnx_and_make_model(inferred_model, input_dict)
+            break
+
+    print_acts_tensor('DequantizeLinear_122_out0', new_model, ow_ops=4, och_ops=4)
+    print_acts_tensor('DequantizeLinear_120_out0', new_model, ow_ops=1, och_ops=3)
 if __name__ == '__main__':
-    inference_cifar10()
+    inference_fotovoltaic()
