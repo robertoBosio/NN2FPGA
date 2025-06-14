@@ -2,7 +2,7 @@ import sys
 import time
 import threading
 from qonnx.transformation.infer_shapes import InferShapes
-from qonnx.transformation.infer_datatypes import InferDataTypes
+from qonnx.transformation.general import GiveReadableTensorNames, GiveUniqueNodeNames, GiveUniqueParameterTensors
 from qonnx.core.modelwrapper import ModelWrapper
 
 from backend.graph import *
@@ -12,14 +12,54 @@ import backend.balance_computations as balance_computations
 import backend.main as main
 import backend.sim as sim
 import backend.transformation as transformation
-from backend.custom_op.producestream import ProduceStream
-from backend.custom_op.consumestream import ConsumeStream
-import qonnx.custom_op.general as general
-from qonnx.custom_op.registry import getCustomOp
+from backend.util.compare_models import test_transformation_equivalence
+import qonnx.util.basic as util
+from backend.analysis.check_quantization import check_quantization
 
 from onnx import numpy_helper
 from onnx import helper, OperatorSetIdProto
 import numpy as np
+
+def print_tensor_shapes(model):
+    """
+    Print all known shape info from inputs, outputs, and value_info.
+    Handles both fixed and symbolic dimensions.
+    """
+    from onnx import TensorProto
+
+    def dim_to_str(dim):
+        if dim.HasField("dim_value"):
+            return str(dim.dim_value)
+        elif dim.HasField("dim_param"):
+            return f"{dim.dim_param}"
+        else:
+            return "?"
+
+    def shape_str(tensor_type):
+        dims = tensor_type.shape.dim
+        return "[" + ", ".join(dim_to_str(d) for d in dims) + "]"
+
+    def print_vi(vi):
+        if not vi.type.HasField("tensor_type"):
+            print(f"{vi.name}: (no tensor_type)")
+            return
+        tt = vi.type.tensor_type
+        elem_type = TensorProto.DataType.Name(tt.elem_type)
+        shape = shape_str(tt)
+        print(f"{vi.name}: {elem_type} {shape}")
+
+    print("== Inputs ==")
+    for vi in model.graph.input:
+        print_vi(vi)
+
+    print("\n== Outputs ==")
+    for vi in model.graph.output:
+        print_vi(vi)
+
+    print("\n== ValueInfo ==")
+    for vi in model.graph.value_info:
+        print_vi(vi)
+
 
 class StatusThread(threading.Thread):
     def __init__(self, job, stdout):
@@ -44,6 +84,8 @@ class StatusThread(threading.Thread):
         self.end_time = time.time()
         self.stop_event.set()
 
+
+
 # Expects an ONNX model
 def write_network(
     model,
@@ -62,22 +104,52 @@ def write_network(
 
     print(f"\nCurrent log file: {generate_log_file}\n")
 
+    # Import nn2FPGA custom operators.
     model.model.opset_import.append(
         OperatorSetIdProto(domain="backend.custom_op", version=1)
     )
 
-    # Cases in which a master axi interface is needed
+    # Save target board name in metadata properties.
+    model.set_metadata_prop("board_name", board)
 
-    ap_ctrl_chain = off_chip_storage
-    model = model.transform(transformation.CustomInferShapes())
-    print(model.check_all_tensor_shapes_specified())
+    # Clean up the model.
+    model.cleanup()
+    model = model.transform(InferShapes())
+    model = model.transform(GiveUniqueParameterTensors())
+    model = model.transform(GiveUniqueNodeNames())
+    model = model.transform(GiveReadableTensorNames())
+
+    # Propagate quantization through quantization invariant nodes.
+    model = model.transform(transformation.PropagateQuant())
+    model = model.transform(InferShapes())
+
+    # Extract implementable partition.
+    model = model.transform(transformation.SupportedPartition(prj_root))
+
+    # Insert custom nodes.
+    model = model.transform(transformation.FullyConnectedToConv())
     model = model.transform(transformation.InsertProduceStream())
     model = model.transform(transformation.InsertConsumeStream())
+    model = model.transform(transformation.InsertTensorDuplicator())
+
+    # Handle quantization.
+    model = model.transform(transformation.PropagateQuant())
+    model = model.transform(transformation.RemoveRedundantQuant())
     model = model.transform(transformation.CustomInferShapes())
-    model = model.transform(InferDataTypes())
-    print(model.check_all_tensor_shapes_specified())
-    model.save("produce_stream.onnx")
-    
+    model = model.transform(GiveReadableTensorNames())
+    model = model.transform(transformation.FoldQuant())
+    model = model.transform(transformation.FoldAsymmetricActQuant())
+
+    model.save("frontend.onnx")
+
+    # Balance resource allocation per layer.
+    model = model.transform(
+        transformation.BalanceComputation(silvia_packing=silvia_packing, nn2fpga_root=prj_root)
+    )
+
+    model.save("balance_computation.onnx")
+    exit(-1)
+
     # Save the original stdout and stderr
     original_stdout = sys.stdout
     # original_stderr = sys.stderr
@@ -85,39 +157,12 @@ def write_network(
     with open(generate_log_file, "w") as log_file:
         sys.stdout = log_file
 
-        status_thread = StatusThread("Recovering informations from ONNX", original_stdout)
-        status_thread.start()
-
-        io_dict = graph_info(
-            inferred_model,
-            init_info,
-            object_detection,
-            anchors,
-            transform=transform
-        )
-
-        status_thread.stop()
-        status_thread.join()
-        status_thread = StatusThread("Optimizing the model graph", original_stdout)
-        status_thread.start()
-
-        io_dict = opt_step(
-            inferred_model,
-            io_dict,
-            init_info,
-            True
-        )
-
-        status_thread.stop()
-        status_thread.join()
-        
         status_thread = StatusThread("Balancing performances", original_stdout)
         status_thread.start()
-
-        io_dict = balance_computations.ilp(
+        io_dict = {}
+        balance_computations.ilp(
             io_dict,
-            off_chip_storage,
-            inferred_model,
+            model,
             file_name,
             board,
             silvia_packing,
@@ -144,11 +189,11 @@ def write_network(
             model,
             io_dict
         )
-        
+
         io_dict = rename_nodes(
             io_dict
         )
-        
+
         io_dict = duplicate_tensor(
             model,
             io_dict,
@@ -159,13 +204,12 @@ def write_network(
         status_thread.join()
         status_thread = StatusThread("Writing model code", original_stdout)
         status_thread.start()
-        
 
         parsed_write = main.write(
             io_dict,
             model,
             file_name,
-            ap_ctrl_chain,
+            ap_ctrl_chain=off_chip_storage,
             object_detection=object_detection,
             dynamic_init=dynamic_init,
             board=board,
@@ -189,13 +233,13 @@ def write_network(
                 generate_report_file,
                 prj_root=prj_root
             )
-            
+
             status_thread.stop()
             status_thread.join()
-        
+
         status_thread = StatusThread("Writing host code", original_stdout)
         status_thread.start()
-        
+
         sim.write(
             io_dict,
             model,
@@ -205,7 +249,7 @@ def write_network(
             off_chip_storage=off_chip_storage,
             prj_root=prj_root
         )
-        
+
         status_thread.stop()
         status_thread.join()
 

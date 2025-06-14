@@ -1,10 +1,10 @@
 from qonnx.transformation.base import Transformation
 from qonnx.transformation.general import SortGraph
 from qonnx.core.modelwrapper import ModelWrapper
-from qonnx.transformation.infer_shapes import InferShapes
 from qonnx.transformation.general import GiveReadableTensorNames, GiveUniqueNodeNames, GiveUniqueParameterTensors, GiveRandomTensorNames
 from onnx import numpy_helper, helper, NodeProto
 from backend.util.quant_utils import get_quant_params
+import backend.transformation as transformation
 import qonnx.util.basic as util
 
 QUANT_INVARIANT_NODES = [
@@ -155,7 +155,7 @@ class PropagateQuant(Transformation):
             
             # If any changes were made, sort the graph to maintain a valid topological order
             model = model.transform(SortGraph())
-            model = model.transform(InferShapes())
+            model = model.transform(transformation.CustomInferShapes())
             model = model.transform(GiveUniqueParameterTensors())
             model = model.transform(GiveUniqueNodeNames())
             model = model.transform(GiveReadableTensorNames())

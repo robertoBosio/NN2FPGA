@@ -23,8 +23,6 @@ class InsertConsumeStream(Transformation):
                 domain="backend.custom_op",
                 outputs=[consume_stream_output],
                 inputs=[orig_output_name],
-                ow_ops=1,
-                och_ops=1,
                 name=f"ConsumeStream_{i}"
             )
 

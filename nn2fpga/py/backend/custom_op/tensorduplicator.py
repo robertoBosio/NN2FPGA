@@ -8,8 +8,6 @@ class TensorDuplicator(CustomOp):
 
     def get_nodeattr_types(self):
         return {
-            "ow_ops": ("i", True, 1),
-            "och_ops": ("i", True, 1),
             "copies": ("i", True, 2),
         }
 

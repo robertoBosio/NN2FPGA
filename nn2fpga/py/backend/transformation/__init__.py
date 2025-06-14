@@ -7,3 +7,5 @@ from backend.transformation.insert_tensor_duplicator import InsertTensorDuplicat
 from backend.transformation.propagate_quant import PropagateQuant
 from backend.transformation.remove_redundant_quant import RemoveRedundantQuant
 from backend.transformation.supported_partition import SupportedPartition
+from backend.transformation.fold_asymmetric_act_quant import FoldAsymmetricActQuant
+from backend.transformation.fold_quant import FoldQuant

@@ -6,10 +6,7 @@ class ConsumeStream(CustomOp):
     """ Node consuming a streaming tensor to an axi lite interface. """
     
     def get_nodeattr_types(self):
-        return {
-            "ow_ops": ("i", True, 1),
-            "och_ops": ("i", True, 1),
-        }
+        return {}
 
     def make_shape_compatible_op(self, model):
         node = self.onnx_node

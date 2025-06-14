@@ -5,6 +5,9 @@ from qonnx.util.basic import get_by_name
 from qonnx.core.modelwrapper import ModelWrapper
 from qonnx.transformation.base import Transformation
 from qonnx.transformation.create_generic_partitions import PartitionFromDict
+from backend.util.quant_utils import (
+    is_constant_input_node,
+)
 
 FPGA_SUPPORTED_QUANTIZED_ACTIVATIONS = {
     "LeakyRelu",
@@ -30,11 +33,6 @@ FPGA_SUPPORTED_OPS = {
 }
 
 FPGA_SUPPORTED_OPS.update(FPGA_SUPPORTED_QUANTIZED_ACTIVATIONS)
-
-def is_constant_input_node(model: ModelWrapper, node: onnx.NodeProto) -> bool:
-    """ Check if the node is a constant input node. """
-    init_names = {init.name for init in model.graph.initializer}
-    return all(inp in init_names for inp in node.input)
 
 def check_attribute(
     node: onnx.NodeProto, attr_name: str, expected_value, reasons: list, optional=False
@@ -107,7 +105,7 @@ def check_params_quant(model: ModelWrapper, node: onnx.NodeProto, reasons: list)
         reasons.append(f"Parameters Quant not found")
         return False
 
-    # Check if node has initializers. If not, it is an activation Quant node.
+    # Check if node has only initializers. If not, it is an activation Quant node.
     if not is_constant_input_node(model, node):
         reasons.append(f"Parameters Quant must have initializers")
         return False

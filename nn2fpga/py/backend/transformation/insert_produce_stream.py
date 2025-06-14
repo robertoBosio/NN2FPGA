@@ -22,8 +22,6 @@ class InsertProduceStream(Transformation):
                 domain="backend.custom_op",
                 inputs=[orig_input_name],
                 outputs=[produce_stream_output],
-                ow_ops=1,
-                och_ops=1,
                 normalize=0,
                 name=f"ProduceStream_{i}"
             )

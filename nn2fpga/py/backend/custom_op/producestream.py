@@ -6,11 +6,7 @@ class ProduceStream(CustomOp):
     """ Node producing a streaming tensor starting from an axi lite interface. """
     
     def get_nodeattr_types(self):
-        return {
-            "ow_ops": ("i", True, 1),
-            "och_ops": ("i", True, 1),
-            "normalize": ("b", True, False),
-        }
+        return {}
 
     def make_shape_compatible_op(self, model):
         node = self.onnx_node
