@@ -49,7 +49,6 @@ def get_quant_attributes(node: NodeProto, direction: str) -> dict:
 
     return quant_attributes
 
-
 def add_attribute(
     node: NodeProto, name: str, attr_type: helper.AttributeProto.AttributeType, value
 ) -> None:
@@ -66,13 +65,40 @@ def set_attribute(
     remove_by_name(node.attribute, name)
     add_attribute(node, name, attr_type, value)
 
+
 def set_quant_attributes(node: NodeProto, direction: str, quant_params: dict) -> None:
     """Set quantization attributes on a node."""
-    add_attribute(node, f"scale_{direction}", helper.AttributeProto.FLOAT, float(quant_params["scale"]))
-    add_attribute(node, f"zeropt_{direction}", helper.AttributeProto.INT, int(quant_params["zeropt"]))
-    add_attribute(node, f"bitwidth_{direction}", helper.AttributeProto.INT, int(quant_params["bitwidth"]))
-    add_attribute(node, f"signed_{direction}", helper.AttributeProto.INT, int(quant_params["signed"]))
-    add_attribute(node, f"narrow_{direction}", helper.AttributeProto.INT, int(quant_params["narrow"]))
+    add_attribute(
+        node,
+        f"scale_{direction}",
+        helper.AttributeProto.FLOAT,
+        float(quant_params["scale"]),
+    )
+    add_attribute(
+        node,
+        f"zeropt_{direction}",
+        helper.AttributeProto.INT,
+        int(quant_params["zeropt"]),
+    )
+    add_attribute(
+        node,
+        f"bitwidth_{direction}",
+        helper.AttributeProto.INT,
+        int(quant_params["bitwidth"]),
+    )
+    add_attribute(
+        node,
+        f"signed_{direction}",
+        helper.AttributeProto.INT,
+        int(quant_params["signed"]),
+    )
+    add_attribute(
+        node,
+        f"narrow_{direction}",
+        helper.AttributeProto.INT,
+        int(quant_params["narrow"]),
+    )
+
 
 def compare_quant_attributes(
     quant1_dict: dict,
@@ -85,6 +111,7 @@ def compare_quant_attributes(
         if quant1_dict[key] != quant2_dict[key]:
             return False
     return True
+
 
 def is_constant_input_node(model: ModelWrapper, node: NodeProto) -> bool:
     """Check if the node has only constant inputs.

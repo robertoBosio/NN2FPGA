@@ -146,6 +146,7 @@ def write_network(
     model = model.transform(
         transformation.BalanceComputation(silvia_packing=silvia_packing, nn2fpga_root=prj_root)
     )
+    model = model.transform(transformation.AdjustStreamingCommunication())
 
     model.save("balance_computation.onnx")
     exit(-1)

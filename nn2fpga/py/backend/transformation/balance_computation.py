@@ -3,13 +3,15 @@ import math
 import json
 import time
 import numpy as np
+from pulp.apis import PULP_CBC_CMD
+from tabulate import tabulate
+from collections import deque
 from qonnx.transformation.base import Transformation
 from qonnx.core.modelwrapper import ModelWrapper
 from qonnx.util.basic import get_by_name
 from backend.util.quant_utils import get_quant_params, get_quant_attributes
+from backend.util.par_utils import get_par_attributes, set_par_attributes, check_par_attributes
 from onnx import helper, NodeProto
-from pulp.apis import PULP_CBC_CMD
-from tabulate import tabulate
 
 PARALLELIZABLE_LAYERS = ["Conv", "GlobalAveragePool", "GlobalMaxPool", "AveragePool", "MaxPool", "ProduceStream", "ConsumeStream"]
 
@@ -604,11 +606,41 @@ def update_model(model: ModelWrapper, parallel_op: dict) -> ModelWrapper:
     for node in model.graph.node:
         if node.name in parallel_op:
             par = parallel_op[node.name]
+            par_dict = {
+                "och_par": par[0],
+                "ich_par": par[1],
+                "w_par": par[2],
+            }
+            set_par_attributes(node, par_dict)
 
-            node.attribute.append(helper.make_attribute("och_par", par[0]))
-            node.attribute.append(helper.make_attribute("ich_par", par[1]))
-            node.attribute.append(helper.make_attribute("w_par", par[2]))
+    return model
 
+def propagate_parallelism(model: ModelWrapper) -> ModelWrapper:
+    """Propagate the parallelism information through the model."""
+    
+    # Retrieving the ProduceStream nodes to propagate the parallelism.
+    queue = deque(model.get_nodes_by_op_type("ProduceStream"))
+    mark_visited = set()
+
+    while queue:
+        node = queue.popleft()
+        mark_visited.add(node.name)
+        par = get_par_attributes(node)
+
+        # Remove ich_par, as it is not needed for the propagation.
+        par.pop("ich_par", None)
+
+        consumers = model.find_direct_successors(node)
+        if consumers is not None:
+            # If the node has consumers, propagate the parallelization to them.
+            for consumer in consumers:
+                if not check_par_attributes(consumer):
+                    # If the consumer does not have parallelization attributes, set them.
+                    set_par_attributes(consumer, par)
+                if consumer.name not in mark_visited:
+                # If the consumer is not already visited, add it to the queue.
+                    queue.append(consumer)
+            
     return model
 
 def opt_steps(layers_info, parallel_op, valid_par_solutions, prj_root="/tmp"):
@@ -854,6 +886,7 @@ class BalanceComputation(Transformation):
 
         # Update the model with the parallelization chosen for each layer
         model = update_model(model, layer_par)
+        model = propagate_parallelism(model)
 
         # layer_par = opt_steps(
         #     layers_info,
