@@ -5,11 +5,6 @@ from onnx import numpy_helper, helper, NodeProto
 from backend.util.quant_utils import get_quant_params, is_constant_input_node, get_quant_attributes, set_quant_attributes
 import numpy as np
 
-def check_node_has_folded_quant(node: NodeProto, model: ModelWrapper, direction: str) -> bool:
-    """Check if a node has already folded quantization parameters."""
-    pass
-
-
 class FoldQuant(Transformation):
     """ Fold quantization parameters into layers. """
     def apply(self, model: ModelWrapper) -> tuple[ModelWrapper, bool]:
@@ -100,7 +95,7 @@ class FoldQuant(Transformation):
             # Remove the Quant node
             for i, inp in enumerate(consumer.input):
                 if inp == quant.output[0]:
-                    consumer.input[i] = producer.output[0]
+                    consumer.input[i] = quant.input[0]  # Replace the input with the producer's input
             graph.node.remove(quant)
                 
 

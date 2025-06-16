@@ -10,3 +10,4 @@ from backend.transformation.supported_partition import SupportedPartition
 from backend.transformation.fold_asymmetric_act_quant import FoldAsymmetricActQuant
 from backend.transformation.fold_quant import FoldQuant
 from backend.transformation.adjust_streaming_comunication import AdjustStreamingCommunication
+from backend.transformation.infer_quant import InferQuant

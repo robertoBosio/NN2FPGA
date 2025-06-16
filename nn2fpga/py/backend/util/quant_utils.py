@@ -27,6 +27,11 @@ def get_quant_params(node: NodeProto, model: ModelWrapper) -> dict:
         scale=scale, zeropt=zeropt, bitwidth=bitwidth, signed=signed, narrow=narrow
     )
 
+def check_quant_attributes(node: NodeProto, direction: str = "out") -> bool:
+    """Check if a node has quantization attributes."""
+    quant_attributes = get_quant_attributes(node, direction)
+    return any(quant_attributes[attr] is not None for attr in quant_attributes.keys())
+
 def get_quant_attributes(node: NodeProto, direction: str) -> dict:
     """Get quantization attributes from a node with folded quantization."""
     attr_dict = {a.name: a for a in node.attribute}

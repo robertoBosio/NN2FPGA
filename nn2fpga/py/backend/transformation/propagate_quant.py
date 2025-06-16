@@ -8,6 +8,7 @@ import backend.transformation as transformation
 import qonnx.util.basic as util
 
 QUANT_INVARIANT_NODES = [
+    "BandwidthAdjust",
     "Concat",
     "ConsumeStream",
     "Flatten",
