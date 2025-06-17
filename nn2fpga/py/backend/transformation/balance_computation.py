@@ -499,28 +499,29 @@ def resourceILP(layers_info, model_II, valid_par_solutions, parallel_op, NUM_DSP
     for layer, layer_par in zip(layers_info, clamped_valid_par_solutions):
         valid_iter_solutions.append([])
         valid_iter_linebuffer.append([])
-        layer_iter =  layer["total"]
-        line_iter =  layer["ich"] * layer["iw"] * layer["ih"]
+        layer_iter = layer["total"]
+        line_iter = layer["ich"] * layer["iw"] * layer["ih"]
         for single_par in layer_par:
             unroll_factor = layer["kernel"] * np.prod(single_par)
             valid_iter_solutions[-1].append(layer_iter // unroll_factor)
             if not (has_linebuffer(layer, single_par)):
                 valid_iter_linebuffer[-1].append(0)
             else:
-                valid_iter_linebuffer[-1].append(line_iter // (single_par[1] * single_par[2]))
+                valid_iter_linebuffer[-1].append(
+                    line_iter // (single_par[1] * single_par[2])
+                )
 
     # valid_dsp_solutions stores the DSPs used for each valid solution
     # considering the possible packing
     valid_dsp_solutions = []
-    for layer, layer_par in zip(layers_info, valid_par_solutions):
+    for layer, layer_par in zip(layers_info, clamped_valid_par_solutions):
         valid_dsp_solutions.append([])
-
         for single_par in layer_par:
             valid_dsp_solutions[-1].append(dsp_consumption(layer, single_par, silvia_packing))
 
     # valid_bram_solutions stores the BRAMs used for each valid solution.
     valid_bram_solutions = []
-    for layer, layer_par in zip(layers_info, valid_par_solutions):
+    for layer, layer_par in zip(layers_info, clamped_valid_par_solutions):
         valid_bram_solutions.append([])
         n_weights = 0
 
@@ -748,7 +749,7 @@ def print_report(layers_info, layer_par, n_variables, n_constraints, model_II, t
             "och_ops",
             "ow_ops",
             "DSPs",
-            "PORTs",
+            "BRAMs",
             "Iter",
         ]
         table_data.append(header)
@@ -837,8 +838,8 @@ class BalanceComputation(Transformation):
             prj_root=self.nn2fpga_root
         )
 
-        NUM_PORTS = (board_res["bram"] + board_res["uram"])
-        NUM_PORTS = int(NUM_PORTS * 0.85) * 2  # 85% of the BRAMs are used for parallelization, considering that each BRAM is 2 ports
+        NUM_PORTS = (board_res["bram"] + board_res["uram"] * 8)
+        NUM_PORTS = int(NUM_PORTS * 0.85)  # 85% of the BRAMs are used for parallelization, considering that each BRAM is 2 ports
         NUM_DSP = board_res["dsp"] * 0.85  # 85% of the DSPs are used for parallelization
 
         # Extract layers information
