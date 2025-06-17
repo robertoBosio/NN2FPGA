@@ -2,7 +2,7 @@ from qonnx.transformation.base import Transformation
 from qonnx.core.modelwrapper import ModelWrapper
 from qonnx.util.basic import get_by_name
 from onnx import numpy_helper, helper, NodeProto
-from backend.util.quant_utils import get_quant_params, is_constant_input_node, get_quant_attributes, set_quant_attributes
+from backend.util.quant_utils import get_quant_params, is_constant_input_node, get_quant_attributes, set_quant_attributes, compare_quant_attributes
 import numpy as np
 
 class FoldQuant(Transformation):
@@ -47,13 +47,10 @@ class FoldQuant(Transformation):
             )
             producer_already_has_different_quant = False
             if producer_already_has_quant:
-                producer_already_has_different_quant = any(
-                    not np.isclose(
-                        quant_params_dict[param_name], producer_attr_dict[param_name]
-                    )
-                    for param_name in quant_params_dict.keys()
+                producer_already_has_different_quant = not compare_quant_attributes(
+                    quant_params_dict, producer_attr_dict
                 )
-            
+
             if not producer_already_has_quant:
                 set_quant_attributes(producer, "out", quant_params_dict)
             elif producer_already_has_quant and producer_already_has_different_quant:
@@ -76,20 +73,17 @@ class FoldQuant(Transformation):
             )
             consumer_already_has_different_quant = False
             if consumer_already_has_quant:
-                consumer_already_has_different_quant = any(
-                    not np.isclose(
-                        quant_params_dict[param_name], consumer_attr_dict[param_name]
-                    )
-                    for param_name in quant_params_dict.keys()
+                consumer_already_has_different_quant = not compare_quant_attributes(
+                    quant_params_dict, consumer_attr_dict
                 )
-            
+
             if not consumer_already_has_quant:
                 set_quant_attributes(consumer, "in", quant_params_dict)
             elif consumer_already_has_quant and consumer_already_has_different_quant:
                 print(f"consumer {consumer.name} already has different quantization parameters for Quant node {quant.name}. Skipping folding.")
                 is_everything_folded = False
                 continue
-        
+
             print(f"Folding Quant node {quant.name} into producer {producer.name} and consumer {consumer.name}.")
 
             # Remove the Quant node
@@ -97,6 +91,5 @@ class FoldQuant(Transformation):
                 if inp == quant.output[0]:
                     consumer.input[i] = quant.input[0]  # Replace the input with the producer's input
             graph.node.remove(quant)
-                
 
         return (model, False)

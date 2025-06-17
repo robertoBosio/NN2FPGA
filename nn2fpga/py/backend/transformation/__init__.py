@@ -11,3 +11,4 @@ from backend.transformation.fold_asymmetric_act_quant import FoldAsymmetricActQu
 from backend.transformation.fold_quant import FoldQuant
 from backend.transformation.adjust_streaming_comunication import AdjustStreamingCommunication
 from backend.transformation.infer_quant import InferQuant
+from backend.transformation.add_streaming_params import AddStreamingParams

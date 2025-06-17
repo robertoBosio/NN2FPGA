@@ -140,14 +140,15 @@ def write_network(
     model = model.transform(transformation.FoldQuant())
     model = model.transform(transformation.FoldAsymmetricActQuant())
 
-    model.save("frontend.onnx")
-
     # Balance resource allocation per layer.
     model = model.transform(
         transformation.BalanceComputation(silvia_packing=silvia_packing, nn2fpga_root=prj_root)
     )
     model = model.transform(transformation.AdjustStreamingCommunication())
     model = model.transform(transformation.InferQuant())
+
+    # Handle weights streaming.
+    model = model.transform(transformation.AddStreamingParams(nn2fpga_root=prj_root))
 
     model.save("balance_computation.onnx")
     exit(-1)
