@@ -160,27 +160,27 @@ class AddStreamingParams(Transformation):
         # and collect them in a list.
         for node in model.graph.node:
             if node.op_type in NODE_WITH_PARAMS:
-                sequential_streaming.append(node)
+                node_mem = get_param_mem_from_node(model, node)
                 uint32_mem = np.concatenate(
-                    (uint32_mem, get_param_mem_from_node(model, node))
+                    (uint32_mem, node_mem)
                 )
+                sequential_streaming.append((node, node_mem.size))
 
         if len(sequential_streaming) == 0:
             return (model, False)
-        
-        print(f"Packed parameters in {uint32_mem.size} 32-bit words")
         
         # Add an input to the model for the streaming parameters.
         param_stream_input = helper.make_tensor_value_info(
             "param_stream", 
             TensorProto.INT32,
-            [1, len(uint32_mem)]
+            [len(uint32_mem)]
         )
         model.graph.input.append(param_stream_input)
 
         # Create a ParamStream node for each node with parameters.
         input_stream = [param_stream_input.name]
-        for node in sequential_streaming[:-1]:
+        params_to_shift = uint32_mem.size
+        for node, params_size in sequential_streaming[:-1]:
             node_par = get_par_attributes(node)
             param_stream_node_name = node.name + "_param"
             output_stream = [f"{node.name}_stream"]
@@ -201,14 +201,22 @@ class AddStreamingParams(Transformation):
 
             # Add the ParamStream node to the graph.
             model.graph.node.append(param_stream_node)
-            # print(f"Added ParamStream node: {param_stream_node_name} with inputs {input_stream} and outputs {output_stream}")
             input_stream = [output_stream[1]]  # The next input is the first output of the current ParamStream node
-        
+
+            params_to_shift -= params_size
+            model.set_tensor_shape(
+                output_stream[0],
+                [params_size]
+            )
+            model.set_tensor_shape(
+                output_stream[1],
+                [params_to_shift]
+            )
         else:
             # For the last node we do not need the shift_out output,
             # we just need the stream output.
 
-            node = sequential_streaming[-1]
+            node, params_size = sequential_streaming[-1]
             node_par = get_par_attributes(node)
             param_stream_node_name = node.name + "_param"
             output_stream = [f"{node.name}_stream"]
@@ -228,15 +236,21 @@ class AddStreamingParams(Transformation):
 
             # Add the ParamStream node to the graph.
             model.graph.node.append(param_stream_node)
+            
+            model.set_tensor_shape(
+                output_stream[0],
+                [params_size]
+            )
         
         # Sort the graph.
         model = model.transform(SortGraph())
 
 
-        os.system(f"mkdir -p {self.nn2fpga_root}/npy/")
-        np.save(f"{self.nn2fpga_root}/npy/streaming_params.npy", uint32_mem)
+        os.system(f"mkdir -p {self.nn2fpga_root}/params/")
+        np.save(f"{self.nn2fpga_root}/params/streaming_params.npy", uint32_mem)
         
-        with open(f"{self.nn2fpga_root}/npy/streaming_params.bin", "wb") as file:
+        # For c++ testbench, we need to save the parameters in a binary file.
+        with open(f"{self.nn2fpga_root}/params/streaming_params.bin", "wb") as file:
             file.write(uint32_mem.tobytes())
         return (model, False)
 
