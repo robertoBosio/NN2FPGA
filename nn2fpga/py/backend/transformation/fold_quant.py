@@ -1,15 +1,20 @@
 from qonnx.transformation.base import Transformation
 from qonnx.core.modelwrapper import ModelWrapper
-from qonnx.util.basic import get_by_name
-from onnx import numpy_helper, helper, NodeProto
-from backend.util.quant_utils import get_quant_params, is_constant_input_node, get_quant_attributes, set_quant_attributes, compare_quant_attributes
+from backend.util.quant_utils import (
+    get_quant_params,
+    is_constant_input_node,
+)
+from backend.core.tensor_quant import TensorQuant
 import numpy as np
 
+
 class FoldQuant(Transformation):
-    """ Fold quantization parameters into layers. """
+    """Fold Quant node into tensors datatype."""
+
     def apply(self, model: ModelWrapper) -> tuple[ModelWrapper, bool]:
         graph = model.graph
-        is_everything_folded = True
+        not_folded = 0
+        folded = 0
 
         # Find all Quant nodes in the model
         quants = model.get_nodes_by_op_type("Quant")
@@ -21,75 +26,66 @@ class FoldQuant(Transformation):
             # Get quantization parameters
             quant_params = get_quant_params(quant, model)
 
-            # Fold into the producer node the parameters
+            expected_tensor_quant = TensorQuant(
+                bitwidth=quant_params["bitwidth"],
+                signed=quant_params["signed"],
+                scale=quant_params["scale"],
+                zeropt=quant_params["zeropt"],
+                narrow_range=quant_params["narrow"],
+                rounding=quant_params["rounding_mode"],
+            )
+            current_output_tensor_quant = model.get_tensor_datatype(
+                quant.output[0]
+            )
+
+            # Check if the output of the Quant node has already a quantization
+            # If it does, check if they are different
+            if (
+                current_output_tensor_quant is not None
+                and current_output_tensor_quant.get_canonical_name()
+                != expected_tensor_quant.get_canonical_name()
+            ):
+
+                raise ValueError(
+                    f"Quant node {quant.name} has a different quantization parameter than the output tensor {quant.output[0]}.\n"
+                    f"Expected: {expected_tensor_quant.get_canonical_name()}, "
+                    f"current_output: {current_output_tensor_quant.get_canonical_name() if current_output_tensor_quant else 'None'}"
+                )
+
+            # Set the quantization parameters on the output tensor
+            model.set_tensor_datatype(quant.output[0], expected_tensor_quant)
+
+            # Check if the input of the Quant node has already a quantization
+            current_input_tensor_quant = model.get_tensor_datatype(
+                quant.input[0]
+            )
+
+            if (
+                current_input_tensor_quant is not None
+                and current_input_tensor_quant.get_canonical_name()
+                != expected_tensor_quant.get_canonical_name()
+            ):
+                # This case can happen if there are multiple Quant nodes with different parameters. It is not an error, but we cannot fold the Quant node,
+                # and thsu we have to implement it in the hardware.
+                not_folded += 1
+                continue
+
+            # Bypass and remove the Quant node
             producer = model.find_producer(quant.input[0])
-            quant_params_dict = {}
-            for param_name, param_value in quant_params.items():
-                if param_value is not None:
-                    value = param_value.item() if param_value is not None and isinstance(param_value, np.ndarray) else param_value
-                    quant_params_dict[param_name] = value
+            for i, out in enumerate(producer.output):
+                if out == quant.input[0]:
+                    producer.output[i] = quant.output[0]
 
-            if producer is None:
-                print("No producer found for Quant node:", quant.name)
-                continue
-
-            if producer.op_type == "Quant":
-                print("Skipping folding of nested Quant node:", quant.name)
-                is_everything_folded = False
-                continue
-
-            # Check if the producer already has the quantization parameters
-            # If it does, check if they are different
-            # If they are different, skip folding
-            producer_attr_dict = get_quant_attributes(producer, "out")
-            producer_already_has_quant = any(
-                param_value is not None for param_value in producer_attr_dict.values()
-            )
-            producer_already_has_different_quant = False
-            if producer_already_has_quant:
-                producer_already_has_different_quant = not compare_quant_attributes(
-                    quant_params_dict, producer_attr_dict
-                )
-
-            if not producer_already_has_quant:
-                set_quant_attributes(producer, "out", quant_params_dict)
-            elif producer_already_has_quant and producer_already_has_different_quant:
-                print(f"Producer {producer.name} already has different quantization parameters for Quant node {quant.name}. Skipping folding.")
-                is_everything_folded = False
-                continue
-
-            consumer = model.find_consumer(quant.output[0])
-            if consumer.op_type == "Quant":
-                print(f"Skipping folding into consumer {consumer.name} as it is a Quant node.")
-                is_everything_folded = False
-                continue
-
-            # Check if the producer already has the quantization parameters
-            # If it does, check if they are different
-            # If they are different, skip folding
-            consumer_attr_dict = get_quant_attributes(consumer, "in")
-            consumer_already_has_quant = any(
-                param_value is not None for param_value in consumer_attr_dict.values()
-            )
-            consumer_already_has_different_quant = False
-            if consumer_already_has_quant:
-                consumer_already_has_different_quant = not compare_quant_attributes(
-                    quant_params_dict, consumer_attr_dict
-                )
-
-            if not consumer_already_has_quant:
-                set_quant_attributes(consumer, "in", quant_params_dict)
-            elif consumer_already_has_quant and consumer_already_has_different_quant:
-                print(f"consumer {consumer.name} already has different quantization parameters for Quant node {quant.name}. Skipping folding.")
-                is_everything_folded = False
-                continue
-
-            print(f"Folding Quant node {quant.name} into producer {producer.name} and consumer {consumer.name}.")
-
-            # Remove the Quant node
-            for i, inp in enumerate(consumer.input):
-                if inp == quant.output[0]:
-                    consumer.input[i] = quant.input[0]  # Replace the input with the producer's input
+            # Remove the Quant node from the graph
             graph.node.remove(quant)
+            folded += 1
+
+        print(
+            f"Folded {folded} Quant nodes into tensor datatype."
+        )
+        if not_folded > 0:
+            print(
+                f"Could not fold {not_folded} Quant nodes due to multiple quantization parameters on the same tensor."
+            )
 
         return (model, False)

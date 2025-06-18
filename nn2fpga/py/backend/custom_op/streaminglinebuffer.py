@@ -2,7 +2,7 @@ from onnx import helper
 from qonnx.custom_op.base import CustomOp
 
 class StreamingLineBuffer(CustomOp):
-    """ Node producing a streaming tensor starting from an axi lite interface. """
+    """ Node producing a streaming window. """
 
     def get_nodeattr_types(self):
         return {}

@@ -20,6 +20,7 @@ QUANT_INVARIANT_NODES = [
     "Relu",
     "Reshape",
     "Split",
+    "StreamingLineBuffer",
     "TensorDuplicator",
     "Transpose",
 ]

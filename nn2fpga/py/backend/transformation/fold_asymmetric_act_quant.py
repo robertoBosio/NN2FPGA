@@ -3,7 +3,7 @@ from qonnx.core.modelwrapper import ModelWrapper
 from qonnx.util.basic import get_by_name
 from onnx import numpy_helper, helper
 from qonnx.util.basic import get_by_name
-from backend.util.quant_utils import get_quant_params, get_quant_attributes, set_attribute
+from backend.util.quant_utils import get_quant_params
 import numpy as np
 
 class FoldAsymmetricActQuant(Transformation):
@@ -15,11 +15,11 @@ class FoldAsymmetricActQuant(Transformation):
         convs = model.get_nodes_by_op_type("Conv")
         for conv in convs:
             
-            act_quant_params = get_quant_attributes(conv, "in")
-            if act_quant_params["zeropt"] is None or act_quant_params["zeropt"] == 0:
+            act_quant_params = model.get_tensor_datatype(conv.input[0])
+            if act_quant_params is None or act_quant_params.zeropt == 0:
                 continue  # Nothing to fold if zeropt is None or 0
 
-            zeropt_act = act_quant_params["zeropt"]
+            zeropt_act = act_quant_params.zeropt
 
             # Get the weight quantization parameters
             weight_quant = model.find_producer(conv.input[1])
@@ -42,7 +42,7 @@ class FoldAsymmetricActQuant(Transformation):
 
                 # Check that the bias scale is close to the product of the weight scale and activation scale
                 if not all(np.isclose(bias_quant_params["scale"], 
-                                  weight_scales * act_quant_params["scale"])):
+                                  weight_scales * act_quant_params.scale)):
                     print(f"Skipping {conv.name} as bias scale does not match weight and activation scales.")
                     continue
 
@@ -63,12 +63,12 @@ class FoldAsymmetricActQuant(Transformation):
                 continue
 
             # Adjust the bias by subtracting the zero point scaled by the weight sums
-            new_bias_data = bias_data - (zeropt_act * act_quant_params["scale"] * weight_sums)
+            new_bias_data = bias_data - (zeropt_act * act_quant_params.scale * weight_sums)
             model.set_initializer(bias_quant.input[0], new_bias_data)
 
             # Remove the zero point input from the activation quantization node
-            set_attribute(
-                conv, "zeropt_in", helper.AttributeProto.INT, 0
+            conv.attribute.append(
+                helper.make_attribute(key="asym_folded", value=1, attr_type=helper.AttributeProto.INT)
             )
 
             print(f"Folded zero point of asymmetric activation quantization into bias of {conv.name}.")

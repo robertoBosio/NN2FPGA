@@ -87,7 +87,6 @@ def check_attribute(
 
     return True
 
-
 def check_params_quant(model: ModelWrapper, node: onnx.NodeProto, reasons: list) -> bool: 
     """ Check params Quant node. Right now, it is only supported symmetric quantization, 
     with full range of values (narrow=0).
@@ -165,6 +164,11 @@ def check_act_quant(model: ModelWrapper, node: onnx.NodeProto, reasons: list) ->
     if scale.ndim > 1 or zeropt.ndim > 1:
         reasons.append(f"Activation Quant with unspported per-channel quantization")
         return False  # Per-channel quantization is not supported for activations.
+    
+    # Check that the zero point is close to integer values
+    if float(zeropt.item()).is_integer() is False:
+        reasons.append(f"Activation Quant with unsupported floating zero point")
+        return False
 
     return True
 
@@ -417,6 +421,12 @@ def is_fpga_supported_op(model: ModelWrapper, node: onnx.NodeProto) -> bool:
         act_quant = model.find_producer(node.input[0])
         is_supported = is_supported and check_act_quant(model, act_quant, reasons)
 
+    elif node.op_type in ["IntQuant", "Quant"]:
+        # In case of multple Quant nodes, only checking the Quant nodes attached to some
+        # other operation is not sufficient. We need to check all activation Quant nodes. 
+        if not is_constant_input_node(model, node):
+            is_supported = is_supported and check_act_quant(model, node, reasons)
+    
     if not is_supported:
         print(
             f"Node {node.name} of type {node.op_type} is not supported for FPGA execution. Reasons: {', '.join(reasons)}"

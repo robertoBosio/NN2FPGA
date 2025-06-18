@@ -9,7 +9,7 @@ from collections import deque
 from qonnx.transformation.base import Transformation
 from qonnx.core.modelwrapper import ModelWrapper
 from qonnx.util.basic import get_by_name
-from backend.util.quant_utils import get_quant_params, get_quant_attributes
+from backend.util.quant_utils import get_quant_params
 from backend.util.par_utils import get_par_attributes, set_par_attributes, check_par_attributes
 from backend.transformation.insert_streaming_line_buffer import has_streaming_linebuffer
 from onnx import helper, NodeProto
@@ -247,7 +247,7 @@ def layers_extractions(model: ModelWrapper) -> list:
                 weight_bits = extract_quant_bitwidth(
                     model.find_producer(node.input[1]), model
                 )
-                act_bits = get_quant_attributes(node, "in")["bitwidth"]
+                act_bits = model.get_tensor_datatype(node.input[0]).bitwidth
                 depth = group == input_shape[1] 
 
             elif node.op_type in ["GlobalAveragePool", "GlobalMaxPool"]:
@@ -255,7 +255,7 @@ def layers_extractions(model: ModelWrapper) -> list:
                 kernel = int(math.prod(kernel_shape))
                 depth = True
                 ops = math.prod(input_shape)
-                act_bits = get_quant_attributes(node, "in")["bitwidth"]
+                act_bits = model.get_tensor_datatype(node.input[0]).bitwidth
                 weight_bits = 0
 
             elif node.op_type in ["AveragePool", "MaxPool"]:
@@ -263,7 +263,7 @@ def layers_extractions(model: ModelWrapper) -> list:
                 kernel = int(math.prod(kernel_shape))
                 depth = True
                 ops = math.prod(output_shape) * kernel
-                act_bits = get_quant_attributes(node, "in")["bitwidth"]
+                act_bits = model.get_tensor_datatype(node.input[0]).bitwidth
                 weight_bits = 0
 
             elif node.op_type == "ConsumeStream":
@@ -271,14 +271,14 @@ def layers_extractions(model: ModelWrapper) -> list:
                 depth = True
                 ops = math.prod(output_shape)
                 weight_bits = 0
-                act_bits = get_quant_attributes(node, "in")["bitwidth"]
+                act_bits = model.get_tensor_datatype(node.input[0]).bitwidth
 
             elif node.op_type == "ProduceStream":
                 kernel = 1
                 depth = True
                 ops = math.prod(input_shape)
                 weight_bits = 0
-                act_bits = get_quant_attributes(node, "out")["bitwidth"]
+                act_bits = model.get_tensor_datatype(node.output[0]).bitwidth
 
             layers_info.append(
                 {

@@ -1,6 +1,5 @@
 from qonnx.transformation.base import Transformation
 from qonnx.core.modelwrapper import ModelWrapper
-from backend.custom_op.producestream import ProduceStream
 from onnx import helper
 
 class InsertProduceStream(Transformation):
@@ -23,7 +22,7 @@ class InsertProduceStream(Transformation):
                 inputs=[orig_input_name],
                 outputs=[produce_stream_output],
                 normalize=0,
-                name=f"ProduceStream_{i}"
+                name=f"ProduceStream_{i}",
             )
 
             # Replace all uses of this input

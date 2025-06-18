@@ -2,6 +2,7 @@ import sys
 import time
 import threading
 from qonnx.transformation.infer_shapes import InferShapes
+from qonnx.transformation.infer_datatypes import InferDataTypes
 from qonnx.transformation.general import GiveReadableTensorNames, GiveUniqueNodeNames, GiveUniqueParameterTensors
 from qonnx.core.modelwrapper import ModelWrapper
 
@@ -19,47 +20,6 @@ from backend.analysis.check_quantization import check_quantization
 from onnx import numpy_helper
 from onnx import helper, OperatorSetIdProto
 import numpy as np
-
-def print_tensor_shapes(model):
-    """
-    Print all known shape info from inputs, outputs, and value_info.
-    Handles both fixed and symbolic dimensions.
-    """
-    from onnx import TensorProto
-
-    def dim_to_str(dim):
-        if dim.HasField("dim_value"):
-            return str(dim.dim_value)
-        elif dim.HasField("dim_param"):
-            return f"{dim.dim_param}"
-        else:
-            return "?"
-
-    def shape_str(tensor_type):
-        dims = tensor_type.shape.dim
-        return "[" + ", ".join(dim_to_str(d) for d in dims) + "]"
-
-    def print_vi(vi):
-        if not vi.type.HasField("tensor_type"):
-            print(f"{vi.name}: (no tensor_type)")
-            return
-        tt = vi.type.tensor_type
-        elem_type = TensorProto.DataType.Name(tt.elem_type)
-        shape = shape_str(tt)
-        print(f"{vi.name}: {elem_type} {shape}")
-
-    print("== Inputs ==")
-    for vi in model.graph.input:
-        print_vi(vi)
-
-    print("\n== Outputs ==")
-    for vi in model.graph.output:
-        print_vi(vi)
-
-    print("\n== ValueInfo ==")
-    for vi in model.graph.value_info:
-        print_vi(vi)
-
 
 class StatusThread(threading.Thread):
     def __init__(self, job, stdout):
