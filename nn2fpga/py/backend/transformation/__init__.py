@@ -12,3 +12,4 @@ from backend.transformation.fold_quant import FoldQuant
 from backend.transformation.adjust_streaming_comunication import AdjustStreamingCommunication
 from backend.transformation.infer_quant import InferQuant
 from backend.transformation.add_streaming_params import AddStreamingParams
+from backend.transformation.insert_streaming_line_buffer import InsertStreamingLineBuffer

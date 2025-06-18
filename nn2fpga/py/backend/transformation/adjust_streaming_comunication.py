@@ -1,11 +1,9 @@
 from qonnx.transformation.base import Transformation
 from qonnx.transformation.general import SortGraph
-from qonnx.custom_op.registry import getCustomOp
 from qonnx.core.modelwrapper import ModelWrapper
-from qonnx.transformation.infer_shapes import InferShapes
-from onnx import NodeProto, helper
+from onnx import helper
 from collections import deque
-from backend.util.par_utils import get_par_attributes, set_par_attributes, check_par_attributes
+from backend.util.par_utils import get_par_attributes, check_par_attributes
 import backend.transformation as transformation
 
 
@@ -65,8 +63,6 @@ class AdjustStreamingCommunication(Transformation):
                         # If the consumer is not already visited, add it to the queue.
                         queue.append(consumer)
         
-        model.save("pre_adjust_streaming_communication.onnx")
-
         for (
             producer,
             consumer,

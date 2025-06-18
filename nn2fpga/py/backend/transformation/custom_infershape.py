@@ -14,6 +14,7 @@ class CustomInferShapes(Transformation):
 
     def apply(self, model: ModelWrapper) -> tuple[ModelWrapper, bool]:
 
+        # Find all nodes in the nn2fpga domain that need to be replaced
         subs = []
         node_ind = 0
         for node in model.graph.node:
@@ -29,17 +30,25 @@ class CustomInferShapes(Transformation):
                     node_list = []
                     for i, onnx_sub_node in enumerate(onnx_node):
                         node_list.append(onnx_sub_node)
-                        model.graph.node.insert(node_ind + 1, onnx_sub_node)
                     subs.append([node, node_list, node_ind])
 
                 else:
                     # If it's a single node, we can handle it directly
                     subs.append([node, onnx_node, node_ind])
-                    model.graph.node.insert(node_ind, onnx_node)
-                
-                model.graph.node.remove(node)
+        
+        for nn2fpga_node, onnx_node, node_ind in subs:
+            # Remove the nn2fpga node from the model
+            model.graph.node.remove(nn2fpga_node)
+            # Insert the shape-compatible ONNX node at the same position
+            if isinstance(onnx_node, list):
+                # If the shape-compatible op returned a list, we need to insert each node
+                for sub_node in onnx_node:
+                    model.graph.node.insert(node_ind, sub_node)
+            else:
+                # If it's a single node, we can insert it directly
+                model.graph.node.insert(node_ind, onnx_node)
 
-
+        # Run the ONNX shape inference
         model = model.transform(SortGraph())
         inferred = model.transform(InferShapes())
 

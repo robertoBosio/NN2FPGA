@@ -145,6 +145,7 @@ def write_network(
         transformation.BalanceComputation(silvia_packing=silvia_packing, nn2fpga_root=prj_root)
     )
     model = model.transform(transformation.AdjustStreamingCommunication())
+    model = model.transform(transformation.InsertStreamingLineBuffer())
     model = model.transform(transformation.InferQuant())
 
     # Handle weights streaming.

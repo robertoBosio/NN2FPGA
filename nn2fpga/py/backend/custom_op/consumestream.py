@@ -4,13 +4,18 @@ from qonnx.custom_op.base import CustomOp
 
 class ConsumeStream(CustomOp):
     """ Node consuming a streaming tensor to an axi lite interface. """
-    
+
     def get_nodeattr_types(self):
         return {}
 
     def make_shape_compatible_op(self, model):
         node = self.onnx_node
-        return helper.make_node("Identity", [node.input[0]], [node.output[0]])
+        return helper.make_node(
+            "Identity",
+            [node.input[0]],
+            [node.output[0]],
+            name=f"{node.name}_shape_compatible",
+        )
 
     def infer_node_datatype(self, model):
         node = self.onnx_node

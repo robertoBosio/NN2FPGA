@@ -11,28 +11,10 @@ from qonnx.core.modelwrapper import ModelWrapper
 from qonnx.util.basic import get_by_name
 from backend.util.quant_utils import get_quant_params, get_quant_attributes
 from backend.util.par_utils import get_par_attributes, set_par_attributes, check_par_attributes
+from backend.transformation.insert_streaming_line_buffer import has_streaming_linebuffer
 from onnx import helper, NodeProto
 
 PARALLELIZABLE_LAYERS = ["Conv", "GlobalAveragePool", "GlobalMaxPool", "AveragePool", "MaxPool", "ProduceStream", "ConsumeStream"]
-
-def has_linebuffer(layer, par = [1, 1, 1]):
-    """ Check if the layer, with the given parallelism, needs a line buffer. 
-    
-    Arguments:
-        layer: Dictionary containing the layer information.
-        par: Tuple containing the parallelization chosen for the layer in the format (och, ich, ow).
-
-    Returns:
-        bool: True if the layer needs a line buffer, False otherwise.
-    """
-
-    if layer["type"] in ["Conv", "GlobalAveragePool", "GlobalMaxPool", "AveragePool", "MaxPool"]:
-        if layer["kernel"] > 1:
-            return True
-        elif layer["kernel"] == 1 and par[2] > 1:
-            return True
-
-    return False
 
 def read_board_info(board, prj_root):
     """ Read the board json file and returns a dictionary with the available resources"""
@@ -339,7 +321,7 @@ def parallelismILP(layers_info, valid_par_solutions, NUM_DSP, NUM_PORTS, silvia_
         valid_iter_linebuffer.append([])
         layer_iter = layer["ich"] * layer["iw"] * layer["ih"]
         for single_par in par_sol:
-            if not (has_linebuffer(layer, single_par)):
+            if not (has_streaming_linebuffer(layer["type"], layer["kernel"], single_par[2])):
                 valid_iter_linebuffer[-1].append(0)
             else:
                 valid_iter_linebuffer[-1].append(
@@ -504,7 +486,7 @@ def resourceILP(layers_info, model_II, valid_par_solutions, parallel_op, NUM_DSP
         for single_par in layer_par:
             unroll_factor = layer["kernel"] * np.prod(single_par)
             valid_iter_solutions[-1].append(layer_iter // unroll_factor)
-            if not (has_linebuffer(layer, single_par)):
+            if not (has_streaming_linebuffer(layer["type"], layer["kernel"], single_par[2])):
                 valid_iter_linebuffer[-1].append(0)
             else:
                 valid_iter_linebuffer[-1].append(

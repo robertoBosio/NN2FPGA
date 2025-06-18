@@ -25,7 +25,7 @@ class TensorDuplicator(CustomOp):
                 "Identity",
                 inputs=[node.input[0]],
                 outputs=[node.output[i]],
-                name=f"{node.name}_identity_{i}"
+                name=f"{node.name}_shape_compatible_{i}"
             )
             shape_compatible_nodes.append(identity_node)
         return shape_compatible_nodes

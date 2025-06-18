@@ -1,9 +1,8 @@
 from onnx import helper
-from qonnx.core.datatype import DataType
 from qonnx.custom_op.base import CustomOp
 
-class ParamStream(CustomOp):
-    """ Node storing the parameters of a node."""
+class StreamingLineBuffer(CustomOp):
+    """ Node producing a streaming tensor starting from an axi lite interface. """
 
     def get_nodeattr_types(self):
         return {}
