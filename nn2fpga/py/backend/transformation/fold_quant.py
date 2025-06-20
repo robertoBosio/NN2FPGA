@@ -4,6 +4,10 @@ from backend.util.quant_utils import (
     get_quant_params,
     is_constant_input_node,
 )
+from backend.core.tensor_quant import (
+    set_custom_tensor_datatype,
+    get_custom_tensor_datatype,
+)
 from backend.core.tensor_quant import TensorQuant
 import numpy as np
 
@@ -34,8 +38,8 @@ class FoldQuant(Transformation):
                 narrow_range=quant_params["narrow"],
                 rounding=quant_params["rounding_mode"],
             )
-            current_output_tensor_quant = model.get_tensor_datatype(
-                quant.output[0]
+            current_output_tensor_quant = get_custom_tensor_datatype(
+                model, quant.output[0]
             )
 
             # Check if the output of the Quant node has already a quantization
@@ -53,11 +57,11 @@ class FoldQuant(Transformation):
                 )
 
             # Set the quantization parameters on the output tensor
-            model.set_tensor_datatype(quant.output[0], expected_tensor_quant)
+            set_custom_tensor_datatype(model, quant.output[0], expected_tensor_quant)
 
             # Check if the input of the Quant node has already a quantization
-            current_input_tensor_quant = model.get_tensor_datatype(
-                quant.input[0]
+            current_input_tensor_quant = get_custom_tensor_datatype(
+                model, quant.input[0]
             )
 
             if (

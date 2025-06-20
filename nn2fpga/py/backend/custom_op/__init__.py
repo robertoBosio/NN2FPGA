@@ -4,6 +4,7 @@ from backend.custom_op.tensorduplicator import TensorDuplicator
 from backend.custom_op.bandwidthadjust import BandwidthAdjust
 from backend.custom_op.paramstream import ParamStream
 from backend.custom_op.streaminglinebuffer import StreamingLineBuffer
+from backend.custom_op.streamingconv import StreamingConv
 
 custom_op = {
     "ProduceStream": ProduceStream,
@@ -12,4 +13,5 @@ custom_op = {
     "BandwidthAdjust": BandwidthAdjust,
     "ParamStream": ParamStream,
     "StreamingLineBuffer": StreamingLineBuffer,
+    "StreamingConv": StreamingConv,
 }

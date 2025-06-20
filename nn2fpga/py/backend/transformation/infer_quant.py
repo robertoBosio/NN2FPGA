@@ -1,6 +1,10 @@
 from qonnx.transformation.base import Transformation
 from qonnx.core.modelwrapper import ModelWrapper
 from backend.transformation.propagate_quant import QUANT_INVARIANT_NODES
+from backend.core.tensor_quant import (
+    get_custom_tensor_datatype,
+    set_custom_tensor_datatype,
+)
 import numpy as np
 
 
@@ -16,14 +20,14 @@ class InferQuant(Transformation):
                 continue
 
             # Check if the node already has quantization parameters in output
-            output_quant = model.get_tensor_datatype(node.output[0])
+            output_quant = get_custom_tensor_datatype(model, node.output[0])
             if output_quant is not None:
                 continue  # Skip nodes that already have quantization parameters
 
             # Infer quantization parameters based on the producer node
-            input_quant = model.get_tensor_datatype(node.input[0])
+            input_quant = get_custom_tensor_datatype(model, node.input[0])
             if input_quant is not None:
                 # If the input has quantization parameters, set them for the output
-                model.set_tensor_datatype(node.output[0], input_quant)
+                set_custom_tensor_datatype(model, node.output[0], input_quant)
 
         return (model, False)

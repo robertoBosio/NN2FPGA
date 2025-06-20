@@ -45,7 +45,6 @@ class StatusThread(threading.Thread):
         self.stop_event.set()
 
 
-
 # Expects an ONNX model
 def write_network(
     model,
@@ -85,20 +84,28 @@ def write_network(
 
     # Extract implementable partition.
     model = model.transform(transformation.SupportedPartition(prj_root))
+    fpga_model = model
 
     # Insert custom nodes.
     model = model.transform(transformation.FullyConnectedToConv())
     model = model.transform(transformation.InsertProduceStream())
     model = model.transform(transformation.InsertConsumeStream())
     model = model.transform(transformation.InsertTensorDuplicator())
+    model = model.transform(transformation.CustomInferShapes())
 
     # Handle quantization.
     model = model.transform(transformation.PropagateQuant())
     model = model.transform(transformation.RemoveRedundantQuant())
     model = model.transform(transformation.CustomInferShapes())
     model = model.transform(GiveReadableTensorNames())
+    model = model.transform(transformation.LowerToNN2FPGALayers())
+    model.save("lowered.onnx")
+    test_transformation_equivalence(fpga_model, model)
+
+    # Fold quantization into tensor datatype.
     model = model.transform(transformation.FoldQuant())
     model = model.transform(transformation.FoldAsymmetricActQuant())
+
 
     # Balance resource allocation per layer.
     model = model.transform(

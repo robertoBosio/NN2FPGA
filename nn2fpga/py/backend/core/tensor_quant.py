@@ -1,6 +1,7 @@
 import re
 from qonnx.util import basic as qonnx_basic
 from onnx import TensorAnnotation, StringStringEntryProto
+from qonnx.core.modelwrapper import ModelWrapper
 
 class TensorQuant:
     def __init__(self, bitwidth, signed, scale, zeropt, narrow_range, rounding):
@@ -34,9 +35,9 @@ class TensorQuant:
     def __repr__(self):
         return f"<TensorQuant {self.get_canonical_name()}>"
 
-def set_custom_tensor_datatype(self, tensor_name: str, tensor_quant: TensorQuant):
+def set_custom_tensor_datatype(model: ModelWrapper, tensor_name: str, tensor_quant: TensorQuant):
     """Sets the TensorQuant of a tensor with the given name."""
-    graph = self._model_proto.graph
+    graph = model._model_proto.graph
     qnt_annotations = graph.quantization_annotation
     ret = qonnx_basic.get_by_name(qnt_annotations, tensor_name, "tensor_name")
 
@@ -61,11 +62,11 @@ def set_custom_tensor_datatype(self, tensor_name: str, tensor_quant: TensorQuant
         qa.quant_parameter_tensor_names.append(dt)
         qnt_annotations.append(qa)
 
-def get_custom_tensor_datatype(self, tensor_name):
+def get_custom_tensor_datatype(model: ModelWrapper, tensor_name):
     """Gets the custom TensorQuant of a tensor with the given name.
     Returns None if not found.
     """
-    graph = self._model_proto.graph
+    graph = model._model_proto.graph
     qnt_annotations = graph.quantization_annotation
     ret = qonnx_basic.get_by_name(qnt_annotations, tensor_name, "tensor_name")
     if ret is None:

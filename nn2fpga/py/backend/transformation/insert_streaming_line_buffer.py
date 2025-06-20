@@ -8,7 +8,7 @@ import backend.transformation as transformation
 import numpy as np
 
 LAYERS_WITH_KERNELS = [
-    "Conv",
+    "StreamingConv",
     "GlobalAveragePool",
     "GlobalMaxPool",
     "MaxPool",

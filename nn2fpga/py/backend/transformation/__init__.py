@@ -13,3 +13,4 @@ from backend.transformation.adjust_streaming_comunication import AdjustStreaming
 from backend.transformation.infer_quant import InferQuant
 from backend.transformation.add_streaming_params import AddStreamingParams
 from backend.transformation.insert_streaming_line_buffer import InsertStreamingLineBuffer
+from backend.transformation.lower_to_nn2fpga_layers import LowerToNN2FPGALayers

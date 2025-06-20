@@ -13,7 +13,7 @@ import numpy as np
 import os
 
 NODE_WITH_PARAMS = [
-    "Conv", 
+    "StreamingConv", 
     "Gemm",
     "MatMul",
     ]
@@ -101,7 +101,7 @@ def get_param_mem_from_node(model: ModelWrapper, node: NodeProto) -> np.ndarray:
 
     mem = np.array([], dtype=np.uint32)
 
-    if node.op_type == "Conv":
+    if node.op_type == "StreamingConv":
 
         if len(node.input) > 2:
             bias_quant_node = model.find_producer(node.input[2])

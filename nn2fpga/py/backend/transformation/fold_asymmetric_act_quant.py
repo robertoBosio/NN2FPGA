@@ -4,18 +4,19 @@ from qonnx.util.basic import get_by_name
 from onnx import numpy_helper, helper
 from qonnx.util.basic import get_by_name
 from backend.util.quant_utils import get_quant_params
+from backend.core.tensor_quant import get_custom_tensor_datatype
 import numpy as np
 
 class FoldAsymmetricActQuant(Transformation):
     """ Fold the zero point of asymmetric activation quantization into the bias of the next Conv layer. """
     def apply(self, model: ModelWrapper) -> tuple[ModelWrapper, bool]:
         graph = model.graph
-        
+
         # Find all Conv layers in the model
-        convs = model.get_nodes_by_op_type("Conv")
+        convs = model.get_nodes_by_op_type("StreamingConv")
         for conv in convs:
-            
-            act_quant_params = model.get_tensor_datatype(conv.input[0])
+
+            act_quant_params = get_custom_tensor_datatype(model, conv.input[0])
             if act_quant_params is None or act_quant_params.zeropt == 0:
                 continue  # Nothing to fold if zeropt is None or 0
 
@@ -25,14 +26,14 @@ class FoldAsymmetricActQuant(Transformation):
             weight_quant = model.find_producer(conv.input[1])
             weight_quant_params = get_quant_params(weight_quant, model)
             weight_data = numpy_helper.to_array(get_by_name(graph.initializer, weight_quant.input[0]))
-            
+
             if weight_data is None:
                 print(f"Skipping {conv.name} weight data is not available.")
                 continue
-            
+
             # Sum the weights of each filter to compute the bias adjustment
             weight_sums = weight_data.reshape(weight_data.shape[0], -1).sum(axis=1)
-            
+
             if len(conv.input) > 2:
                 bias_quant = model.find_producer(conv.input[2])
                 bias_quant_params = get_quant_params(bias_quant, model)
@@ -73,9 +74,3 @@ class FoldAsymmetricActQuant(Transformation):
 
             print(f"Folded zero point of asymmetric activation quantization into bias of {conv.name}.")
         return (model, False)
-
-
-
-                 
-    
-    

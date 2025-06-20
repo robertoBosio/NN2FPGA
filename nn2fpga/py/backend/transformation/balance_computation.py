@@ -12,9 +12,10 @@ from qonnx.util.basic import get_by_name
 from backend.util.quant_utils import get_quant_params
 from backend.util.par_utils import get_par_attributes, set_par_attributes, check_par_attributes
 from backend.transformation.insert_streaming_line_buffer import has_streaming_linebuffer
+from backend.core.tensor_quant import get_custom_tensor_datatype
 from onnx import helper, NodeProto
 
-PARALLELIZABLE_LAYERS = ["Conv", "GlobalAveragePool", "GlobalMaxPool", "AveragePool", "MaxPool", "ProduceStream", "ConsumeStream"]
+PARALLELIZABLE_LAYERS = ["StreamingConv", "GlobalAveragePool", "GlobalMaxPool", "AveragePool", "MaxPool", "ProduceStream", "ConsumeStream"]
 
 def read_board_info(board, prj_root):
     """ Read the board json file and returns a dictionary with the available resources"""
@@ -130,7 +131,7 @@ def dsp_consumption(layer, parallelism, silvia_packing):
         # If the layer is depthwise-like, we have one less loop.
         parallelism = (1, parallelism[1], parallelism[2])
     
-    if (layer["type"] == "Conv"):
+    if (layer["type"] == "StreamingConv"):
         # For Conv layers, the unrolling is done over the output width, output channels and input channels.
         # The DSPs considered are coming from the MAC operation, considering the packing.
         op_per_dsp, _ = packing_feature((layer["weight_bits"], layer["act_bits"]), parallelism, silvia_packing)
@@ -199,7 +200,7 @@ def generate_architectures(layers_info: list, NUM_DSP: int, axi_bitwidth: int, s
         max_ich_par = layer["ich"]
         max_w_par = layer["ow"]
         
-        if (layer["type"] == "Conv"):
+        if (layer["type"] == "StreamingConv"):
             
             # Clipping the maximum parallelization to the available DSPs, since it is not
             # possible that one layer uses all the DSPs. Considering also the packing.
@@ -232,7 +233,7 @@ def layers_extractions(model: ModelWrapper) -> list:
             input_shape = [1] * (4 - len(input_shape)) + input_shape
             output_shape = [1] * (4 - len(output_shape)) + output_shape
 
-            if node.op_type == "Conv":
+            if node.op_type == "StreamingConv":
                 kernel_shape = get_by_name(node.attribute, "kernel_shape").ints
                 kernel = int(math.prod(kernel_shape))
                 group = get_by_name(node.attribute, "group").i
@@ -247,7 +248,7 @@ def layers_extractions(model: ModelWrapper) -> list:
                 weight_bits = extract_quant_bitwidth(
                     model.find_producer(node.input[1]), model
                 )
-                act_bits = model.get_tensor_datatype(node.input[0]).bitwidth
+                act_bits = get_custom_tensor_datatype(model, node.input[0]).bitwidth
                 depth = group == input_shape[1] 
 
             elif node.op_type in ["GlobalAveragePool", "GlobalMaxPool"]:
@@ -255,7 +256,7 @@ def layers_extractions(model: ModelWrapper) -> list:
                 kernel = int(math.prod(kernel_shape))
                 depth = True
                 ops = math.prod(input_shape)
-                act_bits = model.get_tensor_datatype(node.input[0]).bitwidth
+                act_bits = get_custom_tensor_datatype(model, node.input[0]).bitwidth
                 weight_bits = 0
 
             elif node.op_type in ["AveragePool", "MaxPool"]:
@@ -263,7 +264,7 @@ def layers_extractions(model: ModelWrapper) -> list:
                 kernel = int(math.prod(kernel_shape))
                 depth = True
                 ops = math.prod(output_shape) * kernel
-                act_bits = model.get_tensor_datatype(node.input[0]).bitwidth
+                act_bits = get_custom_tensor_datatype(model, node.input[0]).bitwidth
                 weight_bits = 0
 
             elif node.op_type == "ConsumeStream":
@@ -271,14 +272,14 @@ def layers_extractions(model: ModelWrapper) -> list:
                 depth = True
                 ops = math.prod(output_shape)
                 weight_bits = 0
-                act_bits = model.get_tensor_datatype(node.input[0]).bitwidth
+                act_bits = get_custom_tensor_datatype(model, node.input[0]).bitwidth
 
             elif node.op_type == "ProduceStream":
                 kernel = 1
                 depth = True
                 ops = math.prod(input_shape)
                 weight_bits = 0
-                act_bits = model.get_tensor_datatype(node.output[0]).bitwidth
+                act_bits = get_custom_tensor_datatype(model, node.output[0]).bitwidth
 
             layers_info.append(
                 {
@@ -352,7 +353,7 @@ def parallelismILP(layers_info, valid_par_solutions, NUM_DSP, NUM_PORTS, silvia_
         valid_bram_solutions.append([])
         n_weights = 0
 
-        if (layer["type"] == "Conv"):
+        if (layer["type"] == "StreamingConv"):
             n_weights = layer["ich"] * layer["och"] * layer["kernel"]
 
             if (layer["depth"]):
@@ -507,7 +508,7 @@ def resourceILP(layers_info, model_II, valid_par_solutions, parallel_op, NUM_DSP
         valid_bram_solutions.append([])
         n_weights = 0
 
-        if (layer["type"] == "Conv"):
+        if (layer["type"] == "StreamingConv"):
             n_weights = layer["ich"] * layer["och"] * layer["kernel"]
 
             if (layer["depth"]):
@@ -745,7 +746,7 @@ def print_report(layers_info, layer_par, n_variables, n_constraints, model_II, t
             och_ops = layer_par[layer["name"]][0]
 
             port = dsp = 0
-            if (layer["type"] == "Conv"):
+            if (layer["type"] == "StreamingConv"):
                 bits = layer["weight_bits"]
                 dsp = dsp_consumption(layer, layer_par[layer['name']], silvia_packing)
 

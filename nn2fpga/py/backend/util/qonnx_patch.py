@@ -1,10 +1,5 @@
 # utils/qonnx_patch.py
 from qonnx.util import basic as qonnx_basic
-from qonnx.core.modelwrapper import ModelWrapper
-from backend.core.tensor_quant import (
-    set_custom_tensor_datatype,
-    get_custom_tensor_datatype,
-)
 
 # Store original in case needed
 original_is_finn_op = qonnx_basic.is_finn_op
@@ -25,12 +20,3 @@ def patch_qonnx_ops():
     Call this once at the start of your program.
     """
     qonnx_basic.is_finn_op = patched_is_finn_op
-    patch_qonnx_datatype()
-
-
-def patch_qonnx_datatype():
-    """
-    Monkey patch QONNX's ModelWrapper to use custom tensor datatype based on TensorQuant.
-    """
-    ModelWrapper.set_tensor_datatype = set_custom_tensor_datatype
-    ModelWrapper.get_tensor_datatype = get_custom_tensor_datatype
