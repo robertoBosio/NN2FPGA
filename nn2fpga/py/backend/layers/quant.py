@@ -63,8 +63,8 @@ def info(io_dict, node, node_name, init_info, tensors_info):
         ow       = 1
 
     # Clip bits to 16
-    if int(bits) > 16:
-        bits = 16
+    # if int(bits) > 16:
+    #     bits = 16
 
     io_dict[node_name]["narrow"] = narrow
     io_dict[node_name]["type"] = "quant"

@@ -483,6 +483,7 @@ def parse_comp(name, node, streaming_params=False):
     # Computing accumulator bits for worst case scenario
     actbits = node["input_quant"]["bits"]
     actscale = node["input_quant"]["scale_factor"]
+    acc_scale = actscale + node["weight_quant"]["scale_factor"]
     if (node["depth"]):
         acc_bits = actbits + node["weight_quant"]["bits"] + math.ceil(math.log2(node["kernel"]))
     else:
@@ -490,10 +491,11 @@ def parse_comp(name, node, streaming_params=False):
 
     if (has_bias):
         acc_bits += 1
+        acc_scale = min(actscale + node["weight_quant"]["scale_factor"], node["bias_quant"]["scale_factor"])
     if (node["add"]):
         acc_bits += 1
 
-    acc_type = get_quant_type(True, acc_bits, actscale + node["weight_quant"]["scale_factor"], acc_reg=True)
+    acc_type = get_quant_type(True, acc_bits, acc_scale, acc_reg=True)
     block["defines"] = {}
     block["defines"]["t_%s_acc" % output_name] = ["type", acc_type]
     block["defines"]["t_%s_acc_struct" % output_name] = [

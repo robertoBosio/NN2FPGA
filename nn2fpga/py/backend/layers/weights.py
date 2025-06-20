@@ -224,9 +224,11 @@ def parse_on_chip_biases(
             quant_value = np.round(quant_value / scale_factor)
             
             if (limit_h < quant_value):
+                print(f"Warning, bias over the limit for {quant_value} with scale {scale_factor}, integer part needs to be increased")
                 quant_value = limit_h
 
             if (limit_l > quant_value):
+                print(f"Warning, bias over the limit for {quant_value} with scale {scale_factor} integer part needs to be increased")
                 quant_value = limit_l
             
             if not dynamic_init:
@@ -371,8 +373,8 @@ def extract_info(
 
     signed = new_node["signed"]
     scale_factor = new_node["scale_factor"]
-    if is_bias and new_node["bits"] > 16:
-        new_node["bits"] = 16
+    # if is_bias and new_node["bits"] > 16:
+    #     new_node["bits"] = 16
     bits   = new_node["bits"]
     narrow = new_node["narrow"]
     bw = int(128/bits)

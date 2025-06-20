@@ -49,24 +49,22 @@ quant_stream(t_acc i_acc)
     s_acc = t_output_clip(s_acc);
   }
 
+  if constexpr (c_relu == 1) {
+    s_acc = relu_op<t_acc>(s_acc);
+  }
+  else if constexpr (c_leakyrelu == 1){
+    s_leakyrelu_in = s_acc;
+    // s_leakyrelu_out = s_leakyrelu_in;
+    s_leakyrelu_out = leakyrelu <t_output_clip, t_output_clip, t_output_clip> (s_leakyrelu_in);
+    // s_output = t_output(s_leakyrelu_out);
+    s_acc = s_leakyrelu_out;
+  }
+
   if constexpr (std::is_same<t_output_mask, std::nullptr_t>::value == false) {
     s_acc = t_output_mask(s_acc);
   }
   
-  if constexpr (c_relu == 1) {
-    s_acc = relu_op<t_acc>(s_acc);
-    s_output = t_output(s_acc);
-  }
-  else if constexpr (c_leakyrelu == 1){
-    s_leakyrelu_in = t_output_clip(s_acc);
-    // s_leakyrelu_out = s_leakyrelu_in;
-    s_leakyrelu_out = leakyrelu <t_output_clip, t_output_clip, t_output_clip> (s_leakyrelu_in);
-    s_output = t_output(s_leakyrelu_out);
-  }
-  else 
-    s_output = t_output(s_acc);
-
-  return s_output;
+  return t_output(s_acc);
 }
 
 template<class t_output,
@@ -90,6 +88,12 @@ quant_and_add_stream(t_acc i_acc, t_add i_add)
     s_acc = t_output_clip(s_acc);
   }
   
+  if constexpr (c_leakyrelu == 1){
+    s_leakyrelu_in = s_acc;
+    s_leakyrelu_out = leakyrelu <t_output_clip, t_output_clip, t_output_clip> (s_leakyrelu_in);
+    s_acc = s_leakyrelu_out;
+  }
+  
   s_acc += i_add;
 
   // Post addition quantization
@@ -99,17 +103,9 @@ quant_and_add_stream(t_acc i_acc, t_add i_add)
   
   if constexpr (c_relu == 1) {
     s_acc = relu_op<t_acc>(s_acc);
-    s_output = t_output(s_acc);
   }
-  else if constexpr (c_leakyrelu == 1){
-    s_leakyrelu_in = t_output_mask(s_acc);
-    s_leakyrelu_out = leakyrelu <t_output_mask, t_output_mask, t_output_mask> (s_leakyrelu_in);
-    s_output = t_output(s_leakyrelu_out);
-  }
-  else 
-    s_output = t_output(s_acc); 
   // Post activation quantization
-  return s_output;
+  return t_output(s_acc);
 }
 
 template<int pad_bits>
