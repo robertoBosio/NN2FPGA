@@ -102,6 +102,7 @@ def write_network(
     model.save("lowered.onnx")
     test_transformation_equivalence(fpga_model, model)
 
+    # Start of the backend.
     # Fold quantization into tensor datatype.
     model = model.transform(transformation.FoldQuant())
     model = model.transform(transformation.FoldAsymmetricActQuant())

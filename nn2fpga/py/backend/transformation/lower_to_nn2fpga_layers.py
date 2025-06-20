@@ -3,6 +3,9 @@ from qonnx.core.modelwrapper import ModelWrapper
 from backend.transformation.supported_partition import FPGA_SUPPORTED_OPS
 from onnx import helper
 from backend.custom_op.streamingconv import StreamingConv
+from backend.custom_op.streamingglobalaveragepool import StreamingGlobalAveragePool
+from backend.custom_op.streamingadd import StreamingAdd
+from backend.custom_op.streamingrelu import StreamingRelu
 
 
 class LowerToNN2FPGALayers(Transformation):
@@ -30,6 +33,20 @@ class LowerToNN2FPGALayers(Transformation):
                 nn2fpga_node = StreamingConv.from_onnx_node(node)
                 model.graph.node.insert(node_index, nn2fpga_node)
                 model.graph.node.remove(node)
+            
+            elif node.op_type == "GlobalAveragePool":
+                nn2fpga_node = StreamingGlobalAveragePool.from_onnx_node(node)
+                model.graph.node.insert(node_index, nn2fpga_node)
+                model.graph.node.remove(node)
+            
+            elif node.op_type == "Add":
+                nn2fpga_node = StreamingAdd.from_onnx_node(node)
+                model.graph.node.insert(node_index, nn2fpga_node)
+                model.graph.node.remove(node)
+            
+            elif node.op_type == "Relu":
+                nn2fpga_node = StreamingRelu.from_onnx_node(node)
+                model.graph.node.insert(node_index, nn2fpga_node)
+                model.graph.node.remove(node)
                 
-
         return (model, False)
