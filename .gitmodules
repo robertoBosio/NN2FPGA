@@ -1,3 +1,6 @@
 [submodule "deps/SILVIA"]
 	path = deps/SILVIA
 	url = https://github.com/brigio345/SILVIA
+[submodule "deps/cnpy"]
+	path = deps/cnpy
+	url = https://github.com/rogersce/cnpy.git
