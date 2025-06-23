@@ -29,7 +29,7 @@ RUN groupadd --gid ${GROUP_ID} ${USERNAME} && \
 
 # Set workspace and environment variables
 WORKDIR ${NN2FPGA_ROOT_DIR}
-ENV PATH=${PATH}:${HOME}/.local/bin
+# ENV PATH=${PATH}:${HOME}/.local/bin
 ENV HISTFILE=${NN2FPGA_ROOT_DIR}/.docker_bash_history
 ENV PROMPT_DIRTRIM=1
 ENV LANG=en_US.UTF-8
