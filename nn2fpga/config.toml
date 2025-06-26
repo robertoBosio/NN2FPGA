@@ -1,0 +1,11 @@
+[project]
+top_name = "mobilenet_v2"
+onnx_path = "/workspace/NN2FPGA/models/onnx/mobilenet_v2_fx_int_float_scale_a8w8_32bias_per_channel_asym_bc_20geiters_mb_99.999stats_stats_.onnx"
+project_root = "/workspace/NN2FPGA/work/mobilenet_v2"
+
+[platform]
+board = "ZCU102"
+frequency = 200
+
+[options]
+silvia_packing = true

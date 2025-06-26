@@ -222,7 +222,7 @@ vivado_flow:
 
 .PHONY: generate
 generate: check_prj_root check-top check-board check-onnx generate-dir
-	@cd $(PRJ_FULL_ROOT) && ${PYTHON} $(NN2FPGA_ROOT)/py/code_gen_qonnx.py
+	@cd $(PRJ_FULL_ROOT) && ${PYTHON} $(NN2FPGA_ROOT)/py/nn2fpga.py
 
 host: check-xrt check-top $(HOST_SRCS) $(PRJ_FULL_ROOT)/cc/include/$(TOP_NAME)_sim.h
 	cp $(PRJ_FULL_ROOT)/cc/include/$(TOP_NAME)_sim.h $(PRJ_FULL_ROOT)/cc/include/network_sim.h

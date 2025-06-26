@@ -183,6 +183,11 @@ def generate_blob(model: ModelWrapper, partition_node: NodeProto, work_dir: str)
         "output_map": generate_output_map(model, partition_node),
         "constant_inputs": generate_constant_input_values(model, partition_node),
         "work_dir": work_dir,
+        "part_name": model.get_metadata_prop("part_name"),
+        "board_name": model.get_metadata_prop("board_name"),
+        "top_name": model.get_metadata_prop("top_name"),
+        "frequency": model.get_metadata_prop("frequency"),
+        "hls_version": model.get_metadata_prop("hls_version"),
     }
 
     return json.dumps(blob)

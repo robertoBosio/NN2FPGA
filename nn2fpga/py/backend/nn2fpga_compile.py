@@ -1,26 +1,19 @@
+import os
 import sys
 import time
 import threading
+import numpy as np
+import backend.transformation as transformation
+import qonnx.util.basic as util
+import qonnx.core.onnx_exec as oxe
 from qonnx.transformation.infer_shapes import InferShapes
 from qonnx.transformation.infer_datatypes import InferDataTypes
 from qonnx.transformation.general import GiveReadableTensorNames, GiveUniqueNodeNames, GiveUniqueParameterTensors
 from qonnx.core.modelwrapper import ModelWrapper
-import qonnx.core.onnx_exec as oxe
-
-from backend.graph import *
-from backend.opt import *
-import backend.layers.weights as weights
-import backend.balance_computations as balance_computations
-import backend.main as main
-import backend.sim as sim
-import backend.transformation as transformation
 from backend.util.compare_models import test_transformation_equivalence
-import qonnx.util.basic as util
 from backend.analysis.check_quantization import check_quantization
-
 from onnx import numpy_helper
 from onnx import helper, OperatorSetIdProto
-import numpy as np
 
 class StatusThread(threading.Thread):
     def __init__(self, job, stdout):
@@ -46,22 +39,45 @@ class StatusThread(threading.Thread):
         self.stop_event.set()
 
 
-# Expects an ONNX model
-def write_network(
-    model,
-    file_name="network",
-    off_chip_storage=False,
+def nn2fpga_compile(
+    onnx_model,
     board="ULTRA96v2",
-    dynamic_init=False,
+    part="xczu3eg-sbva484-1-e",
+    frequency=200,
+    hls_version="2024.2",
     silvia_packing=False,
-    object_detection=False,
-    anchors=[],
     prj_root="/tmp",
-    transform=False,
-    generate_report_file="tmp.rpt",
-    generate_log_file="tmp.log"
+    top_name="top",
 ):
 
+    """Compile an ONNX model for FPGA using nn2FPGA flow.
+    Args:
+        onnx_model (str or ModelWrapper): Path to the ONNX model.
+        board (str): Target FPGA board name.
+        part (str): Target FPGA part name.
+        frequency (str): Target clock frequency in MHz (without the 'MHz' suffix).
+        hls_version (str): Version of HLS to use.
+        silvia_packing (bool): Whether to use Silvia packing for resource allocation.
+        prj_root (str): Root directory for the project.
+        top_name (str): Name of the top-level module in the HLS project.
+    Returns:
+        None
+    """
+
+    # Change the working directory to the project root.
+    os.chdir(prj_root)
+
+    model = ModelWrapper(onnx_model)
+    generate_report_file = f"{prj_root}/generate_{top_name}_{board}.rpt"
+    generate_log_file = f"{prj_root}/generate_{top_name}_{board}.log"
+
+    # If the file generate_report_file exists, delete it
+    if os.path.exists(generate_report_file):
+        os.remove(generate_report_file)
+
+    # If the file generate_report_file exists, delete it
+    if os.path.exists(generate_log_file):
+        os.remove(generate_log_file)
     print(f"\nCurrent log file: {generate_log_file}\n")
 
     # Import nn2FPGA custom operators.
@@ -71,6 +87,10 @@ def write_network(
 
     # Save target board name in metadata properties.
     model.set_metadata_prop("board_name", board)
+    model.set_metadata_prop("part_name", part)
+    model.set_metadata_prop("top_name", top_name)
+    model.set_metadata_prop("frequency", frequency)
+    model.set_metadata_prop("hls_version", hls_version)
 
     # Clean up the model.
     model.cleanup()
@@ -85,7 +105,6 @@ def write_network(
 
     # Extract implementable partition.
     model = model.transform(transformation.SupportedPartition(prj_root))
-    fpga_model = model
 
     # Insert custom nodes.
     model = model.transform(transformation.FullyConnectedToConv())
@@ -118,7 +137,7 @@ def write_network(
 
     # Handle weights streaming.
     model = model.transform(transformation.AddStreamingParams(nn2fpga_root=prj_root))
-    model.save("streaming.onnx")
+    model.save("nn2fpga_accel.onnx")
     parent_model = ModelWrapper("wrapper_model.onnx")
     model = model.transform(
         transformation.OnnxToHLS(
@@ -129,7 +148,6 @@ def write_network(
 
     # Simulate the model to check if it works.
     oxe.execute_onnx(parent_model, {"global_in": np.random.randn(1, 3, 224, 224).astype(np.float32)})
-    exit(-1)
 
     # Save the original stdout and stderr
     original_stdout = sys.stdout
@@ -137,102 +155,6 @@ def write_network(
 
     with open(generate_log_file, "w") as log_file:
         sys.stdout = log_file
-
-        status_thread = StatusThread("Balancing performances", original_stdout)
-        status_thread.start()
-        io_dict = {}
-        balance_computations.ilp(
-            io_dict,
-            model,
-            file_name,
-            board,
-            silvia_packing,
-            generate_report_file,
-            prj_root=prj_root
-        )
-
-        status_thread.stop()
-        status_thread.join()
-        status_thread = StatusThread("Computing buffers", original_stdout)
-        status_thread.start()
-
-        io_dict = compute_buffers(
-            inferred_model,
-            io_dict
-        )
-
-        status_thread.stop()
-        status_thread.join()
-        status_thread = StatusThread("Renaming", original_stdout)
-        status_thread.start()
-
-        io_dict = rename_edges(
-            model,
-            io_dict
-        )
-
-        io_dict = rename_nodes(
-            io_dict
-        )
-
-        io_dict = duplicate_tensor(
-            model,
-            io_dict,
-            True
-        )
-
-        status_thread.stop()
-        status_thread.join()
-        status_thread = StatusThread("Writing model code", original_stdout)
-        status_thread.start()
-
-        parsed_write = main.write(
-            io_dict,
-            model,
-            file_name,
-            ap_ctrl_chain=off_chip_storage,
-            object_detection=object_detection,
-            dynamic_init=dynamic_init,
-            board=board,
-            off_chip_storage=off_chip_storage,
-            prj_root=prj_root,
-            generate_report_file=generate_report_file
-        )
-
-        status_thread.stop()
-        status_thread.join()
-
-        if (off_chip_storage):
-            status_thread = StatusThread("Writing memory management code", original_stdout)
-            status_thread.start()
-
-            weights.write(
-                io_dict,
-                model,
-                file_name,
-                board,
-                generate_report_file,
-                prj_root=prj_root
-            )
-
-            status_thread.stop()
-            status_thread.join()
-
-        status_thread = StatusThread("Writing host code", original_stdout)
-        status_thread.start()
-
-        sim.write(
-            io_dict,
-            model,
-            file_name,
-            parsed_write,
-            dynamic_init=dynamic_init,
-            off_chip_storage=off_chip_storage,
-            prj_root=prj_root
-        )
-
-        status_thread.stop()
-        status_thread.join()
 
     # Restore the original stdout and stderr
     sys.stdout = original_stdout

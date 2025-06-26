@@ -1,6 +1,5 @@
 import pulp
 import math
-import json
 import time
 import numpy as np
 from pulp.apis import PULP_CBC_CMD
@@ -11,32 +10,12 @@ from qonnx.core.modelwrapper import ModelWrapper
 from qonnx.util.basic import get_by_name
 from backend.util.quant_utils import get_quant_params
 from backend.util.par_utils import get_par_attributes, set_par_attributes, check_par_attributes
+from backend.util.board_util import read_board_info
 from backend.transformation.insert_streaming_line_buffer import has_streaming_linebuffer
 from backend.core.tensor_quant import get_custom_tensor_datatype
 from onnx import helper, NodeProto
 
 PARALLELIZABLE_LAYERS = ["StreamingConv", "GlobalAveragePool", "GlobalMaxPool", "AveragePool", "MaxPool", "ProduceStream", "ConsumeStream"]
-
-def read_board_info(board, prj_root):
-    """ Read the board json file and returns a dictionary with the available resources"""
-    
-    # Remove the part before NN2FPGA from the path
-    file_path = prj_root.split("NN2FPGA")[0]
-    file_path = f"{file_path}/NN2FPGA/nn2fpga/boards/{board}.json"
-
-    # Opening JSON file with board resources
-    with open(file_path) as f:
-        board_dict = json.load(f)
-
-    # Right now consider the board as a monolithic block 
-    board_res = {"uram" : 0, "bram" : 0, "dsp" : 0, "lut" : 0, "ff" : 0}
-    for block in board_dict['resource']:
-        for res in block.keys():
-            if res in board_res:
-                board_res[res] += block[res]
-    board_res["axi_bitwidth"] = board_dict["axi_bitwidth"]
-    
-    return board_res
 
 def extract_quant_bitwidth(node: NodeProto, model: ModelWrapper) -> int:
     """ Extracts the bitwidth of the quantization parameters from a Quant node. """
