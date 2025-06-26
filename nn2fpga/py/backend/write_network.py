@@ -5,6 +5,7 @@ from qonnx.transformation.infer_shapes import InferShapes
 from qonnx.transformation.infer_datatypes import InferDataTypes
 from qonnx.transformation.general import GiveReadableTensorNames, GiveUniqueNodeNames, GiveUniqueParameterTensors
 from qonnx.core.modelwrapper import ModelWrapper
+import qonnx.core.onnx_exec as oxe
 
 from backend.graph import *
 from backend.opt import *
@@ -99,14 +100,13 @@ def write_network(
     model = model.transform(transformation.CustomInferShapes())
     model = model.transform(GiveReadableTensorNames())
     model = model.transform(transformation.LowerToNN2FPGALayers())
-    model.save("lowered.onnx")
-    test_transformation_equivalence(fpga_model, model)
+    # model.save("lowered.onnx")
+    # test_transformation_equivalence(fpga_model, model)
 
     # Start of the backend.
     # Fold quantization into tensor datatype.
     model = model.transform(transformation.FoldQuant())
     model = model.transform(transformation.FoldAsymmetricActQuant())
-
 
     # Balance resource allocation per layer.
     model = model.transform(
@@ -118,8 +118,17 @@ def write_network(
 
     # Handle weights streaming.
     model = model.transform(transformation.AddStreamingParams(nn2fpga_root=prj_root))
+    model.save("streaming.onnx")
+    parent_model = ModelWrapper("wrapper_model.onnx")
+    model = model.transform(
+        transformation.OnnxToHLS(
+            parent_model=parent_model, work_root=prj_root
+        )
+    )
+    parent_model.save("embedHLS.onnx")
 
-    model.save("balance_computation.onnx")
+    # Simulate the model to check if it works.
+    oxe.execute_onnx(parent_model, {"global_in": np.random.randn(1, 3, 224, 224).astype(np.float32)})
     exit(-1)
 
     # Save the original stdout and stderr

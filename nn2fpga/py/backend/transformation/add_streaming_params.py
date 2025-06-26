@@ -170,12 +170,18 @@ class AddStreamingParams(Transformation):
             return (model, False)
         
         # Add an input to the model for the streaming parameters.
+        # Add also an initializer since it's constant.
+        # The 'const_' string in the name is mandatory to recognize the initializer
+        # as a special in the simulation flow.
         param_stream_input = helper.make_tensor_value_info(
-            "param_stream", 
+            "const_param_stream", 
             TensorProto.INT32,
             [len(uint32_mem)]
         )
-        model.graph.input.append(param_stream_input)
+        model.set_initializer(
+            "const_param_stream",
+            uint32_mem
+        )
 
         # Create a ParamStream node for each node with parameters.
         input_stream = [param_stream_input.name]
@@ -246,12 +252,12 @@ class AddStreamingParams(Transformation):
         model = model.transform(SortGraph())
 
 
-        os.system(f"mkdir -p {self.nn2fpga_root}/params/")
-        np.save(f"{self.nn2fpga_root}/params/streaming_params.npy", uint32_mem)
+        # os.system(f"mkdir -p {self.nn2fpga_root}/params/")
+        # np.save(f"{self.nn2fpga_root}/params/streaming_params.npy", uint32_mem)
         
-        # For c++ testbench, we need to save the parameters in a binary file.
-        with open(f"{self.nn2fpga_root}/params/streaming_params.bin", "wb") as file:
-            file.write(uint32_mem.tobytes())
+        # # For c++ testbench, we need to save the parameters in a binary file.
+        # with open(f"{self.nn2fpga_root}/params/streaming_params.bin", "wb") as file:
+        #     file.write(uint32_mem.tobytes())
         return (model, False)
 
             

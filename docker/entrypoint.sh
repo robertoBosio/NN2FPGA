@@ -61,43 +61,6 @@ else
     echo "LLVM pass already compiled. Skipping rebuild."
 fi
 
-# Compile cnpy if missing
-CNPY_DIR="${NN2FPGA_ROOT_DIR}/deps/cnpy"
-CNPY_LIB_PATH="${CNPY_DIR}/build/lib/libcnpy.so"
-if [ ! -f "$CNPY_LIB_PATH" ]; then
-    echo "cnpy not found — compiling..."
-
-    cd "$CNPY_DIR"
-    mkdir -p build
-    cd build
-
-    if ! cmake .. -DCMAKE_INSTALL_PREFIX="$CNPY_DIR/build" -DCMAKE_POLICY_VERSION_MINIMUM=3.5; then
-        echo "cmake failed." >&2
-        exit 1
-    fi
-
-    if ! make; then
-        echo "make failed." >&2
-        exit 1
-    fi
-    
-    if ! make install; then
-        echo "make install failed." >&2
-        exit 1
-    fi
-
-    if [ ! -f "$CNPY_LIB_PATH" ]; then
-        echo "Compilation finished, but cnpy library not found at $CNPY_LIB_PATH" >&2
-        exit 1
-    fi
-
-    echo "cnpy compiled successfully."
-else
-    echo "cnpy already compiled. Skipping rebuild."
-fi
-
-export LD_LIBRARY_PATH="${CNPY_DIR}/build:${LD_LIBRARY_PATH}"
-
 mkdir -p "$HOME"
 mkdir -p "$HOME/.Xilinx"
 

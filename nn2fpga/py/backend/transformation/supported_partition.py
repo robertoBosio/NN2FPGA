@@ -570,5 +570,12 @@ class SupportedPartition(Transformation):
         FPGA_model = ModelWrapper(self.partition_directory + "/partition_FPGA.onnx")
         FPGA_model = FPGA_model.transform(PostProcessPartitionModel())
 
+        # Assign as a metadata attribute of the partitioned model the name of the node which it corresponds to.
+        partition_nodes = parent_model.get_nodes_by_op_type("GenericPartition")
+        if len(partition_nodes) != 1:
+            raise ValueError("Extracting more than one HW partition is not supported.")
+        partition_node = partition_nodes[0]
+        FPGA_model.set_metadata_prop("partition node", partition_node.name)
+
         print(f"Out of {len(graph.node)} nodes, {len(partition_dict['FPGA'])} nodes are assigned to FPGA partition.")
         return (FPGA_model, False)
