@@ -63,6 +63,16 @@ readBinaryFile(const std::string& filename)
   return array_fromfile;
 }
 
+template <typename T>
+void writeBinaryFile(const std::string &filename, const T* data, size_t size) {
+    std::ofstream file(filename, std::ios::binary);
+    if (!file) {
+        std::cerr << "Failed to open file for writing: " << filename << std::endl;
+        return;
+    }
+    file.write(reinterpret_cast<const char*>(data), size * sizeof(T));
+    file.close();
+}
 
 int main(int argc, char** argv) {
   sda::utils::CmdLineParser parser;
@@ -287,6 +297,31 @@ int main(int argc, char** argv) {
             << " us" << std::endl;
   
   std::cout << "######## TEST " << (passed ? "PASSED" : "FAILED") << " ########" << std::endl;
+
+  // Save HLS output results to binary files
+  std::string out0_path = "/tmp/hls_output_0.bin";
+  std::string out1_path = "/tmp/hls_output_1.bin";
+  std::string out2_path = "/tmp/hls_output_2.bin";
+
+  writeBinaryFile(out0_path, mem_outputs0, n_out0 * c_batch);
+  writeBinaryFile(out1_path, mem_outputs1, n_out1 * c_batch);
+  writeBinaryFile(out2_path, mem_outputs2, n_out2 * c_batch);
+
+  std::cout << "Saved HLS outputs to binary files." << std::endl;
+  std::string postprocess_cmd = "python3 postprocess.py " +
+                                out0_path + " " +
+                                out1_path + " " +
+                                out2_path;
+  int post_status = system(postprocess_cmd.c_str());
+
+  if (post_status < 0) {
+      std::cerr << "Error calling postprocess.py: " << strerror(errno) << std::endl;
+  } else if (WIFEXITED(post_status) && WEXITSTATUS(post_status) != 0) {
+      std::cerr << "postprocess.py exited with status: " << WEXITSTATUS(post_status) << std::endl;
+  } else {
+      std::cout << "Post-processing completed successfully." << std::endl;
+  }
+  
   free(mem_activations);
   free(mem_outputs0);
   free(mem_outputs1);

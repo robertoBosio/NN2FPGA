@@ -95,6 +95,42 @@ class ImageNet(Dataset):
         x = self.transform(x)
         return torch.tensor(x), torch.tensor(self.targets[idx])
 
+class fotovoltaic(Dataset):
+    def __init__(self, root, train, transform=None, sample_size=None):
+        self.samples = []
+        self.targets = []
+        self.transform = transform
+        self.syn_to_class = {}
+        items = os.listdir(root + "/train/")
+        sorted_items = sorted(items)
+        for class_id, syn_id in enumerate(sorted_items):
+            self.syn_to_class[syn_id] = class_id
+        if train:
+            image_path = root + "/train/"
+        else:
+            image_path = root + "/val/"
+        items = os.listdir(image_path)
+        sorted_items = sorted(items)
+        syn_folder = image_path
+        for syn_id in sorted_items:
+            class_id = 0
+            sample_path = os.path.join(syn_folder, syn_id)
+            self.samples.append(sample_path)
+            self.targets.append(class_id)
+        if sample_size is not None:
+            # Randomly sample a subset of the dataset and targets
+            assert len(self.samples) == len(self.targets)
+            indices = np.random.choice(len(self.samples), sample_size, replace=False)
+            self.samples = [self.samples[i] for i in indices]
+            self.targets = [self.targets[i] for i in indices]
+    def __len__(self):
+        return len(self.samples)
+    
+    def __getitem__(self, idx):
+        x = Image.open(self.samples[idx]).convert("RGB")
+        x = self.transform(x)
+        return torch.tensor(x), torch.tensor(self.targets[idx])
+
 def get_dataset(dataset, cifar=10, sample_size=None):
     if dataset == 'cifar10':
 
@@ -230,7 +266,7 @@ def get_dataset(dataset, cifar=10, sample_size=None):
     
     elif dataset == 'fotovoltaic':
         IMG_SIZE = 640
-        BASE_DIR = "/home-ssd/datasets/Imagenet/"
+        BASE_DIR = "/home-ssd/datasets/fotovoltaic_dataset/images"
         transforms_sel = fotovoltaic_transform 
         train_args = {
             'train': True,
@@ -244,7 +280,7 @@ def get_dataset(dataset, cifar=10, sample_size=None):
             'root': BASE_DIR,
             'sample_size': None
         }
-        dataset = ImageNet
+        dataset = fotovoltaic
         input_shape = (1, 3, IMG_SIZE, IMG_SIZE)
         train_dataset = dataset(**train_args)
         eval_dataset = dataset(**val_args) 
