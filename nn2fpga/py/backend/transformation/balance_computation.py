@@ -15,7 +15,7 @@ from backend.transformation.insert_streaming_line_buffer import has_streaming_li
 from backend.core.tensor_quant import get_custom_tensor_datatype
 from onnx import helper, NodeProto
 
-PARALLELIZABLE_LAYERS = ["StreamingConv", "GlobalAveragePool", "GlobalMaxPool", "AveragePool", "MaxPool", "ProduceStream", "ConsumeStream"]
+PARALLELIZABLE_LAYERS = ["StreamingConv", "StreamingGlobalAveragePool", "StreamingGlobalMaxPool", "AveragePool", "MaxPool", "ProduceStream", "ConsumeStream"]
 
 def extract_quant_bitwidth(node: NodeProto, model: ModelWrapper) -> int:
     """ Extracts the bitwidth of the quantization parameters from a Quant node. """
@@ -116,8 +116,8 @@ def dsp_consumption(layer, parallelism, silvia_packing):
         op_per_dsp, _ = packing_feature((layer["weight_bits"], layer["act_bits"]), parallelism, silvia_packing)
         dsp_used = (np.prod(parallelism) * layer["kernel"]) / op_per_dsp
 
-    elif (layer["type"] in ["GlobalAveragePool", "AveragePool"]):
-        # GlobalAveragePool and AveragePool are unrolled over the output width and input channels.
+    elif (layer["type"] in ["StreamingGlobalAveragePool", "AveragePool"]):
+        # StreamingGlobalAveragePool and AveragePool are unrolled over the output width and input channels.
         # The DSPs considered are coming from the division operation. Each single integer division requires 2 DSPs.
         dsp_used = (np.prod(parallelism)) * 2
 
@@ -230,7 +230,7 @@ def layers_extractions(model: ModelWrapper) -> list:
                 act_bits = get_custom_tensor_datatype(model, node.input[0]).bitwidth
                 depth = group == input_shape[1] 
 
-            elif node.op_type in ["GlobalAveragePool", "GlobalMaxPool"]:
+            elif node.op_type in ["StreamingStreamingGlobalAveragePool", "StreamingStreamingGlobalMaxPool"]:
                 kernel_shape = (input_shape[2], input_shape[3])
                 kernel = int(math.prod(kernel_shape))
                 depth = True
@@ -687,7 +687,7 @@ def opt_steps(layers_info, parallel_op, valid_par_solutions, prj_root="/tmp"):
         return new_parallel_op
 
 def print_report(layers_info, layer_par, n_variables, n_constraints, model_II, time_spent, silvia_packing, generate_report_file, prj_root="/tmp"):
-    with open(generate_report_file, "a+") as f:
+    with open(generate_report_file, "w+") as f:
         print("=" * 40, file=f)
         print("== Parallelization report", file=f)
         print("=" * 40, file=f)

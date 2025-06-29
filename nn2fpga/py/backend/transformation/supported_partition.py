@@ -1,5 +1,6 @@
 import onnx
 import numpy as np
+from collections import deque, defaultdict
 from onnx import helper, numpy_helper, TensorProto, AttributeProto
 from qonnx.util.basic import get_by_name
 from qonnx.core.modelwrapper import ModelWrapper
@@ -19,20 +20,20 @@ FPGA_SUPPORTED_QUANTIZED_ACTIVATIONS = {
 }
 
 FPGA_SUPPORTED_OPS = {
-    "Add",
-    "AveragePool",
-    "Concat",
-    "Conv",
-    "Flatten",
-    "Gemm",
+    # "Add",
+    # "AveragePool",
+    # "Concat",
+    # "Conv",
+    # "Flatten",
+    # "Gemm",
     "GlobalAveragePool",
-    "GlobalMaxPool",
-    "IntQuant",
-    "MaxPool",
+    # "GlobalMaxPool",
+    # "IntQuant",
+    # "MaxPool",
     "Quant",
-    "Relu",
-    "Reshape",
-    "Resize",
+    # "Relu",
+    # "Reshape",
+    # "Resize",
 }
 
 FPGA_SUPPORTED_OPS.update(FPGA_SUPPORTED_QUANTIZED_ACTIVATIONS)
@@ -425,7 +426,7 @@ def is_fpga_supported_op(model: ModelWrapper, node: onnx.NodeProto) -> bool:
         is_supported = is_supported and check_act_quant(model, act_quant, reasons)
 
     elif node.op_type in ["IntQuant", "Quant"]:
-        # In case of multple Quant nodes, only checking the Quant nodes attached to some
+        # In case of multiple Quant nodes, only checking the Quant nodes attached to some
         # other operation is not sufficient. We need to check all activation Quant nodes. 
         if not is_constant_input_node(model, node):
             is_supported = is_supported and check_act_quant(model, node, reasons)
@@ -554,7 +555,7 @@ class AddTransposesToPartition(Transformation):
                     inputs=[f"{out}_transposed"],
                     perm=[0, 3, 1, 2],  # NHWC to NCHW
                 )
-                model.set_tensor_shape(out, np.array(out_shape)[[0, 3, 1, 2]].tolist())
+                model.set_tensor_shape(f"{out}_transposed", np.array(out_shape)[[0, 2, 3, 1]].tolist())
                 model.graph.node.append(transpose_after)
                 transposed_outputs.append((i, f"{out}_transposed"))
             
@@ -573,49 +574,62 @@ class SupportedPartition(Transformation):
     def __init__(self, partition_directory: str = "partitions"):
         super().__init__()
         self.partition_directory = partition_directory
+    
+    def __find_largest_connected_component(self, model: ModelWrapper) -> list:
+        graph = model.graph
+
+        # Label FPGA-supported nodes
+        fpga_nodes = set()
+        for node in graph.node:
+            if is_fpga_supported_op(model, node):
+                fpga_nodes.add(node.name)
+
+        # Build adjacency list between FPGA nodes
+        adj = defaultdict(list)
+        for node in graph.node:
+            if node.name not in fpga_nodes:
+                continue
+            for succ in model.find_direct_successors(node) or []:
+                if succ.name in fpga_nodes:
+                    adj[node.name].append(succ.name)
+                    adj[succ.name].append(node.name)  # undirected edge
+
+        # Find connected components using BFS
+        visited = set()
+        components = []
+
+        for node_name in fpga_nodes:
+            if node_name in visited:
+                continue
+            component = set()
+            queue = deque([node_name])
+            visited.add(node_name)
+
+            while queue:
+                curr = queue.popleft()
+                component.add(curr)
+                for neighbor in adj[curr]:
+                    if neighbor not in visited:
+                        visited.add(neighbor)
+                        queue.append(neighbor)
+
+            components.append(component)
+
+        # Select the largest component
+        largest_component = max(components, key=len, default=set())
+        return largest_component
 
     def apply(self, model: ModelWrapper) -> tuple[ModelWrapper, bool]:
         print("\nPartitioning model into FPGA and CPU partitions.")
         graph = model.graph
-        node_to_partition = {}
-        value_to_partition = {}
 
-        # Initial inputs and weights are assigned to FPGA
-        for inp in graph.input:
-            value_to_partition[inp.name] = "FPGA"
-
-        for init in graph.initializer:
-            value_to_partition[init.name] = "FPGA"
-
-        for node in graph.node:
-            partition = "CPU"
-
-            if is_fpga_supported_op(model, node):
-                # Check if all inputs are already from FPGA-allocated values.
-                # Exclude empty inputs (e.g., for optional inputs)
-
-                assert all(inp in value_to_partition for inp in node.input if inp != ""), \
-                    f"Node {node.name} has inputs not in value_to_partition: {node.input}"
-                if all(value_to_partition.get(inp, "CPU") == "FPGA" for inp in node.input if inp != ""):
-                    partition = "FPGA"
-
-            # Record partition for this node
-            node_to_partition[node.name] = partition
-
-            # All of this node’s outputs now inherit the same label
-            for out in node.output:
-                value_to_partition[out] = partition
-
-        # Reassign constants to match their consumers
-        for node in [n for n in graph.node if is_constant_input_node(model, n)]:
-            op_node = model.find_consumer(node.output[0])
-            if op_node is not None:
-                node_to_partition[node.name] = node_to_partition[op_node.name]
+        # Find the largest connected component of FPGA-supported nodes
+        largest_component = self.__find_largest_connected_component(model)
 
         # Create a partition dictionary
         node_list = [node.name for node in graph.node]
         partition_dict = {
-            "FPGA": [node_list.index(node) for node, part in node_to_partition.items() if part == "FPGA"]
+            "FPGA": [node_list.index(node) for node in largest_component]
         }
 
         # Pre-process the model to ensure it is suitable for partitioning
