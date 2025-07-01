@@ -9,8 +9,6 @@ import numpy as np
 
 LAYERS_WITH_KERNELS = [
     "StreamingConv",
-    "GlobalAveragePool",
-    "GlobalMaxPool",
     "MaxPool",
     "AveragePool",
     "ConvTranspose",
@@ -43,13 +41,7 @@ def has_streaming_linebuffer_wrap(model: ModelWrapper, node: helper.NodeProto) -
     if node.op_type not in LAYERS_WITH_KERNELS:
         return False
     
-    if "global" in node.op_type.lower():
-        # Global pooling layers do not have a kernel shape attribute
-        input_shape = model.get_tensor_shape(node.input[0])
-        input_shape = [1] * (4 - len(input_shape)) + input_shape
-        kernel_shape = input_shape[2:4]
-    else:
-        kernel_shape = get_by_name(node.attribute, "kernel_shape").ints
+    kernel_shape = get_by_name(node.attribute, "kernel_shape").ints
     kernel = int(np.prod(kernel_shape))
 
     w_par = 1  # Default value for width parallelization
