@@ -299,6 +299,7 @@ int main(int argc, char** argv) {
   std::cout << "######## TEST " << (passed ? "PASSED" : "FAILED") << " ########" << std::endl;
 
   // Save HLS output results to binary files
+  
   std::string out0_path = "/tmp/hls_output_0.bin";
   std::string out1_path = "/tmp/hls_output_1.bin";
   std::string out2_path = "/tmp/hls_output_2.bin";
@@ -308,16 +309,27 @@ int main(int argc, char** argv) {
   writeBinaryFile(out2_path, mem_outputs2, n_out2 * c_batch);
 
   std::cout << "Saved HLS outputs to binary files." << std::endl;
-  std::string postprocess_cmd = "python3 postprocess.py " +
-                                out0_path + " " +
-                                out1_path + " " +
-                                out2_path;
+  std::string postprocess_cmd = "python3 postprocess.py " + out0_path + " " + out1_path + " " + out2_path;
   int post_status = system(postprocess_cmd.c_str());
+
 
   if (post_status < 0) {
       std::cerr << "Error calling postprocess.py: " << strerror(errno) << std::endl;
   } else if (WIFEXITED(post_status) && WEXITSTATUS(post_status) != 0) {
       std::cerr << "postprocess.py exited with status: " << WEXITSTATUS(post_status) << std::endl;
+  } else {
+      std::cout << "Post-processing completed successfully." << std::endl;
+  }
+  
+  std::cout << "Ground truth preprocess." << std::endl;
+  std::string postprocess_cmd2 = "python3 postprocess.py ";
+    int post_status2= system(postprocess_cmd.c_str());
+
+
+  if (post_status2< 0) {
+      std::cerr << "Error calling postprocess.py: " << strerror(errno) << std::endl;
+  } else if (WIFEXITED(post_status2) && WEXITSTATUS(post_status2) != 0) {
+      std::cerr << "postprocess.py exited with status: " << WEXITSTATUS(post_status2) << std::endl;
   } else {
       std::cout << "Post-processing completed successfully." << std::endl;
   }
