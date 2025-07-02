@@ -118,8 +118,8 @@ def dsp_consumption(layer, parallelism, silvia_packing):
 
     elif (layer["type"] in ["StreamingGlobalAveragePool", "AveragePool"]):
         # StreamingGlobalAveragePool and AveragePool are unrolled over the output width and input channels.
-        # The DSPs considered are coming from the division operation. Each single integer division requires 2 DSPs.
-        dsp_used = (np.prod(parallelism)) * 2
+        # The DSPs considered are coming from the division operation. Each single integer division requires 1 DSPs.
+        dsp_used = (np.prod(parallelism))
 
     else:
         # All the other layers do not involve DSPs, so they are not considered.
@@ -168,32 +168,77 @@ def find_common_mult(a, b):
     """Return the least common multiple (LCM) of a and b."""
     return abs(a * b) // math.gcd(a, b) if a and b else 0
 
-def generate_architectures(layers_info: list, NUM_DSP: int, axi_bitwidth: int, silvia_packing: bool) -> list:
-    """Given a list of layers, generate all the valid parallelization for each layer. """
-    
+
+def generate_architectures(
+    layers_info: list, NUM_DSP: int, axi_bitwidth: int, silvia_packing: bool
+) -> list:
+    """Given a list of layers, generate all the valid parallelization for each layer."""
+
     valid_par_solutions = []
-    iw_clip = 4  # Heuristic clip for input width
-    och_clip = 20  # Heuristic clip for output channels
     for layer in layers_info:
+        iw_clip = 4  # Heuristic clip for input width
+        och_clip = 20  # Heuristic clip for output channels
         max_och_par = layer["och"]
         max_ich_par = layer["ich"]
         max_w_par = layer["ow"]
-        
-        if (layer["type"] == "StreamingConv"):
-            
+        valid_par_solutions_layer = []
+
+        if layer["type"] == "StreamingConv":
+
             # Clipping the maximum parallelization to the available DSPs, since it is not
             # possible that one layer uses all the DSPs. Considering also the packing.
-            op_per_dsp, _ = packing_feature((layer["weight_bits"], layer["act_bits"]), (max_och_par, max_ich_par, max_w_par), silvia_packing)
+            op_per_dsp, _ = packing_feature(
+                (layer["weight_bits"], layer["act_bits"]),
+                (max_och_par, max_ich_par, max_w_par),
+                silvia_packing,
+            )
             op_clip = (NUM_DSP / layer["kernel"]) * op_per_dsp
-        elif (layer["type"] in ["ProduceStream", "ConsumeStream"]):
-            
+            valid_par_solutions_layer = generate_valid_combinations(
+                och=max_och_par,
+                ich=max_ich_par,
+                w=max_w_par,
+                w_clip=iw_clip,
+                och_clip=och_clip,
+                op_clip=op_clip,
+                depth=layer["depth"],
+            )
+
+        elif layer["type"] in ["ProduceStream", "ConsumeStream"]:
+
             # Clipping the maximum parallelization of ProduceStream and ConsumeStream to the bandwidth of the AXI bus.
             op_clip = axi_bitwidth // layer["act_bits"]
-        
-        valid_par_solutions.append(generate_valid_combinations(
-            och=max_och_par, ich=max_ich_par, w=max_w_par, w_clip=iw_clip, och_clip=och_clip, op_clip=op_clip, depth=layer["depth"]))
+
+            valid_par_solutions_layer = generate_valid_combinations(
+                och=max_och_par,
+                ich=max_ich_par,
+                w=max_w_par,
+                w_clip=iw_clip,
+                och_clip=och_clip,
+                op_clip=op_clip,
+                depth=layer["depth"],
+            )
+
+            # For ProduceStream and ConsumeStream, the output width can be bigger than 1 only if the channels are packed in a single word.
+            temp_par_solutions = []
+            for solution in valid_par_solutions_layer:
+                if solution[2] > 1 and solution[0] != layer["och"]:
+                    continue
+                temp_par_solutions.append(solution)
+            valid_par_solutions_layer = temp_par_solutions
+
+        else:
+            valid_par_solutions_layer = generate_valid_combinations(
+                och=max_och_par,
+                ich=max_ich_par,
+                w=max_w_par,
+                w_clip=iw_clip,
+                och_clip=och_clip,
+                op_clip=2**20,
+                depth=layer["depth"],
+            )
 
     return valid_par_solutions
+
 
 def layers_extractions(model: ModelWrapper) -> list:
     """ Extracts computation-intensive layers from the model and returns their useful information
