@@ -21,6 +21,16 @@ template <typename TInputStruct,
 class StreamingGlobalAveragePool
 {
 public:
+    static_assert(OUT_CH % OUT_CH_PAR == 0, "OUT_CH must be a multiple of OUT_CH_PAR");
+    static_assert(OUT_CH_PAR > 0, "OUT_CH_PAR must be greater than 0");
+
+    StreamingGlobalAveragePool()
+    {
+#pragma HLS inline
+        STEP_i_hw = 0;  // Initialize the height and width index to zero.
+        STEP_i_och = 0; // Initialize the output channel index to zero.
+    }
+
     void run(hls::stream<TInputStruct> i_data[1],
              hls::stream<bool> &i_last,
              hls::stream<TOutputStruct> o_data[1],
@@ -90,7 +100,7 @@ private:
 #pragma HLS inline
         TOutputStruct s_output_struct; // Output structure to hold the results.
         TInputStruct s_input_struct;   // Input structure to read data from the input stream.
-        Quantizer quantizer; // Quantizer instance for quantization.
+        Quantizer quantizer;           // Quantizer instance for quantization.
 
         // Loop through the channels processed in parallel.
         for (size_t i_och_par = 0; i_och_par < OUT_CH_PAR; i_och_par++)
