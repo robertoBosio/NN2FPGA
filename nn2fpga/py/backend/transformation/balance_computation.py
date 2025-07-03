@@ -236,9 +236,10 @@ def generate_architectures(
                 op_clip=2**20,
                 depth=layer["depth"],
             )
+        
+        valid_par_solutions.append(valid_par_solutions_layer)
 
     return valid_par_solutions
-
 
 def layers_extractions(model: ModelWrapper) -> list:
     """ Extracts computation-intensive layers from the model and returns their useful information
@@ -615,9 +616,10 @@ def update_model(model: ModelWrapper, parallel_op: dict) -> ModelWrapper:
         if node.name in parallel_op:
             par = parallel_op[node.name]
             par_dict = {
-                "och_par": par[0],
-                "ich_par": par[1],
-                "w_par": par[2],
+                "out_ch_par": par[0],
+                "in_ch_par": par[1],
+                "in_w_par": par[2],
+                "out_w_par": par[2],
             }
             set_par_attributes(node, par_dict)
 
@@ -635,8 +637,9 @@ def propagate_parallelism(model: ModelWrapper) -> ModelWrapper:
         mark_visited.add(node.name)
         par = get_par_attributes(node)
 
-        # Remove ich_par, as it is not needed for the propagation.
-        par.pop("ich_par", None)
+        # Set the input channels parallelization to the output channels parallelization
+        # since we are propagating the parallelism to a consumer.
+        par['in_ch_par'] = par['out_ch_par']
 
         consumers = model.find_direct_successors(node)
         if consumers is not None:
