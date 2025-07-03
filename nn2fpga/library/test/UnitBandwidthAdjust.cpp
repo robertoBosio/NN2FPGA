@@ -318,6 +318,320 @@ bool test_step_decreaseWPAR() {
     return flag;
 }
 
+template <typename TInputStruct,
+          typename TInput,
+          typename TOutputStruct,
+          typename TOutput,
+          size_t IN_HEIGHT,
+          size_t IN_WIDTH,
+          size_t IN_CH,
+          size_t W_PAR,
+          size_t IN_CH_PAR,
+          size_t OUT_CH_PAR>
+bool test_run_increaseCHPAR() {
+    
+    // Simple quantizer: truncates accumulator
+    struct TruncQuantizer
+    {
+        TOutput operator()(ap_uint<8> data) const
+        {
+            return static_cast<TOutput>(data);
+        }
+    };
+
+    BandwidthAdjustIncreaseChannels<
+        TInputStruct, TInput,
+        TOutputStruct, TOutput,
+        TruncQuantizer,
+        IN_HEIGHT, IN_WIDTH,
+        IN_CH, W_PAR, IN_CH_PAR, OUT_CH_PAR>
+        bandwidth_adjust;
+
+    // Prepare input and output streams
+    hls::stream<TInputStruct> in_stream[W_PAR];
+    hls::stream<TOutputStruct> out_stream[W_PAR];
+    hls::stream<bool> in_last;
+    hls::stream<bool> out_last;
+
+    for (size_t i = 0; i < IN_HEIGHT * IN_WIDTH; i += W_PAR)
+    {
+        for (size_t ch = 0; ch < IN_CH; ch += IN_CH_PAR)
+        {
+            for (size_t w_par = 0; w_par < W_PAR; w_par++)
+            {
+                TInputStruct input_struct;
+                for (size_t ch_par = 0; ch_par < IN_CH_PAR; ch_par++)
+                {
+                    // Each channel should have the average value of 1
+                    input_struct[ch_par] = (i + w_par) * IN_CH + ch + ch_par;
+                }
+                in_stream[w_par].write(input_struct);
+            }
+        }
+    }
+
+    in_last.write(true); // Set last signal for the input stream
+
+    // Run the operator
+    bandwidth_adjust.run(in_stream, in_last, out_stream, out_last);
+
+    // Check output
+    bool flag = true;
+    for (size_t i = 0; i < IN_HEIGHT * IN_WIDTH; i += W_PAR)
+    {
+        for (size_t ch = 0; ch < IN_CH; ch += OUT_CH_PAR)
+        {
+            for (size_t w_par = 0; w_par < W_PAR; w_par++)
+            {
+                TOutputStruct output_struct = out_stream[w_par].read();
+                for (size_t ch_par = 0; ch_par < OUT_CH_PAR; ch_par++)
+                {
+                    flag &= (output_struct[ch_par] == (i + w_par) * IN_CH + ch + ch_par);
+                    std::cout << "Output: " << output_struct[ch_par] << ", Expected: " << (i + w_par) * IN_CH + ch + ch_par << std::endl;
+                }
+            }
+        }
+    }
+
+    // Check last signal
+    flag &= (out_last.read() == true);
+
+    return flag;
+}
+
+template <typename TInputStruct,
+          typename TInput,
+          typename TOutputStruct,
+          typename TOutput,
+          size_t IN_HEIGHT,
+          size_t IN_WIDTH,
+          size_t IN_CH,
+          size_t W_PAR,
+          size_t IN_CH_PAR,
+          size_t OUT_CH_PAR>
+bool test_step_increaseCHPAR() {
+    
+    // Simple quantizer: truncates accumulator
+    struct TruncQuantizer
+    {
+        TOutput operator()(ap_uint<8> data) const
+        {
+            return static_cast<TOutput>(data);
+        }
+    };
+
+    BandwidthAdjustIncreaseChannels<
+        TInputStruct, TInput,
+        TOutputStruct, TOutput,
+        TruncQuantizer,
+        IN_HEIGHT, IN_WIDTH,
+        IN_CH, W_PAR, IN_CH_PAR, OUT_CH_PAR>
+        bandwidth_adjust;
+
+    // Prepare input and output streams
+    hls::stream<TInputStruct> in_stream[W_PAR];
+    hls::stream<TOutputStruct> out_stream[W_PAR];
+    hls::stream<bool> in_last;
+    hls::stream<bool> out_last;
+
+    // Check step function not progressing in case of no data
+    bool flag = (bandwidth_adjust.step(in_stream, in_last, out_stream, out_last) == false);
+
+    TInputStruct input_struct;
+    for (size_t i = 0; i < IN_HEIGHT * IN_WIDTH; i += W_PAR)
+    {
+        for (size_t ch = 0; ch < IN_CH; ch += IN_CH_PAR)
+        {
+            for (size_t w_par = 0; w_par < W_PAR; w_par++)
+            {
+                for (size_t ch_par = 0; ch_par < IN_CH_PAR; ch_par++)
+                {
+                    // Each channel should have the average value of 1
+                    input_struct[ch_par] = (i + w_par) * IN_CH + ch + ch_par;
+                }
+                in_stream[w_par].write(input_struct);
+            }
+        }
+    }
+
+    in_last.write(true); // Set last signal for the input stream
+
+    // Run the operator
+    for (size_t i = 0; i < IN_HEIGHT * IN_WIDTH * IN_CH / (IN_CH_PAR * W_PAR); i++)
+    {
+        flag &= bandwidth_adjust.step(in_stream, in_last, out_stream, out_last);
+    } 
+
+    // Check last signal
+    flag &= (out_last.read() == true);
+
+    // Check step function not progresssing in case of completed iterations.
+    for (size_t i = 0; i < W_PAR; i++)
+    {
+        in_stream[i].write(input_struct);
+    }
+    flag &= (bandwidth_adjust.step(in_stream, in_last, out_stream, out_last) == false);
+
+    return flag;
+}
+
+template <typename TInputStruct,
+          typename TInput,
+          typename TOutputStruct,
+          typename TOutput,
+          size_t IN_HEIGHT,
+          size_t IN_WIDTH,
+          size_t IN_CH,
+          size_t W_PAR,
+          size_t IN_CH_PAR,
+          size_t OUT_CH_PAR>
+bool test_run_decreaseCHPAR() {
+    
+    // Simple quantizer: truncates accumulator
+    struct TruncQuantizer
+    {
+        TOutput operator()(ap_uint<8> data) const
+        {
+            return static_cast<TOutput>(data);
+        }
+    };
+
+    BandwidthAdjustDecreaseChannels<
+        TInputStruct, TInput,
+        TOutputStruct, TOutput,
+        TruncQuantizer,
+        IN_HEIGHT, IN_WIDTH,
+        IN_CH, W_PAR, IN_CH_PAR, OUT_CH_PAR>
+        bandwidth_adjust;
+
+    // Prepare input and output streams
+    hls::stream<TInputStruct> in_stream[W_PAR];
+    hls::stream<TOutputStruct> out_stream[W_PAR];
+    hls::stream<bool> in_last;
+    hls::stream<bool> out_last;
+
+    for (size_t i = 0; i < IN_HEIGHT * IN_WIDTH; i += W_PAR)
+    {
+        for (size_t ch = 0; ch < IN_CH; ch += IN_CH_PAR)
+        {
+            for (size_t w_par = 0; w_par < W_PAR; w_par++)
+            {
+                TInputStruct input_struct;
+                for (size_t ch_par = 0; ch_par < IN_CH_PAR; ch_par++)
+                {
+                    // Each channel should have the average value of 1
+                    input_struct[ch_par] = (i + w_par) * IN_CH + ch + ch_par;
+                }
+                in_stream[w_par].write(input_struct);
+            }
+        }
+    }
+
+    in_last.write(true); // Set last signal for the input stream
+
+    // Run the operator
+    bandwidth_adjust.run(in_stream, in_last, out_stream, out_last);
+
+    // Check output
+    bool flag = true;
+    for (size_t i = 0; i < IN_HEIGHT * IN_WIDTH; i += W_PAR)
+    {
+        for (size_t ch = 0; ch < IN_CH; ch += OUT_CH_PAR)
+        {
+            for (size_t w_par = 0; w_par < W_PAR; w_par++)
+            {
+                TOutputStruct output_struct = out_stream[w_par].read();
+                for (size_t ch_par = 0; ch_par < OUT_CH_PAR; ch_par++)
+                {
+                    flag &= (output_struct[ch_par] == (i + w_par) * IN_CH + ch + ch_par);
+                    std::cout << "Output: " << output_struct[ch_par] << ", Expected: " << (i + w_par) * IN_CH + ch + ch_par << std::endl;
+                }
+            }
+        }
+    }
+
+    // Check last signal
+    flag &= (out_last.read() == true);
+
+    return flag;
+}
+
+template <typename TInputStruct,
+          typename TInput,
+          typename TOutputStruct,
+          typename TOutput,
+          size_t IN_HEIGHT,
+          size_t IN_WIDTH,
+          size_t IN_CH,
+          size_t W_PAR,
+          size_t IN_CH_PAR,
+          size_t OUT_CH_PAR>
+bool test_step_decreaseCHPAR() {
+    
+    // Simple quantizer: truncates accumulator
+    struct TruncQuantizer
+    {
+        TOutput operator()(ap_uint<8> data) const
+        {
+            return static_cast<TOutput>(data);
+        }
+    };
+
+    BandwidthAdjustDecreaseChannels<
+        TInputStruct, TInput,
+        TOutputStruct, TOutput,
+        TruncQuantizer,
+        IN_HEIGHT, IN_WIDTH,
+        IN_CH, W_PAR, IN_CH_PAR, OUT_CH_PAR>
+        bandwidth_adjust;
+
+    // Prepare input and output streams
+    hls::stream<TInputStruct> in_stream[W_PAR];
+    hls::stream<TOutputStruct> out_stream[W_PAR];
+    hls::stream<bool> in_last;
+    hls::stream<bool> out_last;
+
+    // Check step function not progressing in case of no data
+    bool flag = (bandwidth_adjust.step(in_stream, in_last, out_stream, out_last) == false);
+
+    TInputStruct input_struct;
+    for (size_t i = 0; i < IN_HEIGHT * IN_WIDTH; i += W_PAR)
+    {
+        for (size_t ch = 0; ch < IN_CH; ch += IN_CH_PAR)
+        {
+            for (size_t w_par = 0; w_par < W_PAR; w_par++)
+            {
+                for (size_t ch_par = 0; ch_par < IN_CH_PAR; ch_par++)
+                {
+                    // Each channel should have the average value of 1
+                    input_struct[ch_par] = (i + w_par) * IN_CH + ch + ch_par;
+                }
+                in_stream[w_par].write(input_struct);
+            }
+        }
+    }
+
+    in_last.write(true); // Set last signal for the input stream
+
+    // Run the operator
+    for (size_t i = 0; i < IN_HEIGHT * IN_WIDTH * IN_CH / (IN_CH_PAR * W_PAR); i++)
+    {
+        flag &= bandwidth_adjust.step(in_stream, in_last, out_stream, out_last);
+    } 
+
+    // Check last signal
+    flag &= (out_last.read() == true);
+
+    // Check step function not progresssing in case of completed iterations.
+    for (size_t i = 0; i < W_PAR; i++)
+    {
+        in_stream[i].write(input_struct);
+    }
+    flag &= (bandwidth_adjust.step(in_stream, in_last, out_stream, out_last) == false);
+
+    return flag;
+}
+
 int main() {
 
     bool all_passed = true;
@@ -349,6 +663,21 @@ int main() {
                            std::array<ap_uint<8>, 2>,
                            ap_uint<8>,
                            4, 4, 4, 4, 2, 2>();
+
+    std::cout << all_passed << std::endl;
+
+    // Test bandwidth adjustment from 2 to 4 channels
+    all_passed &= test_run_increaseCHPAR<std::array<ap_uint<8>, 2>,
+                           ap_uint<8>,
+                           std::array<ap_uint<8>, 4>,
+                           ap_uint<8>,
+                           4, 4, 4, 2, 2, 4>();
+
+    all_passed &= test_step_increaseCHPAR<std::array<ap_uint<8>, 2>,
+                                         ap_uint<8>,
+                                         std::array<ap_uint<8>, 4>,
+                                         ap_uint<8>,
+                                         4, 4, 4, 2, 2, 4>();
 
     if (!all_passed) {
         std::cout << "Failed." << std::endl;
