@@ -5,6 +5,114 @@ from onnx import helper
 from collections import deque
 from backend.util.par_utils import get_par_attributes, check_par_attributes
 import backend.transformation as transformation
+import math
+
+
+def insert_comm_node(
+    model,
+    name,
+    op_type,
+    input_name,
+    output_name,
+    ch_par_in,
+    ch_par_out,
+    w_par_in,
+    w_par_out,
+    tensor_shape,
+):
+    node = helper.make_node(
+        op_type,
+        inputs=[input_name],
+        outputs=[output_name],
+        name=name,
+        domain="backend.custom_op",
+        in_ch_par=ch_par_in,
+        out_ch_par=ch_par_out,
+        in_w_par=w_par_in,
+        out_w_par=w_par_out,
+    )
+    model.set_tensor_shape(output_name, tensor_shape)
+    model.graph.node.append(node)
+    return output_name, ch_par_out, w_par_out
+
+
+def adjust_bandwidth(
+    model,
+    output,
+    last_output,
+    last_ch_par,
+    last_w_par,
+    target_ch_par,
+    target_w_par,
+    producer,
+    consumer,
+    tensor_shape,
+):
+    def adjust(par_in, par_out, axis, op_decr, op_incr, name_suffix):
+        nonlocal last_output, last_ch_par, last_w_par
+        if par_in == par_out:
+            return par_out
+        op_base = f"{output}_{name_suffix}"
+
+        # Determine if a middle node is needed
+        middle = (
+            math.gcd(par_in, par_out)
+            if par_in % par_out != 0 and par_out % par_in != 0
+            else None
+        )
+
+        if middle:
+            # Decrease to middle
+            last_output, last_ch_par, last_w_par = insert_comm_node(
+                model,
+                f"{op_decr}_{producer.name}_middle_{consumer.name}",
+                op_decr,
+                last_output,
+                f"{op_base}_gcd",
+                last_ch_par if axis == "ch" else last_ch_par,
+                middle,
+                last_w_par if axis == "w" else last_w_par,
+                last_w_par if axis == "ch" else last_w_par,
+                tensor_shape,
+            )
+            par_in = middle
+
+        final_op = op_incr if par_out > par_in else op_decr
+        last_output, last_ch_par, last_w_par = insert_comm_node(
+            model,
+            f"{final_op}_{producer.name}_{consumer.name}",
+            final_op,
+            last_output,
+            f"{op_base}",
+            last_ch_par if axis == "ch" else last_ch_par,
+            par_out,
+            last_w_par if axis == "ch" else last_w_par,
+            last_w_par if axis == "ch" else last_w_par,
+            tensor_shape,
+        )
+        return par_out
+
+    # Adjust channels
+    last_ch_par = adjust(
+        last_ch_par,
+        target_ch_par,
+        "ch",
+        "BandwidthAdjustDecreaseChannels",
+        "BandwidthAdjustIncreaseChannels",
+        "bwch",
+    )
+
+    # Adjust streams (width)
+    last_w_par = adjust(
+        last_w_par,
+        target_w_par,
+        "w",
+        "BandwidthAdjustDecreaseStreams",
+        "BandwidthAdjustIncreaseStreams",
+        "bww",
+    )
+
+    return last_output, last_ch_par, last_w_par
 
 
 class AdjustStreamingCommunication(Transformation):
@@ -26,9 +134,6 @@ class AdjustStreamingCommunication(Transformation):
             mark_visited.add(node.name)
             par = get_par_attributes(node)
 
-            # ich_par does not represent a communication parameter, so we can ignore it.
-            par.pop("ich_par", None)
-
             consumers = model.find_direct_successors(node)
             if consumers is not None:
                 for consumer in consumers:
@@ -36,33 +141,27 @@ class AdjustStreamingCommunication(Transformation):
                         consumer_par = get_par_attributes(consumer)
 
                         # Need to balance node.och_par -> consumer.ich_par if ich_par is present,
-                        # otherwise node.och_par -> consumer.och_par.
                         # This represents the number of channels packed in a single packet.
-                        if consumer_par["ich_par"] is not None:
-                            consumer_ch_par = consumer_par["ich_par"]
-                        else:
-                            consumer_ch_par = consumer_par["och_par"]
-
                         if (
-                            par["och_par"] != consumer_ch_par
-                            or par["w_par"] != consumer_par["w_par"]
+                            par["out_ch_par"] != consumer_par["in_ch_par"]
+                            or par["out_w_par"] != consumer_par["in_w_par"]
                         ):
                             # Insert a communication node.
                             communication_nodes.append(
                                 (
                                     node,
                                     consumer,
-                                    par["och_par"],
-                                    consumer_ch_par,
-                                    par["w_par"],
-                                    consumer_par["w_par"],
+                                    par["out_ch_par"],
+                                    consumer_par["in_ch_par"],
+                                    par["out_w_par"],
+                                    consumer_par["in_w_par"],
                                 )
                             )
 
                     if consumer.name not in mark_visited:
                         # If the consumer is not already visited, add it to the queue.
                         queue.append(consumer)
-        
+
         for (
             producer,
             consumer,
@@ -73,26 +172,31 @@ class AdjustStreamingCommunication(Transformation):
         ) in communication_nodes:
             for output in producer.output:
                 probable_consumer = model.find_consumer(output)
-                if probable_consumer is not None and probable_consumer.name == consumer.name:
-                    # Create a communication producer to adjust the streaming parameters.
-                    comm_node = helper.make_node(
-                        "BandwidthAdjust",
-                        inputs=[output],
-                        outputs=[f"{output}_comm"],
-                        name=f"BandwidthAdjust_{producer.name}_{consumer.name}",
-                        domain="backend.custom_op",
-                        in_ch_par=in_ch_par,
-                        out_ch_par=out_ch_par,
-                        in_w_par=in_w_par,
-                        out_w_par=out_w_par,
-                    )
+                if probable_consumer is None or probable_consumer.name != consumer.name:
+                    continue
 
-                    model.graph.node.append(comm_node)
+                last_output = output
+                last_ch_par = in_ch_par
+                last_w_par = in_w_par
+                tensor_shape = model.get_tensor_shape(output)
 
-                    for i, input in enumerate(consumer.input):
-                        if input == output:
-                            # Replace the consumer's input with the output of the communication node.
-                            consumer.input[i] = f"{output}_comm"
+                last_output, last_ch_par, last_w_par = adjust_bandwidth(
+                    model,
+                    output,
+                    last_output,
+                    last_ch_par,
+                    last_w_par,
+                    out_ch_par,
+                    out_w_par,
+                    producer,
+                    consumer,
+                    tensor_shape,
+                )
+
+                for i, input_name in enumerate(consumer.input):
+                    if input_name == output:
+                        consumer.input[i] = last_output
+
 
         if communication_nodes:
             # If any communication nodes were added, we need to sort the graph

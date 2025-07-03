@@ -31,3 +31,27 @@ class BandwidthAdjust(CustomOp):
 
     def verify_node(self):
         pass
+
+class BandwidthAdjustIncreaseStreams(BandwidthAdjust):
+    """ Node increasing the number of streams in a tensor to match the bandwidth requirements."""
+
+    def verify_node(self):
+        return super().verify_node()
+
+class BandwidthAdjustDecreaseStreams(BandwidthAdjust):
+    """ Node decreasing the number of streams in a tensor to match the bandwidth requirements."""
+
+    def verify_node(self):
+        return super().verify_node()
+    
+class BandwidthAdjustIncreaseChannels(BandwidthAdjust):
+    """ Node increasing the number of channels in a tensor to match the bandwidth requirements."""
+
+    def verify_node(self):
+        return super().verify_node()
+    
+class BandwidthAdjustDecreaseChannels(BandwidthAdjust):
+    """ Node decreasing the number of channels in a tensor to match the bandwidth requirements."""
+
+    def verify_node(self):
+        return super().verify_node()
