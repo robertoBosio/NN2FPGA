@@ -32,9 +32,7 @@ public:
     }
 
     void run(hls::stream<TInputStruct> i_data[1],
-             hls::stream<bool> &i_last,
-             hls::stream<TOutputStruct> o_data[1],
-             hls::stream<bool> &o_last)
+             hls::stream<TOutputStruct> o_data[1])
     {
         TAcc s_acc_buff[OUT_CH]; // Accumulator buffer for each output channel.
 
@@ -48,15 +46,10 @@ public:
                 StreamingGlobalAveragePool::pipeline_body(i_data, o_data, s_acc_buff, i_hw, i_och);
             }
         }
-
-        // Propagate the last signal.
-        o_last.write(i_last.read());
     }
 
     bool step(hls::stream<TInputStruct> i_data[1],
-              hls::stream<bool> &i_last,
-              hls::stream<TOutputStruct> o_data[1],
-              hls::stream<bool> &o_last)
+              hls::stream<TOutputStruct> o_data[1])
     {
         if (STEP_i_hw >= IN_HEIGHT * IN_WIDTH)
         {
@@ -75,10 +68,6 @@ public:
             // If we have processed all output channels, reset the index and increment the height/width index.
             STEP_i_och = 0;
             STEP_i_hw++;
-        }
-        if (STEP_i_hw == IN_HEIGHT * IN_WIDTH && STEP_i_och == 0)
-        {
-            o_last.write(i_last.read());
         }
 
         return true; // Indicate that the step was successful and more data can be processed.

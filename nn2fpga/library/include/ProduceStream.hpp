@@ -33,8 +33,7 @@ public:
     }
 
     void run(hls::stream<TInputStruct> input_data_stream[1],
-             hls::stream<TOutputStruct> output_data_stream[OUT_W_PAR],
-             hls::stream<bool> &output_last_stream)
+             hls::stream<TOutputStruct> output_data_stream[OUT_W_PAR])
     {
         TInputStruct input_data; // Read the input data structure from the input stream.
 
@@ -48,14 +47,10 @@ public:
                 ProduceStream::pipeline_body(input_data_stream, output_data_stream, input_data, i_par);
             }
         }
-
-        // Propagate the last signal.
-        output_last_stream.write(input_data.last);
     }
 
     bool step(hls::stream<TInputStruct> input_data_stream[1],
-              hls::stream<TOutputStruct> output_data_stream[OUT_W_PAR],
-              hls::stream<bool> &output_last_stream)
+              hls::stream<TOutputStruct> output_data_stream[OUT_W_PAR])
     {
         if (STEP_i_word >= ITER)
         {
@@ -74,10 +69,6 @@ public:
             // If we have processed all output channels, reset the index and increment the height/width index.
             STEP_i_par = 0;
             STEP_i_word += DATA_PER_WORD;
-        }
-        if (STEP_i_word == ITER && STEP_i_par == 0)
-        {
-            output_last_stream.write(STEP_input_data.last);
         }
 
         return true; // Indicate that the step was successful and more data can be processed.

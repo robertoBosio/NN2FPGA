@@ -43,7 +43,6 @@ bool test_run() {
     // Prepare input and output streams
     hls::stream<TInputStruct> in_stream[1];
     hls::stream<TOutputStruct> out_stream[OUT_W_PAR];
-    hls::stream<bool> out_last;
 
     // Prepare input data: fill every pixel with a counter following HWC format
     size_t data_in_word = 0;
@@ -74,7 +73,7 @@ bool test_run() {
     }
 
     // Run producer
-    producer.run(in_stream, out_stream, out_last);
+    producer.run(in_stream, out_stream);
 
     // Read and check output
     bool flag = true;
@@ -94,8 +93,6 @@ bool test_run() {
         }
     }
 
-    // Check last
-    flag &= (out_last.read() == true);
     return flag;
 }
 
@@ -136,10 +133,9 @@ bool test_step() {
     // Prepare input and output streams
     hls::stream<TInputStruct> in_stream[1];
     hls::stream<TOutputStruct> out_stream[OUT_W_PAR];
-    hls::stream<bool> out_last;
 
     // Check step function not progressing before any input
-    bool flag = (producer.step(in_stream, out_stream, out_last) == false);
+    bool flag = (producer.step(in_stream, out_stream) == false);
 
     // Prepare input data: fill every pixel with a counter following HWC format
     size_t data_in_word = 0;
@@ -171,14 +167,11 @@ bool test_step() {
 
     // Step through producer
     for (size_t i = 0; i < IN_HEIGHT * IN_WIDTH * OUT_CH / (OUT_CH_PAR * OUT_W_PAR); i++) {
-        flag &= producer.step(in_stream, out_stream, out_last);
+        flag &= producer.step(in_stream, out_stream);
     }
     
-    // Check last
-    flag &= (out_last.read() == true);
-
     // Check step function not progressing after all input
-    flag &= (producer.step(in_stream, out_stream, out_last) == false);
+    flag &= (producer.step(in_stream, out_stream) == false);
     
     return flag;
 }

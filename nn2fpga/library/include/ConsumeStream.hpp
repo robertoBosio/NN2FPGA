@@ -42,7 +42,6 @@ public:
     }
 
     void run(hls::stream<TInputStruct> input_data_stream[IN_W_PAR],
-             hls::stream<bool> &input_last_stream,
              hls::stream<TOutputStruct> output_data_stream[1])
     {
         TOutputStruct output_data; // Output data structure to hold the results.
@@ -54,13 +53,12 @@ public:
             for (size_t i_par = 0; i_par < DATA_PER_WORD; i_par += IN_CH_PAR * IN_W_PAR)
             {
 #pragma HLS pipeline style = stp II = 1
-                ConsumeStream::pipeline_body(input_data_stream, input_last_stream, output_data_stream, output_data, i_word, i_par);
+                ConsumeStream::pipeline_body(input_data_stream, output_data_stream, output_data, i_word, i_par);
             }
         }
     }
 
     bool step(hls::stream<TInputStruct> input_data_stream[IN_W_PAR],
-              hls::stream<bool> &input_last_stream,
               hls::stream<TOutputStruct> output_data_stream[1])
     {
         if (STEP_i_word >= ITER)
@@ -76,7 +74,7 @@ public:
                 return false;
             }
         }
-        ConsumeStream::pipeline_body(input_data_stream, input_last_stream, output_data_stream, STEP_output_data, STEP_i_word, STEP_i_par);
+        ConsumeStream::pipeline_body(input_data_stream, output_data_stream, STEP_output_data, STEP_i_word, STEP_i_par);
         STEP_i_par += IN_CH_PAR * IN_W_PAR;
         if (STEP_i_par >= DATA_PER_WORD)
         {
@@ -99,7 +97,6 @@ private:
 
     static void pipeline_body(
         hls::stream<TInputStruct> input_data_stream[IN_W_PAR],
-        hls::stream<bool> &input_last_stream,
         hls::stream<TOutputStruct> output_data_stream[1],
         TOutputStruct &output_data,
         size_t i_word,
@@ -128,8 +125,9 @@ private:
         {
             if (i_word == ITER - DATA_PER_WORD)
             {
-                // If we are at the last word and parallel index, read the last signal.
-                output_data.last = input_last_stream.read();
+                // If we are at the end of the tensor, assert the last.
+                // In the future we could also think about setting the last at each line.
+                output_data.last = true;
             } else
             {
                 // Otherwise, set the last signal to false.

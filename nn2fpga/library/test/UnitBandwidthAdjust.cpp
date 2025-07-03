@@ -38,8 +38,6 @@ bool test_run_increaseWPAR() {
     // Prepare input and output streams
     hls::stream<TInputStruct> in_stream[IN_W_PAR];
     hls::stream<TOutputStruct> out_stream[OUT_W_PAR];
-    hls::stream<bool> in_last;
-    hls::stream<bool> out_last;
 
     for (size_t i = 0; i < IN_HEIGHT * IN_WIDTH; i += IN_W_PAR)
     {
@@ -58,10 +56,8 @@ bool test_run_increaseWPAR() {
         }
     }
 
-    in_last.write(true); // Set last signal for the input stream
-
     // Run the operator
-    bandwidth_adjust.run(in_stream, in_last, out_stream, out_last);
+    bandwidth_adjust.run(in_stream, out_stream);
 
     // Check output
     bool flag = true;
@@ -79,9 +75,6 @@ bool test_run_increaseWPAR() {
             }
         }
     }
-
-    // Check last signal
-    flag &= (out_last.read() == true);
 
     return flag;
 }
@@ -118,11 +111,9 @@ bool test_step_increaseWPAR() {
     // Prepare input and output streams
     hls::stream<TInputStruct> in_stream[IN_W_PAR];
     hls::stream<TOutputStruct> out_stream[OUT_W_PAR];
-    hls::stream<bool> in_last;
-    hls::stream<bool> out_last;
 
     // Check step function not progressing in case of no data
-    bool flag = (bandwidth_adjust.step(in_stream, in_last, out_stream, out_last) == false);
+    bool flag = (bandwidth_adjust.step(in_stream, out_stream) == false);
 
     TInputStruct input_struct;
     for (size_t i = 0; i < IN_HEIGHT * IN_WIDTH; i += IN_W_PAR)
@@ -141,23 +132,18 @@ bool test_step_increaseWPAR() {
         }
     }
 
-    in_last.write(true); // Set last signal for the input stream
-
     // Run the operator
     for (size_t i = 0; i < IN_HEIGHT * IN_WIDTH * IN_CH / (CH_PAR * IN_W_PAR); i++)
     {
-        flag &= bandwidth_adjust.step(in_stream, in_last, out_stream, out_last);
+        flag &= bandwidth_adjust.step(in_stream, out_stream);
     } 
-
-    // Check last signal
-    flag &= (out_last.read() == true);
 
     // Check step function not progresssing in case of completed iterations.
     for (size_t i = 0; i < IN_W_PAR; i++)
     {
         in_stream[i].write(input_struct);
     }
-    flag &= (bandwidth_adjust.step(in_stream, in_last, out_stream, out_last) == false);
+    flag &= (bandwidth_adjust.step(in_stream, out_stream) == false);
 
     return flag;
 }
@@ -194,8 +180,6 @@ bool test_run_decreaseWPAR() {
     // Prepare input and output streams
     hls::stream<TInputStruct> in_stream[IN_W_PAR];
     hls::stream<TOutputStruct> out_stream[OUT_W_PAR];
-    hls::stream<bool> in_last;
-    hls::stream<bool> out_last;
 
     for (size_t i = 0; i < IN_HEIGHT * IN_WIDTH; i += IN_W_PAR)
     {
@@ -214,10 +198,8 @@ bool test_run_decreaseWPAR() {
         }
     }
 
-    in_last.write(true); // Set last signal for the input stream
-
     // Run the operator
-    bandwidth_adjust.run(in_stream, in_last, out_stream, out_last);
+    bandwidth_adjust.run(in_stream, out_stream);
 
     // Check output
     bool flag = true;
@@ -235,9 +217,6 @@ bool test_run_decreaseWPAR() {
             }
         }
     }
-
-    // Check last signal
-    flag &= (out_last.read() == true);
 
     return flag;
 }
@@ -274,11 +253,9 @@ bool test_step_decreaseWPAR() {
     // Prepare input and output streams
     hls::stream<TInputStruct> in_stream[IN_W_PAR];
     hls::stream<TOutputStruct> out_stream[OUT_W_PAR];
-    hls::stream<bool> in_last;
-    hls::stream<bool> out_last;
 
     // Check step function not progressing in case of no data
-    bool flag = (bandwidth_adjust.step(in_stream, in_last, out_stream, out_last) == false);
+    bool flag = (bandwidth_adjust.step(in_stream, out_stream) == false);
 
     TInputStruct input_struct;
     for (size_t i = 0; i < IN_HEIGHT * IN_WIDTH; i += IN_W_PAR)
@@ -297,23 +274,19 @@ bool test_step_decreaseWPAR() {
         }
     }
 
-    in_last.write(true); // Set last signal for the input stream
 
     // Run the operator
     for (size_t i = 0; i < IN_HEIGHT * IN_WIDTH * IN_CH / (CH_PAR * OUT_W_PAR); i++)
     {
-        flag &= bandwidth_adjust.step(in_stream, in_last, out_stream, out_last);
+        flag &= bandwidth_adjust.step(in_stream, out_stream);
     } 
-
-    // Check last signal
-    flag &= (out_last.read() == true);
 
     // Check step function not progresssing in case of completed iterations.
     for (size_t i = 0; i < IN_W_PAR; i++)
     {
         in_stream[i].write(input_struct);
     }
-    flag &= (bandwidth_adjust.step(in_stream, in_last, out_stream, out_last) == false);
+    flag &= (bandwidth_adjust.step(in_stream, out_stream) == false);
 
     return flag;
 }
@@ -350,8 +323,6 @@ bool test_run_increaseCHPAR() {
     // Prepare input and output streams
     hls::stream<TInputStruct> in_stream[W_PAR];
     hls::stream<TOutputStruct> out_stream[W_PAR];
-    hls::stream<bool> in_last;
-    hls::stream<bool> out_last;
 
     for (size_t i = 0; i < IN_HEIGHT * IN_WIDTH; i += W_PAR)
     {
@@ -370,10 +341,8 @@ bool test_run_increaseCHPAR() {
         }
     }
 
-    in_last.write(true); // Set last signal for the input stream
-
     // Run the operator
-    bandwidth_adjust.run(in_stream, in_last, out_stream, out_last);
+    bandwidth_adjust.run(in_stream, out_stream);
 
     // Check output
     bool flag = true;
@@ -387,14 +356,10 @@ bool test_run_increaseCHPAR() {
                 for (size_t ch_par = 0; ch_par < OUT_CH_PAR; ch_par++)
                 {
                     flag &= (output_struct[ch_par] == (i + w_par) * IN_CH + ch + ch_par);
-                    std::cout << "Output: " << output_struct[ch_par] << ", Expected: " << (i + w_par) * IN_CH + ch + ch_par << std::endl;
                 }
             }
         }
     }
-
-    // Check last signal
-    flag &= (out_last.read() == true);
 
     return flag;
 }
@@ -431,11 +396,9 @@ bool test_step_increaseCHPAR() {
     // Prepare input and output streams
     hls::stream<TInputStruct> in_stream[W_PAR];
     hls::stream<TOutputStruct> out_stream[W_PAR];
-    hls::stream<bool> in_last;
-    hls::stream<bool> out_last;
 
     // Check step function not progressing in case of no data
-    bool flag = (bandwidth_adjust.step(in_stream, in_last, out_stream, out_last) == false);
+    bool flag = (bandwidth_adjust.step(in_stream, out_stream) == false);
 
     TInputStruct input_struct;
     for (size_t i = 0; i < IN_HEIGHT * IN_WIDTH; i += W_PAR)
@@ -454,23 +417,18 @@ bool test_step_increaseCHPAR() {
         }
     }
 
-    in_last.write(true); // Set last signal for the input stream
-
     // Run the operator
     for (size_t i = 0; i < IN_HEIGHT * IN_WIDTH * IN_CH / (IN_CH_PAR * W_PAR); i++)
     {
-        flag &= bandwidth_adjust.step(in_stream, in_last, out_stream, out_last);
+        flag &= bandwidth_adjust.step(in_stream, out_stream);
     } 
-
-    // Check last signal
-    flag &= (out_last.read() == true);
 
     // Check step function not progresssing in case of completed iterations.
     for (size_t i = 0; i < W_PAR; i++)
     {
         in_stream[i].write(input_struct);
     }
-    flag &= (bandwidth_adjust.step(in_stream, in_last, out_stream, out_last) == false);
+    flag &= (bandwidth_adjust.step(in_stream, out_stream) == false);
 
     return flag;
 }
@@ -507,8 +465,6 @@ bool test_run_decreaseCHPAR() {
     // Prepare input and output streams
     hls::stream<TInputStruct> in_stream[W_PAR];
     hls::stream<TOutputStruct> out_stream[W_PAR];
-    hls::stream<bool> in_last;
-    hls::stream<bool> out_last;
 
     for (size_t i = 0; i < IN_HEIGHT * IN_WIDTH; i += W_PAR)
     {
@@ -527,10 +483,8 @@ bool test_run_decreaseCHPAR() {
         }
     }
 
-    in_last.write(true); // Set last signal for the input stream
-
     // Run the operator
-    bandwidth_adjust.run(in_stream, in_last, out_stream, out_last);
+    bandwidth_adjust.run(in_stream, out_stream);
 
     // Check output
     bool flag = true;
@@ -544,14 +498,10 @@ bool test_run_decreaseCHPAR() {
                 for (size_t ch_par = 0; ch_par < OUT_CH_PAR; ch_par++)
                 {
                     flag &= (output_struct[ch_par] == (i + w_par) * IN_CH + ch + ch_par);
-                    std::cout << "Output: " << output_struct[ch_par] << ", Expected: " << (i + w_par) * IN_CH + ch + ch_par << std::endl;
                 }
             }
         }
     }
-
-    // Check last signal
-    flag &= (out_last.read() == true);
 
     return flag;
 }
@@ -588,11 +538,9 @@ bool test_step_decreaseCHPAR() {
     // Prepare input and output streams
     hls::stream<TInputStruct> in_stream[W_PAR];
     hls::stream<TOutputStruct> out_stream[W_PAR];
-    hls::stream<bool> in_last;
-    hls::stream<bool> out_last;
 
     // Check step function not progressing in case of no data
-    bool flag = (bandwidth_adjust.step(in_stream, in_last, out_stream, out_last) == false);
+    bool flag = (bandwidth_adjust.step(in_stream, out_stream) == false);
 
     TInputStruct input_struct;
     for (size_t i = 0; i < IN_HEIGHT * IN_WIDTH; i += W_PAR)
@@ -611,23 +559,18 @@ bool test_step_decreaseCHPAR() {
         }
     }
 
-    in_last.write(true); // Set last signal for the input stream
-
     // Run the operator
-    for (size_t i = 0; i < IN_HEIGHT * IN_WIDTH * IN_CH / (IN_CH_PAR * W_PAR); i++)
+    for (size_t i = 0; i < IN_HEIGHT * IN_WIDTH * IN_CH / (OUT_CH_PAR * W_PAR); i++)
     {
-        flag &= bandwidth_adjust.step(in_stream, in_last, out_stream, out_last);
+        flag &= bandwidth_adjust.step(in_stream, out_stream);
     } 
-
-    // Check last signal
-    flag &= (out_last.read() == true);
 
     // Check step function not progresssing in case of completed iterations.
     for (size_t i = 0; i < W_PAR; i++)
     {
         in_stream[i].write(input_struct);
     }
-    flag &= (bandwidth_adjust.step(in_stream, in_last, out_stream, out_last) == false);
+    flag &= (bandwidth_adjust.step(in_stream, out_stream) == false);
 
     return flag;
 }
@@ -664,8 +607,6 @@ int main() {
                            ap_uint<8>,
                            4, 4, 4, 4, 2, 2>();
 
-    std::cout << all_passed << std::endl;
-
     // Test bandwidth adjustment from 2 to 4 channels
     all_passed &= test_run_increaseCHPAR<std::array<ap_uint<8>, 2>,
                            ap_uint<8>,
@@ -679,6 +620,18 @@ int main() {
                                          ap_uint<8>,
                                          4, 4, 4, 2, 2, 4>();
 
+    // Test bandwidth adjustment from 4 to 2 channels
+    all_passed &= test_run_decreaseCHPAR<std::array<ap_uint<8>, 4>,
+                                         ap_uint<8>,
+                                         std::array<ap_uint<8>, 2>,
+                                         ap_uint<8>,
+                                         4, 4, 4, 4, 4, 2>();
+
+    all_passed &= test_step_decreaseCHPAR<std::array<ap_uint<8>, 4>,
+                                          ap_uint<8>,
+                                          std::array<ap_uint<8>, 2>,
+                                          ap_uint<8>,
+                                          4, 4, 4, 4, 4, 2>();
     if (!all_passed) {
         std::cout << "Failed." << std::endl;
     } else {

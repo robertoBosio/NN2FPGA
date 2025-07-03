@@ -45,8 +45,6 @@ bool test_run_simple_square() {
     // Prepare input and output streams
     hls::stream<TInputStruct> in_stream[1];
     hls::stream<TOutputStruct> out_stream[1];
-    hls::stream<bool> in_last;
-    hls::stream<bool> out_last;
 
     // Prepare input data: fill every channel with 1, expect sum = 4 (2x2 window)
     for (size_t i = 0; i < IN_HEIGHT * IN_WIDTH; i++) {
@@ -58,10 +56,9 @@ bool test_run_simple_square() {
             in_stream[0].write(input_struct);
         }
     }
-    in_last.write(true);
 
     // Run pooling
-    pool.run(in_stream, in_last, out_stream, out_last);
+    pool.run(in_stream, out_stream);
 
     // Read and check output
     bool flag = true;
@@ -73,8 +70,6 @@ bool test_run_simple_square() {
         }
     }
 
-    // Check last
-    flag &= (out_last.read() == true);
     return flag;
 }
 
@@ -118,11 +113,9 @@ bool test_step_simple_square() {
     // Prepare input and output streams
     hls::stream<TInputStruct> in_stream[1];
     hls::stream<TOutputStruct> out_stream[1];
-    hls::stream<bool> in_last;
-    hls::stream<bool> out_last;
 
     // Check step function not progressing before any input
-    bool flag = (pool.step(in_stream, in_last, out_stream, out_last) == false);
+    bool flag = (pool.step(in_stream, out_stream) == false);
 
     // Prepare input data: fill every channel with 1, expect sum = 4 (2x2 window)
     for (size_t i = 0; i < IN_HEIGHT * IN_WIDTH; i++) {
@@ -134,18 +127,14 @@ bool test_step_simple_square() {
             in_stream[0].write(input_struct);
         }
     }
-    in_last.write(true);
 
     // Step through pooling
     for (size_t i = 0; i < IN_HEIGHT * IN_WIDTH * OUT_CH / OUT_CH_PAR; i++) {
-        flag &= pool.step(in_stream, in_last, out_stream, out_last);
+        flag &= pool.step(in_stream, out_stream);
     }
     
-    // Check last
-    flag &= (out_last.read() == true);
-
     // Check step function not progressing after all input
-    flag &= (pool.step(in_stream, in_last, out_stream, out_last) == false);
+    flag &= (pool.step(in_stream, out_stream) == false);
     
     return flag;
 }

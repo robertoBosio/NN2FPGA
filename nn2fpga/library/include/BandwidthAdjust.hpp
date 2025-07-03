@@ -30,9 +30,7 @@ public:
     }
 
     void run(hls::stream<TInputStruct> input_data_stream[IN_W_PAR],
-             hls::stream<bool> &input_last_stream,
-             hls::stream<TOutputStruct> output_data_stream[OUT_W_PAR],
-             hls::stream<bool> &output_last_stream)
+             hls::stream<TOutputStruct> output_data_stream[OUT_W_PAR])
     {
         for (size_t i_hw = 0; i_hw < IN_HEIGHT * IN_WIDTH; i_hw += OUT_W_PAR)
         {
@@ -45,13 +43,10 @@ public:
                 }
             }
         }
-        output_last_stream.write(input_last_stream.read());
     }
 
     bool step(hls::stream<TInputStruct> input_data_stream[IN_W_PAR],
-              hls::stream<bool> &input_last_stream,
-              hls::stream<TOutputStruct> output_data_stream[OUT_W_PAR],
-              hls::stream<bool> &output_last_stream)
+              hls::stream<TOutputStruct> output_data_stream[OUT_W_PAR])
     {
         if (STEP_i_hw >= IN_HEIGHT * IN_WIDTH)
         {
@@ -79,11 +74,6 @@ public:
             // If we have processed all output streams, reset the index and increment the height/width index.
             STEP_i_out_stream = 0;
             STEP_i_hw += OUT_W_PAR;
-        }
-        if (STEP_i_hw == IN_HEIGHT * IN_WIDTH && STEP_i_out_stream == 0 && STEP_i_ch == 0)
-        {
-            // If we have processed all height, width, and output streams, propagate the last signal.
-            output_last_stream.write(input_last_stream.read());
         }
         return true; // Return true to indicate that there is more data to process.
     }
@@ -152,9 +142,7 @@ public:
     }
 
     void run(hls::stream<TInputStruct> input_data_stream[IN_W_PAR],
-             hls::stream<bool> &input_last_stream,
-             hls::stream<TOutputStruct> output_data_stream[OUT_W_PAR],
-             hls::stream<bool> &output_last_stream)
+             hls::stream<TOutputStruct> output_data_stream[OUT_W_PAR])
     {
         for (size_t i_hw = 0; i_hw < IN_HEIGHT * IN_WIDTH; i_hw += IN_W_PAR)
         {
@@ -167,13 +155,10 @@ public:
                 }
             }
         }
-        output_last_stream.write(input_last_stream.read());
     }
 
     bool step(hls::stream<TInputStruct> input_data_stream[IN_W_PAR],
-              hls::stream<bool> &input_last_stream,
-              hls::stream<TOutputStruct> output_data_stream[OUT_W_PAR],
-              hls::stream<bool> &output_last_stream)
+              hls::stream<TOutputStruct> output_data_stream[OUT_W_PAR])
     {
         // If we have processed all height and width, return false to indicate no more data.
         if (STEP_i_hw >= IN_HEIGHT * IN_WIDTH)
@@ -203,11 +188,6 @@ public:
             // If we have processed all output streams, reset the index and increment the height/width index.
             STEP_i_in_stream = 0;
             STEP_i_hw += IN_W_PAR;
-        }
-        if (STEP_i_hw == IN_HEIGHT * IN_WIDTH && STEP_i_in_stream == 0 && STEP_i_ch == 0)
-        {
-            // If we have processed all height, width, and output streams, propagate the last signal.
-            output_last_stream.write(input_last_stream.read());
         }
         return true; // Return true to indicate that there is more data to process.
     }
@@ -275,9 +255,7 @@ public:
     }
 
     void run(hls::stream<TInputStruct> input_data_stream[W_PAR],
-             hls::stream<bool> &input_last_stream,
-             hls::stream<TOutputStruct> output_data_stream[W_PAR],
-             hls::stream<bool> &output_last_stream)
+             hls::stream<TOutputStruct> output_data_stream[W_PAR])
     {
         TOutputStruct output_data[W_PAR]; // Output structure to hold the results.
         for (size_t i_hw = 0; i_hw < IN_HEIGHT * IN_WIDTH; i_hw += W_PAR)
@@ -291,13 +269,10 @@ public:
                 }
             }
         }
-        output_last_stream.write(input_last_stream.read());
     }
 
     bool step(hls::stream<TInputStruct> input_data_stream[W_PAR],
-              hls::stream<bool> &input_last_stream,
-              hls::stream<TOutputStruct> output_data_stream[W_PAR],
-              hls::stream<bool> &output_last_stream)
+              hls::stream<TOutputStruct> output_data_stream[W_PAR])
     {
         if (STEP_i_hw >= IN_HEIGHT * IN_WIDTH)
         {
@@ -325,11 +300,6 @@ public:
             // If we have processed all output streams, reset the index and increment the height/width index.
             STEP_i_ch = 0;
             STEP_i_hw += W_PAR;
-        }
-        if (STEP_i_hw == IN_HEIGHT * IN_WIDTH && STEP_i_och_par == 0 && STEP_i_ch == 0)
-        {
-            // If we have processed all height, width, and output streams, propagate the last signal.
-            output_last_stream.write(input_last_stream.read());
         }
         return true; // Return true to indicate that there is more data to process.
     }
@@ -403,11 +373,9 @@ public:
     }
 
     void run(hls::stream<TInputStruct> input_data_stream[W_PAR],
-             hls::stream<bool> &input_last_stream,
-             hls::stream<TOutputStruct> output_data_stream[W_PAR],
-             hls::stream<bool> &output_last_stream)
+             hls::stream<TOutputStruct> output_data_stream[W_PAR])
     {
-        TInputStruct input_data[W_PAR]; // Output structure to hold the results.
+        TInputStruct input_data[W_PAR]; // Input structure to hold the data read.
         for (size_t i_hw = 0; i_hw < IN_HEIGHT * IN_WIDTH; i_hw += W_PAR)
         {
             for (size_t i_ch = 0; i_ch < IN_CH; i_ch += IN_CH_PAR)
@@ -419,25 +387,25 @@ public:
                 }
             }
         }
-        output_last_stream.write(input_last_stream.read());
     }
 
     bool step(hls::stream<TInputStruct> input_data_stream[W_PAR],
-              hls::stream<bool> &input_last_stream,
-              hls::stream<TOutputStruct> output_data_stream[W_PAR],
-              hls::stream<bool> &output_last_stream)
+              hls::stream<TOutputStruct> output_data_stream[W_PAR])
     {
         if (STEP_i_hw >= IN_HEIGHT * IN_WIDTH)
         {
             // If we have processed all height and width, return false to indicate no more data.
             return false;
         }
-        for (size_t i_in_stream = 0; i_in_stream < W_PAR; i_in_stream++)
+        if (STEP_i_ich_par == 0)
         {
-            if (input_data_stream[i_in_stream].empty())
+            for (size_t i_in_stream = 0; i_in_stream < W_PAR; i_in_stream++)
             {
-                // If there is no data in the input stream, return false.
-                return false;
+                if (input_data_stream[i_in_stream].empty())
+                {
+                    // If there is no data in the input stream, return false.
+                    return false;
+                }
             }
         }
         BandwidthAdjustDecreaseChannels::pipeline_body(input_data_stream, output_data_stream, STEP_input_data, STEP_i_ich_par);
@@ -453,11 +421,6 @@ public:
             // If we have processed all output streams, reset the index and increment the height/width index.
             STEP_i_ch = 0;
             STEP_i_hw += W_PAR;
-        }
-        if (STEP_i_hw == IN_HEIGHT * IN_WIDTH && STEP_i_ich_par == 0 && STEP_i_ch == 0)
-        {
-            // If we have processed all height, width, and output streams, propagate the last signal.
-            output_last_stream.write(input_last_stream.read());
         }
         return true; // Return true to indicate that there is more data to process.
     }

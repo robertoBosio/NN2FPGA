@@ -43,7 +43,6 @@ bool test_run() {
     // Prepare input and output streams
     hls::stream<TInputStruct> in_stream[IN_W_PAR];
     hls::stream<TOutputStruct> out_stream[1];
-    hls::stream<bool> in_last;
     
     for (size_t i = 0; i < IN_HEIGHT * IN_WIDTH; i += IN_W_PAR)
     {
@@ -61,10 +60,9 @@ bool test_run() {
             }
         }
     }
-    in_last.write(true); // Set last signal for the input stream
 
     // Run consumer
-    consumer.run(in_stream, in_last, out_stream);
+    consumer.run(in_stream, out_stream);
 
     // Read and check output
     bool flag = true;
@@ -90,7 +88,6 @@ bool test_run() {
             }
         }
     }
-    flag &= (output_struct.last == true); // Check last signal
 
     return flag;
 }
@@ -132,10 +129,9 @@ bool test_step() {
     // Prepare input and output streams
     hls::stream<TInputStruct> in_stream[IN_W_PAR];
     hls::stream<TOutputStruct> out_stream[1];
-    hls::stream<bool> in_last;
 
     // Check step function not progressing before any input
-    bool flag = (consumer.step(in_stream, in_last, out_stream) == false);
+    bool flag = (consumer.step(in_stream, out_stream) == false);
 
     // Prepare input data: fill every pixel with a counter following HWC format
     for (size_t i = 0; i < IN_HEIGHT * IN_WIDTH; i += IN_W_PAR)
@@ -154,24 +150,22 @@ bool test_step() {
             }
         }
     }
-    in_last.write(true); // Set last signal for the input stream
 
     // Step through consumer
     for (size_t i = 0; i < IN_HEIGHT * IN_WIDTH * IN_CH / (IN_CH_PAR * IN_W_PAR); i++) {
-        flag &= consumer.step(in_stream, in_last, out_stream);
+        flag &= consumer.step(in_stream, out_stream);
     }
     
-    // Check last signal
+    // Empty the output streams
     TOutputStruct output_struct;
     for (size_t i = 0; i < IN_HEIGHT * IN_WIDTH * IN_CH / DATA_PER_WORD; i++)
     {
         // Read the output structure from the stream
         output_struct = out_stream[0].read();
     }
-    flag &= (output_struct.last == true); // Check last signal
 
     // Check step function not progressing after all input
-    flag &= (consumer.step(in_stream, in_last, out_stream) == false);
+    flag &= (consumer.step(in_stream, out_stream) == false);
     
     return flag;
 }
