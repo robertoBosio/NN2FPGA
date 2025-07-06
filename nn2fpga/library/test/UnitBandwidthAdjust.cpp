@@ -32,7 +32,7 @@ bool test_run_increaseWPAR() {
         TOutputStruct, TOutput,
         TruncQuantizer,
         IN_HEIGHT, IN_WIDTH,
-        IN_CH, IN_W_PAR, OUT_W_PAR, CH_PAR>
+        IN_CH, IN_W_PAR, OUT_W_PAR, CH_PAR, CH_PAR>
         bandwidth_adjust;
 
     // Prepare input and output streams
@@ -105,7 +105,7 @@ bool test_step_increaseWPAR() {
         TOutputStruct, TOutput,
         TruncQuantizer,
         IN_HEIGHT, IN_WIDTH,
-        IN_CH, IN_W_PAR, OUT_W_PAR, CH_PAR>
+        IN_CH, IN_W_PAR, OUT_W_PAR, CH_PAR, CH_PAR>
         bandwidth_adjust;
 
     // Prepare input and output streams
@@ -174,7 +174,7 @@ bool test_run_decreaseWPAR() {
         TOutputStruct, TOutput,
         TruncQuantizer,
         IN_HEIGHT, IN_WIDTH,
-        IN_CH, IN_W_PAR, OUT_W_PAR, CH_PAR>
+        IN_CH, IN_W_PAR, OUT_W_PAR, CH_PAR, CH_PAR>
         bandwidth_adjust;
 
     // Prepare input and output streams
@@ -247,7 +247,7 @@ bool test_step_decreaseWPAR() {
         TOutputStruct, TOutput,
         TruncQuantizer,
         IN_HEIGHT, IN_WIDTH,
-        IN_CH, IN_W_PAR, OUT_W_PAR, CH_PAR>
+        IN_CH, IN_W_PAR, OUT_W_PAR, CH_PAR, CH_PAR>
         bandwidth_adjust;
 
     // Prepare input and output streams
@@ -317,7 +317,7 @@ bool test_run_increaseCHPAR() {
         TOutputStruct, TOutput,
         TruncQuantizer,
         IN_HEIGHT, IN_WIDTH,
-        IN_CH, W_PAR, IN_CH_PAR, OUT_CH_PAR>
+        IN_CH, W_PAR, W_PAR, IN_CH_PAR, OUT_CH_PAR>
         bandwidth_adjust;
 
     // Prepare input and output streams
@@ -390,7 +390,7 @@ bool test_step_increaseCHPAR() {
         TOutputStruct, TOutput,
         TruncQuantizer,
         IN_HEIGHT, IN_WIDTH,
-        IN_CH, W_PAR, IN_CH_PAR, OUT_CH_PAR>
+        IN_CH, W_PAR, W_PAR, IN_CH_PAR, OUT_CH_PAR>
         bandwidth_adjust;
 
     // Prepare input and output streams
@@ -459,7 +459,7 @@ bool test_run_decreaseCHPAR() {
         TOutputStruct, TOutput,
         TruncQuantizer,
         IN_HEIGHT, IN_WIDTH,
-        IN_CH, W_PAR, IN_CH_PAR, OUT_CH_PAR>
+        IN_CH, W_PAR, W_PAR, IN_CH_PAR, OUT_CH_PAR>
         bandwidth_adjust;
 
     // Prepare input and output streams
@@ -532,7 +532,7 @@ bool test_step_decreaseCHPAR() {
         TOutputStruct, TOutput,
         TruncQuantizer,
         IN_HEIGHT, IN_WIDTH,
-        IN_CH, W_PAR, IN_CH_PAR, OUT_CH_PAR>
+        IN_CH, W_PAR, W_PAR, IN_CH_PAR, OUT_CH_PAR>
         bandwidth_adjust;
 
     // Prepare input and output streams

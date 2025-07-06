@@ -165,8 +165,6 @@ class StreamingGlobalAveragePool(CustomOp):
         output_shape = model.get_tensor_shape(self.onnx_node.output[0])
         if output_shape is None:
             raise ValueError(f"Tensor shape for output '{self.onnx_node.output[0]}' not found in model.")
-        input_shape = model.get_tensor_shape(self.onnx_node.input[0])
-        output_shape = model.get_tensor_shape(self.onnx_node.output[0])
 
         # Declare the outputs.
         var = cpp_variable(

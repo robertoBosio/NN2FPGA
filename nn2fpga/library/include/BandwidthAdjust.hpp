@@ -12,7 +12,8 @@ template <typename TInputStruct,
           size_t IN_CH,
           size_t IN_W_PAR,
           size_t OUT_W_PAR,
-          size_t CH_PAR>
+          size_t IN_CH_PAR,
+          size_t OUT_CH_PAR>
 class BandwidthAdjustIncreaseStreams
 {
 public:
@@ -22,7 +23,9 @@ public:
     static_assert(OUT_W_PAR % IN_W_PAR == 0, "OUT_W_PAR must be a multiple of IN_W_PAR");
     static_assert(IN_WIDTH % IN_W_PAR == 0, "IN_WIDTH must be a multiple of IN_W_PAR");
     static_assert(IN_WIDTH % OUT_W_PAR == 0, "IN_WIDTH must be a multiple of OUT_W_PAR");
-    static_assert(IN_CH % CH_PAR == 0, "IN_CH must be a multiple of CH_PAR");
+    static_assert(IN_CH % IN_CH_PAR == 0, "IN_CH_PAR must be a multiple of CH_PAR");
+    static_assert(IN_CH % OUT_CH_PAR == 0, "OUT_CH_PAR must be a multiple of CH_PAR");
+    static_assert(IN_CH_PAR == OUT_CH_PAR, "IN_CH_PAR must be equal to OUT_CH_PAR");
 
     BandwidthAdjustIncreaseStreams()
         : STEP_i_hw(0), STEP_i_out_stream(0), STEP_i_ch(0) // Initialize indices to zero.
@@ -36,7 +39,7 @@ public:
         {
             for (size_t i_out_stream = 0; i_out_stream < OUT_W_PAR; i_out_stream += IN_W_PAR)
             {
-                for (size_t i_ch = 0; i_ch < IN_CH; i_ch += CH_PAR)
+                for (size_t i_ch = 0; i_ch < IN_CH; i_ch += OUT_CH_PAR)
                 {
 #pragma HLS pipeline style = stp II = 1
                     BandwidthAdjustIncreaseStreams::pipeline_body(input_data_stream, output_data_stream, i_out_stream);
@@ -62,7 +65,7 @@ public:
             }
         }
         BandwidthAdjustIncreaseStreams::pipeline_body(input_data_stream, output_data_stream, STEP_i_out_stream);
-        STEP_i_ch += CH_PAR;
+        STEP_i_ch += OUT_CH_PAR;
         if (STEP_i_ch >= IN_CH)
         {
             // If we have processed all input channels, reset the index and increment the height/width index.
@@ -98,7 +101,7 @@ private:
             // Read the input data structure from the input stream.
             s_input_struct = input_data_stream[i_w_par].read();
 
-            for (size_t i_och_par = 0; i_och_par < CH_PAR; i_och_par++)
+            for (size_t i_och_par = 0; i_och_par < OUT_CH_PAR; i_och_par++)
             {
                 // Extract the data for the current pixel output channel.
                 TInput s_input_data = s_input_struct[i_och_par];
@@ -124,7 +127,8 @@ template <typename TInputStruct,
           size_t IN_CH,
           size_t IN_W_PAR,
           size_t OUT_W_PAR,
-          size_t CH_PAR>
+          size_t IN_CH_PAR,
+          size_t OUT_CH_PAR>
 class BandwidthAdjustDecreaseStreams
 {
 public:
@@ -134,7 +138,9 @@ public:
     static_assert(IN_W_PAR % OUT_W_PAR == 0, "OUT_W_PAR must be a multiple of IN_W_PAR");
     static_assert(IN_WIDTH % IN_W_PAR == 0, "IN_WIDTH must be a multiple of IN_W_PAR");
     static_assert(IN_WIDTH % OUT_W_PAR == 0, "IN_WIDTH must be a multiple of OUT_W_PAR");
-    static_assert(IN_CH % CH_PAR == 0, "IN_CH must be a multiple of CH_PAR");
+    static_assert(IN_CH % IN_CH_PAR == 0, "IN_CH_PAR must be a multiple of CH_PAR");
+    static_assert(IN_CH % OUT_CH_PAR == 0, "OUT_CH_PAR must be a multiple of CH_PAR");
+    static_assert(IN_CH_PAR == OUT_CH_PAR, "IN_CH_PAR must be equal to OUT_CH_PAR");
 
     BandwidthAdjustDecreaseStreams()
         : STEP_i_hw(0), STEP_i_in_stream(0), STEP_i_ch(0) // Initialize indices to zero.
@@ -148,7 +154,7 @@ public:
         {
             for (size_t i_in_stream = 0; i_in_stream < IN_W_PAR; i_in_stream += OUT_W_PAR)
             {
-                for (size_t i_ch = 0; i_ch < IN_CH; i_ch += CH_PAR)
+                for (size_t i_ch = 0; i_ch < IN_CH; i_ch += OUT_CH_PAR)
                 {
 #pragma HLS pipeline style = stp II = 1
                     BandwidthAdjustDecreaseStreams::pipeline_body(input_data_stream, output_data_stream, i_in_stream);
@@ -176,7 +182,7 @@ public:
             }
         }
         BandwidthAdjustDecreaseStreams::pipeline_body(input_data_stream, output_data_stream, STEP_i_in_stream);
-        STEP_i_ch += CH_PAR;
+        STEP_i_ch += OUT_CH_PAR;
         if (STEP_i_ch >= IN_CH)
         {
             // If we have processed all input channels, reset the index and increment the height/width index.
@@ -212,7 +218,7 @@ private:
             // Read the input data structure from the input stream.
             s_input_struct = input_data_stream[i_in_stream + i_w_par].read();
 
-            for (size_t i_och_par = 0; i_och_par < CH_PAR; i_och_par++)
+            for (size_t i_och_par = 0; i_och_par < OUT_CH_PAR; i_och_par++)
             {
                 // Extract the data for the current pixel output channel.
                 TInput s_input_data = s_input_struct[i_och_par];
@@ -236,16 +242,20 @@ template <typename TInputStruct,
           size_t IN_HEIGHT,
           size_t IN_WIDTH,
           size_t IN_CH,
-          size_t W_PAR,
+          size_t IN_W_PAR,
+          size_t OUT_W_PAR,
           size_t IN_CH_PAR,
           size_t OUT_CH_PAR>
 class BandwidthAdjustIncreaseChannels
 {
 public:
-    static_assert(W_PAR > 0, "IN_W_PAR must be greater than 0");
+    static_assert(IN_W_PAR > 0, "IN_W_PAR must be greater than 0");
+    static_assert(OUT_W_PAR > 0, "OUT_W_PAR must be greater than 0");
     static_assert(IN_CH_PAR < OUT_CH_PAR, "IN_CH_PAR must be less than OUT_CH_PAR");
     static_assert(OUT_CH_PAR % IN_CH_PAR == 0, "OUT_CH_PAR must be a multiple of IN_CH_PAR");
-    static_assert(IN_WIDTH % W_PAR == 0, "IN_WIDTH must be a multiple of IN_W_PAR");
+    static_assert(IN_WIDTH % IN_W_PAR == 0, "IN_WIDTH must be a multiple of IN_W_PAR");
+    static_assert(IN_WIDTH % OUT_W_PAR == 0, "IN_WIDTH must be a multiple of OUT_W_PAR");
+    static_assert(IN_W_PAR == OUT_W_PAR, "IN_W_PAR must be equal to OUT_W_PAR");
     static_assert(IN_CH % IN_CH_PAR == 0, "IN_CH must be a multiple of IN_CH_PAR");
     static_assert(IN_CH % OUT_CH_PAR == 0, "IN_CH must be a multiple of OUT_CH_PAR");
 
@@ -254,11 +264,11 @@ public:
     {
     }
 
-    void run(hls::stream<TInputStruct> input_data_stream[W_PAR],
-             hls::stream<TOutputStruct> output_data_stream[W_PAR])
+    void run(hls::stream<TInputStruct> input_data_stream[IN_W_PAR],
+             hls::stream<TOutputStruct> output_data_stream[OUT_W_PAR])
     {
-        TOutputStruct output_data[W_PAR]; // Output structure to hold the results.
-        for (size_t i_hw = 0; i_hw < IN_HEIGHT * IN_WIDTH; i_hw += W_PAR)
+        TOutputStruct output_data[OUT_W_PAR]; // Output structure to hold the results.
+        for (size_t i_hw = 0; i_hw < IN_HEIGHT * IN_WIDTH; i_hw += IN_W_PAR)
         {
             for (size_t i_ch = 0; i_ch < IN_CH; i_ch += OUT_CH_PAR)
             {
@@ -271,15 +281,15 @@ public:
         }
     }
 
-    bool step(hls::stream<TInputStruct> input_data_stream[W_PAR],
-              hls::stream<TOutputStruct> output_data_stream[W_PAR])
+    bool step(hls::stream<TInputStruct> input_data_stream[IN_W_PAR],
+              hls::stream<TOutputStruct> output_data_stream[OUT_W_PAR])
     {
         if (STEP_i_hw >= IN_HEIGHT * IN_WIDTH)
         {
             // If we have processed all height and width, return false to indicate no more data.
             return false;
         }
-        for (size_t i_in_stream = 0; i_in_stream < W_PAR; i_in_stream++)
+        for (size_t i_in_stream = 0; i_in_stream < IN_W_PAR; i_in_stream++)
         {
             if (input_data_stream[i_in_stream].empty())
             {
@@ -299,28 +309,28 @@ public:
         {
             // If we have processed all output streams, reset the index and increment the height/width index.
             STEP_i_ch = 0;
-            STEP_i_hw += W_PAR;
+            STEP_i_hw += IN_W_PAR;
         }
         return true; // Return true to indicate that there is more data to process.
     }
 
 private:
-    TOutputStruct STEP_output_data[W_PAR]; // Output structure to hold the results.
-    size_t STEP_i_hw;                      // Index for height and width.
-    size_t STEP_i_och_par;                 // Index for output channels.
-    size_t STEP_i_ch;                      // Index for input channels.
+    TOutputStruct STEP_output_data[OUT_W_PAR]; // Output structure to hold the results.
+    size_t STEP_i_hw;                          // Index for height and width.
+    size_t STEP_i_och_par;                     // Index for output channels.
+    size_t STEP_i_ch;                          // Index for input channels.
 
     static void pipeline_body(
-        hls::stream<TInputStruct> input_data_stream[W_PAR],
-        hls::stream<TOutputStruct> output_data_stream[W_PAR],
-        TOutputStruct s_output_struct[W_PAR],
+        hls::stream<TInputStruct> input_data_stream[IN_W_PAR],
+        hls::stream<TOutputStruct> output_data_stream[OUT_W_PAR],
+        TOutputStruct s_output_struct[OUT_W_PAR],
         size_t i_och_par)
     {
 #pragma HLS inline
         TInputStruct s_input_struct; // Input structure to read data from the input stream.
         Quantizer quantizer;         // Quantizer instance for quantization.
 
-        for (size_t i_w_par = 0; i_w_par < W_PAR; i_w_par++)
+        for (size_t i_w_par = 0; i_w_par < IN_W_PAR; i_w_par++)
         {
             // Read the input data structure from the input stream.
             s_input_struct = input_data_stream[i_w_par].read();
@@ -354,16 +364,20 @@ template <typename TInputStruct,
           size_t IN_HEIGHT,
           size_t IN_WIDTH,
           size_t IN_CH,
-          size_t W_PAR,
+          size_t IN_W_PAR,
+          size_t OUT_W_PAR,
           size_t IN_CH_PAR,
           size_t OUT_CH_PAR>
 class BandwidthAdjustDecreaseChannels
 {
 public:
-    static_assert(W_PAR > 0, "IN_W_PAR must be greater than 0");
+    static_assert(IN_W_PAR > 0, "IN_W_PAR must be greater than 0");
+    static_assert(OUT_W_PAR > 0, "OUT_W_PAR must be greater than 0");
     static_assert(IN_CH_PAR > OUT_CH_PAR, "OUT_CH_PAR must be less than IN_CH_PAR");
     static_assert(IN_CH_PAR % OUT_CH_PAR == 0, "IN_CH_PAR must be a multiple of OUT_CH_PAR");
-    static_assert(IN_WIDTH % W_PAR == 0, "IN_WIDTH must be a multiple of IN_W_PAR");
+    static_assert(IN_WIDTH % IN_W_PAR == 0, "IN_WIDTH must be a multiple of IN_W_PAR");
+    static_assert(IN_WIDTH % OUT_W_PAR == 0, "IN_WIDTH must be a multiple of OUT_W_PAR");
+    static_assert(IN_W_PAR == OUT_W_PAR, "IN_W_PAR must be equal to OUT_W_PAR");
     static_assert(IN_CH % IN_CH_PAR == 0, "IN_CH must be a multiple of IN_CH_PAR");
     static_assert(IN_CH % OUT_CH_PAR == 0, "IN_CH must be a multiple of OUT_CH_PAR");
 
@@ -372,11 +386,11 @@ public:
     {
     }
 
-    void run(hls::stream<TInputStruct> input_data_stream[W_PAR],
-             hls::stream<TOutputStruct> output_data_stream[W_PAR])
+    void run(hls::stream<TInputStruct> input_data_stream[IN_W_PAR],
+             hls::stream<TOutputStruct> output_data_stream[OUT_W_PAR])
     {
-        TInputStruct input_data[W_PAR]; // Input structure to hold the data read.
-        for (size_t i_hw = 0; i_hw < IN_HEIGHT * IN_WIDTH; i_hw += W_PAR)
+        TInputStruct input_data[IN_W_PAR]; // Input structure to hold the data read.
+        for (size_t i_hw = 0; i_hw < IN_HEIGHT * IN_WIDTH; i_hw += IN_W_PAR)
         {
             for (size_t i_ch = 0; i_ch < IN_CH; i_ch += IN_CH_PAR)
             {
@@ -389,8 +403,8 @@ public:
         }
     }
 
-    bool step(hls::stream<TInputStruct> input_data_stream[W_PAR],
-              hls::stream<TOutputStruct> output_data_stream[W_PAR])
+    bool step(hls::stream<TInputStruct> input_data_stream[IN_W_PAR],
+              hls::stream<TOutputStruct> output_data_stream[OUT_W_PAR])
     {
         if (STEP_i_hw >= IN_HEIGHT * IN_WIDTH)
         {
@@ -399,7 +413,7 @@ public:
         }
         if (STEP_i_ich_par == 0)
         {
-            for (size_t i_in_stream = 0; i_in_stream < W_PAR; i_in_stream++)
+            for (size_t i_in_stream = 0; i_in_stream < IN_W_PAR; i_in_stream++)
             {
                 if (input_data_stream[i_in_stream].empty())
                 {
@@ -420,28 +434,28 @@ public:
         {
             // If we have processed all output streams, reset the index and increment the height/width index.
             STEP_i_ch = 0;
-            STEP_i_hw += W_PAR;
+            STEP_i_hw += IN_W_PAR;
         }
         return true; // Return true to indicate that there is more data to process.
     }
 
 private:
-    TInputStruct STEP_input_data[W_PAR]; // Output structure to hold the results.
-    size_t STEP_i_hw;                      // Index for height and width.
-    size_t STEP_i_ich_par;                 // Index for input channels.
-    size_t STEP_i_ch;                      // Index for input channels.
+    TInputStruct STEP_input_data[IN_W_PAR]; // Output structure to hold the results.
+    size_t STEP_i_hw;                       // Index for height and width.
+    size_t STEP_i_ich_par;                  // Index for input channels.
+    size_t STEP_i_ch;                       // Index for input channels.
 
     static void pipeline_body(
-        hls::stream<TInputStruct> input_data_stream[W_PAR],
-        hls::stream<TOutputStruct> output_data_stream[W_PAR],
-        TInputStruct s_input_struct[W_PAR],
+        hls::stream<TInputStruct> input_data_stream[IN_W_PAR],
+        hls::stream<TOutputStruct> output_data_stream[OUT_W_PAR],
+        TInputStruct s_input_struct[IN_W_PAR],
         size_t i_ich_par)
     {
 #pragma HLS inline
         TOutputStruct s_output_struct; // Output structure to read data from the input stream.
         Quantizer quantizer;           // Quantizer instance for quantization.
 
-        for (size_t i_w_par = 0; i_w_par < W_PAR; i_w_par++)
+        for (size_t i_w_par = 0; i_w_par < IN_W_PAR; i_w_par++)
         {
             // Read the input data structure from the input stream.
             if (i_ich_par == 0)
