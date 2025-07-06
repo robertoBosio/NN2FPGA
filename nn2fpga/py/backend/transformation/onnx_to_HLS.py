@@ -35,7 +35,7 @@ def generate_hls_code(model: ModelWrapper) -> str:
                 cwr.include(fname)
     
     # Top function definition
-    function = cpp_function("top", "void")
+    function = cpp_function(model.get_metadata_prop("top_name"), "void")
     function.add_code("#pragma HLS TOP")
     function.add_code("#pragma HLS DATAFLOW")
     function.add_code("#pragma HLS INTERFACE ap_ctrl_none port=return")
@@ -64,6 +64,11 @@ def generate_hls_code(model: ModelWrapper) -> str:
             pooling_op = getCustomOp(node)
             pooling_code = pooling_op.generate_run_call(model)
             function.add_code(pooling_code)
+        elif node.op_type == "BandwidthAdjustDecreaseChannels":
+            # Generate code for BandwidthAdjustDecreaseChannels custom operation
+            bandwidth_adjust_op = getCustomOp(node)
+            bandwidth_adjust_code = bandwidth_adjust_op.generate_run_call(model)
+            function.add_code(bandwidth_adjust_code)
 
 
     cwr.add_function_definition(function)
