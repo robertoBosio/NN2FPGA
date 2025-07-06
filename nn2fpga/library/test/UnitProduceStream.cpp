@@ -41,7 +41,7 @@ bool test_run() {
         producer;
 
     // Prepare input and output streams
-    hls::stream<TInputStruct> in_stream[1];
+    hls::stream<TInputStruct> in_stream;
     hls::stream<TOutputStruct> out_stream[OUT_W_PAR];
 
     // Prepare input data: fill every pixel with a counter following HWC format
@@ -64,7 +64,7 @@ bool test_run() {
                 } else {
                     input_struct.last = false;
                 }
-                in_stream[0].write(input_struct);
+                in_stream.write(input_struct);
                 
                 data_in_word = 0;
                 input_struct.data = 0; // Reset for next word
@@ -131,7 +131,7 @@ bool test_step() {
         producer;
 
     // Prepare input and output streams
-    hls::stream<TInputStruct> in_stream[1];
+    hls::stream<TInputStruct> in_stream;
     hls::stream<TOutputStruct> out_stream[OUT_W_PAR];
 
     // Check step function not progressing before any input
@@ -157,7 +157,7 @@ bool test_step() {
                 } else {
                     input_struct.last = false;
                 }
-                in_stream[0].write(input_struct);
+                in_stream.write(input_struct);
                 
                 data_in_word = 0;
                 input_struct.data = 0; // Reset for next word

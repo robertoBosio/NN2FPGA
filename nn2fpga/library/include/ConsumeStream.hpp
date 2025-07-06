@@ -42,7 +42,7 @@ public:
     }
 
     void run(hls::stream<TInputStruct> input_data_stream[IN_W_PAR],
-             hls::stream<TOutputStruct> output_data_stream[1])
+             hls::stream<TOutputStruct> &output_data_stream)
     {
         TOutputStruct output_data; // Output data structure to hold the results.
 
@@ -59,7 +59,7 @@ public:
     }
 
     bool step(hls::stream<TInputStruct> input_data_stream[IN_W_PAR],
-              hls::stream<TOutputStruct> output_data_stream[1])
+              hls::stream<TOutputStruct> &output_data_stream)
     {
         if (STEP_i_word >= ITER)
         {
@@ -97,7 +97,7 @@ private:
 
     static void pipeline_body(
         hls::stream<TInputStruct> input_data_stream[IN_W_PAR],
-        hls::stream<TOutputStruct> output_data_stream[1],
+        hls::stream<TOutputStruct> &output_data_stream,
         TOutputStruct &output_data,
         size_t i_word,
         size_t i_par)
@@ -135,7 +135,7 @@ private:
             }
 
             // Write the output data structure to the output stream.
-            output_data_stream[0].write(output_data);
+            output_data_stream.write(output_data);
         }
     }
 };

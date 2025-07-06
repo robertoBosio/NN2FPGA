@@ -32,7 +32,7 @@ public:
         STEP_i_word = 0; // Initialize the word index to zero.
     }
 
-    void run(hls::stream<TInputStruct>& input_data_stream,
+    void run(hls::stream<TInputStruct> &input_data_stream,
              hls::stream<TOutputStruct> output_data_stream[OUT_W_PAR])
     {
         TInputStruct input_data; // Read the input data structure from the input stream.
@@ -49,7 +49,7 @@ public:
         }
     }
 
-    bool step(hls::stream<TInputStruct>& input_data_stream,
+    bool step(hls::stream<TInputStruct> &input_data_stream,
               hls::stream<TOutputStruct> output_data_stream[OUT_W_PAR])
     {
         if (STEP_i_word >= ITER)
@@ -57,7 +57,7 @@ public:
             // If we have processed all data, return false to indicate no more data.
             return false;
         }
-        if (STEP_i_par == 0 && input_data_stream[0].empty())
+        if (STEP_i_par == 0 && input_data_stream.empty())
         {
             // If there is no data in the input stream, return false.
             return false;
@@ -84,7 +84,7 @@ private:
     TInputStruct STEP_input_data; // Input data structure for the current step
 
     static void pipeline_body(
-        hls::stream<TInputStruct>& input_data_stream,
+        hls::stream<TInputStruct> &input_data_stream,
         hls::stream<TOutputStruct> output_data_stream[OUT_W_PAR],
         TInputStruct &input_data,
         size_t i_par)

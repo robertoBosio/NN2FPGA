@@ -42,7 +42,7 @@ bool test_run() {
 
     // Prepare input and output streams
     hls::stream<TInputStruct> in_stream[IN_W_PAR];
-    hls::stream<TOutputStruct> out_stream[1];
+    hls::stream<TOutputStruct> out_stream;
     
     for (size_t i = 0; i < IN_HEIGHT * IN_WIDTH; i += IN_W_PAR)
     {
@@ -75,7 +75,7 @@ bool test_run() {
             if (data_in_word == 0)
             {
                 // Read the output structure from the stream
-                output_struct = out_stream[0].read();
+                output_struct = out_stream.read();
             }
 
             // Fill the input structure with the value 1 for each channel
@@ -128,7 +128,7 @@ bool test_step() {
 
     // Prepare input and output streams
     hls::stream<TInputStruct> in_stream[IN_W_PAR];
-    hls::stream<TOutputStruct> out_stream[1];
+    hls::stream<TOutputStruct> out_stream;
 
     // Check step function not progressing before any input
     bool flag = (consumer.step(in_stream, out_stream) == false);
@@ -161,7 +161,7 @@ bool test_step() {
     for (size_t i = 0; i < IN_HEIGHT * IN_WIDTH * IN_CH / DATA_PER_WORD; i++)
     {
         // Read the output structure from the stream
-        output_struct = out_stream[0].read();
+        output_struct = out_stream.read();
     }
 
     // Check step function not progressing after all input

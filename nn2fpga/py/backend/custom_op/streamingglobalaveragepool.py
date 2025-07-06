@@ -18,7 +18,7 @@ from backend.core.tensor_quant import TensorQuant
 from backend.util.par_utils import get_par_attributes
 
 class StreamingGlobalAveragePool(CustomOp):
-    """ Node implementing the output-stationary convolution operation. """
+    """Node implementing the streaming global average pooling operation."""
 
     @staticmethod
     def from_onnx_node(onnx_node):
@@ -128,11 +128,15 @@ class StreamingGlobalAveragePool(CustomOp):
         )
         return f"{get_quant_type(divisor_quant)}"
 
+    def __is_power_of_two(self, value) -> bool:
+        """Check if a value is a power of two."""
+        return value > 0 and float(np.log2(value)).is_integer()
+
     def __get_quantizer(self, input_quant, output_quant, input_shape) -> str:
         """ Returns the quantizer type for the StreamingGlobalAveragePool operation. """
 
         # Check if the scale is a power of two
-        if float(np.log2(input_quant.scale)).is_integer() and float(np.log2(output_quant.scale)).is_integer():
+        if self.__is_power_of_two(input_quant.scale) and self.__is_power_of_two(output_quant.scale):
             shift = int(np.log2(input_quant.scale)) - int(np.log2(output_quant.scale))
             return f"DequantQuantPo2Types<{shift}, {self.__get_accumulator(input_quant, input_shape)}, {get_quant_type(output_quant)}>"
         else:
@@ -155,6 +159,12 @@ class StreamingGlobalAveragePool(CustomOp):
         par_attribute = get_par_attributes(self.onnx_node)
 
         # Retrieve tensor shape.
+        input_shape = model.get_tensor_shape(self.onnx_node.input[0])
+        if input_shape is None:
+            raise ValueError(f"Tensor shape for input '{self.onnx_node.input[0]}' not found in model.")
+        output_shape = model.get_tensor_shape(self.onnx_node.output[0])
+        if output_shape is None:
+            raise ValueError(f"Tensor shape for output '{self.onnx_node.output[0]}' not found in model.")
         input_shape = model.get_tensor_shape(self.onnx_node.input[0])
         output_shape = model.get_tensor_shape(self.onnx_node.output[0])
 

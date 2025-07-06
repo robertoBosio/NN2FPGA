@@ -64,6 +64,7 @@ class ProduceStream(CustomOp):
         return fitting_data * par_attribute["in_ch_par"] * par_attribute["in_w_par"]
 
     def generate_run_call(self, model):
+        """ Generates the C++ code necessary to run the ProduceStream node. """
 
         cwr = NewCodeWriter()
 
@@ -76,14 +77,11 @@ class ProduceStream(CustomOp):
         if output_quant is None:
             raise ValueError(f"Tensor quantization for output '{self.onnx_node.output[0]}' not found in model.")
 
-        output_bitwidth = output_quant.bitwidth
-        output_signed = output_quant.signed
-
         # Retrieve parallelization attributes.
         par_attribute = get_par_attributes(self.onnx_node)
 
         # Retrieve tensor shape.
-        input_shape = model.get_tensor_shape(self.onnx_node.output[0])
+        input_shape = model.get_tensor_shape(self.onnx_node.input[0])
 
         # Declare the outputs.
         var = cpp_variable(
@@ -110,7 +108,7 @@ class ProduceStream(CustomOp):
                     "Quantizer",
                 ),
                 (self.__get_data_per_word(model), "DATA_PER_WORD"),
-                (output_bitwidth, "BITS_PER_DATA"),
+                (output_quant.bitwidth, "BITS_PER_DATA"),
                 (input_shape[2], "IN_HEIGHT"),
                 (input_shape[3], "IN_WIDTH"),
                 (input_shape[1], "OUT_CH"),
@@ -132,7 +130,7 @@ class ProduceStream(CustomOp):
                 ),
                 (
                     f"output_data_stream",
-                    f"hls::stream<TOuputStruct>",
+                    f"hls::stream<TOutputStruct>",
                 ),
             ),
         )
