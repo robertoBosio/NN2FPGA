@@ -4,7 +4,7 @@ from onnx import TensorAnnotation, StringStringEntryProto
 from qonnx.core.modelwrapper import ModelWrapper
 
 class TensorQuant:
-    def __init__(self, bitwidth, signed, scale, zeropt, narrow_range, rounding):
+    def __init__(self, bitwidth, signed, scale, zeropt, narrow_range=False, rounding="ROUND"):
         self.bitwidth = int(bitwidth)
         self.signed = int(signed)
         self.scale = float(scale)

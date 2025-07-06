@@ -4,6 +4,18 @@ from onnx import TensorProto, helper
 from qonnx.custom_op.base import CustomOp
 from qonnx.util.basic import qonnx_make_model
 from qonnx.core.modelwrapper import ModelWrapper
+from backend.core.tensor_quant import get_custom_tensor_datatype
+from backend.util.codegen_utils import (
+    cpp_function,
+    cpp_variable,
+    cpp_object,
+    NewCodeWriter,
+    get_struct_type,
+    get_stream_type,
+    get_quant_type,
+)
+from backend.core.tensor_quant import TensorQuant
+from backend.util.par_utils import get_par_attributes
 
 class StreamingGlobalAveragePool(CustomOp):
     """ Node implementing the output-stationary convolution operation. """
@@ -89,3 +101,111 @@ class StreamingGlobalAveragePool(CustomOp):
 
     def verify_node(self):
         pass
+
+    def __get_accumulator(self, input_quant, input_shape) -> str:
+        """ Returns the accumulator type for the StreamingGlobalAveragePool operation. """
+
+        add_ops = input_shape[2] * input_shape[3] # H * W
+        acc_bitwidth = input_quant.bitwidth + int(np.ceil(np.log2(add_ops)))
+        acc_quant = TensorQuant(
+            bitwidth=acc_bitwidth,
+            signed=input_quant.signed,
+            scale=input_quant.scale,
+            zeropt=input_quant.zeropt,
+        )
+
+        return f"{get_quant_type(acc_quant)}"
+
+    def __get_divisor(self, input_shape) -> str:
+        """ Returns the divisor type for the StreamingGlobalAveragePool operation. """
+
+        divisor = input_shape[2] * input_shape[3]
+        divisor_quant = TensorQuant(
+            bitwidth=int(np.ceil(np.log2(divisor))),
+            signed=False,
+            scale=1.0,
+            zeropt=0,
+        )
+        return f"{get_quant_type(divisor_quant)}"
+
+    def __get_quantizer(self, input_quant, output_quant, input_shape) -> str:
+        """ Returns the quantizer type for the StreamingGlobalAveragePool operation. """
+
+        # Check if the scale is a power of two
+        if float(np.log2(input_quant.scale)).is_integer() and float(np.log2(output_quant.scale)).is_integer():
+            shift = int(np.log2(input_quant.scale)) - int(np.log2(output_quant.scale))
+            return f"DequantQuantPo2Types<{shift}, {self.__get_accumulator(input_quant, input_shape)}, {get_quant_type(output_quant)}>"
+        else:
+            raise ValueError(
+                "Float quantization is currently not supported for StreamingGlobalAveragePool.  "
+            )
+
+    def generate_run_call(self, model):
+        cwr = NewCodeWriter()
+
+        input_quant = get_custom_tensor_datatype(model, self.onnx_node.input[0])
+        if input_quant is None:
+            raise ValueError(f"Tensor quantization for input '{self.onnx_node.input[0]}' not found in model.")
+
+        output_quant = get_custom_tensor_datatype(model, self.onnx_node.output[0])
+        if output_quant is None:
+            raise ValueError(f"Tensor quantization for output '{self.onnx_node.output[0]}' not found in model.")
+
+        # Retrieve parallelization attributes.
+        par_attribute = get_par_attributes(self.onnx_node)
+
+        # Retrieve tensor shape.
+        input_shape = model.get_tensor_shape(self.onnx_node.input[0])
+        output_shape = model.get_tensor_shape(self.onnx_node.output[0])
+
+        # Declare the outputs.
+        var = cpp_variable(
+            f"{self.onnx_node.output[0]}_stream",
+            f"{get_stream_type(output_quant, par_attribute['out_ch_par'])}",
+            array=[par_attribute["out_w_par"]],
+        )
+        cwr.add_variable_declaration(var)
+
+        # Create the StreamingGlobalAveragePool object.
+        StreamingGlobalAveragePool = cpp_object(
+            "StreamingGlobalAveragePool",
+            f"{self.onnx_node.name}",
+            template_args=[
+                (f"{get_struct_type(input_quant, par_attribute['in_ch_par'])}", "TInputStruct"),
+                (f"{get_quant_type(input_quant)}", "TInput"),
+                (f"{get_struct_type(output_quant, par_attribute['out_ch_par'])}", "TOutputStruct"),
+                (f"{get_quant_type(output_quant)}", "TOutput"),
+                (self.__get_accumulator(input_quant, input_shape), "TAcc"),
+                (self.__get_divisor(input_shape), "TDiv"),
+                (self.__get_quantizer(input_quant, output_quant, input_shape), "Quantizer"),
+                (input_shape[2], "IN_HEIGHT"),
+                (input_shape[3], "IN_WIDTH"),
+                (output_shape[1], "OUT_CH"),
+                (par_attribute["out_ch_par"], "OUT_CH_PAR"),
+            ])
+
+        cwr.add_lines(StreamingGlobalAveragePool.generate_declaration())
+
+        # Generate the call to the StreamingGlobalAveragePool run method.
+        run = cpp_function(
+            name=f"{self.onnx_node.name}.run",
+            return_type="void",
+            arguments=(
+                (
+                    f"input_data_stream",
+                    f"hls::stream<TInputStruct>",
+                ),
+                (
+                    f"output_data_stream",
+                    f"hls::stream<TOutputStruct>",
+                ),
+            ),
+        )
+
+        cwr.add_function_call(
+            run,
+            f"{self.onnx_node.input[0]}_stream",
+            f"{self.onnx_node.output[0]}_stream",
+        )
+
+        return cwr.code

@@ -1,53 +1,14 @@
 from qonnx.transformation.base import Transformation
 from qonnx.core.modelwrapper import ModelWrapper
 from qonnx.custom_op.registry import getCustomOp
+from backend.core.tensor_quant import get_custom_tensor_datatype
+from backend.util.par_utils import get_par_attributes
+from backend.util.codegen_utils import cpp_function, cpp_variable, NewCodeWriter
 from onnx import NodeProto
-from csnake import CodeWriter, Variable, Function
 import base64
 import os
 import json
 import numpy as np
-
-from csnake import Function
-
-class CppFunction(Function):
-    def __init__(
-        self,
-        name: str,
-        return_type: str = "void",
-        qualifiers=None,
-        arguments=None,
-        templates=None,  # List[str], e.g. ["typename T", "int N"]
-    ) -> None:
-        super().__init__(name, return_type, qualifiers, arguments)
-        self.templates = templates or []
-
-    def _generate_template_prefix(self) -> str:
-        if not self.templates:
-            return ""
-        return f"template <{', '.join(self.templates)}>"
-
-    def generate_prototype(self, extern: bool = False) -> str:
-        # Add template line before the standard prototype
-        base = super().generate_prototype(extern)
-        # return self._generate_template_prefix() + base
-        return base
-
-    def generate_definition(self, indent="    "):
-        # Add template line before the function definition
-        writer = super().generate_definition(indent)
-        if self.templates:
-            tmpl_line = self._generate_template_prefix().strip()
-            writer.lines.insert(0, tmpl_line)  # Insert before prototype
-        return writer
-
-    @property
-    def prototype(self) -> str:
-        return self.generate_prototype() + ";"
-
-    @property
-    def definition(self) -> str:
-        return self.generate_definition().code
 
 def generate_hls_code(model: ModelWrapper) -> str:
 
@@ -57,51 +18,53 @@ def generate_hls_code(model: ModelWrapper) -> str:
     Returns:
         str: The generated HLS code as a string.
     """
-    cwr = CodeWriter()
+    cwr = NewCodeWriter()
     cwr.add_autogen_comment()
 
     # Include sections for HLS
     cwr.include("ap_int.h")
     cwr.include("hls_stream.h")
+    cwr.include("hls_vector.h")
+    cwr.include("ap_axi_sdata.h")
 
+    # Include files from the nn2FPGA library
+    nn2fpga_include_dir = "/workspace/NN2FPGA/nn2fpga/library/include"
+    if os.path.isdir(nn2fpga_include_dir):
+        for fname in os.listdir(nn2fpga_include_dir):
+            if fname.endswith(".hpp"):
+                cwr.include(fname)
+    
     # Top function definition
-    function = CppFunction("top", "void")
+    function = cpp_function("top", "void")
     function.add_code("#pragma HLS TOP")
     function.add_code("#pragma HLS DATAFLOW")
     function.add_code("#pragma HLS INTERFACE ap_ctrl_none port=return")
-    for input_name in model.graph.input:
-        var = Variable(f"{input_name.name}_stream", "hls::stream<ap_uint<8>>&")
-        function.add_argument(var)
-        function.add_code(f"#pragma HLS INTERFACE axis port={input_name.name}")
+
+    for produce in model.get_nodes_by_op_type("ProduceStream"):
+        function = getCustomOp(produce).append_top_inputs(function)
 
     for const_input_name in {init.name for init in model.graph.initializer if "const_" in init.name}:
-        var = Variable(f"{const_input_name}_stream", "hls::stream<ap_uint<8>>&")
+        var = cpp_variable(f"{const_input_name}_stream", "hls::stream<ap_uint<8>>&")
         function.add_argument(var)
-        function.add_code(f"#pragma HLS INTERFACE axis port={const_input_name}")
+        function.add_code(f"#pragma HLS INTERFACE axis port={const_input_name}_stream")
 
     for output_name in model.graph.output:
-        var = Variable(f"{output_name.name}_stream", "hls::stream<ap_uint<8>>&")
+        var = cpp_variable(f"{output_name.name}_stream", "hls::stream<ap_uint<8>>&")
         function.add_argument(var)
-        function.add_code(f"#pragma HLS INTERFACE axis port={output_name.name}")
-    
-    function.add_code("for (int i = 0; i < 10; i++) {")
-    function.add_code("     // Example processing loop")
-    function.add_code("     // Replace with actual processing logic")
+        function.add_code(f"#pragma HLS INTERFACE axis port={output_name.name}_stream")
 
-    function.add_code("     ap_uint<8> data = 1;")
-    for input_name in model.graph.input:
-        function.add_code(f"    ap_uint<8> {input_name.name}_data;")
-        function.add_code(f"    {input_name.name}_data = {input_name.name}_stream.read();")
-        function.add_code(f"    data += {input_name.name}_data;")
-    
-    for const_input_name in {init.name for init in model.graph.initializer if "const_" in init.name}:
-        function.add_code(f"    ap_uint<8> {const_input_name}_data;")
-        function.add_code(f"    {const_input_name}_data = {const_input_name}_stream.read();")
-        function.add_code(f"    data += {const_input_name}_data;")
+    for node in model.graph.node:
+        if node.op_type == "ProduceStream":
+            # Generate code for ProduceStream custom operation
+            produce_stream_op = getCustomOp(node)
+            produce_stream_code = produce_stream_op.generate_run_call(model)
+            function.add_code(produce_stream_code)
+        elif node.op_type == "StreamingGlobalAveragePool":
+            # Generate code for StreamingGlobalAveragePool custom operation
+            pooling_op = getCustomOp(node)
+            pooling_code = pooling_op.generate_run_call(model)
+            function.add_code(pooling_code)
 
-    for output_name in model.graph.output:
-        function.add_code(f"    {output_name.name}_stream.write(data);")
-    function.add_code("}")
 
     cwr.add_function_definition(function)
     return cwr.code

@@ -108,7 +108,7 @@ def nn2fpga_compile(
 
     # Insert custom nodes.
     model = model.transform(transformation.FullyConnectedToConv())
-    model = model.transform(transformation.InsertProduceStream())
+    model = model.transform(transformation.InsertProduceStream(nn2fpga_root=prj_root))
     model = model.transform(transformation.InsertConsumeStream())
     model = model.transform(transformation.InsertTensorDuplicator())
     model = model.transform(transformation.CustomInferShapes())

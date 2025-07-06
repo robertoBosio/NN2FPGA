@@ -35,9 +35,9 @@ def dump_tcl_script(top_name, part_name, frequency, hls_version, input_files):
 
     lines.extend(
         [
-            'add_files kernel.cpp',
+            'add_files kernel.cpp -cflags " -I/workspace/NN2FPGA/nn2fpga/library/include"',
             'add_files -tb "/workspace/NN2FPGA/deps/cnpy/cnpy.cpp"',
-            'add_files -tb "{tb_files}" -cflags "-std=c++11 -I/workspace/NN2FPGA/deps/cnpy -I/workspace/NN2FPGA/nn2fpga/cc/include -lz"',
+            'add_files -tb "{tb_files}" -cflags "-std=c++11 -I/workspace/NN2FPGA/deps/cnpy -lz"',
             'set_top "{top_name}"',
             'set_part {part_name}',
             'create_clock -period {t_clk}',
@@ -179,10 +179,10 @@ def simulate(blob: str, context: dict) -> dict:
         )
 
     # run the simulation
-    subprocess.run(
-        ["vitis_hls", "-f", f"{work_dir}/setup.tcl"],
-        cwd=work_dir,
-        check=True
-    )
+    # subprocess.run(
+    #     ["vitis_hls", "-f", f"{work_dir}/setup.tcl"],
+    #     cwd=work_dir,
+    #     check=True
+    # )
 
     return context

@@ -26,7 +26,6 @@ public:
 
     StreamingGlobalAveragePool()
     {
-#pragma HLS inline
         STEP_i_hw = 0;  // Initialize the height and width index to zero.
         STEP_i_och = 0; // Initialize the output channel index to zero.
     }

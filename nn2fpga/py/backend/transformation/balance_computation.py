@@ -849,7 +849,7 @@ class BalanceComputation(Transformation):
         )
 
         NUM_PORTS = (board_res["bram"] + board_res["uram"] * 8)
-        NUM_PORTS = int(NUM_PORTS * 0.85)  # 85% of the BRAMs are used for parallelization, considering that each BRAM is 2 ports
+        NUM_PORTS = int(NUM_PORTS * 0.85)  # 85% of the BRAMs are used for parallelization
         NUM_DSP = board_res["dsp"] * 0.85  # 85% of the DSPs are used for parallelization
 
         # Extract layers information

@@ -32,7 +32,7 @@ public:
         STEP_i_word = 0; // Initialize the word index to zero.
     }
 
-    void run(hls::stream<TInputStruct> input_data_stream[1],
+    void run(hls::stream<TInputStruct>& input_data_stream,
              hls::stream<TOutputStruct> output_data_stream[OUT_W_PAR])
     {
         TInputStruct input_data; // Read the input data structure from the input stream.
@@ -49,7 +49,7 @@ public:
         }
     }
 
-    bool step(hls::stream<TInputStruct> input_data_stream[1],
+    bool step(hls::stream<TInputStruct>& input_data_stream,
               hls::stream<TOutputStruct> output_data_stream[OUT_W_PAR])
     {
         if (STEP_i_word >= ITER)
@@ -76,15 +76,15 @@ public:
 
 private:
         
-    const size_t ITER = IN_HEIGHT * IN_WIDTH * OUT_CH; // Total number of iterations based on input height and width. 
-    
+    const size_t ITER = IN_HEIGHT * IN_WIDTH * OUT_CH; // Total number of iterations based on input height and width.
+
     // State variables for step execution
     size_t STEP_i_word = 0;       // Current word index
-    size_t STEP_i_par = 0;            // Current parallel index
+    size_t STEP_i_par = 0;        // Current parallel index
     TInputStruct STEP_input_data; // Input data structure for the current step
 
     static void pipeline_body(
-        hls::stream<TInputStruct> input_data_stream[1],
+        hls::stream<TInputStruct>& input_data_stream,
         hls::stream<TOutputStruct> output_data_stream[OUT_W_PAR],
         TInputStruct &input_data,
         size_t i_par)
@@ -95,7 +95,7 @@ private:
         if (i_par == 0)
         {
             // Read the input data structure from the input stream.
-            input_data = input_data_stream[0].read();
+            input_data = input_data_stream.read();
         }
 
         // Loop through the pixels processed in parallel.
