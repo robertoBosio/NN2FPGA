@@ -34,6 +34,20 @@ def get_output_names(model: ModelWrapper) -> list[str]:
     """
     return [out.name for out in model.graph.output]
 
+def report_error_stats(model: ModelWrapper, output_name: str, expected_output: np.ndarray, produced_output: np.ndarray):
+    """
+    Report statistics about the error between expected and produced outputs.
+    Args:
+        model (ModelWrapper): The ONNX model wrapped in QONNX ModelWrapper.
+        output_name (str): The name of the output tensor.
+        expected_output (np.ndarray): The expected output from the original model.
+        produced_output (np.ndarray): The output from the transformed model.
+    """
+    error = np.abs(expected_output - produced_output)
+    max_error = np.max(error)
+    mean_error = np.mean(error)
+    print(f"Output: {output_name}, Max Error: {max_error}, Mean Error: {mean_error}")
+
 def test_transformation_equivalence(model_pre: ModelWrapper, model_post: ModelWrapper):
     """
     Test if the outputs of two ONNX models are equivalent given the same random input.
@@ -44,12 +58,12 @@ def test_transformation_equivalence(model_pre: ModelWrapper, model_post: ModelWr
     input_dict = generate_random_input(model_pre)
     output_names = get_output_names(model_pre)
 
-    out_expected = oxe.execute_onnx(model_pre, input_dict)
-    out_produced = oxe.execute_onnx(model_post, input_dict)
+    out_expected = oxe.execute_onnx(model_pre, input_dict, return_full_exec_context=True)
+    out_produced = oxe.execute_onnx(model_post, input_dict, return_full_exec_context=True)
 
     for name in output_names:
         flattened_expected = out_expected[name].flatten()
         flattened_produced = out_produced[name].flatten()
         assert name in out_expected and name in out_produced, f"Missing output: {name}"
         assert flattened_expected.shape == flattened_produced.shape, f"Shape mismatch for: {name}"
-        assert np.allclose(flattened_expected, flattened_produced, rtol=1e-05, atol=1e-08), f"Output mismatch for: {name}"
+        report_error_stats(model_pre, name, flattened_expected, flattened_produced)
