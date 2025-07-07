@@ -309,7 +309,7 @@ int main(int argc, char** argv) {
   writeBinaryFile(out2_path, mem_outputs2, n_out2 * c_batch);
 
   std::cout << "Saved HLS outputs to binary files." << std::endl;
-  std::string postprocess_cmd = "python3 postprocess.py " + out0_path + " " + out1_path + " " + out2_path;
+  std::string postprocess_cmd = "python3 postprocess.py "+ out0_path + " " + out1_path + " " + out2_path;
   int post_status = system(postprocess_cmd.c_str());
 
 

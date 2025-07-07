@@ -208,3 +208,187 @@ def hw_inference(
     
     end_exe = time.time()
     print(f"Total execution time: {end_exe - start_exe:.2f} seconds")
+
+def hw_inference_multi_dma(
+    test_loader,
+    act_buf,                  # activations  (dma_0  send)
+    out_bufs,                 # [head1, head2, head3]
+    dmas,                     # [dma_0, dma_1, dma_2]
+    batch_size,
+    scale_factor,
+    postprocess_fn,           # receives out_bufs
+    board,
+    outputs=None,            # list to store outputs
+    tot_batches=None
+):
+    out_head1, out_head2, out_head3 = [], [], []
+
+    if tot_batches is None:
+        # tot_batches = len(test_loader)
+        tot_batches = 202
+    dma_0, dma_1, dma_2 = dmas
+    head1_buf, head2_buf, head3_buf = out_bufs
+
+    recorder = pynq.DataRecorder(board["sensor"])
+    wall_start = time.time()
+    total_time = 0.0
+    mean_power_acc = 0.0
+    total_energy = 0.0
+    img_counter = 0
+
+
+
+
+
+    # for batch_idx, (paths, images, im0s, splits) in enumerate(test_loader):
+    #     print(f"Processing batch {batch_idx + 1}/{tot_batches} with {len(images)} images", flush=True)
+    #     # ── Preprocess batch: (B, 3, H, W) → flat int8 ────────────────────────────────
+    #     print("Normalizing and converting to int8...", flush=True)
+    #     images = images.detach().cpu().numpy()
+    #     print(f"[DEBUG] Numpy shape: {images.shape}, dtype: {images.dtype}", flush=True)
+
+    #     images = images.transpose(0, 2, 3, 1).astype(np.float32) / 255.0
+    #     np_feat = (images * scale_factor).flatten().astype(np.int8)
+
+    #     print(f"[DEBUG] np_feat size: {len(np_feat)}, act_buf size: {len(act_buf)}", flush=True)
+
+    #     assert len(np_feat) <= len(act_buf), "❌ act_buf is too small for the current batch"
+
+    #     act_buf[:len(np_feat)] = np_feat
+    #     print(f"Copied {len(np_feat)} bytes to act_buf", flush=True)
+
+    #     # ─ DMA Setup ─
+    #     print("Setting up DMA transfers...", flush=True)
+    #     recorder.reset()
+    #     recorder.record(0.01)
+    #     t0 = time.time()
+
+    #     dma_0.recvchannel.transfer(head1_buf)
+    #     dma_1.recvchannel.transfer(head2_buf)
+    #     dma_2.recvchannel.transfer(head3_buf)
+
+    #     dma_0.sendchannel.transfer(act_buf)
+    #     # print("Input DMA transfer started", flush=True)
+
+    #     dma_0.sendchannel.wait()
+    #     # print("Input DMA done", flush=True)
+
+    #     dma_0.recvchannel.wait()
+    #     # print("Output DMA head1 done", flush=True)
+
+    #     dma_1.recvchannel.wait()
+    #     # print("Output DMA head2 done", flush=True)
+
+    #     dma_2.recvchannel.wait()
+    #     # print("Output DMA head3 done", flush=True)
+
+    #     t1 = time.time()
+    #     recorder.stop()
+    #     print("All transfers completed", flush=True)
+    #     # ── Postprocess and store ─────────────────────────────────────────────────────
+    #     postprocess_fn(out_bufs, batch_size)
+
+    #     # out_head1.append(head1_buf.copy())
+    #     # out_head2.append(head2_buf.copy())
+    #     # out_head3.append(head3_buf.copy())
+    #     for bi in range(len(images)):  # handle partial last batch
+    #         out_head1.append(np.copy(head1_buf[bi]))
+    #         out_head2.append(np.copy(head2_buf[bi]))
+    #         out_head3.append(np.copy(head3_buf[bi]))
+    #     # ── Metrics ───────────────────────────────────────────────────────────────────
+    #     batch_time = t1 - t0
+    #     total_time += batch_time
+    #     pwr = recorder.frame[board["sensor_name"]].mean()
+    #     mean_power_acc += pwr
+    #     total_energy += pwr * batch_time
+
+    #     print(f"[Batch {batch_idx:4d}] time {batch_time:6.3f}s ─ power {pwr:6.2f} W", flush=True)
+
+    #     if batch_idx == tot_batches - 1:
+    #         break
+
+    
+    batch_idx = 0
+    for path, images, im0, split, _ in test_loader:
+        # ── Pack & scale activations (NHWC→flat int8) ─────────────────────────
+        # np_feat = (np.asarray(images.permute(0, 2, 3, 1)).flatten()
+        #            * scale_factor).astype(np.int8)
+        images = np.transpose(images, (1, 2, 0)).astype(np.float32) / 255.0
+        
+        # check fisrt tree values
+        images = images * scale_factor
+        #clip to 127
+        images = np.clip(images, -128, 127)
+        # print first 3 values
+        print(f"[DEBUG] First 3 values of images: {images.flatten()[:3]}")
+        np_feat = images.flatten().astype(np.int8)
+        # print first 3 values
+        print(f"[DEBUG] First 3 values of np_feat: {np_feat[:3]}")
+        act_buf[:len(act_buf)] = np_feat[:len(act_buf)]
+
+        # ── Start power log & DMA transactions ───────────────────────────────
+        recorder.reset(); recorder.record(0.01)
+        t0 = time.time()
+
+        # receive on all three heads
+        dma_0.recvchannel.transfer(head1_buf)
+        # print("Waiting for head1 transfer to complete", flush=True)
+        dma_1.recvchannel.transfer(head2_buf)
+        # print("Waiting for head2 transfer to complete", flush=True)
+        dma_2.recvchannel.transfer(head3_buf)
+        # print("Waiting for head3 transfer to complete", flush=True)
+
+        # send activations (only dma_0)
+        dma_0.sendchannel.transfer(act_buf) 
+        # print("Waiting for activations transfer to complete", flush=True)
+        # wait
+        dma_0.sendchannel.wait()
+        # print("Waiting for head1 transfer to complete", flush=True)
+        dma_0.recvchannel.wait()
+        # print("Waiting for head2 transfer to complete", flush=True)
+        dma_1.recvchannel.wait()
+        # print("Waiting for head3 transfer to complete", flush=True)
+        dma_2.recvchannel.wait()
+        # print("All transfers completed", flush=True)
+
+        t1 = time.time()
+        recorder.stop()
+
+        # ── Optional user post-processing  ───────────────────────────────────
+        postprocess_fn(out_bufs, batch_size)
+        # concatenate outputs if provided in 3 heads
+        out_head1.append(head1_buf.copy())
+        out_head2.append(head2_buf.copy())
+        out_head3.append(head3_buf.copy())
+        # ── Metrics  ─────────────────────────────────────────────────────────
+        batch_time   = t1 - t0
+        total_time  += batch_time
+        pwr          = recorder.frame[board["sensor_name"]].mean()
+        total_energy += pwr * batch_time
+        mean_power_acc += pwr
+
+        print(f"[Batch {batch_idx:4d}] time {batch_time:6.3f}s ─ "
+              f"power {pwr:6.2f} W", flush=True)
+        
+
+        
+        if batch_idx == tot_batches - 1:
+            break
+        batch_idx += 1
+        
+        
+        
+    mean_power = mean_power_acc / tot_batches
+    print("\n──────────  Summary  ──────────")
+    print(f"Images      : {batch_size * tot_batches}")
+    print(f"Total time  : {total_time:.2f} s")
+    print(f"FPS         : {(batch_size * tot_batches) / total_time:.2f}")
+    print(f"Mean power  : {mean_power:.2f} W")
+    print(f"Energy      : {total_energy:.2f} J")
+    print(f"Wall-clock  : {time.time() - wall_start:.2f} s")
+    print("────────────────────────────────")
+    
+    np.concatenate(out_head1, axis=0).tofile("outputs/head1_tot.bin")
+    np.concatenate(out_head2, axis=0).tofile("outputs/head2_tot.bin")
+    np.concatenate(out_head3, axis=0).tofile("outputs/head3_tot.bin")
+    print("Saved total outputs to ./outputs/head*_tot.bin")

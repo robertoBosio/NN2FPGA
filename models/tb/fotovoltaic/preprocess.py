@@ -155,7 +155,8 @@ def process_images(n_images, onnx_path, dataset_root, splits=["val"], size=None)
             print(f"[DEBUG] im_chw (CHW, float32, [0,1]) shape: {im_chw.shape}, dtype: {im_chw.dtype}, min: {im_chw.min()}, max: {im_chw.max()}")
             im_onnx = np.expand_dims(im_chw, axis=0)  # shape (1, C, H, W)
             print(f"[DEBUG] im_onnx (1,CHW, float32, [0,1]) shape: {im_onnx.shape}, dtype: {im_onnx.dtype}, min: {im_onnx.min()}, max: {im_onnx.max()}")
-
+            #print first 3 values of im_onnx
+            print(f"[DEBUG] First 3 values of im_onnx: {im_onnx.flatten()[:3]}")
             # Process labels (relative allo split corretto)
             base = os.path.splitext(os.path.basename(path))[0]
             label_path = os.path.join(dataset_root, "labels", split, base + ".txt")
@@ -185,7 +186,8 @@ def process_images(n_images, onnx_path, dataset_root, splits=["val"], size=None)
 
             f_lbl.write(labels.astype(np.uint32).tobytes())
             print(f"[DEBUG] Salvato: /tmp/labels_preprocessed.bin, shape salvata: {labels.shape}, dtype: uint32")
-
+            #print first 3 values of im_onnx
+            print(f"[DEBUG] First 3 values of im_onnx: {im_onnx.flatten()[:3]}")
             # ONNX Inference (input: im_onnx, shape (1, C, H, W))
             out_dict = execute_onnx(model, {inp_name: im_onnx})
             out0 = out_dict["global_out"]
@@ -208,6 +210,7 @@ def process_images(n_images, onnx_path, dataset_root, splits=["val"], size=None)
 if __name__ == "__main__":
     # Solo chiamata posizionale: python3 preprocess.py <n_images> <onnx_path> <dataset_name>
     if len(sys.argv) != 4:
+        print(sys.argv)
         print("Usage: python3 preprocess.py <n_images> <onnx_path> <dataset_name>")
         sys.exit(1)
     n_images = int(sys.argv[1])
@@ -221,4 +224,4 @@ if __name__ == "__main__":
         sys.exit(1)
     print(f"[INFO] Chiamata posizionale: n_images={n_images}, onnx_path={onnx_path}, dataset_root={dataset_root}")
     # splits di default: ["train", "val"]
-    process_images(n_images, onnx_path, dataset_root, splits=["train", "val"], size=[640])
+    process_images(n_images, onnx_path, dataset_root, splits=["val"], size=[640])

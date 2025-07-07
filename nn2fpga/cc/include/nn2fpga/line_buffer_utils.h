@@ -125,7 +125,125 @@ pad_input(hls::stream<din_t> din[(c_fw + (c_ow_ops - 1) * c_str) * c_fh],
             << c_ops_out << std::endl;
 #endif
 }
+//pad with -inf
+template<typename din_t,
+         typename dout_t,
+         int ICH,
+         int IH,
+         int IW,
+         int c_fh,
+         int c_fw,
+         int c_str,
+         int c_pad,
+         int c_ow_ops,
+         int c_ops,
+         int c_ops_out>
+void
+pad_input_neg_inf(hls::stream<din_t> din[(c_fw + (c_ow_ops - 1) * c_str) * c_fh],
+                  hls::stream<dout_t> o_data[1])
+{
+  /* #pragma HLS inline */
+  static_assert(c_ops % c_ops_out == 0, "c_ops must be a multiple of c_ops_out");
+  static_assert(c_ops >= c_ops_out, "c_ops must be bigger than c_ops_out");
 
+  /* This handles padding aware inputs */
+
+  // constexpr int c_pad_index_h = c_pad * (c_fh - 1) / 2;
+  // constexpr int c_pad_index_w = c_pad * (c_fw - 1) / 2;
+  constexpr int c_pad_index_h = c_pad;
+  constexpr int c_pad_index_w = c_pad;
+  
+
+  constexpr int IH_REM = IH - (IH % c_str) * (1 - c_pad);
+  constexpr int IW_REM = IW - (IW % c_str) * (1 - c_pad);
+  // constexpr int IH_PAD = IH + c_pad_index_h * 2 - IH_REM * (1 - c_pad);
+  // constexpr int IW_PAD = IW + c_pad_index_w * 2 - IW_REM * (1 - c_pad);
+
+  // Window size considering stride, ow_ops and original dimensions.
+  constexpr int FW = (c_fw + (c_ow_ops - 1) * c_str);
+  constexpr int FSZ = c_fh * FW;
+  constexpr int LAST_IDX =
+    FSZ - 1 - (c_fw + (c_ow_ops - 1) * c_str - c_pad_index_w) % c_ow_ops;
+
+  bool s_last = false;
+  
+  din_t s_read[FSZ];
+  #ifndef __SYNTHESIS__
+      std::cout << "pad_input " << ICH << " " << c_pad << " " << c_ops << " " << c_ops_out << std::endl;
+      // Printing the size
+      for (auto s_i = 0; s_i < FSZ; s_i++) {
+        std::cout << "s_read[" << s_i << "] = " << din[s_i].size() << std::endl;
+      }
+      std::cout << "IH_REM " << IH_REM << " IW_REM " << IW_REM << std::endl;
+  #endif
+
+  for (auto s_index_h = 0; s_index_h < IH_REM; s_index_h += c_str) {
+    for (auto s_index_w = 0; s_index_w < IW_REM; s_index_w += c_str*c_ow_ops) {
+      for (auto s_index_ich = 0; s_index_ich < ICH; s_index_ich+=c_ops) {
+        for (auto s_ops = 0; s_ops < c_ops; s_ops+=c_ops_out) {
+#pragma HLS pipeline style = stp II=1
+          dout_t s_write;
+          const int c_neg_inf = -1 * (1 << (sizeof(dout_t) * 8 - 1));
+          for (auto s_fh = 0; s_fh < c_fh; s_fh++) {
+            for (auto s_fw = 0; s_fw < FW; s_fw++) {
+
+              auto s_index = s_fh * FW + s_fw;
+              bool s_data_read = true;
+
+              s_data_read &= (s_index_h >= (c_pad_index_h - s_fh));
+              s_data_read &= (s_index_h < (IH + c_pad_index_h - s_fh));
+              s_data_read &= (s_index_w >= (c_pad_index_w - s_fw));
+              s_data_read &= (s_index_w < (IW + c_pad_index_w - s_fw));
+
+              if (s_data_read) {
+                if (s_ops == 0) {
+                  s_read[FSZ - s_index - 1] = din[FSZ - s_index - 1].read();
+                  if (s_index == LAST_IDX) s_last = s_read[FSZ - s_index - 1].last;
+                }
+                for (auto s_i = 0; s_i < c_ops_out; s_i++) {
+                  s_write.data[FSZ - s_index - 1][s_i] = s_read[FSZ - s_index - 1].data[0][s_ops + s_i];
+                }
+                s_write.last = s_read[FSZ - s_index - 1].last;
+              } else {
+                // This is padding branch, if the data of the window should not be read
+                // form the input stream then we pad it with zeros
+                for (auto s_i = 0; s_i < c_ops_out; s_i++) {
+                  s_write.data[FSZ - s_index - 1][s_i] = c_neg_inf;
+                }
+                s_write.last = s_last;
+              }
+            }
+          }
+          o_data[0].write(s_write);
+        }
+      }
+    }
+  }
+
+#ifndef __SYNTHESIS__
+#ifndef SKIP_ASSERTIONS
+  // Check that all the input streams are empty
+  for (auto s_i = 0; s_i < FSZ; s_i++) {
+    if (din[s_i].size() > 0) {
+      std::cout << "#### Not empty input stream" << std::endl;
+      std::cout << "din[" << s_i << "] = " << din[s_i].size() << std::endl;
+    }
+    assert(din[s_i].size() == 0);
+  }
+  // Check that all the output streams are not empty
+  for (auto s_i = 0; s_i < 1; s_i++) {
+    if (o_data[s_i].size() == 0) {
+      std::cout << "#### Empty output stream" << std::endl;
+      std::cout << "o_data[" << s_i << "] = " << o_data[s_i].size()
+                << std::endl;
+    }
+    assert(o_data[s_i].size() > 0);
+  }
+#endif /* SKIP_ASSERTIONS */
+  std::cout << "end pad_input " << ICH << " " << c_pad << " " << c_ops << " "
+            << c_ops_out << std::endl;
+#endif
+}
 /* Adjust the tensor by merging the c_ow_ops_in streams in c_ow_ops_out stream.
  * c_ow_ops_in should be always >= c_ow_ops_out. At the same time aggragate data
  * by reading enough c_ops_in packet to create a c_ops_out one */
@@ -610,11 +728,11 @@ bandwidth_adjust(hls::stream<din_t> din[c_ow_ops_in],
   }
   // Check that all the output streams are not empty
   for (auto s_i = 0; s_i < c_ow_ops_out; s_i++) {
-    // if (o_data[s_i].size() == 0) {
+    if (o_data[s_i].size() == 0) {
       std::cout << "#### Empty output stream" << std::endl;
       std::cout << "o_data[" << s_i << "] = " << o_data[s_i].size()
                 << std::endl;
-    // }
+    }
     assert(o_data[s_i].size() > 0);
   }
 // #endif /* SKIP_ASSERTIONS */
