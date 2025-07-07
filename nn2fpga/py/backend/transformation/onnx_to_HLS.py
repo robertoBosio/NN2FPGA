@@ -48,30 +48,88 @@ def generate_hls_code(model: ModelWrapper) -> str:
         function.add_argument(var)
         function.add_code(f"#pragma HLS INTERFACE axis port={const_input_name}_stream")
 
-    for output_name in model.graph.output:
-        var = cpp_variable(f"{output_name.name}_stream", "hls::stream<ap_uint<8>>&")
-        function.add_argument(var)
-        function.add_code(f"#pragma HLS INTERFACE axis port={output_name.name}_stream")
+    for consume in model.get_nodes_by_op_type("ConsumeStream"):
+        function = getCustomOp(consume).append_top_outputs(function)
 
     for node in model.graph.node:
-        if node.op_type == "ProduceStream":
-            # Generate code for ProduceStream custom operation
-            produce_stream_op = getCustomOp(node)
-            produce_stream_code = produce_stream_op.generate_run_call(model)
-            function.add_code(produce_stream_code)
-        elif node.op_type == "StreamingGlobalAveragePool":
-            # Generate code for StreamingGlobalAveragePool custom operation
-            pooling_op = getCustomOp(node)
-            pooling_code = pooling_op.generate_run_call(model)
-            function.add_code(pooling_code)
-        elif node.op_type == "BandwidthAdjustDecreaseChannels":
-            # Generate code for BandwidthAdjustDecreaseChannels custom operation
-            bandwidth_adjust_op = getCustomOp(node)
-            bandwidth_adjust_code = bandwidth_adjust_op.generate_run_call(model)
-            function.add_code(bandwidth_adjust_code)
-
+        for line in getCustomOp(node).generate_output_stream_declaration(model):
+            function.add_code(f"{line};")
+        for line in getCustomOp(node).generate_variable_declaration(model):
+            function.add_code(f"{line};")
+        function.add_code(getCustomOp(node).generate_object_declaration(model))
+        function.add_code(f"{getCustomOp(node).generate_run_call()};")
 
     cwr.add_function_definition(function)
+    return cwr.code
+
+def generate_hls_driver(model: ModelWrapper) -> str:
+    """Generate HLS driver code for the given model.
+    Args:
+        model (ModelWrapper): The model to generate HLS driver code for.
+    Returns:
+        str: The generated HLS driver code as a string.
+    """
+    cwr = NewCodeWriter()
+    cwr.add_autogen_comment()
+
+    # Include sections for HLS
+    cwr.include("ap_int.h")
+    cwr.include("hls_stream.h")
+    cwr.include("hls_vector.h")
+    cwr.include("ap_axi_sdata.h")
+    cwr.include("utils/utils.hpp")
+
+    kernel_function = cpp_function(
+        name=model.get_metadata_prop("top_name"),
+        return_type="void",
+        qualifiers=["extern"],
+    )
+
+    # Add input and output streams
+    for produce in model.get_nodes_by_op_type("ProduceStream"):
+        kernel_function = getCustomOp(produce).append_top_inputs(kernel_function)
+
+    for consume in model.get_nodes_by_op_type("ConsumeStream"):
+        kernel_function = getCustomOp(consume).append_top_outputs(kernel_function)
+
+    cwr.add_function_prototype(kernel_function)
+    
+    main_function = cpp_function(
+        name="main",
+        return_type="int",
+        arguments=[cpp_variable("argc", "int"), cpp_variable("argv", "char**")],
+    )
+
+    argc = 1
+    for produce in model.get_nodes_by_op_type("ProduceStream"):
+        main_function.add_code(f"std::string {produce.input[0]}_file = argv[{argc}];")
+        main_function = getCustomOp(produce).append_variable_declaration(main_function)
+        argc += 1
+    
+    for consume in model.get_nodes_by_op_type("ConsumeStream"):
+        main_function.add_code(f"std::string {consume.output[0]}_file = argv[{argc}];")
+        main_function = getCustomOp(consume).append_variable_declaration(main_function)
+        argc += 1
+
+    for produce in model.get_nodes_by_op_type("ProduceStream"):
+        main_function = getCustomOp(produce).append_call_read_input_from_file(model, main_function)
+
+    main_function.add_code("// Call the accelerator kernel")
+
+    kernel_arguments = []
+    for produce in model.get_nodes_by_op_type("ProduceStream"):
+        kernel_arguments.append(getCustomOp(produce).get_stream_name(produce.input[0]))
+
+    for consume in model.get_nodes_by_op_type("ConsumeStream"):
+        kernel_arguments.append(getCustomOp(consume).get_stream_name(consume.output[0]))
+
+    main_function.add_code(f"{kernel_function.generate_call([], *kernel_arguments)};")
+
+    for consume in model.get_nodes_by_op_type("ConsumeStream"):
+        main_function = getCustomOp(consume).append_call_write_output_to_file(model, main_function)
+
+    main_function.add_code("return 0;")
+    cwr.add_function_definition(main_function)
     return cwr.code
 
 def encode_array(arr: np.ndarray):
@@ -146,6 +204,7 @@ def generate_blob(model: ModelWrapper, partition_node: NodeProto, work_dir: str)
     """
     blob = {
         "hls_code_b64": base64.b64encode(generate_hls_code(model).encode()).decode("ascii"),
+        "hls_driver_b64": base64.b64encode(generate_hls_driver(model).encode()).decode("ascii"),
         "bitstream_b64": "",
         "input_map": generate_input_map(model, partition_node),
         "output_map": generate_output_map(model, partition_node),

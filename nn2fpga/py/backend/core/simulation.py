@@ -37,7 +37,7 @@ def dump_tcl_script(top_name, part_name, frequency, hls_version, input_files):
         [
             'add_files kernel.cpp -cflags " -I/workspace/NN2FPGA/nn2fpga/library/include"',
             'add_files -tb "/workspace/NN2FPGA/deps/cnpy/cnpy.cpp"',
-            'add_files -tb "{tb_files}" -cflags "-std=c++11 -I/workspace/NN2FPGA/deps/cnpy -lz"',
+            'add_files -tb "{tb_files}" -cflags "-I/workspace/NN2FPGA/deps/cnpy -I/workspace/NN2FPGA/nn2fpga/library/include -lz"',
             'set_top "{top_name}"',
             'set_part {part_name}',
             'create_clock -period {t_clk}',
@@ -59,6 +59,7 @@ def dump_testbench(top_name: str, input_names: list, output_names: list) -> str:
     # Include sections for HLS
     cwr.include("ap_int.h")
     cwr.include("hls_stream.h")
+    cwr.include("ap_axi_sdata.h")
     cwr.include("nn2fpga/utils.h")
 
     kernel_function = Function(
@@ -68,7 +69,7 @@ def dump_testbench(top_name: str, input_names: list, output_names: list) -> str:
     )
 
     for name in [*input_names, *output_names]:
-        kernel_function.add_argument(Variable(name, "hls::stream<ap_uint<8>>&"))
+        kernel_function.add_argument(Variable(name, "hls::stream<ap_axiu<128, 0, 0, 0>>&"))
 
     cwr.add_line()
     cwr.add_function_prototype(kernel_function)
@@ -123,10 +124,6 @@ def simulate(blob: str, context: dict) -> dict:
     input_list = list()
     output_list = list()
 
-    # Write the HLS code to a file
-    with open(f"{work_dir}/kernel.cpp", "w") as f:
-        f.write(base64.b64decode(json_blob["hls_code_b64"]).decode())
-
     # Update the context with the input map
     input_map = json_blob["input_map"]
     for old_name, new_name in input_map.items():
@@ -153,7 +150,7 @@ def simulate(blob: str, context: dict) -> dict:
 
     # Save to file the internal context
     for tensor_name, tensor_data in internal_context:
-        np.save(f"{work_dir}/{tensor_name}.npy", tensor_data.flatten())
+        np.save(f"{work_dir}/{tensor_name}.npy", tensor_data)
 
     # Generate the TCL script
     tcl_script = dump_tcl_script(
@@ -161,28 +158,35 @@ def simulate(blob: str, context: dict) -> dict:
         part_name=json_blob["part_name"],
         frequency=json_blob["frequency"],
         hls_version=json_blob["hls_version"],
-        input_files=[f"{tensor_name}.npy" for tensor_name, _ in internal_context],
+        input_files=[f"{work_dir}/{tensor_name}.npy" for tensor_name, _ in internal_context],
     )
 
     # Write the TCL script to a file
     with open(f"{work_dir}/setup.tcl", "w") as f:
         f.write(tcl_script)
 
-    # Generate the testbench
+    # Write the HLS code to a file
+    with open(f"{work_dir}/kernel.cpp", "w") as f:
+        f.write(base64.b64decode(json_blob["hls_code_b64"]).decode())
+
+    # Generate the HLS driver code
     with open(f"{work_dir}/testbench.cpp", "w") as f:
-        f.write(
-            dump_testbench(
-                top_name="top",
-                input_names=input_list,
-                output_names=output_list,
-            )
-        )
+        f.write(base64.b64decode(json_blob["hls_driver_b64"]).decode())
 
     # run the simulation
-    # subprocess.run(
-    #     ["vitis_hls", "-f", f"{work_dir}/setup.tcl"],
-    #     cwd=work_dir,
-    #     check=True
-    # )
+    subprocess.run(
+        ["vitis_hls", "-f", f"{work_dir}/setup.tcl"],
+        cwd=work_dir,
+        check=True
+    )
+
+    # Read the output files and update the context
+    for old_name, new_name in output_map.items():
+        output_file = f"{work_dir}/{new_name}.npy"
+        if os.path.exists(output_file):
+            tensor_data = np.load(output_file)
+            context[old_name] = tensor_data
+        else:
+            raise FileNotFoundError(f"Output file {output_file} not found.")
 
     return context

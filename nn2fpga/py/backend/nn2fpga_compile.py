@@ -67,7 +67,7 @@ def nn2fpga_compile(
     # Change the working directory to the project root.
     os.chdir(prj_root)
 
-    model = ModelWrapper(onnx_model)
+    original_model = ModelWrapper(onnx_model)
     generate_report_file = f"{prj_root}/generate_{top_name}_{board}.rpt"
     generate_log_file = f"{prj_root}/generate_{top_name}_{board}.log"
 
@@ -81,6 +81,7 @@ def nn2fpga_compile(
     print(f"\nCurrent log file: {generate_log_file}\n")
 
     # Import nn2FPGA custom operators.
+    model = original_model
     model.model.opset_import.append(
         OperatorSetIdProto(domain="backend.custom_op", version=1)
     )
@@ -109,7 +110,7 @@ def nn2fpga_compile(
     # Insert custom nodes.
     model = model.transform(transformation.FullyConnectedToConv())
     model = model.transform(transformation.InsertProduceStream(nn2fpga_root=prj_root))
-    model = model.transform(transformation.InsertConsumeStream())
+    model = model.transform(transformation.InsertConsumeStream(nn2fpga_root=prj_root))
     model = model.transform(transformation.InsertTensorDuplicator())
     model = model.transform(transformation.CustomInferShapes())
 
@@ -147,7 +148,8 @@ def nn2fpga_compile(
     parent_model.save("embedHLS.onnx")
 
     # Simulate the model to check if it works.
-    oxe.execute_onnx(parent_model, {"global_in": np.random.randn(1, 3, 224, 224).astype(np.float32)})
+    # oxe.execute_onnx(parent_model, {"global_in": np.random.randn(1, 3, 224, 224).astype(np.float32)})
+    test_transformation_equivalence(original_model, parent_model)
 
     # Save the original stdout and stderr
     original_stdout = sys.stdout

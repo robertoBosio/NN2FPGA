@@ -43,9 +43,26 @@ class BandwidthAdjust(CustomOp):
     def verify_node(self):
         pass
 
-    def generate_run_call(self, model, name: str) -> str:
-        cwr = NewCodeWriter()
+    def generate_output_stream_declaration(self, model) -> list[str]:
+        """ Generate the output stream declaration for the BandwidthAdjust node. """
 
+        output_quant = get_custom_tensor_datatype(model, self.onnx_node.output[0])
+        if output_quant is None:
+            raise ValueError(f"Tensor quantization for output '{self.onnx_node.output[0]}' not found in model.")
+
+        par_attribute = get_par_attributes(self.onnx_node)
+
+        var = cpp_variable(
+            f"{self.onnx_node.output[0]}_stream",
+            f"{get_stream_type(output_quant, par_attribute['out_ch_par'])}",
+            array=[par_attribute["out_w_par"]],
+        )
+        return [var.generate_declaration()]
+    
+    def generate_variable_declaration(self, model) -> list[str]:
+        return ""
+    
+    def generate_object_declaration(self, model, name) -> str:
         input_quant = get_custom_tensor_datatype(model, self.onnx_node.input[0])
         if input_quant is None:
             raise ValueError(f"Tensor quantization for input '{self.onnx_node.input[0]}' not found in model.")
@@ -64,14 +81,6 @@ class BandwidthAdjust(CustomOp):
         output_shape = model.get_tensor_shape(self.onnx_node.output[0])
         if output_shape is None:
             raise ValueError(f"Tensor shape for output '{self.onnx_node.output[0]}' not found in model.")
-        
-        # Declare the outputs.
-        var = cpp_variable(
-            f"{self.onnx_node.output[0]}_stream",
-            f"{get_stream_type(output_quant, par_attribute['out_ch_par'])}",
-            array=[par_attribute["out_w_par"]],
-        )
-        cwr.add_variable_declaration(var)
 
         # Create the BandwidthAdjust object.
         BandwidthAdjust = cpp_object(
@@ -95,8 +104,9 @@ class BandwidthAdjust(CustomOp):
                 (par_attribute["out_ch_par"], "OUT_CH_PAR"),
             ],
         )
+        return BandwidthAdjust.generate_declaration()
 
-        cwr.add_lines(BandwidthAdjust.generate_declaration())
+    def generate_run_call(self) -> str:
 
         # Generate the call to the BandwidthAdjust run method.
         run = cpp_function(
@@ -114,13 +124,12 @@ class BandwidthAdjust(CustomOp):
             ),
         )
 
-        cwr.add_function_call(
-            run,
+        return run.generate_call(
+            [],
             f"{self.onnx_node.input[0]}_stream",
             f"{self.onnx_node.output[0]}_stream",
         )
-
-        return cwr.code
+        
 
 class BandwidthAdjustIncreaseStreams(BandwidthAdjust):
     """ Node increasing the number of streams in a tensor to match the bandwidth requirements."""
@@ -128,8 +137,8 @@ class BandwidthAdjustIncreaseStreams(BandwidthAdjust):
     def verify_node(self):
         return super().verify_node()
     
-    def generate_run_call(self, model):
-        return super().generate_run_call(model,"BandwidthAdjustIncreaseStreams")
+    def generate_object_declaration(self, model):
+        return super().generate_object_declaration(model, "BandwidthAdjustIncreaseStreams")
 
 class BandwidthAdjustDecreaseStreams(BandwidthAdjust):
     """ Node decreasing the number of streams in a tensor to match the bandwidth requirements."""
@@ -137,23 +146,23 @@ class BandwidthAdjustDecreaseStreams(BandwidthAdjust):
     def verify_node(self):
         return super().verify_node()
     
-    def generate_run_call(self, model):
-        return super().generate_run_call(model,"BandwidthAdjustDecreaseStreams")
-    
+    def generate_object_declaration(self, model):
+        return super().generate_object_declaration(model, "BandwidthAdjustDecreaseStreams")
+
 class BandwidthAdjustIncreaseChannels(BandwidthAdjust):
     """ Node increasing the number of channels in a tensor to match the bandwidth requirements."""
 
     def verify_node(self):
         return super().verify_node()
 
-    def generate_run_call(self, model):
-        return super().generate_run_call(model,"BandwidthAdjustIncreaseChannels")
-    
+    def generate_object_declaration(self, model):
+        return super().generate_object_declaration(model, "BandwidthAdjustIncreaseChannels")
+
 class BandwidthAdjustDecreaseChannels(BandwidthAdjust):
     """ Node decreasing the number of channels in a tensor to match the bandwidth requirements."""
 
     def verify_node(self):
         return super().verify_node()
 
-    def generate_run_call(self, model):
-        return super().generate_run_call(model,"BandwidthAdjustDecreaseChannels")
+    def generate_object_declaration(self, model):
+        return super().generate_object_declaration(model, "BandwidthAdjustDecreaseChannels")

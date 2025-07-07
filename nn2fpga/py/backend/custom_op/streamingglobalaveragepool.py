@@ -143,10 +143,9 @@ class StreamingGlobalAveragePool(CustomOp):
             raise ValueError(
                 "Float quantization is currently not supported for StreamingGlobalAveragePool.  "
             )
-
-    def generate_run_call(self, model):
-        cwr = NewCodeWriter()
-
+    
+    def generate_object_declaration(self, model):
+        
         input_quant = get_custom_tensor_datatype(model, self.onnx_node.input[0])
         if input_quant is None:
             raise ValueError(f"Tensor quantization for input '{self.onnx_node.input[0]}' not found in model.")
@@ -154,7 +153,7 @@ class StreamingGlobalAveragePool(CustomOp):
         output_quant = get_custom_tensor_datatype(model, self.onnx_node.output[0])
         if output_quant is None:
             raise ValueError(f"Tensor quantization for output '{self.onnx_node.output[0]}' not found in model.")
-
+        
         # Retrieve parallelization attributes.
         par_attribute = get_par_attributes(self.onnx_node)
 
@@ -166,13 +165,6 @@ class StreamingGlobalAveragePool(CustomOp):
         if output_shape is None:
             raise ValueError(f"Tensor shape for output '{self.onnx_node.output[0]}' not found in model.")
 
-        # Declare the outputs.
-        var = cpp_variable(
-            f"{self.onnx_node.output[0]}_stream",
-            f"{get_stream_type(output_quant, par_attribute['out_ch_par'])}",
-            array=[par_attribute["out_w_par"]],
-        )
-        cwr.add_variable_declaration(var)
 
         # Create the StreamingGlobalAveragePool object.
         StreamingGlobalAveragePool = cpp_object(
@@ -191,8 +183,31 @@ class StreamingGlobalAveragePool(CustomOp):
                 (output_shape[1], "OUT_CH"),
                 (par_attribute["out_ch_par"], "OUT_CH_PAR"),
             ])
+        
+        return StreamingGlobalAveragePool.generate_declaration()
+    
+    def generate_output_stream_declaration(self, model) -> list[str]:
+        """ Generate the output stream declaration for the StreamingGlobalAveragePool operation. """
+        
+        output_quant = get_custom_tensor_datatype(model, self.onnx_node.output[0])
+        if output_quant is None:
+            raise ValueError(f"Tensor quantization for output '{self.onnx_node.output[0]}' not found in model.")
 
-        cwr.add_lines(StreamingGlobalAveragePool.generate_declaration())
+        par_attribute = get_par_attributes(self.onnx_node)
+
+        # Declare the output stream.
+        var = cpp_variable(
+            f"{self.onnx_node.output[0]}_stream",
+            f"{get_stream_type(output_quant, par_attribute['out_ch_par'])}",
+            array=[par_attribute["out_w_par"]],
+        )
+        
+        return [var.generate_declaration()]
+    
+    def generate_variable_declaration(self, model) -> list[str]:
+        return ""
+
+    def generate_run_call(self):
 
         # Generate the call to the StreamingGlobalAveragePool run method.
         run = cpp_function(
@@ -210,10 +225,15 @@ class StreamingGlobalAveragePool(CustomOp):
             ),
         )
 
-        cwr.add_function_call(
-            run,
-            f"{self.onnx_node.input[0]}_stream",
-            f"{self.onnx_node.output[0]}_stream",
+        return run.generate_call(
+            [],
+            self.get_stream_name(self.onnx_node.input[0]),
+            self.get_stream_name(self.onnx_node.output[0]),
         )
+    
+    def get_stream_name(self, name: str) -> str:
+        """
+        Returns the name of the stream for the tensor.
+        """
+        return f"{name}_stream"
 
-        return cwr.code

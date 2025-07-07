@@ -49,6 +49,18 @@ class cpp_function(Function):
             writer.lines.insert(0, tmpl_line)  # Insert before prototype
         return writer
 
+    def generate_call(self, template_args=None, *call_args) -> str:
+        """
+        Generate a function call string with optional template arguments.
+        - template_args: List of template arguments to be passed (e.g., ["int", "4"])
+        - call_args: Positional arguments to be passed in the function call
+        """
+        tmpl_str = ""
+        if template_args:
+            tmpl_str = f"<{', '.join(template_args)}>"
+        call_str = ", ".join(map(str, call_args))
+        return f"{self.name}{tmpl_str}({call_str})"
+
     @property
     def prototype(self) -> str:
         return self.generate_prototype() + ";"
