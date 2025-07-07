@@ -31,7 +31,6 @@ public:
     
     ConsumeStream()
     {
-#pragma HLS inline
         // Initialize the step state variables.
         STEP_output_data.data = 0; // Initialize the output data structure.
         STEP_output_data.keep = (1UL << ((DATA_PER_WORD * BITS_PER_DATA) >> 3)) - 1; // Set the keep field for the useful bytes per word. 
@@ -135,6 +134,8 @@ private:
             }
 
             // Write the output data structure to the output stream.
+            output_data.keep = (1UL << ((DATA_PER_WORD * BITS_PER_DATA) >> 3)) - 1; // Set the keep field for the useful bytes per word. 
+            output_data.strb = output_data.keep; // Set the strb field to the same value as keep.
             output_data_stream.write(output_data);
         }
     }
