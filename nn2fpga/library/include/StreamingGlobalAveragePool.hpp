@@ -114,7 +114,24 @@ private:
             if (i_hw == (IN_HEIGHT * IN_WIDTH - 1))
             {
                 TDiv divisor = IN_HEIGHT * IN_WIDTH; // Divisor for the average calculation.
-                s_output_struct[i_och_par] = quantizer(s_acc_buff[current_och] / divisor);
+
+                // Round the accumulated value to the nearest integer.
+                // This is not strictly correct, as ties should be rounded to the nearest even number,
+                // but it requires the use of a modulo operation, which is quite expensive.
+                // Instead, we are rounding ties up.
+                TAcc rounded_value = s_acc_buff[current_och] + (divisor >> 1);
+                TAcc result = rounded_value / divisor; // Calculate the average.
+
+                // Potential logic for a rounding to the nearest even number
+                // TAcc quotient = acc / div;
+                // TDiv remainder = acc % div;
+                // TDiv half = div >> 1;
+                // if (remainder > half || (remainder == half && quotient[0])) {
+                //   quotient += 1;
+                // }
+                // TAcc result = quotient;
+
+                s_output_struct[i_och_par] = quantizer(result);
                 if (i_och_par == (OUT_CH_PAR - 1))
                 {
                     o_data[0].write(s_output_struct);
