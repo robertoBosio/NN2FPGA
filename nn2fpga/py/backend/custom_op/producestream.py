@@ -2,11 +2,11 @@ from onnx import helper
 from qonnx.custom_op.base import CustomOp
 from qonnx.core.modelwrapper import ModelWrapper
 from backend.core.tensor_quant import get_custom_tensor_datatype
+from backend.core.fifo_depth import get_custom_tensor_fifo_depth
 from backend.util.codegen_utils import (
     cpp_function,
     cpp_variable,
     cpp_object,
-    NewCodeWriter,
     get_struct_type,
     get_stream_type,
     get_quant_type,
@@ -47,6 +47,12 @@ class ProduceStream(CustomOp):
     def verify_node(self):
         pass
 
+    def __get_stream_name(self, name: str) -> str:
+        """
+        Returns the name of the stream for the tensor.
+        """
+        return f"{name}_stream"
+
     def __get_data_per_word(self, model: ModelWrapper) -> int:
         """
         Returns the number of data elements that can be stored in a single word.
@@ -61,30 +67,80 @@ class ProduceStream(CustomOp):
 
         fitting_data = int(math.floor(axi_bitwidth / (output_quant.bitwidth * par_attribute["in_ch_par"] * par_attribute["in_w_par"])))
         return fitting_data * par_attribute["in_ch_par"] * par_attribute["in_w_par"]
-    
-    def generate_output_stream_declaration(self, model) -> list[str]:
-        """ Generate the output stream declaration for the ProduceStream node. """
+
+    def get_output_stream_cpp(self, model) -> list[cpp_variable]:
+        """Get the output stream cpp variables for the ProduceStream node.
+        Args:
+            model (ModelWrapper): The model with quantization information.
+        Returns:
+            list[cpp_variable]: A list of cpp_variable objects representing the output stream variables.
+        """
 
         output_quant = get_custom_tensor_datatype(model, self.onnx_node.output[0])
         if output_quant is None:
-            raise ValueError(f"Tensor quantization for output '{self.onnx_node.output[0]}' not found in model.")
+            raise ValueError(
+                f"Tensor quantization for output '{self.onnx_node.output[0]}' not found in model."
+            )
 
         par_attribute = get_par_attributes(self.onnx_node)
+        
+        fifo_depth = get_custom_tensor_fifo_depth(model, self.onnx_node.output[0])
+        pragma_list = []
+        if fifo_depth is not None:
+            for i, depth in enumerate(fifo_depth.depths):
+                pragma_list.append(
+                    f"#pragma HLS STREAM variable={self.__get_stream_name(self.onnx_node.output[0])}[{i}] depth={depth}"
+                )
 
         var = cpp_variable(
-            self.get_stream_name(self.onnx_node.output[0]),
-            f"{get_stream_type(output_quant, par_attribute['out_ch_par'])}",
+            self.__get_stream_name(self.onnx_node.output[0]),
+            primitive=f"{get_stream_type(output_quant, par_attribute['out_ch_par'])}",
             array=[par_attribute["out_w_par"]],
+            pragma=pragma_list,
         )
-        return [var.generate_declaration()]
-    
-    def generate_variable_declaration(self, model) -> list[str]:
-        return ""
-    
-    def generate_object_declaration(self, model) -> str:
-        """ Generates the C++ code necessary to declare the ProduceStream object. """
 
-        input_quant = output_quant = get_custom_tensor_datatype(model, self.onnx_node.output[0])
+        return [var]
+    
+    def get_input_stream_cpp(self, model) -> list[cpp_variable]:
+        """Get the input stream cpp variables for the ProduceStream node.
+        Args:
+            model (ModelWrapper): The model with quantization information.
+        Returns:
+            list[cpp_variable]: A list of cpp_variable objects representing the input stream variables.
+        """
+
+        var = cpp_variable(
+            self.__get_stream_name(self.onnx_node.input[0]),
+            primitive=f"hls::stream<ap_axiu<{self.get_nodeattr('axi_bitwidth')}, 0, 0, 0>>",
+            pragma=[
+                f"#pragma HLS INTERFACE axis port={self.__get_stream_name(self.onnx_node.input[0])}"
+            ],
+        )
+
+        return [var]
+
+    def get_variable_cpp(self, model) -> list[cpp_variable]:
+        """ Get the internal cpp variables of the ProduceStream node.
+        Args:
+            model (ModelWrapper): The model with quantization information.
+        Returns:
+            list[cpp_variable]: A list of cpp_variable objects representing the internal variables.
+        """
+        return []
+
+    def get_object_cpp(self, model) -> cpp_object:
+        """ Generates the cpp ProduceStream object. 
+        Args:
+            model (ModelWrapper): The model with quantization information.
+        Returns:
+            str: The ProduceStream as cpp_object.
+        """
+        # The input has to be an AXI Lite interface, the bitwidth is defined by the board used.
+        input_bitwidth = self.get_nodeattr("axi_bitwidth")
+
+        # Input and output quantization are the same, since the ProduceStream node
+        # does not change the data type of the input tensor.
+        output_quant = get_custom_tensor_datatype(model, self.onnx_node.output[0])
         if output_quant is None:
             raise ValueError(f"Tensor quantization for output '{self.onnx_node.output[0]}' not found in model.")
 
@@ -100,8 +156,8 @@ class ProduceStream(CustomOp):
             "ProduceStream",
             f"{self.onnx_node.name}",
             [
-                (f"ap_axiu<{self.get_nodeattr('axi_bitwidth')}, 0, 0, 0>", "TInputStruct"),
-                (f"{get_quant_type(input_quant)}", "TInput"),
+                (f"ap_axiu<{input_bitwidth}, 0, 0, 0>", "TInputStruct"),
+                (f"ap_uint<{input_bitwidth}>", "TInput"),
                 (
                     f"{get_struct_type(output_quant, par_attribute['out_ch_par'])}",
                     "TOutputStruct",
@@ -121,12 +177,11 @@ class ProduceStream(CustomOp):
             ],
         )
 
-        return ProduceStream.generate_declaration()
+        return ProduceStream
 
     def generate_run_call(self):
         """ Generates the C++ code necessary to run the ProduceStream node. """
 
-        # Generate the call to the ProduceStream run method.
         run = cpp_function(
             name=f"{self.onnx_node.name}.run",
             return_type="void",
@@ -144,34 +199,35 @@ class ProduceStream(CustomOp):
 
         return run.generate_call(
             [],
-            self.get_stream_name(self.onnx_node.input[0]),
-            self.get_stream_name(self.onnx_node.output[0]),
+            self.__get_stream_name(self.onnx_node.input[0]),
+            self.__get_stream_name(self.onnx_node.output[0]),
         )
 
-    def append_top_inputs(self, function: cpp_function) -> cpp_function:
-        """
-        Append the input streams to the top function.
-        """
+    def generate_step_call(self) -> str:
+        """ Generates the C++ code necessary to run the ProduceStream node in step mode. """
 
-        var = cpp_variable(self.get_stream_name(self.onnx_node.input[0]), f"hls::stream<ap_axiu<{self.get_nodeattr('axi_bitwidth')}, 0, 0, 0>>&")
-        function.add_argument(var)
-        function.add_code(f"#pragma HLS INTERFACE axis port={self.get_stream_name(self.onnx_node.input[0])}")
+        step = cpp_function(
+            name=f"{self.onnx_node.name}.step",
+            return_type="void",
+            arguments=(
+                (
+                    f"input_data_stream",
+                    f"hls::stream<TInputStruct>",
+                ),
+                (
+                    f"output_data_stream",
+                    f"hls::stream<TOutputStruct>",
+                ),
+            ),
+        )
 
-        return function
+        return step.generate_call(
+            [],
+            self.__get_stream_name(self.onnx_node.input[0]),
+            self.__get_stream_name(self.onnx_node.output[0]),
+        )
 
-    def get_stream_name(self, name: str) -> str:
-        """
-        Returns the name of the stream for the tensor.
-        """
-        return f"{name}_stream"
-
-    def get_file_name(self, name: str) -> str:
-        """
-        Returns the name of the file for the tensor.
-        """
-        return f"{name}_file"
-
-    def append_call_read_input_from_file(self, model, function: cpp_function) -> cpp_function:
+    def generate_call_read_input_from_file(self, model, file_name: str) -> str:
         """
         Generate the code to read the input from a npy file, quantize it and convert it to an HLS stream.
         """
@@ -179,7 +235,9 @@ class ProduceStream(CustomOp):
 
         output_quant = get_custom_tensor_datatype(model, self.onnx_node.output[0])
         if output_quant is None:
-            raise ValueError(f"Tensor quantization for output '{self.onnx_node.output[0]}' not found in model.")
+            raise ValueError(
+                f"Tensor quantization for output '{self.onnx_node.output[0]}' not found in model."
+            )
 
         npy_read = cpp_function(
             name=f"npy_to_hls_stream",
@@ -195,34 +253,15 @@ class ProduceStream(CustomOp):
             ],
         )
 
-        function.add_code(
-            f"""{
-            npy_read.generate_call(
-                [
-                    f'ap_axiu<{input_bitwidth}, 0, 0, 0>',
-                    get_quant_type(output_quant),
-                ],
-                self.get_file_name(self.onnx_node.input[0]),
-                self.get_stream_name(self.onnx_node.input[0]),
-                self.__get_data_per_word(model),
-                output_quant.bitwidth,
-                output_quant.scale,
-                output_quant.zeropt,
-            )};"""
+        return npy_read.generate_call(
+            [
+                f"ap_axiu<{input_bitwidth}, 0, 0, 0>",
+                get_quant_type(output_quant),
+            ],
+            file_name,
+            self.__get_stream_name(self.onnx_node.input[0]),
+            self.__get_data_per_word(model),
+            output_quant.bitwidth,
+            output_quant.scale,
+            output_quant.zeropt,
         )
-
-        return function
-
-    def append_variable_declaration(self, function: cpp_function) -> cpp_function:
-        """
-        Append the variable declaration for the input stream.
-        """
-        input_bitwidth = self.get_nodeattr("axi_bitwidth")
-
-        stream_var = cpp_variable(
-            self.get_stream_name(self.onnx_node.input[0]),
-            f"hls::stream<ap_axiu<{input_bitwidth}, 0, 0, 0>>",
-        )
-
-        function.add_code(f"{stream_var.generate_declaration()};")
-        return function

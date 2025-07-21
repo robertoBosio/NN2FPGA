@@ -70,7 +70,9 @@ class cpp_function(Function):
         return self.generate_definition().code
 
 class cpp_variable(Variable):
-    def __init__(self, name: str, primitive: str, *args, **kwargs):
+    
+    def __init__(self, name: str, primitive: str, pragma = [], *args, **kwargs):
+        self.pragma = pragma
         super().__init__(name, primitive, *args, **kwargs)
 
 class cpp_object:

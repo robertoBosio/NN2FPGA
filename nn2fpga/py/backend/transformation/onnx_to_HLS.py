@@ -41,7 +41,11 @@ def generate_hls_code(model: ModelWrapper) -> str:
     function.add_code("#pragma HLS INTERFACE ap_ctrl_none port=return")
 
     for produce in model.get_nodes_by_op_type("ProduceStream"):
-        function = getCustomOp(produce).append_top_inputs(function)
+        for stream in getCustomOp(produce).get_input_stream_cpp(model):
+            stream.primitive = stream.primitive + "&"
+            function.add_argument(stream)
+            for pragma in stream.pragma:
+                function.add_code(pragma)
 
     for const_input_name in {init.name for init in model.graph.initializer if "const_" in init.name}:
         var = cpp_variable(f"{const_input_name}_stream", "hls::stream<ap_uint<8>>&")
@@ -49,14 +53,29 @@ def generate_hls_code(model: ModelWrapper) -> str:
         function.add_code(f"#pragma HLS INTERFACE axis port={const_input_name}_stream")
 
     for consume in model.get_nodes_by_op_type("ConsumeStream"):
-        function = getCustomOp(consume).append_top_outputs(function)
+        for stream in getCustomOp(consume).get_output_stream_cpp(model):
+            stream.primitive = stream.primitive + "&"
+            function.add_argument(stream)
+            for pragma in stream.pragma:
+                function.add_code(pragma)
 
     for node in model.graph.node:
-        for line in getCustomOp(node).generate_output_stream_declaration(model):
-            function.add_code(f"{line};")
-        for line in getCustomOp(node).generate_variable_declaration(model):
-            function.add_code(f"{line};")
-        function.add_code(getCustomOp(node).generate_object_declaration(model))
+
+        # Declare the output streams, not for ConsumeStream nodes which are arguments to the top function
+        if node.op_type != "ConsumeStream":
+            for stream in getCustomOp(node).get_output_stream_cpp(model):
+                function.add_code(f"{stream.generate_declaration()};")
+                for pragma in stream.pragma:
+                    function.add_code(pragma)
+
+        # Declare the variables used in the node
+        for var in getCustomOp(node).get_variable_cpp(model):
+            function.add_code(f"{var.generate_declaration()};")
+
+        # Generate the object declaration for the custom operation
+        function.add_code(getCustomOp(node).get_object_cpp(model).generate_declaration())
+
+        # Generate the run call for the custom operation
         function.add_code(f"{getCustomOp(node).generate_run_call()};")
 
     cwr.add_function_definition(function)
@@ -79,54 +98,76 @@ def generate_hls_driver(model: ModelWrapper) -> str:
     cwr.include("ap_axi_sdata.h")
     cwr.include("utils/utils.hpp")
 
+    # Accelerator kernel function definition
     kernel_function = cpp_function(
         name=model.get_metadata_prop("top_name"),
         return_type="void",
         qualifiers=["extern"],
     )
 
-    # Add input and output streams
+    # Add input and output streams to the kernel function
     for produce in model.get_nodes_by_op_type("ProduceStream"):
-        kernel_function = getCustomOp(produce).append_top_inputs(kernel_function)
+        input_args = getCustomOp(produce).get_input_stream_cpp(model)
+        for arg in input_args:
+            arg.primitive = arg.primitive + "&"
+            kernel_function.add_argument(arg)
 
     for consume in model.get_nodes_by_op_type("ConsumeStream"):
-        kernel_function = getCustomOp(consume).append_top_outputs(kernel_function)
+        output_args = getCustomOp(consume).get_output_stream_cpp(model)
+        for arg in output_args:
+            arg.primitive = arg.primitive + "&"
+            kernel_function.add_argument(arg)
 
+    # Add the function prototype, which will be called from the main function.
     cwr.add_function_prototype(kernel_function)
     
+    # Main testbench function definition
     main_function = cpp_function(
         name="main",
         return_type="int",
         arguments=[cpp_variable("argc", "int"), cpp_variable("argv", "char**")],
     )
 
-    argc = 1
+    # Add file and streams declarations
+    file_arg_idx = 1
+    file_map = {}
     for produce in model.get_nodes_by_op_type("ProduceStream"):
-        main_function.add_code(f"std::string {produce.input[0]}_file = argv[{argc}];")
-        main_function = getCustomOp(produce).append_variable_declaration(main_function)
-        argc += 1
+        file_name = "file_" + str(file_arg_idx)
+        file_map[produce.name] = file_name
+        main_function.add_code(f"std::string {file_name} = argv[{file_arg_idx}];")
+        input_args = getCustomOp(produce).get_input_stream_cpp(model)
+        for arg in input_args:
+            main_function.add_code(f"{arg.generate_declaration()};")
+        file_arg_idx += 1
     
     for consume in model.get_nodes_by_op_type("ConsumeStream"):
-        main_function.add_code(f"std::string {consume.output[0]}_file = argv[{argc}];")
-        main_function = getCustomOp(consume).append_variable_declaration(main_function)
-        argc += 1
+        file_name = "file_" + str(file_arg_idx)
+        file_map[consume.name] = file_name
+        main_function.add_code(f"std::string {file_name} = argv[{file_arg_idx}];")
+        output_args = getCustomOp(consume).get_output_stream_cpp(model)
+        for arg in output_args:
+            main_function.add_code(f"{arg.generate_declaration()};")
+        file_arg_idx += 1
 
+    # Add read from file calls for input streams
     for produce in model.get_nodes_by_op_type("ProduceStream"):
-        main_function = getCustomOp(produce).append_call_read_input_from_file(model, main_function)
-
-    main_function.add_code("// Call the accelerator kernel")
+        main_function.add_code(f"{getCustomOp(produce).generate_call_read_input_from_file(model, file_map[produce.name])};")
 
     kernel_arguments = []
     for produce in model.get_nodes_by_op_type("ProduceStream"):
-        kernel_arguments.append(getCustomOp(produce).get_stream_name(produce.input[0]))
+        for arg in getCustomOp(produce).get_input_stream_cpp(model):
+            kernel_arguments.append(arg.name)
 
     for consume in model.get_nodes_by_op_type("ConsumeStream"):
-        kernel_arguments.append(getCustomOp(consume).get_stream_name(consume.output[0]))
+        for arg in getCustomOp(consume).get_output_stream_cpp(model):
+            kernel_arguments.append(arg.name)
 
+    # Add the kernel function call
     main_function.add_code(f"{kernel_function.generate_call([], *kernel_arguments)};")
 
+    # Add write to file calls for output streams
     for consume in model.get_nodes_by_op_type("ConsumeStream"):
-        main_function = getCustomOp(consume).append_call_write_output_to_file(model, main_function)
+        main_function.add_code(f"{getCustomOp(consume).generate_call_write_output_to_file(model, file_map[consume.name])};")
 
     main_function.add_code("return 0;")
     cwr.add_function_definition(main_function)

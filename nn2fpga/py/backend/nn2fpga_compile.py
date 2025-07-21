@@ -8,7 +8,12 @@ import qonnx.util.basic as util
 import qonnx.core.onnx_exec as oxe
 from qonnx.transformation.infer_shapes import InferShapes
 from qonnx.transformation.infer_datatypes import InferDataTypes
-from qonnx.transformation.general import GiveReadableTensorNames, GiveUniqueNodeNames, GiveUniqueParameterTensors
+from qonnx.transformation.general import (
+    GiveReadableTensorNames,
+    GiveUniqueNodeNames,
+    GiveUniqueParameterTensors,
+)
+from qonnx.transformation.qonnx_to_qcdq import QuantToQCDQ
 from qonnx.core.modelwrapper import ModelWrapper
 from backend.util.compare_models import test_transformation_equivalence
 from backend.analysis.check_quantization import check_quantization
@@ -138,6 +143,7 @@ def nn2fpga_compile(
 
     # Handle weights streaming.
     model = model.transform(transformation.AddStreamingParams(nn2fpga_root=prj_root))
+    model = model.transform(transformation.ComputeFifoDepth(work_root=prj_root))
     model.save("nn2fpga_accel.onnx")
     parent_model = ModelWrapper("wrapper_model.onnx")
     model = model.transform(
@@ -150,6 +156,9 @@ def nn2fpga_compile(
     # Simulate the model to check if it works.
     # oxe.execute_onnx(parent_model, {"global_in": np.random.randn(1, 3, 224, 224).astype(np.float32)})
     test_transformation_equivalence(original_model, parent_model)
+
+    parent_model = parent_model.transform(QuantToQCDQ())
+    parent_model.save("qcdq_wrapper_model.onnx")
 
     # Save the original stdout and stderr
     original_stdout = sys.stdout

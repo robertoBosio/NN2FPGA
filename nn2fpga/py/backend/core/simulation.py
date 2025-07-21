@@ -42,6 +42,8 @@ def dump_tcl_script(top_name, part_name, frequency, hls_version, input_files):
             'set_part {part_name}',
             'create_clock -period {t_clk}',
             'csim_design -argv "{argv}"',
+            'csynth_design',
+            'cosim_design -argv "{argv}"',
             'exit',
         ]
     )
@@ -174,11 +176,11 @@ def simulate(blob: str, context: dict) -> dict:
         f.write(base64.b64decode(json_blob["hls_driver_b64"]).decode())
 
     # run the simulation
-    subprocess.run(
-        ["vitis_hls", "-f", f"{work_dir}/setup.tcl"],
-        cwd=work_dir,
-        check=True
-    )
+    # subprocess.run(
+    #     ["vitis_hls", "-f", f"{work_dir}/setup.tcl"],
+    #     cwd=work_dir,
+    #     check=True
+    # )
 
     # Read the output files and update the context
     for old_name, new_name in output_map.items():

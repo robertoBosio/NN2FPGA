@@ -5,11 +5,11 @@ from qonnx.custom_op.base import CustomOp
 from qonnx.util.basic import qonnx_make_model
 from qonnx.core.modelwrapper import ModelWrapper
 from backend.core.tensor_quant import get_custom_tensor_datatype
+from backend.core.fifo_depth import get_custom_tensor_fifo_depth
 from backend.util.codegen_utils import (
     cpp_function,
     cpp_variable,
     cpp_object,
-    NewCodeWriter,
     get_struct_type,
     get_stream_type,
     get_quant_type,
@@ -101,6 +101,12 @@ class StreamingGlobalAveragePool(CustomOp):
 
     def verify_node(self):
         pass
+    
+    def __get_stream_name(self, name: str) -> str:
+        """
+        Returns the name of the stream for the tensor.
+        """
+        return f"{name}_stream"
 
     def __get_accumulator(self, input_quant, input_shape) -> str:
         """ Returns the accumulator type for the StreamingGlobalAveragePool operation. """
@@ -144,7 +150,8 @@ class StreamingGlobalAveragePool(CustomOp):
                 "Float quantization is currently not supported for StreamingGlobalAveragePool.  "
             )
     
-    def generate_object_declaration(self, model):
+    def get_object_cpp(self, model) -> cpp_object:
+        """ Generate the cpp_object for the StreamingGlobalAveragePool operation. """
         
         input_quant = get_custom_tensor_datatype(model, self.onnx_node.input[0])
         if input_quant is None:
@@ -184,10 +191,15 @@ class StreamingGlobalAveragePool(CustomOp):
                 (par_attribute["out_ch_par"], "OUT_CH_PAR"),
             ])
         
-        return StreamingGlobalAveragePool.generate_declaration()
+        return StreamingGlobalAveragePool
     
-    def generate_output_stream_declaration(self, model) -> list[str]:
-        """ Generate the output stream declaration for the StreamingGlobalAveragePool operation. """
+    def get_output_stream_cpp(self, model) -> list[cpp_variable]:
+        """Get the output stream cpp variables for the StreamingGlobalAveragePool node.
+        Args:
+            model (ModelWrapper): The model with quantization information.
+        Returns:
+            list[cpp_variable]: A list of cpp_variable objects representing the output stream variables.
+        """
         
         output_quant = get_custom_tensor_datatype(model, self.onnx_node.output[0])
         if output_quant is None:
@@ -195,19 +207,69 @@ class StreamingGlobalAveragePool(CustomOp):
 
         par_attribute = get_par_attributes(self.onnx_node)
 
+        # Retrieve FIFO depth for the output tensor.
+        fifo_depth = get_custom_tensor_fifo_depth(model, self.onnx_node.output[0])
+        pragma_list = []
+        if fifo_depth is not None:
+            for i, depth in enumerate(fifo_depth.depths):
+                pragma_list.append(
+                    f"#pragma HLS STREAM variable={self.__get_stream_name(self.onnx_node.output[0])}[{i}] depth={depth}"
+                )
+
         # Declare the output stream.
         var = cpp_variable(
             f"{self.onnx_node.output[0]}_stream",
             f"{get_stream_type(output_quant, par_attribute['out_ch_par'])}",
             array=[par_attribute["out_w_par"]],
+            pragma=pragma_list,
         )
         
-        return [var.generate_declaration()]
+        return [var]
     
-    def generate_variable_declaration(self, model) -> list[str]:
-        return ""
+    def get_input_stream_cpp(self, model) -> list[cpp_variable]:
+        """Get the input stream cpp variables for the StreamingGlobalAveragePool node.
+        Args:
+            model (ModelWrapper): The model with quantization information.
+        Returns:
+            list[cpp_variable]: A list of cpp_variable objects representing the input stream variables.
+        """
+        
+        input_quant = get_custom_tensor_datatype(model, self.onnx_node.input[0])
+        if input_quant is None:
+            raise ValueError(f"Tensor quantization for input '{self.onnx_node.input[0]}' not found in model.")
 
-    def generate_run_call(self):
+        par_attribute = get_par_attributes(self.onnx_node)
+
+        # Retrieve FIFO depth for the input tensor.
+        fifo_depth = get_custom_tensor_fifo_depth(model, self.onnx_node.input[0])
+        pragma_list = []
+        if fifo_depth is not None:
+            for i, depth in enumerate(fifo_depth.depths):
+                pragma_list.append(
+                    f"#pragma HLS STREAM variable={self.__get_stream_name(self.onnx_node.input[0])}[{i}] depth={depth}"
+                )
+
+        # Declare the input stream.
+        var = cpp_variable(
+            f"{self.onnx_node.input[0]}_stream",
+            f"{get_stream_type(input_quant, par_attribute['in_ch_par'])}",
+            array=[par_attribute["in_w_par"]],
+            pragma=pragma_list,
+        )
+        
+        return [var]
+    
+    def get_variable_cpp(self, model) -> list[cpp_variable]:
+        """ Get the internal cpp variables of the StreamingGlobalAveragePool node.
+        Args:
+            model (ModelWrapper): The model with quantization information.
+        Returns:
+            list[cpp_variable]: A list of cpp_variable objects representing the internal variables.
+        """
+        return []
+
+    def generate_run_call(self) -> str:
+        """ Generates the C++ code necessary to run the StreamingGlobalAveragePool node. """
 
         # Generate the call to the StreamingGlobalAveragePool run method.
         run = cpp_function(
@@ -227,13 +289,31 @@ class StreamingGlobalAveragePool(CustomOp):
 
         return run.generate_call(
             [],
-            self.get_stream_name(self.onnx_node.input[0]),
-            self.get_stream_name(self.onnx_node.output[0]),
+            self.__get_stream_name(self.onnx_node.input[0]),
+            self.__get_stream_name(self.onnx_node.output[0]),
         )
-    
-    def get_stream_name(self, name: str) -> str:
-        """
-        Returns the name of the stream for the tensor.
-        """
-        return f"{name}_stream"
 
+    def generate_step_call(self) -> str:
+        """ Generates the C++ code necessary to step the StreamingGlobalAveragePool node. """
+
+        # Generate the call to the StreamingGlobalAveragePool step method.
+        step = cpp_function(
+            name=f"{self.onnx_node.name}.step",
+            return_type="void",
+            arguments=(
+                (
+                    f"input_data_stream",
+                    f"hls::stream<TInputStruct>",
+                ),
+                (
+                    f"output_data_stream",
+                    f"hls::stream<TOutputStruct>",
+                ),
+            ),
+        )
+
+        return step.generate_call(
+            [],
+            self.__get_stream_name(self.onnx_node.input[0]),
+            self.__get_stream_name(self.onnx_node.output[0]),
+        )
