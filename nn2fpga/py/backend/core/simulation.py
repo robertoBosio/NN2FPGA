@@ -52,66 +52,6 @@ def dump_tcl_script(top_name, part_name, frequency, hls_version, input_files):
         top_name=top_name, tb_files=tb_files, part_name=part_name, t_clk=t_clk, argv=argv
     )
 
-
-def dump_testbench(top_name: str, input_names: list, output_names: list) -> str:
-
-    cwr = CodeWriter()
-    cwr.add_autogen_comment()
-
-    # Include sections for HLS
-    cwr.include("ap_int.h")
-    cwr.include("hls_stream.h")
-    cwr.include("ap_axi_sdata.h")
-    cwr.include("nn2fpga/utils.h")
-
-    kernel_function = Function(
-        name=top_name,
-        return_type="void",
-        qualifiers=["extern"],
-    )
-
-    for name in [*input_names, *output_names]:
-        kernel_function.add_argument(Variable(name, "hls::stream<ap_axiu<128, 0, 0, 0>>&"))
-
-    cwr.add_line()
-    cwr.add_function_prototype(kernel_function)
-
-    main_function = Function(
-        name="main",
-        return_type="int",
-        arguments=[Variable("argc", "int"), Variable("argv", "char**")],
-    )
-
-    main_function.add_code("")
-    main_function.add_code("// Read input files and convert to HLS streams.")
-    for i, var_name in enumerate([*input_names, *output_names]):
-        main_function.add_code(f"std::string {var_name}_file = argv[{i + 1}];")
-
-    for var_name in [*input_names, *output_names]:
-        main_function.add_code(f"hls::stream<ap_uint<8>> {var_name}_stream;")
-
-    for var_name in input_names:
-        main_function.add_code(
-            f"nn2fpga::npy_to_hls_stream<ap_uint<8>>({var_name}_file, {var_name}_stream);"
-        )
-
-    function_args = [f"{var_name}_stream" for var_name in [*input_names, *output_names]]
-    print(f"Function args: {function_args}")
-    main_function.add_code("// Call the accelerator kernel")
-    main_function.add_code(f"{kernel_function.generate_call(*function_args)};")
-    main_function.add_code("// Write output streams to files.")
-
-    for var_name in output_names:
-        main_function.add_code(
-            f"nn2fpga::hls_stream_to_npy<ap_uint<8>>({var_name}_file, {var_name}_stream);"
-        )
-
-    main_function.add_code("return 0;")
-
-    cwr.add_line()
-    cwr.add_function_definition(main_function)
-    return cwr.code
-
 def make_build_dir(work_dir: str) -> None:
     """Create the working directory for the simulation."""
     os.makedirs(work_dir, exist_ok=True)

@@ -278,7 +278,8 @@ def layers_extractions(model: ModelWrapper) -> list:
 
             elif node.op_type in ["StreamingStreamingGlobalAveragePool", "StreamingStreamingGlobalMaxPool"]:
                 kernel_shape = (input_shape[2], input_shape[3])
-                kernel = int(math.prod(kernel_shape))
+                # kernel = int(math.prod(kernel_shape))
+                kernel = 1
                 depth = True
                 ops = math.prod(input_shape)
                 act_bits = get_custom_tensor_datatype(model, node.input[0]).bitwidth
@@ -361,7 +362,10 @@ def parallelismILP(layers_info, valid_par_solutions, NUM_DSP, NUM_PORTS, silvia_
         valid_iter_solutions.append([])
         layer_iter = layer["total"]
         for single_par in layer_par:
-            unroll_factor = layer["kernel"] * np.prod(single_par)
+            if layer["depth"]:
+                unroll_factor = layer["kernel"] * np.prod(single_par[1:])
+            else:
+                unroll_factor = layer["kernel"] * np.prod(single_par)
             valid_iter_solutions[-1].append(layer_iter // unroll_factor)
 
     # valid_dsp_solutions stores the DSPs used for each valid solution
@@ -510,7 +514,10 @@ def resourceILP(layers_info, model_II, valid_par_solutions, parallel_op, NUM_DSP
         layer_iter = layer["total"]
         line_iter = layer["ich"] * layer["iw"] * layer["ih"]
         for single_par in layer_par:
-            unroll_factor = layer["kernel"] * np.prod(single_par)
+            if layer["depth"]:
+                unroll_factor = layer["kernel"] * np.prod(single_par[1:])
+            else:
+                unroll_factor = layer["kernel"] * np.prod(single_par)
             valid_iter_solutions[-1].append(layer_iter // unroll_factor)
             if not (has_streaming_linebuffer(layer["type"], layer["kernel"], single_par[2])):
                 valid_iter_linebuffer[-1].append(0)
@@ -786,7 +793,10 @@ def print_report(layers_info, layer_par, n_variables, n_constraints, model_II, t
 
                 port = compute_bram_layer(bits, weights,  och_ops * ich_ops * layer["kernel"])
 
-            iter = int(layer["total"] / (ich_ops * och_ops * ow_ops * layer["kernel"]))
+            if layer["depth"]:
+                iter = int(layer["total"] / (ich_ops * ow_ops * layer["kernel"]))
+            else:
+                iter = int(layer["total"] / (ich_ops * och_ops * ow_ops * layer["kernel"]))
             PORTs += port
             DSPs += dsp
 
