@@ -909,12 +909,16 @@ class BalanceComputation(Transformation):
         model = update_model(model, layer_par)
         model = propagate_parallelism(model)
 
+
         # layer_par = opt_steps(
         #     layers_info,
         #     layer_par,
         #     valid_par_solutions,
         #     self.nn2fpga_root,
         # )
+
+        # Add model II to the model metadata
+        model.set_metadata_prop("model_II", model_II)
 
         print(f"Balanced model with II {model_II} using {n_variables} variables and {n_constraints} constraints in {time_spent:.2f}s")
         return (model, False)

@@ -1,13 +1,8 @@
-from qonnx.core.modelwrapper import ModelWrapper
-from qonnx.core.onnx_exec import execute_onnx
-from qonnx.custom_op.registry import getCustomOp
-from onnx import NodeProto
 import numpy as np
 import base64
 import json
 import os
 import subprocess
-from csnake import CodeWriter, Variable, Function
 
 def dump_tcl_script(top_name, part_name, frequency, hls_version, input_files):
     """Dump a TCL script to set up the HLS project and run the simulation."""
@@ -44,6 +39,7 @@ def dump_tcl_script(top_name, part_name, frequency, hls_version, input_files):
             'csim_design -argv "{argv}"',
             'csynth_design',
             'cosim_design -argv "{argv}"',
+            'export_design -flow impl',
             'exit',
         ]
     )
@@ -116,11 +112,11 @@ def simulate(blob: str, context: dict) -> dict:
         f.write(base64.b64decode(json_blob["hls_driver_b64"]).decode())
 
     # run the simulation
-    # subprocess.run(
-    #     ["vitis_hls", "-f", f"{work_dir}/setup.tcl"],
-    #     cwd=work_dir,
-    #     check=True
-    # )
+    subprocess.run(
+        ["vitis_hls", "-f", f"{work_dir}/setup.tcl"],
+        cwd=work_dir,
+        check=True
+    )
 
     # Read the output files and update the context
     for old_name, new_name in output_map.items():

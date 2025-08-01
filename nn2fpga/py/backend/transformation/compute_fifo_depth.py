@@ -15,6 +15,9 @@ import subprocess
 def generate_hls_code(model: ModelWrapper, work_root: str) -> str:
     """ Generate the HLS code to execute the model in fifo-depth mode. """
 
+    # Retrieve model II
+    model_II = model.get_metadata_prop("model_II", 1)
+
     cwr = NewCodeWriter()
     cwr.add_autogen_comment()
 
@@ -23,7 +26,6 @@ def generate_hls_code(model: ModelWrapper, work_root: str) -> str:
     cwr.include("hls_stream.h")
     cwr.include("hls_vector.h")
     cwr.include("ap_axi_sdata.h")
-    cwr.include("<fstream>")
 
     # Include files from the nn2FPGA library
     nn2fpga_include_dir = "/workspace/NN2FPGA/nn2fpga/library/include"
@@ -32,33 +34,33 @@ def generate_hls_code(model: ModelWrapper, work_root: str) -> str:
             if fname.endswith(".hpp"):
                 cwr.include(fname)
 
+    cwr.include("utils/CSDFG_utils.hpp")
+    cwr.include("<fstream>")
+    cwr.include("<unordered_set>")
+
     # Top function definition
     function = cpp_function(model.get_metadata_prop("top_name"), "void")
 
     for produce in model.get_nodes_by_op_type("ProduceStream"):
         for stream in getCustomOp(produce).get_input_stream_cpp(model):
-            stream.primitive = stream.primitive + "&"
-            function.add_argument(stream)
+            function.add_code(f"{stream.generate_declaration()};")
 
     for const_input_name in {init.name for init in model.graph.initializer if "const_" in init.name}:
         var = cpp_variable(f"{const_input_name}_stream", "hls::stream<ap_uint<8>>&")
-        function.add_argument(var)
-
-    for consume in model.get_nodes_by_op_type("ConsumeStream"):
-        for stream in getCustomOp(consume).get_output_stream_cpp(model):
-            stream.primitive = stream.primitive + "&"
-            function.add_argument(stream)
+        function.add_code(f"{var.generate_declaration()};")
 
     stream_vars = []
     stream_count = 0
     for node in model.graph.node:
 
-        # Declare the output streams, not for ConsumeStream nodes which are arguments to the top function
-        if node.op_type != "ConsumeStream":
-            for stream in getCustomOp(node).get_output_stream_cpp(model):
-                stream_vars.append(stream)
+        # Declare the output streams.
+        for stream in getCustomOp(node).get_output_stream_cpp(model):
+            stream_vars.append(stream)
+            function.add_code(f"{stream.generate_declaration()};")
+
+            # Do not consider ConsumeStream nodes for streams size calculation.
+            if node.op_type != "ConsumeStream":
                 stream_count += stream.array[0] 
-                function.add_code(f"{stream.generate_declaration()};")
 
         # Declare the variables used in the node
         for var in getCustomOp(node).get_variable_cpp(model):
@@ -66,38 +68,50 @@ def generate_hls_code(model: ModelWrapper, work_root: str) -> str:
 
         # Generate the object declaration for the custom operation
         function.add_code(getCustomOp(node).get_object_cpp(model).generate_declaration())
-    
+
     # Declare the array of streams sizes.
     stream_sizes = cpp_variable("stream_max_size", primitive="size_t", value=[2] * stream_count) 
     function.add_code(stream_sizes.generate_initialization())
-
-    # Declare the end flag.    
-    end_flag = cpp_variable("end_flag", primitive="bool")
-    function.add_code(end_flag.declaration)
 
     # Declare the clock cycle counter.
     clock_cycle = cpp_variable("clock_cycle", primitive="size_t", value=0)
     function.add_code(clock_cycle.generate_initialization())
 
-    # Write the do while loop to process the data until all the processors are waiting.
-    function.add_code("do {")
-    function.codewriter.indent()
-    function.add_code("end_flag = false;")
-
-    # Execute a step for each node in the model.
-    for node in model.graph.node:
-        function.add_code(f"end_flag |= {getCustomOp(node).generate_step_call()};")
+    # Declare the CSDFGState and CSDFGStateHasher for the visited states.
+    function.add_code("std::unordered_set<CSDFGState, CSDFGStateHasher> visited_states;")
+    function.add_code("CSDFGState current_state;")
     
+    # Write the while loop to process the data until all the processors are waiting.
+    function.add_code("while (true) {")
+    function.codewriter.indent()
+    function.add_code("std::vector<ActorStatus> actor_statuses;")
+    function.add_code("std::vector<size_t> channel_quantities;")
+    function.add_code("ActorStatus actor_status;")
+
+    # Execute a step for each node in the model in reverse order.
+    # It must be done in reverse order to ensure that nodes cannot immediately consume the data produced by the previous node.
+    for node in reversed(model.graph.node):
+        function.add_code(f"actor_status = {getCustomOp(node).generate_step_call()};")
+        function.add_code("actor_statuses.push_back(actor_status);")
+
     # Update the fifo max size for each stream.
     iter = 0
     for stream in stream_vars:
         for _ in range(stream.array[0]):
             function.add_code(f"stream_max_size[{iter}] = std::max<size_t>({stream.name}[0].size(), stream_max_size[{iter}]);")
+            function.add_code(f"channel_quantities.push_back({stream.name}[0].size());")
             iter += 1
 
+    function.add_code("current_state = CSDFGState(actor_statuses, channel_quantities);")
     function.add_code("clock_cycle++;")
+    function.add_code("if (visited_states.find(current_state) != visited_states.end()) {")
+    function.codewriter.indent()
+    function.add_code("break;")
     function.codewriter.dedent()
-    function.add_code("} while (end_flag);")
+    function.add_code("}")
+    function.add_code("visited_states.insert(current_state);")
+    function.codewriter.dedent()
+    function.add_code("};")
 
     # Add the final code to save the json report.
     function.add_code(f"std::ofstream report_file(\"{work_root}/fifo_depth.json\");")
@@ -214,15 +228,13 @@ def generate_hls_driver(model: ModelWrapper) -> str:
     cwr.add_function_definition(main_function)
     return cwr.code
 
-def generate_tcl_script(top_name, part_name, frequency, hls_version, input_files):
+def generate_tcl_script(top_name, part_name, frequency, hls_version):
     """Dump a TCL script to set up the HLS project and run the simulation."""
 
-    argv = " ".join(input_files)
-    tb_files = " ".join(input_files + ["testbench.cpp"])
     t_clk = f"{1e3 / int(frequency):.2f}ns" # Convert frequency in MHz to clock period in ns
     lines = list()
     lines.append("# Auto-generated TCL script for HLS project setup")
-    lines.append("# Generated by nn2fpga simulation flow")
+    lines.append("# Generated by nn2FPGA simulation flow.")
     lines.append("")
 
     # Check the HLS version to determine the correct syntax
@@ -241,19 +253,16 @@ def generate_tcl_script(top_name, part_name, frequency, hls_version, input_files
     lines.extend(
         [
             'add_files fifo_depth.cpp -cflags " -I/workspace/NN2FPGA/nn2fpga/library/include"',
-            'add_files -tb "/workspace/NN2FPGA/deps/cnpy/cnpy.cpp"',
-            'add_files -tb "{tb_files}" -cflags "-I/workspace/NN2FPGA/deps/cnpy -I/workspace/NN2FPGA/nn2fpga/library/include -lz"',
+            'add_files -tb testbench.cpp -cflags "-I/workspace/NN2FPGA/nn2fpga/library/include"',
             'set_top "{top_name}"',
             'set_part {part_name}',
             'create_clock -period {t_clk}',
-            'csim_design -argv "{argv}"',
+            'csim_design',
             'exit',
         ]
     )
 
-    return "\n".join(lines).format(
-        top_name=top_name, tb_files=tb_files, part_name=part_name, t_clk=t_clk, argv=argv
-    )
+    return "\n".join(lines).format(top_name=top_name, part_name=part_name, t_clk=t_clk)
 
 def make_build_dir(work_dir: str) -> None:
     """Create the working directory for the simulation."""
@@ -281,14 +290,6 @@ class ComputeFifoDepth(Transformation):
         with open(os.path.join(self.work_root, "fifo_depth.cpp"), "w") as f:
             f.write(generate_hls_code(model, self.work_root))
 
-        # Write input files for the simulation, filled with zeros.
-        input_files = []
-        for produce in model.get_nodes_by_op_type("ProduceStream"):
-            input_shape = model.get_tensor_shape(produce.input[0])
-            data = np.zeros(input_shape, dtype=np.float32)
-            np.save(os.path.join(self.work_root, f"{produce.name}.npy"), data)
-            input_files.append(os.path.join(self.work_root, f"{produce.name}.npy"))
-        
         # Write the driver code.
         with open(os.path.join(self.work_root, "testbench.cpp"), "w") as f:
             f.write(generate_hls_driver(model))
@@ -299,7 +300,6 @@ class ComputeFifoDepth(Transformation):
             part_name=model.get_metadata_prop("part_name"),
             frequency=model.get_metadata_prop("frequency"),
             hls_version=model.get_metadata_prop("hls_version"),
-            input_files=input_files,
         )
         with open(os.path.join(self.work_root, "setup.tcl"), "w") as f:
             f.write(tcl_script)

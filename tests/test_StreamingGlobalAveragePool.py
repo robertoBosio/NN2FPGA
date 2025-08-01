@@ -12,8 +12,9 @@ def test_dequant_quant_simulation():
     tcl_script = f"""
 open_project "{PROJECT_NAME}"
 open_solution -reset solution0
-add_files {FILE_DIR}/include/{FILENAME}.hpp -cflags "-I/workspace/NN2FPGA/nn2fpga/library"
-add_files -tb {FILE_DIR}/test/Unit{FILENAME}.cpp
+add_files {FILE_DIR}/include/{FILENAME}.hpp -cflags "-I/workspace/NN2FPGA/nn2fpga/library/include"
+add_files -tb {FILE_DIR}/test/Unit{FILENAME}.cpp -cflags "-I/workspace/NN2FPGA/nn2fpga/library/include"
+
 csim_design
 exit
 """

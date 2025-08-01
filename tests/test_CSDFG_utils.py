@@ -3,17 +3,18 @@ import os
 import pytest
 
 PROJECT_NAME = "proj_unit_test"
-FILE_DIR = f"/workspace/NN2FPGA/nn2fpga/library"
-FILENAME = "ProduceStream"
+FILE_DIR = f"/workspace/NN2FPGA/nn2fpga/library/include/utils"
+TEST_DIR = "/workspace/NN2FPGA/nn2fpga/library/test/utils"
+FILENAME = "CSDFG_utils"
 
-def test_dequant_quant_simulation():
-    
+def test_CSDFG_utils_simulation():
+
     # Write the Tcl script to a temporary file
     tcl_script = f"""
-open_project "{PROJECT_NAME}"
+open_project -reset "{PROJECT_NAME}"
 open_solution -reset solution0
-add_files {FILE_DIR}/include/{FILENAME}.hpp -cflags "-I/workspace/NN2FPGA/nn2fpga/library/include"
-add_files -tb {FILE_DIR}/test/Unit{FILENAME}.cpp -cflags "-I/workspace/NN2FPGA/nn2fpga/library/include"
+add_files {FILE_DIR}/{FILENAME}.hpp
+add_files -tb {TEST_DIR}/Unit{FILENAME}.cpp -cflags "-I/workspace/NN2FPGA/nn2fpga/library/include"
 csim_design
 exit
 """

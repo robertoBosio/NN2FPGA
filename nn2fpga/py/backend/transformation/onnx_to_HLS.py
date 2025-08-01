@@ -96,7 +96,7 @@ def generate_hls_driver(model: ModelWrapper) -> str:
     cwr.include("hls_stream.h")
     cwr.include("hls_vector.h")
     cwr.include("ap_axi_sdata.h")
-    cwr.include("utils/utils.hpp")
+    cwr.include("utils/testbench_utils.hpp")
 
     # Accelerator kernel function definition
     kernel_function = cpp_function(
