@@ -264,7 +264,6 @@ class ComputeFifoDepth(Transformation):
             cwd=self.work_root,
             check=True
         )
-        exit(0)  # Ensure the script exits cleanly if run directly.
 
         # Read the fifo depth from the generated json file.
         fifo_depth_file = os.path.join(self.work_root, "fifo_depth.json")

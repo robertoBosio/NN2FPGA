@@ -33,6 +33,7 @@ private:
   size_t firing_index;   // Index of the firing within the actor.
 };
 
+#ifndef __SYNTHESIS__
 class ActorStatus {
 public:
   ActorStatus() : ActorStatus(1, 1) {}
@@ -41,7 +42,7 @@ public:
     // Initialize the actor status with the given execution time and number of
     // firings.
   }
-  
+
   void fire() {
     // Add a new firing to the actor's status.
     firings.insert(FiringStatus(t, current_index));
@@ -91,9 +92,32 @@ public:
 private:
   std::multiset<FiringStatus> firings; // Set of current firings for the actor.
   size_t current_index; // Current index in the actor execution sequence.
-  size_t t; // Execution time of the firing.
-  size_t N; // Number of firings in the execution sequence.
+  size_t t;             // Execution time of the firing.
+  size_t N;             // Number of firings in the execution sequence.
 };
+#else
+class ActorStatus {
+public:
+  ActorStatus() {}
+  ActorStatus(size_t t, size_t N) {
+    // Utilize t and N to remove the warning about unused parameters.
+    (void)t;
+    (void)N;
+  }
+
+  void fire() {}
+  void advance() {}
+  bool empty() const { return true; }
+  size_t size() const { return 0; }
+  bool operator==(const ActorStatus &other) const {
+    (void)other; // Avoid unused parameter warning
+    return true;
+  }
+  std::string to_string() const { return ""; }
+  std::multiset<FiringStatus> get_firings() const { return {}; }
+  size_t get_current_index() const { return 0; }
+};
+#endif // __SYNTHESIS__
 
 class CSDFGState {
 public:
@@ -168,6 +192,7 @@ struct CSDFGStateHasher {
   }
 };
 
+#ifndef __SYNTHESIS__
 template <typename T> class PipelineDelayBuffer {
 public:
   PipelineDelayBuffer(size_t depth) : pipeline_depth(depth) {
@@ -214,7 +239,27 @@ public:
   }
 
 private:
-  size_t pipeline_depth; // Depth of the pipeline
-  std::queue<T> data_queue; // Queue to hold the data elements
+  size_t pipeline_depth;        // Depth of the pipeline
+  std::queue<T> data_queue;     // Queue to hold the data elements
   std::queue<bool> valid_flags; // Queue to hold the valid flags
 };
+#else
+template <typename T> class PipelineDelayBuffer {
+public:
+  PipelineDelayBuffer() {}
+  PipelineDelayBuffer(size_t depth) {
+    (void)depth; // Avoid unused parameter warning
+  }
+  void push(const T &value, bool valid) {
+    (void)value; // Avoid unused parameter warning
+    (void)valid; // Avoid unused parameter warning
+  }
+
+  bool pop(T &out_value) {
+    (void)out_value; // Avoid unused parameter warning
+    return false;    // Always return false in synthesis mode
+  }
+
+  std::string to_string() const { return ""; }
+};
+#endif // __SYNTHESIS__

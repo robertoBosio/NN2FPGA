@@ -129,7 +129,7 @@ class ProduceStream(CustomOp):
         """
         return []
 
-    def get_object_cpp(self, model, model_II) -> cpp_object:
+    def get_object_cpp(self, model, model_II: int = 1) -> cpp_object:
         """ Generates the cpp ProduceStream object. 
         Args:
             model (ModelWrapper): The model with quantization information.
