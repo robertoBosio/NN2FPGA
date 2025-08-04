@@ -140,8 +140,8 @@ bool test_step() {
 template <typename TInputStruct, typename TInput, typename TOutputStruct,
           typename TOutput, size_t DATA_PER_WORD, size_t BITS_PER_DATA,
           size_t IN_HEIGHT, size_t IN_WIDTH, size_t IN_CH, size_t IN_W_PAR,
-          size_t IN_CH_PAR, size_t PIPELINE_DEPTH>
-bool test_step_pipelined() {
+          size_t IN_CH_PAR>
+bool test_step_pipelined(size_t PIPELINE_DEPTH) {
   // This function tests the step() method of ConsumeStream
   // with a simple square input where each pixel has its position in the HWC
   // format, and checks the pipeline behaviour.
@@ -156,8 +156,8 @@ bool test_step_pipelined() {
   // Instantiate the operator
   ConsumeStream<TInputStruct, TInput, TOutputStruct, TOutput, TruncQuantizer,
                 DATA_PER_WORD, BITS_PER_DATA, IN_HEIGHT, IN_WIDTH, IN_CH,
-                IN_W_PAR, IN_CH_PAR, PIPELINE_DEPTH>
-      consumer;
+                IN_W_PAR, IN_CH_PAR>
+      consumer(PIPELINE_DEPTH);
 
   // Prepare input and output streams
   hls::stream<TInputStruct> in_stream[IN_W_PAR];
@@ -247,14 +247,14 @@ int main() {
   // channels of the tensor not fitting in a single word, pipelined.
   all_passed &= test_step_pipelined<std::array<ap_uint<8>, 6>, ap_uint<8>,
                                     ap_axiu<64, 0, 0, 0>, ap_uint<64>, 6, 8, 4,
-                                    4, 12, 1, 6, 4>();
+                                    4, 12, 1, 6>(4);
 
   // Test step function with 64-bit data width
   // with padding, 3 channels and 2 pixels processed in parallel,
   // pipelined.
   all_passed &= test_step_pipelined<std::array<ap_uint<8>, 3>, ap_uint<8>,
                                     ap_axiu<64, 0, 0, 0>, ap_uint<64>, 6, 8, 4,
-                                    4, 3, 2, 3, 5>();
+                                    4, 3, 2, 3>(5);
 
   if (!all_passed) {
     std::cout << "Failed." << std::endl;
