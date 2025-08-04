@@ -6,7 +6,7 @@
 template <typename TInputStruct, typename TInput, typename TOutputStruct,
           typename TOutput, typename Quantizer, size_t IN_HEIGHT,
           size_t IN_WIDTH, size_t IN_CH, size_t IN_W_PAR, size_t OUT_W_PAR,
-          size_t IN_CH_PAR, size_t OUT_CH_PAR, size_t PIPELINE_DEPTH = 1>
+          size_t IN_CH_PAR, size_t OUT_CH_PAR>
 class BandwidthAdjustIncreaseStreams {
 public:
   static_assert(IN_W_PAR > 0, "IN_W_PAR must be greater than 0");
@@ -24,15 +24,17 @@ public:
                 "OUT_CH_PAR must be a multiple of CH_PAR");
   static_assert(IN_CH_PAR == OUT_CH_PAR,
                 "IN_CH_PAR must be equal to OUT_CH_PAR");
-  static_assert(PIPELINE_DEPTH > 0, "PIPELINE_DEPTH must be greater than 0");
 
-  BandwidthAdjustIncreaseStreams()
-      : STEP_i_hw(0), STEP_i_out_stream(0),
-        STEP_i_ch(0) // Initialize indices to zero.
-  {
+  BandwidthAdjustIncreaseStreams() : BandwidthAdjustIncreaseStreams(1) {}
+
+  BandwidthAdjustIncreaseStreams(size_t pipeline_depth)
+      : STEP_i_hw(0), STEP_i_out_stream(0), STEP_i_ch(0),
+        STEP_pipeline_depth(pipeline_depth),
+        STEP_actor_status(pipeline_depth, IN_HEIGHT * IN_WIDTH * IN_CH /
+                                              (OUT_CH_PAR * IN_W_PAR)) {
     for (size_t i = 0; i < OUT_W_PAR; ++i) {
       STEP_delayed_output[i] =
-          PipelineDelayBuffer<TOutputStruct>(PIPELINE_DEPTH);
+          PipelineDelayBuffer<TOutputStruct>(pipeline_depth);
     }
   }
 
@@ -119,13 +121,13 @@ public:
   }
 
 private:
-  size_t STEP_i_hw;         // Index for height and width.
-  size_t STEP_i_out_stream; // Index for output stream.
-  size_t STEP_i_ch;         // Index for channels.
+  size_t STEP_i_hw;           // Index for height and width.
+  size_t STEP_i_out_stream;   // Index for output stream.
+  size_t STEP_i_ch;           // Index for channels.
+  size_t STEP_pipeline_depth; // Pipeline depth for the actor.
 
   // CSDFG state variables
-  ActorStatus STEP_actor_status{PIPELINE_DEPTH, IN_HEIGHT *IN_WIDTH *IN_CH /
-                                                    (OUT_CH_PAR * IN_W_PAR)};
+  ActorStatus STEP_actor_status;
   PipelineDelayBuffer<TOutputStruct>
       STEP_delayed_output[OUT_W_PAR]; // Delayed output buffers to maintain
                                       // pipeline depth for each parallel
@@ -163,7 +165,7 @@ private:
 template <typename TInputStruct, typename TInput, typename TOutputStruct,
           typename TOutput, typename Quantizer, size_t IN_HEIGHT,
           size_t IN_WIDTH, size_t IN_CH, size_t IN_W_PAR, size_t OUT_W_PAR,
-          size_t IN_CH_PAR, size_t OUT_CH_PAR, size_t PIPELINE_DEPTH = 1>
+          size_t IN_CH_PAR, size_t OUT_CH_PAR>
 class BandwidthAdjustDecreaseStreams {
 public:
   static_assert(IN_W_PAR > 0, "IN_W_PAR must be greater than 0");
@@ -181,15 +183,17 @@ public:
                 "OUT_CH_PAR must be a multiple of CH_PAR");
   static_assert(IN_CH_PAR == OUT_CH_PAR,
                 "IN_CH_PAR must be equal to OUT_CH_PAR");
-  static_assert(PIPELINE_DEPTH > 0, "PIPELINE_DEPTH must be greater than 0");
 
-  BandwidthAdjustDecreaseStreams()
-      : STEP_i_hw(0), STEP_i_in_stream(0),
-        STEP_i_ch(0) // Initialize indices to zero.
-  {
+  BandwidthAdjustDecreaseStreams() : BandwidthAdjustDecreaseStreams(1) {}
+
+  BandwidthAdjustDecreaseStreams(size_t pipeline_depth)
+      : STEP_i_hw(0), STEP_i_in_stream(0), STEP_i_ch(0),
+        STEP_pipeline_depth(pipeline_depth),
+        STEP_actor_status(pipeline_depth, IN_HEIGHT * IN_WIDTH * IN_CH /
+                                              (OUT_CH_PAR * OUT_W_PAR)) {
     for (size_t i = 0; i < OUT_W_PAR; ++i) {
       STEP_delayed_output[i] =
-          PipelineDelayBuffer<TOutputStruct>(PIPELINE_DEPTH);
+          PipelineDelayBuffer<TOutputStruct>(pipeline_depth);
     }
   }
 
@@ -273,13 +277,13 @@ public:
   }
 
 private:
-  size_t STEP_i_hw;        // Index for height and width.
-  size_t STEP_i_in_stream; // Index for input stream.
-  size_t STEP_i_ch;        // Index for channels.
+  size_t STEP_i_hw;           // Index for height and width.
+  size_t STEP_i_in_stream;    // Index for input stream.
+  size_t STEP_i_ch;           // Index for channels.
+  size_t STEP_pipeline_depth; // Pipeline depth for the actor.
 
   // CSDFG state variables
-  ActorStatus STEP_actor_status{PIPELINE_DEPTH, IN_HEIGHT *IN_WIDTH *IN_CH /
-                                                    (OUT_CH_PAR * OUT_W_PAR)};
+  ActorStatus STEP_actor_status;
   PipelineDelayBuffer<TOutputStruct>
       STEP_delayed_output[OUT_W_PAR]; // Delayed output buffers to maintain
                                       // pipeline depth for each parallel
@@ -317,7 +321,7 @@ private:
 template <typename TInputStruct, typename TInput, typename TOutputStruct,
           typename TOutput, typename Quantizer, size_t IN_HEIGHT,
           size_t IN_WIDTH, size_t IN_CH, size_t IN_W_PAR, size_t OUT_W_PAR,
-          size_t IN_CH_PAR, size_t OUT_CH_PAR, size_t PIPELINE_DEPTH = 1>
+          size_t IN_CH_PAR, size_t OUT_CH_PAR>
 class BandwidthAdjustIncreaseChannels {
 public:
   static_assert(IN_W_PAR > 0, "IN_W_PAR must be greater than 0");
@@ -336,13 +340,16 @@ public:
   static_assert(IN_CH % OUT_CH_PAR == 0,
                 "IN_CH must be a multiple of OUT_CH_PAR");
 
-  BandwidthAdjustIncreaseChannels()
-      : STEP_i_hw(0), STEP_i_och_par(0),
-        STEP_i_ch(0) // Initialize indices to zero.
-  {
+  BandwidthAdjustIncreaseChannels() : BandwidthAdjustIncreaseChannels(1) {}
+
+  BandwidthAdjustIncreaseChannels(size_t pipeline_depth)
+      : STEP_i_hw(0), STEP_i_och_par(0), STEP_i_ch(0),
+        STEP_pipeline_depth(pipeline_depth),
+        STEP_actor_status(pipeline_depth, IN_HEIGHT * IN_WIDTH * IN_CH /
+                                              (IN_CH_PAR * IN_W_PAR)) {
     for (size_t i = 0; i < OUT_W_PAR; ++i) {
       STEP_delayed_output[i] =
-          PipelineDelayBuffer<TOutputStruct>(PIPELINE_DEPTH);
+          PipelineDelayBuffer<TOutputStruct>(pipeline_depth);
     }
   }
 
@@ -436,10 +443,10 @@ private:
   size_t STEP_i_hw;                // Index for height and width.
   size_t STEP_i_och_par;           // Index for output channels.
   size_t STEP_i_ch;                // Index for input channels.
+  size_t STEP_pipeline_depth;      // Pipeline depth for the actor.
 
   // CSDFG state variables
-  ActorStatus STEP_actor_status{PIPELINE_DEPTH, IN_HEIGHT *IN_WIDTH *IN_CH /
-                                                    (IN_CH_PAR * IN_W_PAR)};
+  ActorStatus STEP_actor_status;
   PipelineDelayBuffer<TOutputStruct>
       STEP_delayed_output[OUT_W_PAR]; // Delayed output buffers to maintain
                                       // pipeline depth for each parallel
@@ -481,7 +488,7 @@ private:
 template <typename TInputStruct, typename TInput, typename TOutputStruct,
           typename TOutput, typename Quantizer, size_t IN_HEIGHT,
           size_t IN_WIDTH, size_t IN_CH, size_t IN_W_PAR, size_t OUT_W_PAR,
-          size_t IN_CH_PAR, size_t OUT_CH_PAR, size_t PIPELINE_DEPTH = 1>
+          size_t IN_CH_PAR, size_t OUT_CH_PAR>
 class BandwidthAdjustDecreaseChannels {
 public:
   static_assert(IN_W_PAR > 0, "IN_W_PAR must be greater than 0");
@@ -499,15 +506,17 @@ public:
                 "IN_CH must be a multiple of IN_CH_PAR");
   static_assert(IN_CH % OUT_CH_PAR == 0,
                 "IN_CH must be a multiple of OUT_CH_PAR");
-  static_assert(PIPELINE_DEPTH > 0, "PIPELINE_DEPTH must be greater than 0");
 
-  BandwidthAdjustDecreaseChannels()
-      : STEP_i_hw(0), STEP_i_ich_par(0),
-        STEP_i_ch(0) // Initialize indices to zero.
-  {
+  BandwidthAdjustDecreaseChannels() : BandwidthAdjustDecreaseChannels(1) {}
+
+  BandwidthAdjustDecreaseChannels(size_t pipeline_depth)
+      : STEP_i_hw(0), STEP_i_ich_par(0), STEP_i_ch(0),
+        STEP_pipeline_depth(pipeline_depth),
+        STEP_actor_status(pipeline_depth, IN_HEIGHT * IN_WIDTH * IN_CH /
+                                              (OUT_CH_PAR * IN_W_PAR)) {
     for (size_t i = 0; i < OUT_W_PAR; ++i) {
       STEP_delayed_output[i] =
-          PipelineDelayBuffer<TOutputStruct>(PIPELINE_DEPTH);
+          PipelineDelayBuffer<TOutputStruct>(pipeline_depth);
     }
   }
 
@@ -596,10 +605,10 @@ private:
   size_t STEP_i_hw;              // Index for height and width.
   size_t STEP_i_ich_par;         // Index for input channels.
   size_t STEP_i_ch;              // Index for input channels.
+  size_t STEP_pipeline_depth;    // Pipeline depth for the actor.
 
   // CSDFG state variables
-  ActorStatus STEP_actor_status{PIPELINE_DEPTH, IN_HEIGHT *IN_WIDTH *IN_CH /
-                                                    (OUT_CH_PAR * IN_W_PAR)};
+  ActorStatus STEP_actor_status;
   PipelineDelayBuffer<TOutputStruct>
       STEP_delayed_output[OUT_W_PAR]; // Delayed output buffers to maintain
                                       // pipeline depth for each parallel

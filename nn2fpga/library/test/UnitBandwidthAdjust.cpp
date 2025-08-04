@@ -60,8 +60,8 @@ bool test_run_increaseWPAR() {
 
 template <typename TInputStruct, typename TInput, typename TOutputStruct,
           typename TOutput, size_t IN_HEIGHT, size_t IN_WIDTH, size_t IN_CH,
-          size_t IN_W_PAR, size_t OUT_W_PAR, size_t CH_PAR, size_t PIPELINE_DEPTH = 1>
-bool test_step_increaseWPAR() {
+          size_t IN_W_PAR, size_t OUT_W_PAR, size_t CH_PAR>
+bool test_step_increaseWPAR(size_t PIPELINE_DEPTH = 1) {
 
   // Simple quantizer: truncates accumulator
   struct TruncQuantizer {
@@ -72,8 +72,8 @@ bool test_step_increaseWPAR() {
 
   BandwidthAdjustIncreaseStreams<TInputStruct, TInput, TOutputStruct, TOutput,
                                  TruncQuantizer, IN_HEIGHT, IN_WIDTH, IN_CH,
-                                 IN_W_PAR, OUT_W_PAR, CH_PAR, CH_PAR, PIPELINE_DEPTH>
-      bandwidth_adjust;
+                                 IN_W_PAR, OUT_W_PAR, CH_PAR, CH_PAR>
+      bandwidth_adjust(PIPELINE_DEPTH);
 
   // Prepare input and output streams
   hls::stream<TInputStruct> in_stream[IN_W_PAR];
@@ -181,8 +181,8 @@ bool test_run_decreaseWPAR() {
 
 template <typename TInputStruct, typename TInput, typename TOutputStruct,
           typename TOutput, size_t IN_HEIGHT, size_t IN_WIDTH, size_t IN_CH,
-          size_t IN_W_PAR, size_t OUT_W_PAR, size_t CH_PAR, size_t PIPELINE_DEPTH = 1>
-bool test_step_decreaseWPAR() {
+          size_t IN_W_PAR, size_t OUT_W_PAR, size_t CH_PAR>
+bool test_step_decreaseWPAR(size_t PIPELINE_DEPTH = 1) {
 
   // Simple quantizer: truncates accumulator
   struct TruncQuantizer {
@@ -193,8 +193,8 @@ bool test_step_decreaseWPAR() {
 
   BandwidthAdjustDecreaseStreams<TInputStruct, TInput, TOutputStruct, TOutput,
                                  TruncQuantizer, IN_HEIGHT, IN_WIDTH, IN_CH,
-                                 IN_W_PAR, OUT_W_PAR, CH_PAR, CH_PAR, PIPELINE_DEPTH>
-      bandwidth_adjust;
+                                 IN_W_PAR, OUT_W_PAR, CH_PAR, CH_PAR>
+      bandwidth_adjust(PIPELINE_DEPTH);
 
   // Prepare input and output streams
   hls::stream<TInputStruct> in_stream[IN_W_PAR];
@@ -318,8 +318,8 @@ bool test_run_increaseCHPAR() {
 
 template <typename TInputStruct, typename TInput, typename TOutputStruct,
           typename TOutput, size_t IN_HEIGHT, size_t IN_WIDTH, size_t IN_CH,
-          size_t W_PAR, size_t IN_CH_PAR, size_t OUT_CH_PAR, size_t PIPELINE_DEPTH = 1>
-bool test_step_increaseCHPAR() {
+          size_t W_PAR, size_t IN_CH_PAR, size_t OUT_CH_PAR>
+bool test_step_increaseCHPAR(size_t PIPELINE_DEPTH = 1) {
 
   // Simple quantizer: truncates accumulator
   struct TruncQuantizer {
@@ -330,8 +330,8 @@ bool test_step_increaseCHPAR() {
 
   BandwidthAdjustIncreaseChannels<TInputStruct, TInput, TOutputStruct, TOutput,
                                   TruncQuantizer, IN_HEIGHT, IN_WIDTH, IN_CH,
-                                  W_PAR, W_PAR, IN_CH_PAR, OUT_CH_PAR, PIPELINE_DEPTH>
-      bandwidth_adjust;
+                                  W_PAR, W_PAR, IN_CH_PAR, OUT_CH_PAR>
+      bandwidth_adjust(PIPELINE_DEPTH);
 
   // Prepare input and output streams
   hls::stream<TInputStruct> in_stream[W_PAR];
@@ -464,8 +464,8 @@ bool test_run_decreaseCHPAR() {
 
 template <typename TInputStruct, typename TInput, typename TOutputStruct,
           typename TOutput, size_t IN_HEIGHT, size_t IN_WIDTH, size_t IN_CH,
-          size_t W_PAR, size_t IN_CH_PAR, size_t OUT_CH_PAR, size_t PIPELINE_DEPTH = 1>
-bool test_step_decreaseCHPAR() {
+          size_t W_PAR, size_t IN_CH_PAR, size_t OUT_CH_PAR>
+bool test_step_decreaseCHPAR(size_t PIPELINE_DEPTH = 1) {
 
   // Simple quantizer: truncates accumulator
   struct TruncQuantizer {
@@ -476,8 +476,8 @@ bool test_step_decreaseCHPAR() {
 
   BandwidthAdjustDecreaseChannels<TInputStruct, TInput, TOutputStruct, TOutput,
                                   TruncQuantizer, IN_HEIGHT, IN_WIDTH, IN_CH,
-                                  W_PAR, W_PAR, IN_CH_PAR, OUT_CH_PAR, PIPELINE_DEPTH>
-      bandwidth_adjust;
+                                  W_PAR, W_PAR, IN_CH_PAR, OUT_CH_PAR>
+      bandwidth_adjust(PIPELINE_DEPTH);
 
   // Prepare input and output streams
   hls::stream<TInputStruct> in_stream[W_PAR];
@@ -551,7 +551,7 @@ int main() {
   // Test step when passing from 2 to 4 streams, pipelined
   all_passed &= test_step_increaseWPAR<std::array<ap_uint<8>, 2>, ap_uint<8>,
                                        std::array<ap_uint<8>, 2>, ap_uint<8>, 4,
-                                       4, 4, 2, 4, 2, 3>();
+                                       4, 4, 2, 4, 2>(3);
 
   // Test bandwidth adjustment from 4 to 2 streams
   all_passed &= test_run_decreaseWPAR<std::array<ap_uint<8>, 2>, ap_uint<8>,
@@ -566,7 +566,7 @@ int main() {
   // Test step when passing from 4 to 2 streams, pipelined
   all_passed &= test_step_decreaseWPAR<std::array<ap_uint<8>, 2>, ap_uint<8>,
                                        std::array<ap_uint<8>, 2>, ap_uint<8>, 4,
-                                       4, 4, 4, 2, 2, 7>();
+                                       4, 4, 4, 2, 2>(7);
 
   // Test bandwidth adjustment from 2 to 4 channels
   all_passed &= test_run_increaseCHPAR<std::array<ap_uint<8>, 2>, ap_uint<8>,
@@ -580,10 +580,8 @@ int main() {
   // Test step when passing from 2 to 4 channels, pipelined
   all_passed &= test_step_increaseCHPAR<std::array<ap_uint<8>, 2>, ap_uint<8>,
                                         std::array<ap_uint<8>, 4>, ap_uint<8>,
-                                        4, 4, 4, 2, 2, 4, 4>();
+                                        4, 4, 4, 2, 2, 4>(4);
 
-  std::cout << "Test up to this point: " << (all_passed ? "True" : "False")
-            << std::endl;
   // Test bandwidth adjustment from 4 to 2 channels
   all_passed &= test_run_decreaseCHPAR<std::array<ap_uint<8>, 4>, ap_uint<8>,
                                        std::array<ap_uint<8>, 2>, ap_uint<8>, 4,
@@ -596,7 +594,7 @@ int main() {
   // Test step when passing from 4 to 2 channels, pipelined
   all_passed &= test_step_decreaseCHPAR<std::array<ap_uint<8>, 4>, ap_uint<8>,
                                         std::array<ap_uint<8>, 2>, ap_uint<8>,
-                                        4, 4, 4, 4, 4, 2, 2>();
+                                        4, 4, 4, 4, 4, 2>(2);
 
   if (!all_passed) {
     std::cout << "Failed." << std::endl;
