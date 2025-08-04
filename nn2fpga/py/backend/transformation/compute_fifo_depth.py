@@ -16,7 +16,7 @@ def generate_hls_code(model: ModelWrapper, work_root: str) -> str:
     """ Generate the HLS code to execute the model in fifo-depth mode. """
 
     # Retrieve model II
-    model_II = model.get_metadata_prop("model_II", 1)
+    model_II = int(model.get_metadata_prop("model_II"))
 
     cwr = NewCodeWriter()
     cwr.add_autogen_comment()
@@ -41,10 +41,6 @@ def generate_hls_code(model: ModelWrapper, work_root: str) -> str:
     # Top function definition
     function = cpp_function(model.get_metadata_prop("top_name"), "void")
 
-    for produce in model.get_nodes_by_op_type("ProduceStream"):
-        for stream in getCustomOp(produce).get_input_stream_cpp(model):
-            function.add_code(f"{stream.generate_declaration()};")
-
     for const_input_name in {init.name for init in model.graph.initializer if "const_" in init.name}:
         var = cpp_variable(f"{const_input_name}_stream", "hls::stream<ap_uint<8>>&")
         function.add_code(f"{var.generate_declaration()};")
@@ -55,11 +51,11 @@ def generate_hls_code(model: ModelWrapper, work_root: str) -> str:
 
         # Declare the output streams.
         for stream in getCustomOp(node).get_output_stream_cpp(model):
-            stream_vars.append(stream)
             function.add_code(f"{stream.generate_declaration()};")
-
+            
             # Do not consider ConsumeStream nodes for streams size calculation.
             if node.op_type != "ConsumeStream":
+                stream_vars.append(stream)
                 stream_count += stream.array[0] 
 
         # Declare the variables used in the node
@@ -67,7 +63,13 @@ def generate_hls_code(model: ModelWrapper, work_root: str) -> str:
             function.add_code(f"{var.generate_declaration()};")
 
         # Generate the object declaration for the custom operation
-        function.add_code(getCustomOp(node).get_object_cpp(model).generate_declaration())
+        if node.op_type != "ProduceStream":
+            function.add_code(getCustomOp(node).get_object_cpp(model).generate_declaration())
+        else:
+            # For ProduceStream, we need to pass the model II for the FixedThroughputProducer
+            function.add_code(
+                getCustomOp(node).get_object_cpp(model, model_II).generate_declaration()
+            )
 
     # Declare the array of streams sizes.
     stream_sizes = cpp_variable("stream_max_size", primitive="size_t", value=[2] * stream_count) 
@@ -155,7 +157,6 @@ def generate_hls_driver(model: ModelWrapper) -> str:
     cwr.include("hls_stream.h")
     cwr.include("hls_vector.h")
     cwr.include("ap_axi_sdata.h")
-    cwr.include("utils/utils.hpp")
 
     # Accelerator kernel function definition
     kernel_function = cpp_function(
@@ -163,19 +164,6 @@ def generate_hls_driver(model: ModelWrapper) -> str:
         return_type="void",
         qualifiers=["extern"],
     )
-
-    # Add input and output streams to the kernel function
-    for produce in model.get_nodes_by_op_type("ProduceStream"):
-        input_args = getCustomOp(produce).get_input_stream_cpp(model)
-        for arg in input_args:
-            arg.primitive = arg.primitive + "&"
-            kernel_function.add_argument(arg)
-
-    for consume in model.get_nodes_by_op_type("ConsumeStream"):
-        output_args = getCustomOp(consume).get_output_stream_cpp(model)
-        for arg in output_args:
-            arg.primitive = arg.primitive + "&"
-            kernel_function.add_argument(arg)
 
     # Add the function prototype, which will be called from the main function.
     cwr.add_function_prototype(kernel_function)
@@ -187,42 +175,8 @@ def generate_hls_driver(model: ModelWrapper) -> str:
         arguments=[cpp_variable("argc", "int"), cpp_variable("argv", "char**")],
     )
 
-    # Add file and streams declarations
-    file_arg_idx = 1
-    file_map = {}
-    for produce in model.get_nodes_by_op_type("ProduceStream"):
-        file_name = "file_" + str(file_arg_idx)
-        file_map[produce.name] = file_name
-        main_function.add_code(f"std::string {file_name} = argv[{file_arg_idx}];")
-        input_args = getCustomOp(produce).get_input_stream_cpp(model)
-        for arg in input_args:
-            main_function.add_code(f"{arg.generate_declaration()};")
-        file_arg_idx += 1
-    
-    for consume in model.get_nodes_by_op_type("ConsumeStream"):
-        # file_name = "file_" + str(file_arg_idx)
-        # file_map[consume.name] = file_name
-        # main_function.add_code(f"std::string {file_name} = argv[{file_arg_idx}];")
-        output_args = getCustomOp(consume).get_output_stream_cpp(model)
-        for arg in output_args:
-            main_function.add_code(f"{arg.generate_declaration()};")
-        file_arg_idx += 1
-
-    # Add read from file calls for input streams
-    for produce in model.get_nodes_by_op_type("ProduceStream"):
-        main_function.add_code(f"{getCustomOp(produce).generate_call_read_input_from_file(model, file_map[produce.name])};")
-
-    kernel_arguments = []
-    for produce in model.get_nodes_by_op_type("ProduceStream"):
-        for arg in getCustomOp(produce).get_input_stream_cpp(model):
-            kernel_arguments.append(arg.name)
-
-    for consume in model.get_nodes_by_op_type("ConsumeStream"):
-        for arg in getCustomOp(consume).get_output_stream_cpp(model):
-            kernel_arguments.append(arg.name)
-
     # Add the kernel function call
-    main_function.add_code(f"{kernel_function.generate_call([], *kernel_arguments)};")
+    main_function.add_code(f"{kernel_function.generate_call()};")
 
     main_function.add_code("return 0;")
     cwr.add_function_definition(main_function)
@@ -310,6 +264,7 @@ class ComputeFifoDepth(Transformation):
             cwd=self.work_root,
             check=True
         )
+        exit(0)  # Ensure the script exits cleanly if run directly.
 
         # Read the fifo depth from the generated json file.
         fifo_depth_file = os.path.join(self.work_root, "fifo_depth.json")

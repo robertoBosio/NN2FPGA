@@ -21,6 +21,7 @@ class ProduceStream(CustomOp):
         return {
             "normalize": ("i", False, 0),  # 0: no normalization, 1: normalize the input tensor
             "axi_bitwidth": ("i", False, 128),  # Bitwidth of the AXI interface
+            "pipeline_depth": ("i", False, 1),  # Depth of the pipeline
         }
 
     def make_shape_compatible_op(self, model):
@@ -83,7 +84,7 @@ class ProduceStream(CustomOp):
             )
 
         par_attribute = get_par_attributes(self.onnx_node)
-        
+
         fifo_depth = get_custom_tensor_fifo_depth(model, self.onnx_node.output[0])
         pragma_list = []
         if fifo_depth is not None:
@@ -100,7 +101,7 @@ class ProduceStream(CustomOp):
         )
 
         return [var]
-    
+
     def get_input_stream_cpp(self, model) -> list[cpp_variable]:
         """Get the input stream cpp variables for the ProduceStream node.
         Args:
@@ -128,7 +129,7 @@ class ProduceStream(CustomOp):
         """
         return []
 
-    def get_object_cpp(self, model) -> cpp_object:
+    def get_object_cpp(self, model, model_II) -> cpp_object:
         """ Generates the cpp ProduceStream object. 
         Args:
             model (ModelWrapper): The model with quantization information.
@@ -175,6 +176,10 @@ class ProduceStream(CustomOp):
                 (par_attribute["out_w_par"], "OUT_W_PAR"),
                 (par_attribute["out_ch_par"], "OUT_CH_PAR"),
             ],
+            [
+                (f"{self.get_nodeattr('pipeline_depth')}", "pipeline_depth"),
+                (f"{model_II}", "model_II"),
+            ]
         )
 
         return ProduceStream
@@ -211,9 +216,24 @@ class ProduceStream(CustomOp):
             return_type="void",
             arguments=(
                 (
-                    f"input_data_stream",
-                    f"hls::stream<TInputStruct>",
+                    f"output_data_stream",
+                    f"hls::stream<TOutputStruct>",
                 ),
+            ),
+        )
+
+        return step.generate_call(
+            [],
+            self.__get_stream_name(self.onnx_node.output[0]),
+        )
+
+    def generate_fixed_throughput_producer_step_call(self) -> str:
+        """Generates the C++ code necessary to run the FixedThroughputProducer node feeding the ProduceStream node in step mode."""
+
+        step = cpp_function(
+            name=f"{self.onnx_node.name}.fixedthroughput_step",
+            return_type="void",
+            arguments=(
                 (
                     f"output_data_stream",
                     f"hls::stream<TOutputStruct>",
@@ -224,7 +244,6 @@ class ProduceStream(CustomOp):
         return step.generate_call(
             [],
             self.__get_stream_name(self.onnx_node.input[0]),
-            self.__get_stream_name(self.onnx_node.output[0]),
         )
 
     def generate_call_read_input_from_file(self, model, file_name: str) -> str:

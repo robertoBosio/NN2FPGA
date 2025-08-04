@@ -918,7 +918,7 @@ class BalanceComputation(Transformation):
         # )
 
         # Add model II to the model metadata
-        model.set_metadata_prop("model_II", model_II)
+        model.set_metadata_prop("model_II", str(model_II))
 
         print(f"Balanced model with II {model_II} using {n_variables} variables and {n_constraints} constraints in {time_spent:.2f}s")
         return (model, False)

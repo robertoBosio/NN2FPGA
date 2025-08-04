@@ -3,17 +3,54 @@
 #include "utils/CSDFG_utils.hpp"
 #include <cstddef>
 
-/*
- * StreamingGlobalAveragePool implements a global average pooling operation done
- * in a streaming fashion. Data in input is in HWC format, thus an accumulator
- * is used to sum the values across the height and width dimensions for each
- * channel.
+/**
+ * @class StreamingGlobalAveragePool
+ * @brief Implements a streaming global average pooling operation for
+ * HWC-formatted data.
+ *
+ * This class performs global average pooling in a streaming fashion.
+ * The input data is expected in HWC format. The pooling operation accumulates
+ * values across the height and width dimensions for each channel, thus an
+ * accumulator is needed for each output, then computes the average.
+ *
+ * @tparam TInputStruct   Structure type for input data (vectorized
+ * input).
+ * @tparam TInput         Scalar type for input elements.
+ * @tparam TOutputStruct  Structure type for output data (vectorized
+ * output).
+ * @tparam TOutput        Scalar type for output elements.
+ * @tparam TAcc           Accumulator type for intermediate sum.
+ * @tparam TDiv           Type used for division in averaging.
+ * @tparam Quantizer      Quantizer functor/class for output quantization.
+ * @tparam IN_HEIGHT      Input height (number of rows).
+ * @tparam IN_WIDTH       Input width (number of columns).
+ * @tparam OUT_CH         Number of output channels.
+ * @tparam OUT_CH_PAR     Number of output channels processed in parallel.
+ *
+ * @note
+ * - OUT_CH must be a multiple of OUT_CH_PAR.
+ * - IN_HEIGHT, IN_WIDTH, and OUT_CH_PAR must be greater than 0.
+ *
+ * @section Usage
+ * - Use the run() method for functional verification and synthesis.
+ * - Use the step() method for self-timed execution with actor status tracking,
+ * which is needed for fifo depth estimation.
+ * 
+ * @section Parallelism
+ * The class supports parallel processing of output channels, as specified by
+ * OUT_CH_PAR. It does not support parallel processing of width, so only one
+ * stream is used for input/output.
+ * 
+ * @section Quantization
+ * The integer division is can introduce a small rounding error, since it 
+ * does not round ties to the nearest even number. This is a trade-off
+ * between accuracy and performance, as rounding to the nearest even number
+ * would require a modulo operation, which is expensive in hardware.
  */
 
 template <typename TInputStruct, typename TInput, typename TOutputStruct,
           typename TOutput, typename TAcc, typename TDiv, typename Quantizer,
-          size_t IN_HEIGHT, size_t IN_WIDTH, size_t OUT_CH, size_t OUT_CH_PAR,
-          size_t PIPELINE_DEPTH = 1>
+          size_t IN_HEIGHT, size_t IN_WIDTH, size_t OUT_CH, size_t OUT_CH_PAR>
 class StreamingGlobalAveragePool {
 public:
   static_assert(OUT_CH % OUT_CH_PAR == 0,
@@ -21,12 +58,14 @@ public:
   static_assert(OUT_CH_PAR > 0, "OUT_CH_PAR must be greater than 0");
   static_assert(IN_HEIGHT > 0 && IN_WIDTH > 0,
                 "IN_HEIGHT and IN_WIDTH must be greater than 0");
-  static_assert(PIPELINE_DEPTH > 0, "PIPELINE_DEPTH must be greater than 0");
 
-  StreamingGlobalAveragePool() {
-    STEP_i_hw = 0;  // Initialize the height and width index to zero.
-    STEP_i_och = 0; // Initialize the output channel index to zero.
-  }
+  StreamingGlobalAveragePool() : StreamingGlobalAveragePool(1) {}
+
+  StreamingGlobalAveragePool(size_t pipeline_depth)
+      : STEP_pipeline_depth(pipeline_depth), STEP_i_hw(0), STEP_i_och(0),
+        STEP_actor_status(pipeline_depth,
+                          IN_HEIGHT * IN_WIDTH * OUT_CH / OUT_CH_PAR),
+        STEP_delayed_output(pipeline_depth) {}
 
   void run(hls::stream<TInputStruct> i_data[1],
            hls::stream<TOutputStruct> o_data[1]) {
@@ -99,16 +138,17 @@ public:
 
 private:
   // State variables for step execution
-  TAcc STEP_s_acc_buff[OUT_CH]; // Accumulator buffer for each output channel
-  size_t STEP_i_hw;             // Current height and width index
-  size_t STEP_i_och;            // Current output channel index
+  TAcc STEP_s_acc_buff[OUT_CH];   // Accumulator buffer for each output channel
+  size_t STEP_i_hw;               // Current height and width index
+  size_t STEP_i_och;              // Current output channel index
+  size_t STEP_pipeline_depth = 1; // Pipeline depth for the actor
 
   // CSDFG actor state variables
-  ActorStatus STEP_actor_status{PIPELINE_DEPTH, IN_HEIGHT * IN_WIDTH * OUT_CH / OUT_CH_PAR};
+  ActorStatus STEP_actor_status;
 
   // Pipeline state variables
-  PipelineDelayBuffer<TOutputStruct> STEP_delayed_output{
-      PIPELINE_DEPTH}; // Delayed output buffer to maintain pipeline depth
+  // Delayed output buffer to maintain pipeline depth
+  PipelineDelayBuffer<TOutputStruct> STEP_delayed_output;
 
   static void pipeline_body(hls::stream<TInputStruct> i_data[1],
                             hls::stream<TOutputStruct> o_data[1],

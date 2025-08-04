@@ -35,6 +35,8 @@ private:
 
 class ActorStatus {
 public:
+  ActorStatus() : ActorStatus(1, 1) {}
+
   ActorStatus(size_t t, size_t N) : firings(), current_index(0), t(t), N(N) {
     // Initialize the actor status with the given execution time and number of
     // firings.
