@@ -92,7 +92,7 @@ public:
       // of channels processed in parallel.
       for (size_t i_par = 0; i_par < DATA_PER_WORD;
            i_par += IN_CH_PAR * IN_W_PAR) {
-#pragma HLS pipeline style = stp II = 1
+#pragma HLS pipeline II = 1
         ConsumeStream::pipeline_body(input_data_stream, output_data_stream,
                                      output_data, i_word, i_par);
       }

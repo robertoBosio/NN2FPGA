@@ -39,7 +39,6 @@ def dump_tcl_script(top_name, part_name, frequency, hls_version, input_files):
             'csim_design -argv "{argv}"',
             'csynth_design',
             'cosim_design -argv "{argv}"',
-            'export_design -flow impl',
             'exit',
         ]
     )

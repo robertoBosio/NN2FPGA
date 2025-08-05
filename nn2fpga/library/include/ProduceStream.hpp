@@ -103,7 +103,7 @@ public:
       // Loop through the parallel data within each word packet.
       for (size_t i_par = 0; i_par < DATA_PER_WORD;
            i_par += OUT_CH_PAR * OUT_W_PAR) {
-#pragma HLS pipeline style = stp II = 1
+#pragma HLS pipeline II = 1
         ProduceStream::pipeline_body(input_data_stream, output_data_stream,
                                      input_data, i_par);
       }

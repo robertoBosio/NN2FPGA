@@ -37,7 +37,7 @@ def generate_hls_code(model: ModelWrapper) -> str:
     # Top function definition
     function = cpp_function(model.get_metadata_prop("top_name"), "void")
     function.add_code("#pragma HLS TOP")
-    function.add_code("#pragma HLS DATAFLOW")
+    function.add_code("#pragma HLS DATAFLOW disable_start_propagation")
     function.add_code("#pragma HLS INTERFACE ap_ctrl_none port=return")
 
     for produce in model.get_nodes_by_op_type("ProduceStream"):

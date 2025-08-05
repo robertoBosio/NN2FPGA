@@ -6,6 +6,7 @@ from backend.transformation.custom_infershape import CustomInferShapes
 from backend.transformation.fold_asymmetric_act_quant import FoldAsymmetricActQuant
 from backend.transformation.fold_quant import FoldQuant
 from backend.transformation.fullyconnected_to_conv import FullyConnectedToConv
+from backend.transformation.generate_bitstream import GenerateBitstream
 from backend.transformation.infer_quant import InferQuant
 from backend.transformation.insert_consume_stream import InsertConsumeStream
 from backend.transformation.insert_produce_stream import InsertProduceStream

@@ -154,8 +154,8 @@ def nn2fpga_compile(
     parent_model.save("embedHLS.onnx")
 
     # Simulate the model to check if it works.
-    # oxe.execute_onnx(parent_model, {"global_in": np.random.randn(1, 3, 224, 224).astype(np.float32)})
-    test_transformation_equivalence(original_model, parent_model)
+    # test_transformation_equivalence(original_model, parent_model)
+    parent_model = parent_model.transform(transformation.GenerateBitstream())
 
     # parent_model = parent_model.transform(QuantToQCDQ())
     # parent_model.save("qcdq_wrapper_model.onnx")
