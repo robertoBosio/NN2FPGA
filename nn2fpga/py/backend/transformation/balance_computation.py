@@ -8,20 +8,19 @@ from collections import deque
 from qonnx.transformation.base import Transformation
 from qonnx.core.modelwrapper import ModelWrapper
 from qonnx.util.basic import get_by_name
-from backend.util.quant_utils import get_quant_params
+from backend.core.tensor_quant import TensorQuant
 from backend.util.par_utils import get_par_attributes, set_par_attributes, check_par_attributes
 from backend.util.board_util import read_board_info
 from backend.transformation.insert_streaming_line_buffer import has_streaming_linebuffer
 from backend.core.tensor_quant import get_custom_tensor_datatype
-from onnx import helper, NodeProto
+from onnx import NodeProto
 
 PARALLELIZABLE_LAYERS = ["StreamingConv", "StreamingGlobalAveragePool", "StreamingGlobalMaxPool", "AveragePool", "MaxPool", "ProduceStream", "ConsumeStream"]
 
 def extract_quant_bitwidth(node: NodeProto, model: ModelWrapper) -> int:
     """ Extracts the bitwidth of the quantization parameters from a Quant node. """
-    quant_params = get_quant_params(node, model)
-    if quant_params["bitwidth"] is not None:
-        return int(quant_params["bitwidth"])
+    quant_params = TensorQuant.from_quant_node(node, model)
+    return quant_params.bitwidth
 
 def packing_feature(operands_bitwidth, par, silvia_packing):
     """ Returns the number of operation that can be packed in a single DSP. 

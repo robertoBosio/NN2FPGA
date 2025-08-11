@@ -2,6 +2,7 @@ from backend.transformation.add_streaming_params import AddStreamingParams
 from backend.transformation.adjust_streaming_comunication import AdjustStreamingCommunication
 from backend.transformation.balance_computation import BalanceComputation
 from backend.transformation.compute_fifo_depth import ComputeFifoDepth
+from backend.transformation.convert_to_QCDQ import ConvertToQCDQ
 from backend.transformation.custom_infershape import CustomInferShapes
 from backend.transformation.fold_asymmetric_act_quant import FoldAsymmetricActQuant
 from backend.transformation.fold_quant import FoldQuant

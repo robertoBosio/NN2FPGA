@@ -1,16 +1,13 @@
 from qonnx.transformation.base import Transformation
 from qonnx.core.modelwrapper import ModelWrapper
-from backend.util.quant_utils import (
-    get_quant_params,
-    is_constant_input_node,
-)
 from backend.core.tensor_quant import (
     set_custom_tensor_datatype,
     get_custom_tensor_datatype,
 )
-from backend.core.tensor_quant import TensorQuant
-import numpy as np
+from backend.core.tensor_quant import TensorQuant, is_constant_input_node
+import logging
 
+logger = logging.getLogger(__name__)
 
 class FoldQuant(Transformation):
     """Fold Quant node into tensors datatype."""
@@ -28,16 +25,8 @@ class FoldQuant(Transformation):
                 continue  # Skip Quant nodes on the parameters (weights and biases)
 
             # Get quantization parameters
-            quant_params = get_quant_params(quant, model)
+            expected_tensor_quant = TensorQuant.from_quant_node(quant, model)
 
-            expected_tensor_quant = TensorQuant(
-                bitwidth=quant_params["bitwidth"],
-                signed=quant_params["signed"],
-                scale=quant_params["scale"],
-                zeropt=quant_params["zeropt"],
-                narrow_range=quant_params["narrow"],
-                rounding=quant_params["rounding_mode"],
-            )
             current_output_tensor_quant = get_custom_tensor_datatype(
                 model, quant.output[0]
             )
@@ -84,11 +73,11 @@ class FoldQuant(Transformation):
             graph.node.remove(quant)
             folded += 1
 
-        print(
+        logger.info(
             f"Folded {folded} Quant nodes into tensor datatype."
         )
         if not_folded > 0:
-            print(
+            logger.warning(
                 f"Could not fold {not_folded} Quant nodes due to multiple quantization parameters on the same tensor."
             )
 

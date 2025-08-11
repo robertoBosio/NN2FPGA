@@ -1,6 +1,5 @@
 from onnx import NodeProto, helper
 
-
 def check_par_attributes(node: NodeProto) -> bool:
     """Check if a node has parallelization attributes."""
 

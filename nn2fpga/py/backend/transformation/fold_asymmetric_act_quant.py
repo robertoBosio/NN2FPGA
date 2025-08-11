@@ -2,9 +2,7 @@ from qonnx.transformation.base import Transformation
 from qonnx.core.modelwrapper import ModelWrapper
 from qonnx.util.basic import get_by_name
 from onnx import numpy_helper, helper
-from qonnx.util.basic import get_by_name
-from backend.util.quant_utils import get_quant_params
-from backend.core.tensor_quant import get_custom_tensor_datatype
+from backend.core.tensor_quant import get_custom_tensor_datatype, TensorQuant
 import numpy as np
 
 class FoldAsymmetricActQuant(Transformation):
@@ -24,7 +22,7 @@ class FoldAsymmetricActQuant(Transformation):
 
             # Get the weight quantization parameters
             weight_quant = model.find_producer(conv.input[1])
-            weight_quant_params = get_quant_params(weight_quant, model)
+            weight_quant_params = TensorQuant.from_quant_node(weight_quant, model)
             weight_data = numpy_helper.to_array(get_by_name(graph.initializer, weight_quant.input[0]))
 
             if weight_data is None:
@@ -36,13 +34,13 @@ class FoldAsymmetricActQuant(Transformation):
 
             if len(conv.input) > 2:
                 bias_quant = model.find_producer(conv.input[2])
-                bias_quant_params = get_quant_params(bias_quant, model)
+                bias_quant_params = TensorQuant.from_quant_node(bias_quant, model)
 
                 # Reshape the weight scales to remove any extra dimensions
-                weight_scales = np.squeeze(weight_quant_params["scale"])
+                weight_scales = np.squeeze(weight_quant_params.scale)
 
                 # Check that the bias scale is close to the product of the weight scale and activation scale
-                if not all(np.isclose(bias_quant_params["scale"], 
+                if not all(np.isclose(bias_quant_params.scale, 
                                   weight_scales * act_quant_params.scale)):
                     print(f"Skipping {conv.name} as bias scale does not match weight and activation scales.")
                     continue

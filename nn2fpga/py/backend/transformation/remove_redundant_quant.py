@@ -1,14 +1,12 @@
 from qonnx.transformation.base import Transformation
-from qonnx.util.basic import get_by_name
 from qonnx.core.modelwrapper import ModelWrapper
-from backend.util.quant_utils import get_quant_params
-from onnx import numpy_helper
+from backend.core.tensor_quant import TensorQuant
+import logging
+
+logger = logging.getLogger(__name__)
 
 class RemoveRedundantQuant(Transformation):
     """Remove consecutive IntQuant nodes with identical quantization parameters."""
-
-    def same_quant(self, q1, q2):
-        return all(q1[k] == q2[k] for k in q1)
 
     def apply(self, model: ModelWrapper) -> tuple[ModelWrapper, bool]:
         graph = model.model.graph
@@ -33,12 +31,12 @@ class RemoveRedundantQuant(Transformation):
                 continue
 
             # Compare quantization parameters
-            q1 = get_quant_params(prev_node, model)
-            q2 = get_quant_params(node, model)
+            q1 = TensorQuant.from_quant_node(prev_node, model)
+            q2 = TensorQuant.from_quant_node(node, model)
 
-            if self.same_quant(q1, q2):
+            if q1 == q2:
                 # Remove node: patch all consumers of node.output[0]
-                print(f"Removing redundant quant node {node.name} with identical quant params to {prev_node.name}")
+                logger.info(f"Removing redundant quant node {node.name} with identical quant params to {prev_node.name}")
                 skip_outputs[node.output[0]] = prev_node.output[0]
                 continue
             else:

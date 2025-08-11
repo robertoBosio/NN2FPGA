@@ -1,19 +1,141 @@
-import re
 from qonnx.util import basic as qonnx_basic
-from onnx import TensorAnnotation, StringStringEntryProto
+from onnx import TensorAnnotation, StringStringEntryProto, NodeProto
 from qonnx.core.modelwrapper import ModelWrapper
+from qonnx.custom_op.registry import getCustomOp
+import re
+
+def Quant_to_TensorQuant(node: NodeProto, model: ModelWrapper) -> dict:
+    """
+    Extracts quantization parameters from a Quant node and returns them as a dictionary.
+
+    Parameters:
+        node (NodeProto): The ONNX node representing the Quant operation.
+        model (ModelWrapper): The model wrapper containing initializers and graph information.
+
+    Returns:
+        dict: A dictionary containing quantization parameters:
+            - scale: The scale factor for quantization.
+            - zeropt: The zero-point offset for quantization.
+            - bitwidth: The bitwidth used for quantization.
+            - signed: Indicates if quantization is signed.
+            - narrow: Indicates if narrow range quantization is used.
+            - rounding_mode: The rounding mode used during quantization.
+    """
+    scale = zeropt = bitwidth = None
+
+    if len(node.input) > 1:
+        scale = model.get_initializer(node.input[1])
+    if len(node.input) > 2:
+        zeropt = model.get_initializer(node.input[2])
+    if len(node.input) > 3:
+        bitwidth = model.get_initializer(node.input[3])
+        if bitwidth.size > 1:
+            raise ValueError(
+                f"Bitwidth for node {node.name} is not a scalar: {bitwidth}"
+            )
+        bitwidth = int(bitwidth.item())
+    qonnx_node = getCustomOp(node)
+    signed = qonnx_node.get_nodeattr("signed")
+    narrow = qonnx_node.get_nodeattr("narrow")
+    rounding_mode = qonnx_node.get_nodeattr("rounding_mode")
+
+    return dict(
+        scale=scale,
+        zeropt=zeropt,
+        bitwidth=bitwidth,
+        signed=signed,
+        narrow=narrow,
+        rounding_mode=rounding_mode,
+    )
+
+def is_constant_input_node(model: ModelWrapper, node: NodeProto) -> bool:
+    """Check if the node has only constant inputs.
+    It is used to distinguish between Quant nodes on the activation and
+    Quant nodes on the parameters (weights and biases).
+    """
+    init_names = [init.name for init in model.graph.initializer]
+    return all(inp in init_names for inp in node.input)
 
 class TensorQuant:
-    def __init__(self, bitwidth, signed, scale, zeropt, narrow_range=False, rounding="ROUND"):
+    """
+    Represents quantization parameters for an activation tensor.
+    Currently, it does not support per channel/per group quantization.
+
+    The quantization parameters are stored in a canonical string format:
+    Q[bitwidth,signed,scale,zeropt,narrow,rounding]
+    
+    Where:
+    - `bitwidth`: Number of bits used for quantization.
+    - `signed`: Indicates if quantization is signed (1) or unsigned (0).
+    - `scale`: Scale factor for quantization.
+    - `zeropt`: Zero-point offset for quantization.
+    - `narrow`: Indicates if narrow range quantization is used (1) or not (0).
+    - `rounding`: Rounding mode used during quantization.
+    
+    Methods:
+        __init__(bitwidth, signed, scale, zeropt, narrow=False, rounding="ROUND"):
+            Initializes a TensorQuant instance with the specified quantization parameters.
+        from_quant_node(quant_node: NodeProto, model: ModelWrapper) -> TensorQuant:
+            Creates a TensorQuant instance from a Quant node.
+        __eq__(other) -> bool:
+            Checks equality with another TensorQuant instance.
+        get_canonical_name() -> str:
+            Returns a canonical string representation of the quantization parameters.
+        from_canonical_name(s: str) -> TensorQuant:
+            Parses a canonical quantization string and returns a TensorQuant instance.
+        __repr__() -> str:
+            Returns a string representation of the TensorQuant instance.
+    
+    """
+
+    def __init__(self, bitwidth, signed, scale, zeropt, narrow=False, rounding="ROUND"):
         self.bitwidth = int(bitwidth)
         self.signed = int(signed)
-        self.scale = float(scale)
-        self.zeropt = int(zeropt)
-        self.narrow_range = int(narrow_range)
+        if scale is None:
+            raise ValueError("Scale parameter cannot be None.")
+        if hasattr(scale, "size"):
+            if scale.size != 1:
+                raise ValueError("Scale parameter must be a scalar or single-element array.")
+            self.scale = float(scale.item())
+        else:
+            self.scale = float(scale)
+        if zeropt is None:
+            raise ValueError("Zero-point parameter cannot be None.")
+        if hasattr(zeropt, "size"):
+            if zeropt.size != 1:
+                raise ValueError("Zero-point parameter must be a scalar or single-element array.")
+            self.zeropt = int(zeropt.item())
+        else:
+            self.zeropt = int(zeropt)
+        self.narrow = int(narrow)
         self.rounding = str(rounding)
+    
+    @classmethod
+    def from_quant_node(cls, quant_node: NodeProto, model: ModelWrapper):
+        params = Quant_to_TensorQuant(quant_node, model)
+        return cls(
+            bitwidth=params["bitwidth"],
+            signed=params["signed"],
+            scale=params["scale"],
+            zeropt=params["zeropt"],
+            narrow=params["narrow"],
+            rounding=params["rounding_mode"],
+        )
+    
+    def __eq__(self, other):
+        if not isinstance(other, TensorQuant):
+            return False
+        return (
+            self.bitwidth == other.bitwidth and
+            self.signed == other.signed and
+            self.scale == other.scale and
+            self.zeropt == other.zeropt and
+            self.narrow == other.narrow and
+            self.rounding == other.rounding
+        )
 
     def get_canonical_name(self):
-        return f"Q[{self.bitwidth},{self.signed},{self.scale},{self.zeropt},{self.narrow_range},{self.rounding}]"
+        return f"Q[{self.bitwidth},{self.signed},{self.scale},{self.zeropt},{self.narrow},{self.rounding}]"
 
     @staticmethod
     def from_canonical_name(s):
@@ -28,7 +150,7 @@ class TensorQuant:
             signed=int(m.group(2)),
             scale=float(m.group(3)),
             zeropt=int(m.group(4)),
-            narrow_range=int(m.group(5)),
+            narrow=int(m.group(5)),
             rounding=str(m.group(6))
         )
 
