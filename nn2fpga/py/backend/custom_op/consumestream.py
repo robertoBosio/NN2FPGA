@@ -8,9 +8,10 @@ from backend.util.codegen_utils import (
     cpp_variable,
     cpp_object,
     NewCodeWriter,
+    get_cpp_quant_type,
     get_struct_type,
     get_stream_type,
-    get_quant_type,
+    get_hls_quant_type,
 )
 from backend.util.par_utils import get_par_attributes
 import math
@@ -159,11 +160,11 @@ class ConsumeStream(CustomOp):
                     f"{get_struct_type(input_quant, par_attribute['in_ch_par'])}",
                     "TInputStruct",
                 ),
-                (f"{get_quant_type(input_quant)}", "TInput"),
+                (f"{get_hls_quant_type(input_quant)}", "TInput"),
                 (f"ap_axiu<{output_bitwidth}, 0, 0, 0>", "TOutputStruct"),
                 (f"ap_uint<{output_bitwidth}>", "TOutput"),
                 (
-                    f"DequantQuantEqual<{get_quant_type(input_quant)}>",
+                    f"DequantQuantEqual<{get_hls_quant_type(input_quant)}>",
                     "Quantizer",
                 ),
                 (self.__get_data_per_word(model), "DATA_PER_WORD"),
@@ -249,14 +250,12 @@ class ConsumeStream(CustomOp):
         npy_write = cpp_function(
             name=f"hls_stream_to_npy",
             return_type="void",
-            templates=["typename TAxi", "typename TData"],
+            templates=["typename TAxi", "typename TData", "typename TDataNumpy"],
             arguments=[
                 cpp_variable("input_path", "std::string"),
                 cpp_variable(f"stream", f"hls::stream<TAxi>&"),
                 cpp_variable("data_per_word", "int"),
                 cpp_variable("bits_per_data", "int"),
-                cpp_variable("scale", "float"),
-                cpp_variable("zeropt", "int"),
                 cpp_variable("shape", "const std::vector<size_t>&"),
             ],
         )
@@ -264,13 +263,12 @@ class ConsumeStream(CustomOp):
         return npy_write.generate_call(
             [
                 f"ap_axiu<{output_bitwidth}, 0, 0, 0>",
-                get_quant_type(output_quant),
+                get_hls_quant_type(output_quant),
+                get_cpp_quant_type(output_quant),
             ],
             file_name,
             self.__get_stream_name(self.onnx_node.output[0]),
             self.__get_data_per_word(model),
             output_quant.bitwidth,
-            output_quant.scale,
-            output_quant.zeropt,
             f"{{{output_shape[0]}, {output_shape[2]}, {output_shape[3]}, {output_shape[1]}}}",
         )

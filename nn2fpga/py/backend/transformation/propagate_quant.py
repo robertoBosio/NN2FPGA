@@ -14,15 +14,22 @@ import logging
 logger = logging.getLogger(__name__)
 
 QUANT_INVARIANT_NODES = [
+    "BandwidthAdjustDecreaseChannels",  # nn2FPGA
+    "BandwidthAdjustDecreaseStreams",  # nn2FPGA
+    "BandwidthAdjustIncreaseChannels",  # nn2FPGA
+    "BandwidthAdjustIncreaseStreams",  # nn2FPGA
     "Concat",
+    "ConsumeStream",  # nn2FPGA
     "Flatten",
     "GlobalMaxPool",
     "Identity",
     "MaxPool",
     "Pad",
+    "ProduceStream",  # nn2FPGA
     "Relu",
     "Reshape",
     "Split",
+    "TensorDuplicator",  # nn2FPGA
     "Transpose",
 ]
 

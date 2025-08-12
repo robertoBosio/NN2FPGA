@@ -5,7 +5,7 @@ import argparse
 from backend.util.qonnx_patch import patch_qonnx_ops
 patch_qonnx_ops()
 from backend.nn2fpga_compile import nn2fpga_compile
-from backend.util.board_util import board_to_part
+from backend.util.board_util import board_part_names
 
 def load_config(config_path: str) -> dict:
     """
@@ -34,7 +34,8 @@ def load_config(config_path: str) -> dict:
         print(f"Missing configuration field: {e}")
         sys.exit(1)
 
-    config_dict["part"] = board_to_part(config_dict["board"])
+    # Check if the board is valid
+    _ = board_part_names(config_dict["board"])
 
     if "XILINX_VERSION" not in os.environ:
         raise EnvironmentError(
@@ -107,7 +108,6 @@ def main():
     nn2fpga_compile(
         onnx_model=config_dict["onnx_path"],
         board=config_dict["board"],
-        part=config_dict["part"],
         silvia_packing=config_dict["silvia_packing"],
         prj_root=config_dict["prj_root"],
         top_name=config_dict["top_name"],

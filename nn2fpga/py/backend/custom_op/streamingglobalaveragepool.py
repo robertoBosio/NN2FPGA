@@ -12,7 +12,7 @@ from backend.util.codegen_utils import (
     cpp_object,
     get_struct_type,
     get_stream_type,
-    get_quant_type,
+    get_hls_quant_type,
 )
 from backend.core.tensor_quant import TensorQuant
 from backend.util.par_utils import get_par_attributes
@@ -120,7 +120,7 @@ class StreamingGlobalAveragePool(CustomOp):
             zeropt=input_quant.zeropt,
         )
 
-        return f"{get_quant_type(acc_quant)}"
+        return f"{get_hls_quant_type(acc_quant)}"
 
     def __get_divisor(self, input_shape) -> str:
         """ Returns the divisor type for the StreamingGlobalAveragePool operation. """
@@ -132,7 +132,7 @@ class StreamingGlobalAveragePool(CustomOp):
             scale=1.0,
             zeropt=0,
         )
-        return f"{get_quant_type(divisor_quant)}"
+        return f"{get_hls_quant_type(divisor_quant)}"
 
     def __is_power_of_two(self, value) -> bool:
         """Check if a value is a power of two."""
@@ -144,7 +144,7 @@ class StreamingGlobalAveragePool(CustomOp):
         # Check if the scale is a power of two
         if self.__is_power_of_two(input_quant.scale) and self.__is_power_of_two(output_quant.scale):
             shift = int(np.log2(input_quant.scale)) - int(np.log2(output_quant.scale))
-            return f"DequantQuantPo2Types<{shift}, {self.__get_accumulator(input_quant, input_shape)}, {get_quant_type(output_quant)}>"
+            return f"DequantQuantPo2Types<{shift}, {self.__get_accumulator(input_quant, input_shape)}, {get_hls_quant_type(output_quant)}>"
         else:
             raise ValueError(
                 "Float quantization is currently not supported for StreamingGlobalAveragePool.  "
@@ -179,9 +179,9 @@ class StreamingGlobalAveragePool(CustomOp):
             f"{self.onnx_node.name}",
             template_args=[
                 (f"{get_struct_type(input_quant, par_attribute['in_ch_par'])}", "TInputStruct"),
-                (f"{get_quant_type(input_quant)}", "TInput"),
+                (f"{get_hls_quant_type(input_quant)}", "TInput"),
                 (f"{get_struct_type(output_quant, par_attribute['out_ch_par'])}", "TOutputStruct"),
-                (f"{get_quant_type(output_quant)}", "TOutput"),
+                (f"{get_hls_quant_type(output_quant)}", "TOutput"),
                 (self.__get_accumulator(input_quant, input_shape), "TAcc"),
                 (self.__get_divisor(input_shape), "TDiv"),
                 (self.__get_quantizer(input_quant, output_quant, input_shape), "Quantizer"),

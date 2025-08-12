@@ -854,7 +854,6 @@ class BalanceComputation(Transformation):
 
         board_res = read_board_info(
             board=model.get_metadata_prop("board_name"),
-            prj_root=self.nn2fpga_root
         )
 
         NUM_PORTS = (board_res["bram"] + board_res["uram"] * 8)

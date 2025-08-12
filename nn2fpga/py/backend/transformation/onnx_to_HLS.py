@@ -1,13 +1,11 @@
 from qonnx.transformation.base import Transformation
 from qonnx.core.modelwrapper import ModelWrapper
 from qonnx.custom_op.registry import getCustomOp
-from backend.core.tensor_quant import get_custom_tensor_datatype
-from backend.util.par_utils import get_par_attributes
 from backend.util.codegen_utils import cpp_function, cpp_variable, NewCodeWriter
+from backend.core.acceleratorpackage import AcceleratorPackage
 from onnx import NodeProto
 import base64
 import os
-import json
 import numpy as np
 
 def generate_hls_code(model: ModelWrapper) -> str:
@@ -201,65 +199,6 @@ def generate_constant_input_values(model: ModelWrapper, partition_node: NodeProt
 
     return constant_inputs   
 
-def generate_input_map(model: ModelWrapper, partition_node: NodeProto) -> dict:
-    """
-    Generate a mapping of input names from the parent model to the FPGA model.
-    Args:
-        model (ModelWrapper): The FPGA model to generate the input map for.
-        parent_model (ModelWrapper): The parent model containing the original names.
-    Returns:
-        dict: A dictionary mapping input names from the parent model to the FPGA model.
-    """
-    
-    input_map = {}
-    for i, old_iname in enumerate(partition_node.input):
-        new_iname = model.graph.input[i].name
-        input_map[old_iname] = new_iname
-
-    return input_map
-
-def generate_output_map(model: ModelWrapper, partition_node: NodeProto) -> dict:
-    """
-    Generate a mapping of output names from the parent model to the FPGA model.
-    Args:
-        model (ModelWrapper): The FPGA model to generate the output map for.
-        parent_model (ModelWrapper): The parent model containing the original names.
-    Returns:
-        dict: A dictionary mapping output names from the parent model to the FPGA model.
-    """
-    
-    output_map = {}
-    for i, old_oname in enumerate(partition_node.output):
-        new_oname = model.graph.output[i].name
-        output_map[old_oname] = new_oname
-    
-    return output_map
-
-def generate_blob(model: ModelWrapper, partition_node: NodeProto, work_dir: str) -> str:
-    """
-    Generate a base64-encoded blob from the model's code.
-    Args:
-        model (ModelWrapper): The model to encode.
-    Returns:
-        str: Base64-encoded string of the model's code.
-    """
-    blob = {
-        "hls_code_b64": base64.b64encode(generate_hls_code(model).encode()).decode("ascii"),
-        "hls_driver_b64": base64.b64encode(generate_hls_driver(model).encode()).decode("ascii"),
-        "bitstream_b64": "",
-        "input_map": generate_input_map(model, partition_node),
-        "output_map": generate_output_map(model, partition_node),
-        "constant_inputs": generate_constant_input_values(model, partition_node),
-        "work_dir": work_dir,
-        "part_name": model.get_metadata_prop("part_name"),
-        "board_name": model.get_metadata_prop("board_name"),
-        "top_name": model.get_metadata_prop("top_name"),
-        "frequency": model.get_metadata_prop("frequency"),
-        "hls_version": model.get_metadata_prop("hls_version"),
-    }
-
-    return json.dumps(blob)
-
 class OnnxToHLS(Transformation):
     """
     Class to handle the conversion of ONNX models to HLS (High-Level Synthesis) format.
@@ -277,17 +216,26 @@ class OnnxToHLS(Transformation):
 
     def apply(self, model: ModelWrapper) -> tuple[ModelWrapper, bool]:
 
-        partition_node_name = model.get_metadata_prop("partition node")
-        if partition_node_name is None:
-            raise ValueError("Partition node name not found in model metadata.")
+        partition_nodes = self.parent_model.get_nodes_by_op_type("nn2fpgaPartition")
+        if not partition_nodes:
+            raise ValueError(f"Partition nodes not found in model.")
         
-        partition_node = self.parent_model.get_node_from_name(partition_node_name)
-        if partition_node is None:
-            raise ValueError(f"Partition node '{partition_node_name}' not found in model.")
+        # We are sure that there is only one nn2FPGA partition node in the model.
+        # as this is checked in the supported partition transformation.
+        partition_node = partition_nodes[0]
+
+        ap = AcceleratorPackage.from_json(
+            getCustomOp(partition_node).get_nodeattr("accelerator_package")
+        )
+
+        # Update the accelerator package with the HLS code and driver
+        ap.work_dir = self.work_root
+        ap.hls_code_b64 = base64.b64encode(generate_hls_code(model).encode()).decode("ascii")
+        ap.hls_driver_b64 = base64.b64encode(generate_hls_driver(model).encode()).decode("ascii")
+        ap.constant_inputs = generate_constant_input_values(model, partition_node)
 
         getCustomOp(partition_node).set_nodeattr(
-            "blob",
-            generate_blob(model, partition_node, self.work_root)
+            "accelerator_package", ap.to_json()
         )
 
         return (model, False)

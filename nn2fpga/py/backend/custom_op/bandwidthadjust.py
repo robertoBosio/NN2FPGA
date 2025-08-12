@@ -9,7 +9,7 @@ from backend.util.codegen_utils import (
     cpp_object,
     get_struct_type,
     get_stream_type,
-    get_quant_type,
+    get_hls_quant_type,
 )
 from backend.util.par_utils import get_par_attributes
 
@@ -152,11 +152,11 @@ class BandwidthAdjust(CustomOp):
             f"{self.onnx_node.name}",
             template_args=[
                 (f"{get_struct_type(input_quant, par_attribute['in_ch_par'])}", "TInputStruct"),
-                (f"{get_quant_type(input_quant)}", "TInput"),
+                (f"{get_hls_quant_type(input_quant)}", "TInput"),
                 (f"{get_struct_type(output_quant, par_attribute['out_ch_par'])}", "TOutputStruct"),
-                (f"{get_quant_type(output_quant)}", "TOutput"),
+                (f"{get_hls_quant_type(output_quant)}", "TOutput"),
                 (
-                    f"DequantQuantEqual<{get_quant_type(output_quant)}>",
+                    f"DequantQuantEqual<{get_hls_quant_type(output_quant)}>",
                     "Quantizer",
                 ),
                 (input_shape[2], "IN_HEIGHT"),

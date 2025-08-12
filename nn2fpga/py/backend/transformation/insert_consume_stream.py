@@ -23,7 +23,6 @@ class InsertConsumeStream(Transformation):
         
         board_res = read_board_info(
             board=model.get_metadata_prop("board_name"),
-            prj_root=self.nn2fpga_root
         )
 
         new_nodes = []

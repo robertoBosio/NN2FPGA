@@ -2,14 +2,13 @@ from qonnx.core.modelwrapper import ModelWrapper
 from qonnx.transformation.base import Transformation
 from qonnx.custom_op.registry import getCustomOp
 from backend.core.fifo_depth import (
-    get_custom_tensor_fifo_depth,
     set_custom_tensor_fifo_depth,
     TensorFifoDepth
 )
 from backend.util.codegen_utils import cpp_function, cpp_variable, NewCodeWriter
+from backend.util.board_util import board_part_names
 import os
 import json
-import numpy as np
 import subprocess
 
 def generate_hls_code(model: ModelWrapper, work_root: str) -> str:
@@ -249,9 +248,12 @@ class ComputeFifoDepth(Transformation):
             f.write(generate_hls_driver(model))
 
         # Generate the TCL script for the HLS project.
+        part_name, _ = board_part_names(
+            board=model.get_metadata_prop("board_name"),
+        )
         tcl_script = generate_tcl_script(
             top_name=model.get_metadata_prop("top_name"),
-            part_name=model.get_metadata_prop("part_name"),
+            part_name=part_name,
             frequency=model.get_metadata_prop("frequency"),
             hls_version=model.get_metadata_prop("hls_version"),
         )

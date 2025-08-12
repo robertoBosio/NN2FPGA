@@ -65,9 +65,20 @@ class FoldQuant(Transformation):
 
             # Bypass and remove the Quant node
             producer = model.find_producer(quant.input[0])
-            for i, out in enumerate(producer.output):
-                if out == quant.input[0]:
-                    producer.output[i] = quant.output[0]
+
+            # In case the input to the quant is a model input,
+            # we need to update the consumers of the quant to use directly the model input
+            if producer is None:
+                consumers = model.find_consumers(quant.output[0])
+                for consumer in consumers:
+                    for i, inp in enumerate(consumer.input):
+                        if inp == quant.output[0]:
+                            consumer.input[i] = quant.input[0]
+            else:
+                # Update the producer to use the output of the Quant node
+                for i, out in enumerate(producer.output):
+                    if out == quant.input[0]:
+                        producer.output[i] = quant.output[0]
 
             # Remove the Quant node from the graph
             graph.node.remove(quant)

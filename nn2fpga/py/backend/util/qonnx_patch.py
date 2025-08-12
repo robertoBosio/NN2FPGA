@@ -1,5 +1,4 @@
 from qonnx.util import basic as qonnx_basic
-import numpy as np
 
 # Store original in case needed
 original_is_finn_op = qonnx_basic.is_finn_op
@@ -16,53 +15,17 @@ def patch_qonnx_ops():
     """
     Monkey patch QONNX to:
     - Treat some custom ops as FINN-compatible
-    - Extend GenericPartition with simulation capabilities
     - Override PartitionFromLambda.apply with a custom version
     """
-    
+
     # Patch is_finn_op first
     qonnx_basic.is_finn_op = patched_is_finn_op
 
-    # Now safely import GenericPartition and patch execute_node
-    from qonnx.custom_op.general.genericpartition import GenericPartition
-    from qonnx.core.modelwrapper import ModelWrapper
-    from backend.core.simulation import simulate
-
-    original_GenericPartition_get_nodeattr_types = GenericPartition.get_nodeattr_types
-    original_GenericPartition_execute_node = GenericPartition.execute_node
-
-    def custom_execute_node(self, context, graph):
-
-        blob = self.get_nodeattr("blob")
-        if blob is None:
-            return original_GenericPartition_execute_node(self, context, graph)
-
-        context = simulate(blob=blob, context=context)
-        return context
-
-    def get_nodeattr_types(self):
-        """
-        Get the attribute types for the GenericPartition node, including custom attributes.
-        The custom attribute "blob" is added for nn2fpga to handle additional data, such as HLS code,
-        or input data for the partition.
-        This allows to embed everything needed for nn2fpga simulation directly into the ONNX model.
-        """
-        attr_types = original_GenericPartition_get_nodeattr_types(self)
-
-        # Add custom attributes for nn2fpga
-        attr_types.update(
-            {
-                "blob": ("s", False, ""),
-            }
-        )
-
-        return attr_types
-
-    GenericPartition.get_nodeattr_types = get_nodeattr_types
-    GenericPartition.execute_node = custom_execute_node
-
     # Patch PartitionFromLambda apply
+    from qonnx.core.modelwrapper import ModelWrapper
     from qonnx.transformation.create_generic_partitions import PartitionFromLambda
+    from backend.core.acceleratorpackage import AcceleratorPackage
+    from backend.core.tensor_quant import TensorQuant
     from onnx import helper
     import copy
     import pathlib
@@ -165,20 +128,72 @@ def patch_qonnx_ops():
                 if o in p_model.graph.value_info:
                     p_model.graph.value_info.remove(o)
 
+
+            # Build the accelerator package input/output maps
+            # It is fundamental to maintain consistency between the maps and the inputs/outputs names
+            # in the partition model. We use the same name convention as qonnx's GiveReadableTensorNames
+            # transformation, i.e. global_in and global_out.
+            ap_input_map = {}
+            for i, input in enumerate(p_model.graph.input):
+                first_node = p_model.find_consumer(input.name)
+                if first_node is None:
+                    raise ValueError(
+                        f"Partition input {input.name} does not have a consumer."
+                    )
+                new_name = f"global_in" if i == 0 else f"global_in_{i}"
+                ap_input_map[input.name] = {"new_name": new_name, "shape": p_model.get_tensor_shape(input.name), "quant": None}
+                if first_node.op_type == "Quant":
+                    tensor_quant = TensorQuant.from_quant_node(first_node, p_model)
+                    ap_input_map[input.name]["quant"] = tensor_quant.get_canonical_name()
+                else:
+                    # Currently, we do not support non quantized inputs in nn2fpgaPartition,
+                    # so there is something wrong if we reach this point.
+                    raise ValueError(
+                        f"Partition input {input.name} is not quantized."
+                    )
+
+            ap_output_map = {}
+            for i, output in enumerate(p_model.graph.output):
+                last_node = p_model.find_producer(output.name)
+                if last_node is None:
+                    raise ValueError(
+                        f"Partition output {output.name} does not have a producer."
+                    )
+                new_name = f"global_out" if i == 0 else f"global_out_{i}"
+                ap_output_map[output.name] = {"new_name": new_name, "shape": p_model.get_tensor_shape(output.name), "quant": None}
+                if last_node.op_type == "Quant":
+                    tensor_quant = TensorQuant.from_quant_node(last_node, p_model)
+                    ap_output_map[output.name]["quant"] = tensor_quant.get_canonical_name()
+                else:
+                    # Currently, we do not support non quantized outputs in nn2fpgaPartition,
+                    # so there is something wrong if we reach this point.
+                    raise ValueError(
+                        f"Partition output {output.name} is not quantized."
+                    )
+            
             # save partition model
             p_model_filename = self.partition_dir + "/partition_" + str(partition_id) + ".onnx"
             p_model.cleanup()
             p_model.save(p_model_filename)
 
-            # insert GenericPartition node
+            # Create the accelerator package
+            ap = AcceleratorPackage(
+                input_map=ap_input_map,
+                output_map=ap_output_map,
+                board_name=p_model.get_metadata_prop("board_name"),
+                top_name=p_model.get_metadata_prop("top_name"),
+                frequency=p_model.get_metadata_prop("frequency"),
+                hls_version=p_model.get_metadata_prop("hls_version"),
+            )
+
+            # insert nn2fpgaPartition node
             p_node = helper.make_node(
-                "GenericPartition",
+                "nn2fpgaPartition",
                 p_in,
                 p_out,
-                name="GenericPartition_" + str(partition_id),
-                # use the model attribute to mark the partition model
-                model=p_model_filename,
-                domain="qonnx.custom_op.general",
+                name="nn2fpgaPartition_" + str(partition_id),
+                domain="backend.custom_op",
+                accelerator_package=ap.to_json(),
             )
             non_p_model.graph.node.insert(p_start_ind, p_node)
 

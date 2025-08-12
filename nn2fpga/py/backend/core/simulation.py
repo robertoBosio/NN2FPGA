@@ -1,8 +1,9 @@
 import numpy as np
 import base64
-import json
 import os
 import subprocess
+from backend.core.acceleratorpackage import AcceleratorPackage
+from backend.util.board_util import board_part_names
 
 def dump_tcl_script(top_name, part_name, frequency, hls_version, input_files):
     """Dump a TCL script to set up the HLS project and run the simulation."""
@@ -37,8 +38,8 @@ def dump_tcl_script(top_name, part_name, frequency, hls_version, input_files):
             'set_part {part_name}',
             'create_clock -period {t_clk}',
             'csim_design -argv "{argv}"',
-            'csynth_design',
-            'cosim_design -argv "{argv}"',
+            # 'csynth_design',
+            # 'cosim_design -argv "{argv}"',
             'exit',
         ]
     )
@@ -51,10 +52,10 @@ def make_build_dir(work_dir: str) -> None:
     """Create the working directory for the simulation."""
     os.makedirs(work_dir, exist_ok=True)
 
-def simulate(blob: str, context: dict) -> dict:
+def simulate(accelerator_package_serialized: str, context: dict) -> dict:
 
-    json_blob = json.loads(blob)
-    work_dir = json_blob["work_dir"]
+    ap = AcceleratorPackage.from_json(accelerator_package_serialized)
+    work_dir = ap.work_dir
     work_dir = f"{os.path.abspath(work_dir)}/sim"
     make_build_dir(work_dir)
     internal_context = list()
@@ -62,39 +63,42 @@ def simulate(blob: str, context: dict) -> dict:
     output_list = list()
 
     # Update the context with the input map
-    input_map = json_blob["input_map"]
-    for old_name, new_name in input_map.items():
+    input_map = ap.input_map
+    for old_name, value in input_map.items():
+        new_name = value["new_name"]
         if old_name in context:
             internal_context.append((new_name, context[old_name]))
-    input_list.extend(sorted(input_map.values()))
+    input_list.extend([value["new_name"] for value in input_map.values()])
 
     # Save the value of the constant inputs
-    for tensor_name, tensor_data in json_blob["constant_inputs"].items():
+    for tensor_name, tensor_data in ap.constant_inputs.items():
         tensor = np.frombuffer(
             base64.b64decode(tensor_data["data_b64"]), dtype=tensor_data["dtype"]
         ).reshape(tensor_data["shape"])
         internal_context.append((tensor_name, tensor))
     input_list.extend(
-        sorted(tensor_name for tensor_name in json_blob["constant_inputs"].keys())
+        sorted(tensor_name for tensor_name in ap.constant_inputs.keys())
     )
 
     # Update the context with the output map
-    output_map = json_blob["output_map"]
-    for old_name, new_name in output_map.items():
+    output_map = ap.output_map
+    for old_name, value in output_map.items():
+        new_name = value["new_name"]
         if old_name in context:
             internal_context.append((new_name, context[old_name]))
-    output_list.extend(sorted(output_map.values()))
+    output_list.extend([value["new_name"] for value in output_map.values()])
 
     # Save to file the internal context
     for tensor_name, tensor_data in internal_context:
         np.save(f"{work_dir}/{tensor_name}.npy", tensor_data)
 
     # Generate the TCL script
+    part_name, _ = board_part_names(ap.board_name)
     tcl_script = dump_tcl_script(
-        top_name=json_blob["top_name"],
-        part_name=json_blob["part_name"],
-        frequency=json_blob["frequency"],
-        hls_version=json_blob["hls_version"],
+        top_name=ap.top_name,
+        part_name=part_name,
+        frequency=ap.frequency,
+        hls_version=ap.hls_version,
         input_files=[f"{work_dir}/{tensor_name}.npy" for tensor_name, _ in internal_context],
     )
 
@@ -104,11 +108,11 @@ def simulate(blob: str, context: dict) -> dict:
 
     # Write the HLS code to a file
     with open(f"{work_dir}/kernel.cpp", "w") as f:
-        f.write(base64.b64decode(json_blob["hls_code_b64"]).decode())
+        f.write(base64.b64decode(ap.hls_code_b64).decode())
 
     # Generate the HLS driver code
     with open(f"{work_dir}/testbench.cpp", "w") as f:
-        f.write(base64.b64decode(json_blob["hls_driver_b64"]).decode())
+        f.write(base64.b64decode(ap.hls_driver_b64).decode())
 
     # run the simulation
     subprocess.run(
@@ -118,8 +122,8 @@ def simulate(blob: str, context: dict) -> dict:
     )
 
     # Read the output files and update the context
-    for old_name, new_name in output_map.items():
-        output_file = f"{work_dir}/{new_name}.npy"
+    for old_name, value in output_map.items():
+        output_file = f"{work_dir}/{value['new_name']}.npy"
         if os.path.exists(output_file):
             tensor_data = np.load(output_file)
             context[old_name] = tensor_data

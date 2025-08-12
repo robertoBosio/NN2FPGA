@@ -9,7 +9,8 @@ from backend.util.codegen_utils import (
     cpp_object,
     get_struct_type,
     get_stream_type,
-    get_quant_type,
+    get_hls_quant_type,
+    get_cpp_quant_type
 )
 from backend.util.par_utils import get_par_attributes
 import math
@@ -163,9 +164,9 @@ class ProduceStream(CustomOp):
                     f"{get_struct_type(output_quant, par_attribute['out_ch_par'])}",
                     "TOutputStruct",
                 ),
-                (f"{get_quant_type(output_quant)}", "TOutput"),
+                (f"{get_hls_quant_type(output_quant)}", "TOutput"),
                 (
-                    f"DequantQuantEqual<{get_quant_type(output_quant)}>",
+                    f"DequantQuantEqual<{get_hls_quant_type(output_quant)}>",
                     "Quantizer",
                 ),
                 (self.__get_data_per_word(model), "DATA_PER_WORD"),
@@ -261,26 +262,23 @@ class ProduceStream(CustomOp):
         npy_read = cpp_function(
             name=f"npy_to_hls_stream",
             return_type="void",
-            templates=["typename TAxi", "typename TData"],
+            templates=["typename TAxi", "typename TData", "typename TDataNumpy"],
             arguments=[
                 cpp_variable("input_path", "std::string"),
                 cpp_variable(f"stream", f"hls::stream<TAxi>&"),
                 cpp_variable("data_per_word", "int"),
                 cpp_variable("bits_per_data", "int"),
-                cpp_variable("scale", "float"),
-                cpp_variable("zeropt", "int"),
             ],
         )
 
         return npy_read.generate_call(
             [
                 f"ap_axiu<{input_bitwidth}, 0, 0, 0>",
-                get_quant_type(output_quant),
+                get_hls_quant_type(output_quant),
+                get_cpp_quant_type(output_quant),
             ],
             file_name,
             self.__get_stream_name(self.onnx_node.input[0]),
             self.__get_data_per_word(model),
             output_quant.bitwidth,
-            output_quant.scale,
-            output_quant.zeropt,
         )

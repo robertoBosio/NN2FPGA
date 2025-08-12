@@ -6,29 +6,18 @@
 #include <cmath>
 #include <vector>
 
-// Function to quantize a floating-point value to an integer
-// with round half to even
-int quantize(float value, float scale, int zeropt) {
-  return static_cast<int>(std::nearbyint(value / scale)) + zeropt;
-}
-
-float dequantize(int value, float scale, int zeropt) {
-  return (value - zeropt) * scale;
-}
-
-template <typename TAxi, typename TData>
+template <typename TAxi, typename TData, typename TDataNumpy>
 void hls_stream_to_npy(const std::string &output_path,
                        hls::stream<TAxi> &stream, int data_per_word,
-                       int bits_per_data, float scale, int zeropt, const std::vector<size_t> &shape) {
-  std::vector<float> output_data;
+                       int bits_per_data, const std::vector<size_t> &shape) {
+  std::vector<TDataNumpy> output_data;
   while (!stream.empty()) {
     TAxi word = stream.read();
     for (int j = 0; j < data_per_word; j++) {
       TData hls_data =
           word.data.range((j + 1) * bits_per_data - 1, j * bits_per_data);
-      int quant_data = static_cast<int>(hls_data);
-      float dequantized_value = dequantize(quant_data, scale, zeropt);
-      output_data.push_back(dequantized_value);
+      TDataNumpy quant_data = static_cast<TDataNumpy>(hls_data);
+      output_data.push_back(quant_data);
     }
   }
 
@@ -36,12 +25,11 @@ void hls_stream_to_npy(const std::string &output_path,
   cnpy::npy_save(output_path, &output_data[0], shape, "w");
 }
 
-template <typename TAxi, typename TData>
+template <typename TAxi, typename TData, typename TDataNumpy>
 void npy_to_hls_stream(const std::string &input_path, hls::stream<TAxi> &stream,
-                       int data_per_word, int bits_per_data, float scale,
-                       int zeropt) {
+                       int data_per_word, int bits_per_data) {
   cnpy::NpyArray input_array = cnpy::npy_load(input_path);
-  float *input_data = input_array.data<float>();
+  TDataNumpy *input_data = input_array.data<TDataNumpy>();
   std::vector<size_t> shape = input_array.shape;
 
   if (shape.size() != 4) {
@@ -54,8 +42,7 @@ void npy_to_hls_stream(const std::string &input_path, hls::stream<TAxi> &stream,
     TAxi word;
     word.data = 0; // Initialize the data field to zero
     for (int j = 0; j < data_per_word; j++) {
-      int quant_data = quantize(input_data[i + j], scale, zeropt);
-      TData hls_data = static_cast<TData>(quant_data);
+      TData hls_data = static_cast<TData>(input_data[i + j]);
       word.data.range((j + 1) * bits_per_data - 1, j * bits_per_data) =
           hls_data;
     }

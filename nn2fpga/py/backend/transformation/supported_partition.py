@@ -7,11 +7,10 @@ from qonnx.core.modelwrapper import ModelWrapper
 from qonnx.transformation.base import Transformation
 from qonnx.transformation.create_generic_partitions import PartitionFromDict
 from qonnx.transformation.general import SortGraph
-from qonnx.transformation.infer_shapes import InferShapes
-
-from backend.util.quant_utils import (
-    is_constant_input_node,
-)
+from backend.core.tensor_quant import is_constant_input_node
+from backend.transformation.convert_to_QCDQ import ConvertToQCDQ
+import logging
+logger = logging.getLogger(__name__)
 
 FPGA_SUPPORTED_QUANTIZED_ACTIVATIONS = {
     "LeakyRelu",
@@ -432,7 +431,7 @@ def is_fpga_supported_op(model: ModelWrapper, node: onnx.NodeProto) -> bool:
             is_supported = is_supported and check_act_quant(model, node, reasons)
     
     if not is_supported:
-        print(
+        logger.info(
             f"Node {node.name} of type {node.op_type} is not supported for FPGA execution. Reasons: {', '.join(reasons)}"
         )
     return is_supported
@@ -567,7 +566,7 @@ class AddTransposesToPartition(Transformation):
         return (model, False)
 
 class SupportedPartition(Transformation):
-    """ Extracts from the ONNX a single partition containing only operations supported by FPGA.
+    """ Extracts from the ONNX a subgraph containing only operations supported by nn2FPGA.
     All the other operations are assigned to CPU.
     """
 
@@ -620,7 +619,7 @@ class SupportedPartition(Transformation):
         return largest_component
 
     def apply(self, model: ModelWrapper) -> tuple[ModelWrapper, bool]:
-        print("\nPartitioning model into FPGA and CPU partitions.")
+        logger.info("\nPartitioning model into FPGA and CPU partitions.")
         graph = model.graph
 
         # Find the largest connected component of FPGA-supported nodes
@@ -632,6 +631,15 @@ class SupportedPartition(Transformation):
             "FPGA": [node_list.index(node) for node in largest_component]
         }
 
+        if len(partition_dict["FPGA"]) == 0:
+            logger.warning("No FPGA-supported nodes found in the model. Returning original model.")
+            return (model, False)
+        
+        # Since there is something to be run on FPGA, we import the opset of nn2fpga
+        model.model.opset_import.append(
+            helper.make_opsetid("backend.custom_op", 1)
+        )
+
         # Pre-process the model to ensure it is suitable for partitioning
         model = model.transform(PreProcessPartitionModel())
 
@@ -640,7 +648,8 @@ class SupportedPartition(Transformation):
 
         # Post-process the partitioned model to restore ONNX compliance
         parent_model = parent_model.transform(PostProcessPartitionModel())
-        parent_model = parent_model.transform(AddTransposesToPartition())
+        # parent_model = parent_model.transform(AddTransposesToPartition())
+        parent_model = parent_model.transform(ConvertToQCDQ())
         parent_model.save(self.partition_directory + "/wrapper_model.onnx")
 
         # Load the FPGA partition model
@@ -648,11 +657,9 @@ class SupportedPartition(Transformation):
         FPGA_model = FPGA_model.transform(PostProcessPartitionModel())
 
         # Assign as a metadata attribute of the partitioned model the name of the node which it corresponds to.
-        partition_nodes = parent_model.get_nodes_by_op_type("GenericPartition")
+        partition_nodes = parent_model.get_nodes_by_op_type("nn2fpgaPartition")
         if len(partition_nodes) != 1:
             raise ValueError("Extracting more than one HW partition is not supported.")
-        partition_node = partition_nodes[0]
-        FPGA_model.set_metadata_prop("partition node", partition_node.name)
 
-        print(f"Out of {len(graph.node)} nodes, {len(partition_dict['FPGA'])} nodes are assigned to FPGA partition.")
+        logger.info(f"Out of {len(graph.node)} nodes, {len(partition_dict['FPGA'])} nodes are assigned to FPGA partition.")
         return (FPGA_model, False)
