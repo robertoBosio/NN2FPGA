@@ -219,7 +219,7 @@ class EmbedHLSCode(Transformation):
 
     def apply(self, model: ModelWrapper) -> tuple[ModelWrapper, bool]:
 
-        partition_nodes = self.model.get_nodes_by_op_type("nn2fpgaPartition")
+        partition_nodes = model.get_nodes_by_op_type("nn2fpgaPartition")
         if not partition_nodes:
             raise ValueError(f"Partition nodes not found in model.")
         
