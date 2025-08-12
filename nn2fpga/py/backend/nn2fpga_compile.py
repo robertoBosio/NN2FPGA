@@ -67,49 +67,49 @@ def nn2fpga_compile(
     model = model.transform(transformation.PropagateQuant())
 
     # Extract implementable partition.
-    model = model.transform(transformation.SupportedPartition(prj_root))
+    nn2fpga_model = model.transform(transformation.SupportedPartition(prj_root))
 
     # Insert custom nodes.
-    model = model.transform(transformation.FullyConnectedToConv())
-    model = model.transform(transformation.InsertProduceStream(nn2fpga_root=prj_root))
-    model = model.transform(transformation.InsertConsumeStream(nn2fpga_root=prj_root))
-    model = model.transform(transformation.InsertTensorDuplicator())
-    model = model.transform(transformation.CustomInferShapes())
+    nn2fpga_model = nn2fpga_model.transform(transformation.FullyConnectedToConv())
+    nn2fpga_model = nn2fpga_model.transform(transformation.InsertProduceStream(nn2fpga_root=prj_root))
+    nn2fpga_model = nn2fpga_model.transform(transformation.InsertConsumeStream(nn2fpga_root=prj_root))
+    nn2fpga_model = nn2fpga_model.transform(transformation.InsertTensorDuplicator())
+    nn2fpga_model = nn2fpga_model.transform(transformation.CustomInferShapes())
 
     # Handle quantization.
-    model = model.transform(transformation.PropagateQuant())
-    model = model.transform(transformation.RemoveRedundantQuant())
-    model = model.transform(transformation.CustomInferShapes())
-    model = model.transform(GiveReadableTensorNames())
-    model = model.transform(transformation.LowerToNN2FPGALayers())
+    nn2fpga_model = nn2fpga_model.transform(transformation.PropagateQuant())
+    nn2fpga_model = nn2fpga_model.transform(transformation.RemoveRedundantQuant())
+    nn2fpga_model = nn2fpga_model.transform(transformation.CustomInferShapes())
+    nn2fpga_model = nn2fpga_model.transform(GiveReadableTensorNames())
+    nn2fpga_model = nn2fpga_model.transform(transformation.LowerToNN2FPGALayers())
 
     # Start of the backend.
     # Fold quantization into tensor datatype.
-    model = model.transform(transformation.FoldQuant())
-    model = model.transform(transformation.FoldAsymmetricActQuant())
+    nn2fpga_model = nn2fpga_model.transform(transformation.FoldQuant())
+    nn2fpga_model = nn2fpga_model.transform(transformation.FoldAsymmetricActQuant())
 
     # Balance resource allocation per layer.
-    model = model.transform(
+    nn2fpga_model = nn2fpga_model.transform(
         transformation.BalanceComputation(silvia_packing=silvia_packing, nn2fpga_root=prj_root)
     )
-    model = model.transform(transformation.AdjustStreamingCommunication())
-    model = model.transform(transformation.InsertStreamingLineBuffer())
-    model = model.transform(transformation.InferQuant())
+    nn2fpga_model = nn2fpga_model.transform(transformation.AdjustStreamingCommunication())
+    nn2fpga_model = nn2fpga_model.transform(transformation.InsertStreamingLineBuffer())
+    nn2fpga_model = nn2fpga_model.transform(transformation.InferQuant())
 
     # Handle weights streaming.
-    model = model.transform(transformation.AddStreamingParams(nn2fpga_root=prj_root))
-    model = model.transform(transformation.ComputeFifoDepth(work_root=prj_root))
-    parent_model = ModelWrapper("wrapper_model.onnx")
+    nn2fpga_model = nn2fpga_model.transform(transformation.AddStreamingParams(nn2fpga_root=prj_root))
+    nn2fpga_model = nn2fpga_model.transform(transformation.ComputeFifoDepth(work_root=prj_root))
+    model = ModelWrapper("wrapper_model.onnx")
     model = model.transform(
-        transformation.OnnxToHLS(
-            parent_model=parent_model, work_root=prj_root
+        transformation.EmbedHLSCode(
+            nn2fpga_model=nn2fpga_model, work_root=prj_root
         )
     )
 
-    # parent_model = parent_model.transform(transformation.GenerateBitstream())
+    # model = model.transform(transformation.GenerateBitstream())
 
     # Simulate the model to check if it works.
-    test_transformation_equivalence(original_model, parent_model)
-    parent_model = parent_model.transform(transformation.SetDynamicBatchSize())
-    parent_model.save("qcdq_wrapper_model.onnx")
+    test_transformation_equivalence(original_model, model)
+    model = model.transform(transformation.SetDynamicBatchSize())
+    model.save("qcdq_wrapper_model.onnx")
     

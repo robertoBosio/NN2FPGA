@@ -4,6 +4,7 @@ from backend.transformation.balance_computation import BalanceComputation
 from backend.transformation.compute_fifo_depth import ComputeFifoDepth
 from backend.transformation.convert_to_QCDQ import ConvertToQCDQ
 from backend.transformation.custom_infershape import CustomInferShapes
+from backend.transformation.embed_hls_code import EmbedHLSCode
 from backend.transformation.fold_asymmetric_act_quant import FoldAsymmetricActQuant
 from backend.transformation.fold_quant import FoldQuant
 from backend.transformation.fullyconnected_to_conv import FullyConnectedToConv
@@ -14,7 +15,6 @@ from backend.transformation.insert_produce_stream import InsertProduceStream
 from backend.transformation.insert_streaming_line_buffer import InsertStreamingLineBuffer
 from backend.transformation.insert_tensor_duplicator import InsertTensorDuplicator
 from backend.transformation.lower_to_nn2fpga_layers import LowerToNN2FPGALayers
-from backend.transformation.onnx_to_HLS import OnnxToHLS
 from backend.transformation.propagate_quant import PropagateQuant
 from backend.transformation.remove_redundant_quant import RemoveRedundantQuant
 from backend.transformation.set_dynamic_batchsize import SetDynamicBatchSize

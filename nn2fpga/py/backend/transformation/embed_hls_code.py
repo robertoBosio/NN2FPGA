@@ -199,27 +199,27 @@ def generate_constant_input_values(model: ModelWrapper, partition_node: NodeProt
 
     return constant_inputs   
 
-class OnnxToHLS(Transformation):
+class EmbedHLSCode(Transformation):
     """
     Class to handle the conversion of ONNX models to HLS (High-Level Synthesis) format.
     """
 
-    def __init__(self, parent_model: ModelWrapper, work_root: str = "/tmp", erase: bool = True):
+    def __init__(self, nn2fpga_model: ModelWrapper, work_root: str = "/tmp", erase: bool = True):
         """
         Initializes the OnnxToHLS transformation.
         Args:
             work_root (str): The root directory of the project.
-            parent_model (ModelWrapper): The model to be updated with HLS code.
+            nn2fpga_model (ModelWrapper): The model ready to be converted to HLS.
             erase (bool): If True, the starting onnx models will be erased after the transformation.
         """
         super().__init__()
         self.work_root = work_root
-        self.parent_model = parent_model
+        self.nn2fpga_model = nn2fpga_model
         self.erase = erase
 
     def apply(self, model: ModelWrapper) -> tuple[ModelWrapper, bool]:
 
-        partition_nodes = self.parent_model.get_nodes_by_op_type("nn2fpgaPartition")
+        partition_nodes = self.model.get_nodes_by_op_type("nn2fpgaPartition")
         if not partition_nodes:
             raise ValueError(f"Partition nodes not found in model.")
         
@@ -233,9 +233,9 @@ class OnnxToHLS(Transformation):
 
         # Update the accelerator package with the HLS code and driver
         ap.work_dir = self.work_root
-        ap.hls_code_b64 = base64.b64encode(generate_hls_code(model).encode()).decode("ascii")
-        ap.hls_driver_b64 = base64.b64encode(generate_hls_driver(model).encode()).decode("ascii")
-        ap.constant_inputs = generate_constant_input_values(model, partition_node)
+        ap.hls_code_b64 = base64.b64encode(generate_hls_code(self.nn2fpga_model).encode()).decode("ascii")
+        ap.hls_driver_b64 = base64.b64encode(generate_hls_driver(self.nn2fpga_model).encode()).decode("ascii")
+        ap.constant_inputs = generate_constant_input_values(self.nn2fpga_model, partition_node)
 
         getCustomOp(partition_node).set_nodeattr(
             "accelerator_package", ap.to_json()
