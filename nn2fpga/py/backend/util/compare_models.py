@@ -1,7 +1,7 @@
 import numpy as np
 import qonnx.core.onnx_exec as oxe
-from qonnx.core.datatype import DataType
 from qonnx.core.modelwrapper import ModelWrapper
+from onnx import TensorProto
 
 def generate_random_input(model: ModelWrapper) -> dict:
     """
@@ -14,12 +14,13 @@ def generate_random_input(model: ModelWrapper) -> dict:
     input_dict = {}
     for inp in model.graph.input:
         shape = [d.dim_value if d.dim_value > 0 else 1 for d in inp.type.tensor_type.shape.dim]
-        dtype = model.get_tensor_datatype(inp.name)
+        print(f"Generating random input for {inp.name} with shape {shape}")
+        dtype = inp.type.tensor_type.elem_type
         np_dtype = {
-            DataType["FLOAT32"]: np.float32,
-            DataType["UINT8"]: np.uint8,
-            DataType["INT8"]: np.int8,
-            DataType["INT32"]: np.int32,
+            TensorProto.FLOAT: np.float32,
+            TensorProto.UINT8: np.uint8,
+            TensorProto.INT8: np.int8,
+            TensorProto.INT32: np.int32,
         }.get(dtype, np.float32)
         input_dict[inp.name] = np.random.randn(*shape).astype(np_dtype)
     return input_dict

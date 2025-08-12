@@ -26,46 +26,6 @@ def constant_quant_pattern(
         _domain="qonnx.custom_op.general",
     )
 
-def get_tensorproto_dtype(bitwidth, signed):
-    if signed:
-        if bitwidth <= 8:
-            return TensorProto.INT8
-        elif bitwidth <= 16:
-            return TensorProto.INT16
-        elif bitwidth <= 32:
-            return TensorProto.INT32
-        else:
-            raise ValueError(f"Unsupported signed bitwidth: {bitwidth}")
-    else:
-        if bitwidth <= 8:
-            return TensorProto.UINT8
-        elif bitwidth <= 16:
-            return TensorProto.UINT16
-        elif bitwidth <= 32:
-            return TensorProto.UINT32
-        else:
-            raise ValueError(f"Unsupported unsigned bitwidth: {bitwidth}")
-
-def get_numpy_dtype(bitwidth, signed):
-    if signed:
-        if bitwidth <= 8:
-            return np.int8
-        elif bitwidth <= 16:
-            return np.int16
-        elif bitwidth <= 32:
-            return np.int32
-        else:
-            raise ValueError(f"Unsupported signed bitwidth: {bitwidth}")
-    else:
-        if bitwidth <= 8:
-            return np.uint8
-        elif bitwidth <= 16:
-            return np.uint16
-        elif bitwidth <= 32:
-            return np.uint32
-        else:
-            raise ValueError(f"Unsupported unsigned bitwidth: {bitwidth}")
-
 def is_quant_with_constant_input(
     context, x, scale, zero_point, bitwidth, signed, narrow, rounding_mode, **_
 ):
@@ -117,7 +77,15 @@ def quant_constant_to_dequant(
         rounding_mode=rounding_mode_val,
     )
 
-    data_type = get_tensorproto_dtype(bitwidth_np, signed_val)
+    tensor_quant = TensorQuant(
+        scale=scale_np,
+        zeropt=zero_point_np,
+        bitwidth=bitwidth_np,
+        signed=signed_val,
+        narrow=narrow_val,
+        rounding=rounding_mode_val,
+    )
+    data_type = tensor_quant.get_tensorproto_dtype()
 
     # Create the new quantized constant
     quantized_tensor = helper.make_tensor(
@@ -126,13 +94,13 @@ def quant_constant_to_dequant(
         dims=c_x.shape,
         vals=c_x.flatten().tolist(),
     )
-    
+
     # Create the new Constant node
     quantized_const_node = op.Constant(value=quantized_tensor)
-    
+
     # The scale and zero_point are the same as in the original Quant node
     # so we just reuse the original ValueInfo objects
-    
+
     # Create the DequantizeLinear node
     return op.DequantizeLinear(quantized_const_node, scale, zero_point)
 
@@ -206,9 +174,7 @@ class ConvertToQCDQ(Transformation):
                 zeropt_init_name = create_const_initializer(
                     model,
                     input_tensor_quant.zeropt,
-                    get_numpy_dtype(
-                        input_tensor_quant.bitwidth, input_tensor_quant.signed
-                    ),
+                    input_tensor_quant.get_numpy_dtype()
                 )
 
                 quantize_node = helper.make_node(
@@ -221,10 +187,7 @@ class ConvertToQCDQ(Transformation):
                 model.set_tensor_shape(
                     f"{inp}_quantized",
                     [inp_shape[0], inp_shape[2], inp_shape[3], inp_shape[1]],
-                    dtype=get_tensorproto_dtype(
-                        input_tensor_quant.bitwidth,
-                        input_tensor_quant.signed,
-                    ),
+                    dtype=input_tensor_quant.get_tensorproto_dtype(),
                 )
 
                 model.graph.node.append(transpose_before)
@@ -254,9 +217,7 @@ class ConvertToQCDQ(Transformation):
                 zeropt_init_name = create_const_initializer(
                     model,
                     output_tensor_quant.zeropt,
-                    get_numpy_dtype(
-                        output_tensor_quant.bitwidth, output_tensor_quant.signed
-                    ),
+                    output_tensor_quant.get_numpy_dtype()
                 )
 
                 dequantize_node = helper.make_node(
@@ -269,10 +230,7 @@ class ConvertToQCDQ(Transformation):
                 model.set_tensor_shape(
                     f"{out}_quantized",
                     [out_shape[0], out_shape[2], out_shape[3], out_shape[1]],
-                    dtype=get_tensorproto_dtype(
-                        output_tensor_quant.bitwidth,
-                        output_tensor_quant.signed
-                    ),
+                    dtype=output_tensor_quant.get_tensorproto_dtype(),
                 )
 
                 # Add a Transpose node after the partition node

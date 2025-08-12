@@ -17,4 +17,5 @@ from backend.transformation.lower_to_nn2fpga_layers import LowerToNN2FPGALayers
 from backend.transformation.onnx_to_HLS import OnnxToHLS
 from backend.transformation.propagate_quant import PropagateQuant
 from backend.transformation.remove_redundant_quant import RemoveRedundantQuant
+from backend.transformation.set_dynamic_batchsize import SetDynamicBatchSize
 from backend.transformation.supported_partition import SupportedPartition

@@ -2,6 +2,8 @@ from qonnx.util import basic as qonnx_basic
 from onnx import TensorAnnotation, StringStringEntryProto, NodeProto
 from qonnx.core.modelwrapper import ModelWrapper
 from qonnx.custom_op.registry import getCustomOp
+from onnx import TensorProto
+import numpy as np
 import re
 
 def Quant_to_TensorQuant(node: NodeProto, model: ModelWrapper) -> dict:
@@ -136,6 +138,49 @@ class TensorQuant:
 
     def get_canonical_name(self):
         return f"Q[{self.bitwidth},{self.signed},{self.scale},{self.zeropt},{self.narrow},{self.rounding}]"
+    
+    def get_tensorproto_dtype(self):
+        """Returns the ONNX TensorProto data type corresponding to the quantization parameters."""
+        bitwidth = self.bitwidth
+        if self.signed:
+            if bitwidth <= 8:
+                return TensorProto.INT8
+            elif bitwidth <= 16:
+                return TensorProto.INT16
+            elif bitwidth <= 32:
+                return TensorProto.INT32
+            else:
+                raise ValueError(f"Unsupported signed bitwidth: {bitwidth}")
+        else:
+            if bitwidth <= 8:
+                return TensorProto.UINT8
+            elif bitwidth <= 16:
+                return TensorProto.UINT16
+            elif bitwidth <= 32:
+                return TensorProto.UINT32
+            else:
+                raise ValueError(f"Unsupported unsigned bitwidth: {bitwidth}")
+    
+    def get_numpy_dtype(self):
+        """Returns the NumPy data type corresponding to the quantization parameters."""
+        if self.signed:
+            if self.bitwidth <= 8:
+                return np.int8
+            elif self.bitwidth <= 16:
+                return np.int16
+            elif self.bitwidth <= 32:
+                return np.int32
+            else:
+                raise ValueError(f"Unsupported signed bitwidth: {self.bitwidth}")
+        else:
+            if self.bitwidth <= 8:
+                return np.uint8
+            elif self.bitwidth <= 16:
+                return np.uint16
+            elif self.bitwidth <= 32:
+                return np.uint32
+            else:
+                raise ValueError(f"Unsupported unsigned bitwidth: {self.bitwidth}")
 
     @staticmethod
     def from_canonical_name(s):
