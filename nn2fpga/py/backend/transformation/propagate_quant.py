@@ -100,16 +100,16 @@ def forward_propagate_quantization(
         )
 
         # Insert new quant node after current node
-        new_quant_output = out + "_quant_forward_propagated"
+        new_output = out + "_quant_forward_propagated"
         new_quant_node = helper.make_node(
             quant_node.op_type,
             inputs=[
-                out,
+                new_output,
                 quant_node.input[1],
                 quant_node.input[2],
                 quant_node.input[3],
             ],  # Use the same quantization parameters
-            outputs=[new_quant_output],
+            outputs=[out],
             name=quant_node.name + "_forward_propagated",
             domain=quant_node.domain,
         )
@@ -117,10 +117,9 @@ def forward_propagate_quantization(
             new_quant_node.attribute.append(copy.deepcopy(attr))
 
         # Rewire the consumer to use the new quantized output
-        for consumer in consumers:
-            for j, inp in enumerate(consumer.input):
-                if inp == out:
-                    consumer.input[j] = new_quant_output
+        for j, node_output in enumerate(node.output):
+            if node_output == out:
+                node.output[j] = new_output
 
         # Append the new quant node created
         added_quant_nodes.append(new_quant_node)
