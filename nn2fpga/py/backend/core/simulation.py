@@ -129,5 +129,9 @@ def simulate(accelerator_package_serialized: str, context: dict) -> dict:
             context[old_name] = tensor_data
         else:
             raise FileNotFoundError(f"Output file {output_file} not found.")
+    
+    # Erase the simulation directory if everything went well
+    if os.path.exists(work_dir):
+        subprocess.run(["rm", "-rf", work_dir], check=True)
 
     return context

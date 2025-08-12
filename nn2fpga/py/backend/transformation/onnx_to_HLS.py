@@ -204,15 +204,18 @@ class OnnxToHLS(Transformation):
     Class to handle the conversion of ONNX models to HLS (High-Level Synthesis) format.
     """
 
-    def __init__(self, parent_model: ModelWrapper, work_root: str = "/tmp"):
+    def __init__(self, parent_model: ModelWrapper, work_root: str = "/tmp", erase: bool = True):
         """
         Initializes the OnnxToHLS transformation.
         Args:
             work_root (str): The root directory of the project.
+            parent_model (ModelWrapper): The model to be updated with HLS code.
+            erase (bool): If True, the starting onnx models will be erased after the transformation.
         """
         super().__init__()
         self.work_root = work_root
         self.parent_model = parent_model
+        self.erase = erase
 
     def apply(self, model: ModelWrapper) -> tuple[ModelWrapper, bool]:
 
@@ -237,5 +240,13 @@ class OnnxToHLS(Transformation):
         getCustomOp(partition_node).set_nodeattr(
             "accelerator_package", ap.to_json()
         )
+
+        if self.erase:
+            # Erase the original model file if it exists
+            if os.path.exists("partition_FPGA.onnx"):
+                os.remove("partition_FPGA.onnx")
+            
+            if os.path.exists("wrapper_model.onnx"):
+                os.remove("wrapper_model.onnx")
 
         return (model, False)

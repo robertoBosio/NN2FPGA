@@ -224,14 +224,16 @@ def make_build_dir(work_dir: str) -> None:
 class ComputeFifoDepth(Transformation):
     """Compute the FIFO depth for each node in the model."""
     
-    def __init__(self, work_root: str = "/tmp"):
+    def __init__(self, work_root: str = "/tmp", erase: bool = True):
         """
         Initializes the ComputeFifoDepth transformation.
         Args:
             work_root (str): The root directory of the project.
+            erase (bool): If True, the HLS project directory will be erased after the simulation.
         """
         super().__init__()
         self.work_root = f"{work_root}/depth-sim"
+        self.erase = erase
 
     def apply(self, model: ModelWrapper) -> tuple[ModelWrapper, bool]:
         """Compute the FIFO depth for each node in the model."""
@@ -289,5 +291,9 @@ class ComputeFifoDepth(Transformation):
 
             # Set the custom tensor FIFO depth in the model.
             set_custom_tensor_fifo_depth(model, stream_name, depths)
+        
+        # Optionally erase the working directory.
+        if self.erase:
+            subprocess.run(["rm", "-rf", self.work_root], check=True)
 
         return model, False
