@@ -40,6 +40,27 @@ COPY requirements.txt .
 RUN python3 -m pip install --upgrade pip && \
     python3 -m pip install -r requirements.txt
 
+# ---- Cross toolchain & helpers ----
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc-11-aarch64-linux-gnu g++-11-aarch64-linux-gnu libstdc++-11-dev-arm64-cross ninja-build rsync file \
+    && rm -rf /var/lib/apt/lists/*
+
+# ---- Install ONNX Runtime headers only (no lib) ----
+ARG ONNXRT_VER=1.15.0
+RUN wget -q "https://github.com/microsoft/onnxruntime/releases/download/v${ONNXRT_VER}/onnxruntime-linux-aarch64-${ONNXRT_VER}.tgz" \
+    && tar -xzf "onnxruntime-linux-aarch64-${ONNXRT_VER}.tgz" -C /opt/ \
+    && mv "/opt/onnxruntime-linux-aarch64-${ONNXRT_VER}" /opt/onnxruntime-sdk
+ENV ONNXRUNTIME_SDK_INCLUDE=/opt/onnxruntime-sdk/include
+
+# ---- Bake the AArch64 sysroot into the image ----
+ADD docker/sysroot-aarch64.tar.zst /opt/sysroots/
+RUN set -e; \
+    cd /opt/sysroots && \
+    mv sysroot-aarch64 sysroot-aarch64.raw || true && \
+    # normalize path to /opt/sysroots/board
+    mv sysroot-aarch64.raw board
+ENV SYSROOT=/opt/sysroots/board
+
 COPY docker/entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/entrypoint.sh
 

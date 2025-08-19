@@ -72,6 +72,12 @@ export XILINX_XRT="/opt/xilinx/xrt"
 export SILVIA_ROOT="${SILVIA_DIR}"
 export SILVIA_LLVM_ROOT="${SILVIA_DIR}/llvm-project/install"
 export HOME="${HOME}"
+export SYSROOT=${SYSROOT:-/opt/sysroots/board}
+export ONNXRUNTIME_SDK_INCLUDE=${ONNXRUNTIME_SDK_INCLUDE:-/opt/onnxruntime-sdk/include}
+export CC=aarch64-linux-gnu-gcc
+export CXX=aarch64-linux-gnu-g++
+
+chmod +x tools/build_customop.sh
 
 cd $NN2FPGA_ROOT_DIR/nn2fpga
 
