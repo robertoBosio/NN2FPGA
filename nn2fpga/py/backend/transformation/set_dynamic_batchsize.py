@@ -68,7 +68,6 @@ class SetDynamicBatchSize(Transformation):
         # Change the domain of nn2fpgaPartition nodes to support ONNX inference.
         model = model.transform(ChangeDomainOnnxInference())
 
-        # Change the domain of nn2fpgaPartition nodes to support ONNX inference.
         # We can't do anymore qonnx InferShapes because the domain required for
         # having the implementation of nn2fpgaPartition node in Python is "ai.onnx.contrib".
         # So we need to run the shape inference from ONNX.
@@ -83,9 +82,9 @@ class ChangeDomainOnnxInference(Transformation):
         """Apply the transformation to change the domain of nn2fpgaPartition nodes."""
         partition_nodes = model.get_nodes_by_op_type("nn2fpgaPartition")
         for node in partition_nodes:
-            node.domain = "ai.onnx.contrib"
+            node.domain = "ai.nn2FPGA"
 
         model.model.opset_import.append(
-            OperatorSetIdProto(domain="ai.onnx.contrib", version=1)
+            OperatorSetIdProto(domain="ai.nn2FPGA", version=1)
         )
         return model, False
