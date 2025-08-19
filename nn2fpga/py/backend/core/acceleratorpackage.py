@@ -20,6 +20,9 @@ class AcceleratorPackage:
     # Bitstream of the accelerator, encoded in base64.
     bitstream_b64: str = ""
 
+    # .hwh file of the accelerator, encoded in base64.
+    hwh_b64: str = ""
+
     # Mapping of input tensor names to their metadata.
     # The dictionary contains the mapping between the original tensor names and the new names used inside the accelerator,
     # as well as their shapes and data types.
@@ -54,6 +57,7 @@ class AcceleratorPackage:
         "hls_code_b64",
         "hls_driver_b64",
         "bitstream_b64",
+        "hwh_b64",
         "input_map",
         "output_map",
         "constant_inputs",
@@ -99,6 +103,18 @@ class AcceleratorPackage:
         """Get decoded bitstream as binary data."""
         return base64.b64decode(self.bitstream_b64)
 
-    def set_bitstream(self, bitstream: bytes) -> None:
+    def set_bitstream(self, bitstream_path: str) -> None:
         """Set bitstream from binary data (will encode to base64)."""
+        with open(bitstream_path, "rb") as f:
+            bitstream = f.read()
         self.bitstream_b64 = base64.b64encode(bitstream).decode()
+    
+    def get_hwh(self) -> str:
+        """Get decoded .hwh file as text."""
+        return base64.b64decode(self.hwh_b64).decode()
+
+    def set_hwh(self, hwh_path: str) -> None:
+        """Set .hwh file from text (will encode to base64)."""
+        with open(hwh_path, "r") as f:
+            hwh_content = f.read()
+        self.hwh_b64 = base64.b64encode(hwh_content.encode()).decode()
