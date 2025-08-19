@@ -1,9 +1,9 @@
 from qonnx.transformation.base import Transformation
 from qonnx.core.modelwrapper import ModelWrapper
 from qonnx.custom_op.registry import getCustomOp
-import numpy as np
+from backend.core.acceleratorpackage import AcceleratorPackage
+from backend.util.board_util import board_part_names, read_board_info
 import base64
-import json
 import os
 import subprocess
 
@@ -118,7 +118,7 @@ def vivado_tcl_script(
             f'create_bd_cell -type ip -vlnv xilinx.com:ip:axi_dma:7.1 {input}_dma'
         )
         lines.append(
-            f'set_property -dict [list CONFIG.C_INCLUDE_MM2S {{{1}}} CONFIG.C_INCLUDE_S2MM {{{0}}} CONFIG.C_INCLUDE_SG {{{0}}}] [get_bd_cells {input}_dma]'
+            f'set_property -dict [list CONFIG.C_INCLUDE_MM2S {{{1}}} CONFIG.C_INCLUDE_S2MM {{{0}}} CONFIG.C_INCLUDE_SG {{{0}}} CONFIG.C_SG_LENGTH_WIDTH {{{26}}}] [get_bd_cells {input}_dma]'
         )
         lines.append(f'set_property -dict [list CONFIG.C_M_AXI_MM2S_DATA_WIDTH {{{interface_width}}} CONFIG.C_M_AXIS_MM2S_TDATA_WIDTH {{{interface_width}}}] [get_bd_cells {input}_dma]')
 
@@ -127,18 +127,23 @@ def vivado_tcl_script(
             f'create_bd_cell -type ip -vlnv xilinx.com:ip:axi_dma:7.1 {output}_dma'
         )
         lines.append(
-            f'set_property -dict [list CONFIG.C_INCLUDE_MM2S {{{0}}} CONFIG.C_INCLUDE_S2MM {{{1}}} CONFIG.C_INCLUDE_SG {{{0}}}] [get_bd_cells {output}_dma]'
+            f"set_property -dict [list CONFIG.C_INCLUDE_MM2S {{{0}}} CONFIG.C_INCLUDE_S2MM {{{1}}} CONFIG.C_INCLUDE_SG {{{1}}} CONFIG.C_SG_LENGTH_WIDTH {{{26}}} CONFIG.C_SG_INCLUDE_STSCNTRL_STRM {{{0}}}] [get_bd_cells {output}_dma]"
         )
         lines.append(f'set_property -dict [list CONFIG.C_M_AXI_S2MM_DATA_WIDTH {{{interface_width}}} CONFIG.C_S_AXIS_S2MM_TDATA_WIDTH {{{interface_width}}}] [get_bd_cells {output}_dma]')
 
-    # Add smart connector for AXI lite interfaces
+    # Add smartconnect for AXI lite interfaces
     lines.append(f'create_bd_cell -type ip -vlnv xilinx.com:ip:smartconnect:1.0 smartconnect_axilite_0')
     lines.append(f'set_property -dict [list CONFIG.NUM_SI {{{1}}} CONFIG.NUM_MI {{{len(inputs) + len(outputs)}}}] [get_bd_cells smartconnect_axilite_0]')
+
+    # Add smartconnect for scatter-gather interfaces
+    lines.append(f'create_bd_cell -type ip -vlnv xilinx.com:ip:smartconnect:1.0 smartconnect_sg_0')
+    lines.append(f'set_property -dict [list CONFIG.NUM_SI {{{len(outputs)}}} CONFIG.NUM_MI {{{1}}}] [get_bd_cells smartconnect_sg_0]')
 
     # Connect clock to every block
     lines.append(f'connect_bd_net -net ps_clk [get_bd_pins zynq_ultra_ps_e_0/pl_clk0] [get_bd_pins {top_name}_0/ap_clk]')
     lines.append(f'connect_bd_net -net ps_clk [get_bd_pins zynq_ultra_ps_e_0/pl_clk0] [get_bd_pins proc_sys_reset_0/slowest_sync_clk]')
     lines.append(f'connect_bd_net -net ps_clk [get_bd_pins zynq_ultra_ps_e_0/pl_clk0] [get_bd_pins smartconnect_axilite_0/aclk]')
+    lines.append(f'connect_bd_net -net ps_clk [get_bd_pins zynq_ultra_ps_e_0/pl_clk0] [get_bd_pins smartconnect_sg_0/aclk]')
     lines.append(f'connect_bd_net -net ps_clk [get_bd_pins zynq_ultra_ps_e_0/pl_clk0] [get_bd_pins zynq_ultra_ps_e_0/maxihpm0_fpd_aclk]')
     lines.append(f'connect_bd_net -net ps_clk [get_bd_pins zynq_ultra_ps_e_0/pl_clk0] [get_bd_pins zynq_ultra_ps_e_0/saxihp0_fpd_aclk]')
     lines.append(f'connect_bd_net -net ps_clk [get_bd_pins zynq_ultra_ps_e_0/pl_clk0] [get_bd_pins zynq_ultra_ps_e_0/saxihp1_fpd_aclk]')
@@ -150,11 +155,13 @@ def vivado_tcl_script(
     for output in outputs:
         lines.append(f'connect_bd_net -net ps_clk [get_bd_pins zynq_ultra_ps_e_0/pl_clk0] [get_bd_pins {output}_dma/s_axi_lite_aclk]')
         lines.append(f'connect_bd_net -net ps_clk [get_bd_pins zynq_ultra_ps_e_0/pl_clk0] [get_bd_pins {output}_dma/m_axi_s2mm_aclk]')
+        lines.append(f'connect_bd_net -net ps_clk [get_bd_pins zynq_ultra_ps_e_0/pl_clk0] [get_bd_pins {output}_dma/m_axi_sg_aclk]')
 
     # Connect reset to every block
     lines.append(f'connect_bd_net -net ps_rst [get_bd_pins proc_sys_reset_0/ext_reset_in] [get_bd_pins zynq_ultra_ps_e_0/pl_resetn0]')
     lines.append(f'connect_bd_net -net a_rst [get_bd_pins proc_sys_reset_0/peripheral_aresetn] [get_bd_pins {top_name}_0/ap_rst_n]')
     lines.append(f'connect_bd_net -net a_rst [get_bd_pins proc_sys_reset_0/peripheral_aresetn] [get_bd_pins smartconnect_axilite_0/aresetn]')
+    lines.append(f'connect_bd_net -net a_rst [get_bd_pins proc_sys_reset_0/peripheral_aresetn] [get_bd_pins smartconnect_sg_0/aresetn]')
     for input in inputs:
         lines.append(f'connect_bd_net -net a_rst [get_bd_pins proc_sys_reset_0/peripheral_aresetn] [get_bd_pins {input}_dma/axi_resetn]')
     for output in outputs:
@@ -165,7 +172,7 @@ def vivado_tcl_script(
         lines.append(f'connect_bd_intf_net -intf_net {input}_axi_lite [get_bd_intf_pins {input}_dma/S_AXI_LITE] [get_bd_intf_pins smartconnect_axilite_0/M0{i}_AXI]')
     for i, output in enumerate(outputs):
         lines.append(f'connect_bd_intf_net -intf_net {output}_axi_lite [get_bd_intf_pins {output}_dma/S_AXI_LITE] [get_bd_intf_pins smartconnect_axilite_0/M0{i + len(inputs)}_AXI]')
-    
+
     # Connect SmartConnect AXI interfaces to the PS
     lines.append(f'connect_bd_intf_net -intf_net ps_axilite [get_bd_intf_pins zynq_ultra_ps_e_0/M_AXI_HPM0_FPD] [get_bd_intf_pins smartconnect_axilite_0/S00_AXI]')
 
@@ -181,8 +188,26 @@ def vivado_tcl_script(
     for i, output in enumerate(outputs):
         lines.append(f'connect_bd_intf_net -intf_net {output}_maxi [get_bd_intf_pins zynq_ultra_ps_e_0/S_AXI_HP{i + len(inputs)}_FPD] [get_bd_intf_pins {output}_dma/M_AXI_S2MM]')
 
+    # Connect scatter-gather DMA to the smartconnect
+    for i, output in enumerate(outputs):
+        lines.append(f'connect_bd_intf_net -intf_net {output}_sg [get_bd_intf_pins {output}_dma/M_AXI_SG] [get_bd_intf_pins smartconnect_sg_0/S0{i}_AXI]')
+    
+    # Connect smartconnect scatter-gather to the PS
+    lines.append(f'connect_bd_intf_net -intf_net ps_sg [get_bd_intf_pins zynq_ultra_ps_e_0/S_AXI_HP{len(inputs) + len(outputs)}_FPD] [get_bd_intf_pins smartconnect_sg_0/M00_AXI]')
+
     # Assign addresses to the PS interfaces
     lines.append(f'assign_bd_address')
+
+    # Reduce the axi_lite range of DMAs to 4 KiB
+    start = 0xA0000000
+    for input in inputs:
+        lines.append(f'set_property range 4K [get_bd_addr_segs {{zynq_ultra_ps_e_0/Data/SEG_{input}_dma_Reg}}]')
+        lines.append(f'set_property offset 0x{start:X} [get_bd_addr_segs {{zynq_ultra_ps_e_0/Data/SEG_{input}_dma_Reg}}]')
+        start += 0x1000
+    for output in outputs:
+        lines.append(f'set_property range 4K [get_bd_addr_segs {{zynq_ultra_ps_e_0/Data/SEG_{output}_dma_Reg}}]')
+        lines.append(f'set_property offset 0x{start:X} [get_bd_addr_segs {{zynq_ultra_ps_e_0/Data/SEG_{output}_dma_Reg}}]')
+        start += 0x1000
 
     # Validate the block design
     lines.append(f'validate_bd_design')
@@ -213,71 +238,101 @@ def make_build_dir(work_dir: str) -> None:
 
 class GenerateBitstream(Transformation):
 
+    def __init__(self, work_dir: str, erase: bool = True):
+        super().__init__()
+        self.work_dir = work_dir
+        self.erase = erase
+
     def apply(self, model: ModelWrapper) -> tuple[ModelWrapper, bool]:
 
-        for node in model.get_nodes_by_op_type("GenericPartition"):
-            blob = getCustomOp(node).get_nodeattr("blob")
-            json_blob = json.loads(blob)
-            work_dir = json_blob["work_dir"]
-            work_dir = f"{os.path.abspath(work_dir)}/vivado"
-            make_build_dir(work_dir)
+        partition_node = model.get_nodes_by_op_type("nn2fpgaPartition")[0]
+        ap = AcceleratorPackage.from_json(getCustomOp(partition_node).get_nodeattr("accelerator_package"))
+        work_dir = ap.work_dir
+        work_dir = f"{os.path.abspath(work_dir)}/vivado"
+        make_build_dir(work_dir)
 
-            # Generate the TCL script
-            tcl_script = dump_tcl_script(
-                top_name=json_blob["top_name"],
-                part_name=json_blob["part_name"],
-                frequency=json_blob["frequency"],
-                hls_version=json_blob["hls_version"],
-            )
+        top_name = model.get_metadata_prop("top_name")
+        board = model.get_metadata_prop("board_name")
+        part_name, board_part_name = board_part_names(board)
+        frequency = model.get_metadata_prop("frequency")
+        hls_version = model.get_metadata_prop("hls_version")
+        interface_width = read_board_info(board)["axi_bitwidth"]
 
-            # Write the TCL script to a file
-            with open(f"{work_dir}/setup.tcl", "w") as f:
-                f.write(tcl_script)
+        # Generate the TCL script
+        tcl_script = dump_tcl_script(
+            top_name=top_name,
+            part_name=part_name,
+            frequency=frequency,
+            hls_version=hls_version,
+        )
 
-            # Write the HLS code to a file
-            with open(f"{work_dir}/kernel.cpp", "w") as f:
-                f.write(base64.b64decode(json_blob["hls_code_b64"]).decode())
+        # Write the TCL script to a file
+        with open(f"{work_dir}/setup.tcl", "w") as f:
+            f.write(tcl_script)
 
-            # Synthesize and export the design.
-            subprocess.run(
-                ["vitis_hls", "-f", f"{work_dir}/setup.tcl"],
-                cwd=work_dir,
-                check=True
-            )
+        # Write the HLS code to a file
+        with open(f"{work_dir}/kernel.cpp", "w") as f:
+            f.write(base64.b64decode(ap.hls_code_b64).decode())
 
-            # Retrieve input list
-            input_list = []
-            inputs = json_blob.get("input_map", {})
-            for old_name, new_name in inputs.items():
-                input_list.append(new_name)
+        # Synthesize and export the design.
+        subprocess.run(
+            ["vitis_hls", "-f", f"{work_dir}/setup.tcl"],
+            cwd=work_dir,
+            check=True
+        )
 
-            # Retrieve output list
-            output_list = []
-            outputs = json_blob.get("output_map", {})
-            for old_name, new_name in outputs.items():
-                output_list.append(new_name)
+        # Retrieve input list
+        input_list = []
+        inputs = ap.input_map
+        for value in inputs.values():
+            input_list.append(value["new_name"])
 
-            # Write the Vivado block design.
-            with open(f"{work_dir}/vivado.tcl", "w") as f:
-                f.write(
-                    vivado_tcl_script(
-                        work_dir=work_dir,
-                        top_name=json_blob["top_name"],
-                        part_name=json_blob["part_name"],
-                        board_part_name="xilinx.com:kv260_som:part0:1.4",
-                        frequency=json_blob["frequency"],
-                        hls_version=json_blob["hls_version"],
-                        interface_width=json_blob.get("interface_width", 128),
-                        inputs=input_list,
-                        outputs=output_list,
-                    )
+        # Retrieve output list
+        output_list = []
+        outputs = ap.output_map
+        for value in outputs.values():
+            output_list.append(value["new_name"])
+
+        # Write the Vivado block design.
+        with open(f"{work_dir}/vivado.tcl", "w") as f:
+            f.write(
+                vivado_tcl_script(
+                    work_dir=work_dir,
+                    top_name=top_name,
+                    part_name=part_name,
+                    board_part_name=board_part_name,
+                    frequency=frequency,
+                    hls_version=hls_version,
+                    interface_width=interface_width,
+                    inputs=input_list,
+                    outputs=output_list,
                 )
-
-            # Run Vivado to generate the bitstream.
-            subprocess.run(
-                ["vivado", "-mode", "batch", "-source", f"{work_dir}/vivado.tcl"],
-                cwd=work_dir,
-                check=True
             )
 
+        # Run Vivado to generate the bitstream.
+        subprocess.run(
+            ["vivado", "-mode", "batch", "-source", f"{work_dir}/vivado.tcl"],
+            cwd=work_dir,
+            check=True
+        )
+
+        # Check if the bitstream was generated successfully.
+        bitstream_path = f"{work_dir}/vivadoproj_{top_name}/vivadoproj_{top_name}.runs/impl_1/{top_name}_bd.bit"
+        if not os.path.exists(bitstream_path):
+            raise RuntimeError(f"Bitstream generation failed: {bitstream_path} does not exist.")
+
+        # Set the bitstream in the accelerator package.
+        ap.set_bitstream(bitstream_path)
+
+        # Check the HWH file.
+        hwh_path = f"{work_dir}/vivadoproj_{top_name}/vivadoproj_{top_name}.gen/sources_1/bd/{top_name}_bd/hw_handoff/{top_name}_bd.hwh"
+        if not os.path.exists(hwh_path):
+            raise RuntimeError(f"HWH file generation failed: {hwh_path} does not exist.")
+
+        # Set the HWH file in the accelerator package.
+        ap.set_hwh(hwh_path)
+
+        # Update the accelerator package in the partition node.
+        getCustomOp(partition_node).set_nodeattr("accelerator_package", ap.to_json())
+        
         return model, False
