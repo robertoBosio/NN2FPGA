@@ -4,43 +4,128 @@ from onnx import TensorProto, helper
 from qonnx.custom_op.base import CustomOp
 from qonnx.util.basic import qonnx_make_model
 from qonnx.core.modelwrapper import ModelWrapper
+from backend.custom_op.register_rewrite_rule import register_rules
+from onnxscript.rewriter import pattern
 
 class StreamingConv(CustomOp):
     """ Node implementing the output-stationary convolution operation. """
 
     @staticmethod
-    def from_onnx_node(onnx_node):
-        """ Create a StreamingConv instance from an ONNX node.
-
-        Args:
-            onnx_node: The ONNX node to convert.
-
-        Returns:
-            StreamingConv: An instance of the StreamingConv class.
-        """
-        if onnx_node.op_type != "Conv":
-            raise ValueError(f"Expected Conv node to be converted in StreamingConv, got {onnx_node.op_type}")
-
-        # Read the attributes from the ONNX node
-        attr_dict = {attr.name: helper.get_attribute_value(attr) for attr in onnx_node.attribute}
-        dilations = attr_dict.get("dilations", [1, 1])
-        group = attr_dict.get("group", 1)
-        kernel_shape = attr_dict.get("kernel_shape", [1, 1])
-        pads = attr_dict.get("pads", [0, 0, 0, 0])
-        strides = attr_dict.get("strides", [1, 1])
-
-        return helper.make_node(
-            "StreamingConv",
-            domain="backend.custom_op",
-            inputs=onnx_node.input,
-            outputs=onnx_node.output,
-            name=onnx_node.name,
+    def pattern(
+        op,
+        x,
+        dilations,
+        group,
+        kernel_shape,
+        pads,
+        strides,
+        w_value,
+        w_scale,
+        w_zeropt,
+        w_bitwidth,
+        b_value,
+        b_scale,
+        b_zeropt,
+        b_bitwidth,
+        w_signed,
+        w_narrow,
+        w_rounding_mode,
+        b_signed,
+        b_narrow,
+        b_rounding_mode,
+    ):
+        w_quant = op.Quant(
+            w_value,
+            w_scale,
+            w_zeropt,
+            w_bitwidth,
+            signed=w_signed,
+            narrow=w_narrow,
+            rounding_mode=w_rounding_mode,
+            _allow_other_attributes=True,
+            _domain="qonnx.custom_op.general",
+        )
+        b_quant = op.Quant(
+            b_value,
+            b_scale,
+            b_zeropt,
+            b_bitwidth,
+            signed=b_signed,
+            narrow=b_narrow,
+            rounding_mode=b_rounding_mode,
+            _allow_other_attributes=True,
+            _domain="qonnx.custom_op.general",
+        )
+        y = op.Conv(
+            x,
+            w_quant,
+            b_quant,
             dilations=dilations,
             group=group,
             kernel_shape=kernel_shape,
             pads=pads,
             strides=strides,
+            _allow_other_attributes=True,
         )
+        return y
+
+    @staticmethod
+    def rewrite(
+        op,
+        x,
+        dilations,
+        group,
+        kernel_shape,
+        pads,
+        strides,
+        w_value,
+        w_scale,
+        w_zeropt,
+        w_bitwidth,
+        b_value,
+        b_scale,
+        b_zeropt,
+        b_bitwidth,
+        w_signed,
+        w_narrow,
+        w_rounding_mode,
+        b_signed,
+        b_narrow,
+        b_rounding_mode,
+    ):
+
+        return op.StreamingConv(
+            x,
+            w_value,
+            w_scale,
+            w_zeropt,
+            w_bitwidth,
+            b_value,
+            b_scale,
+            b_zeropt,
+            b_bitwidth,
+            w_signed=w_signed.value,
+            w_narrow=w_narrow.value,
+            w_rounding_mode=w_rounding_mode.value,
+            b_signed=b_signed.value,
+            b_narrow=b_narrow.value,
+            b_rounding_mode=b_rounding_mode.value,
+            dilations=dilations,
+            group=group,
+            kernel_shape=kernel_shape,
+            pads=pads,
+            strides=strides,
+            _domain="backend.custom_op",
+        )
+
+    @register_rules
+    def _rewriter_rules():
+        return [
+            pattern.RewriteRule(
+                StreamingConv.pattern,
+                StreamingConv.rewrite,
+            )
+        ]
 
     def get_nodeattr_types(self):
         return {
@@ -50,6 +135,16 @@ class StreamingConv(CustomOp):
             "kernel_shape": ("ints", True, [1, 1]),
             "pads": ("ints", True, [0, 0]),
             "strides": ("ints", True, [1, 1]),
+
+            # Custom attributes for quantization of weights
+            "w_signed": ("i", True, 0),  # 0: unsigned, 1: signed
+            "w_narrow": ("i", True, 0),  # 0: full range, 1: narrow range
+            "w_rounding_mode": ("s", True, "ROUND"),
+
+            # Custom attributes for quantization of bias
+            "b_signed": ("i", False, 0),  # 0: unsigned, 1: signed
+            "b_narrow": ("i", False, 0),  # 0: full range, 1: narrow range
+            "b_rounding_mode": ("s", False, "ROUND"),
 
             # Custom attributes for parallelization of StreamingConv
             "ich_par" : ("i", False, 1),
@@ -63,9 +158,21 @@ class StreamingConv(CustomOp):
     def make_shape_compatible_op(self, model):
         node = self.onnx_node
 
+        input_list = []
+        if len(node.input) == 5:
+            # Conv without bias
+            input_list = [node.input[0], node.input[1]]
+        elif len(node.input) == 0:
+            # Conv with bias
+            input_list = [node.input[0], node.input[1], node.input[6]]
+        else:
+            raise ValueError(
+                f"Unexpected number of inputs for StreamingConv node {node.name}: {len(node.input)}"
+            )
+
         return helper.make_node(
             "Conv",
-            inputs=node.input,
+            inputs=input_list,
             outputs=node.output,
             name=f"{node.name}_shape_compatible",
             dilations=self.get_nodeattr("dilations"),
@@ -85,7 +192,11 @@ class StreamingConv(CustomOp):
         node = self.onnx_node
         node_conv = helper.make_node(
             "Conv",
-            inputs=node.input,
+            inputs=(
+                [node.input[0], node.input[1]]
+                if len(node.input) == 5
+                else [node.input[0], node.input[1], node.input[6]]
+            ),
             outputs=node.output,
             name=f"{node.name}_shape_compatible",
             dilations=self.get_nodeattr("dilations"),
@@ -98,8 +209,8 @@ class StreamingConv(CustomOp):
         # Make single node graph for execution
         inp_values = context[node.input[0]]
         weight_values = context[node.input[1]]
-        if len(node.input) > 2:
-            bias_values = context[node.input[2]]
+        if len(node.input) > 5:
+            bias_values = context[node.input[6]]
         oshape = context[node.output[0]].shape
         ishape = inp_values.shape
         inp = helper.make_tensor_value_info(node.input[0], TensorProto.FLOAT, ishape)
@@ -107,15 +218,15 @@ class StreamingConv(CustomOp):
         weight = helper.make_tensor_value_info(
             node.input[1], TensorProto.FLOAT, weight_values.shape
         )
-        if len(node.input) > 2:
+        if len(node.input) > 5:
             bias = helper.make_tensor_value_info(
-                node.input[2], TensorProto.FLOAT, bias_values.shape
+                node.input[6], TensorProto.FLOAT, bias_values.shape
             )
 
         graph_conv = helper.make_graph(
             nodes=[node_conv],
             name="single-conv-exec",
-            inputs=[inp, weight, bias] if len(node.input) > 2 else [inp, weight],
+            inputs=[inp, weight, bias] if len(node.input) > 5 else [inp, weight],
             outputs=[outp],
         )
 
@@ -123,10 +234,10 @@ class StreamingConv(CustomOp):
         opset_imports = [helper.make_opsetid("", opset_version)]
         onnx_kwargs = {"opset_imports": opset_imports}
         model_conv = qonnx_make_model(graph_conv, **onnx_kwargs)
-        if len(node.input) > 2:
-            idict = {node.input[0]: inp_values, 
-                     node.input[1]: weight_values, 
-                     node.input[2]: bias_values}
+        if len(node.input) > 5:
+            idict = {node.input[0]: inp_values,
+                     node.input[1]: weight_values,
+                     node.input[6]: bias_values}
         else:
             idict = {node.input[0]: inp_values, 
                     node.input[1]: weight_values}

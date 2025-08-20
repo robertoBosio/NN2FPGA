@@ -7,6 +7,16 @@ from backend.custom_op.streamingglobalaveragepool import StreamingGlobalAverageP
 from backend.custom_op.streamingadd import StreamingAdd
 from backend.custom_op.streamingrelu import StreamingRelu
 
+from qonnx.transformation.base import Transformation
+from qonnx.core.modelwrapper import ModelWrapper
+from qonnx.transformation.infer_shapes import InferShapes
+from onnx import helper, TensorProto
+from onnxscript.rewriter import pattern, rewrite
+from backend.custom_op.register_rewrite_rule import collect_rules
+from onnxscript import ir
+import logging
+logger = logging.getLogger(__name__)
+
 
 class LowerToNN2FPGALayers(Transformation):
     """Lower the model to NN2FPGA layers."""
@@ -24,29 +34,9 @@ class LowerToNN2FPGALayers(Transformation):
         Returns:
             tuple: A tuple containing the transformed model and a boolean indicating if the transformation needs to be reapplied.
         """
+        model = ir.from_proto(model.model)
+        model = rewrite(model, pattern_rewrite_rules=collect_rules())
+        model = ir.to_proto(model)
+        model = ModelWrapper(model)
 
-        node_index = 0
-        for node in model.graph.node:
-            node_index += 1
-            if node.op_type == "Conv":
-                
-                nn2fpga_node = StreamingConv.from_onnx_node(node)
-                model.graph.node.insert(node_index, nn2fpga_node)
-                model.graph.node.remove(node)
-            
-            elif node.op_type == "GlobalAveragePool":
-                nn2fpga_node = StreamingGlobalAveragePool.from_onnx_node(node)
-                model.graph.node.insert(node_index, nn2fpga_node)
-                model.graph.node.remove(node)
-            
-            elif node.op_type == "Add":
-                nn2fpga_node = StreamingAdd.from_onnx_node(node)
-                model.graph.node.insert(node_index, nn2fpga_node)
-                model.graph.node.remove(node)
-            
-            elif node.op_type == "Relu":
-                nn2fpga_node = StreamingRelu.from_onnx_node(node)
-                model.graph.node.insert(node_index, nn2fpga_node)
-                model.graph.node.remove(node)
-                
         return (model, False)

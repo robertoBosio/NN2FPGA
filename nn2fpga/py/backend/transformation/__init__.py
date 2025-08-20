@@ -19,5 +19,6 @@ from backend.transformation.insert_tensor_duplicator import InsertTensorDuplicat
 from backend.transformation.lower_to_nn2fpga_layers import LowerToNN2FPGALayers
 from backend.transformation.propagate_quant import PropagateQuant
 from backend.transformation.remove_redundant_quant import RemoveRedundantQuant
+from backend.transformation.remove_squeeze import RemoveSqueeze
 from backend.transformation.set_dynamic_batchsize import SetDynamicBatchSize
 from backend.transformation.supported_partition import SupportedPartition

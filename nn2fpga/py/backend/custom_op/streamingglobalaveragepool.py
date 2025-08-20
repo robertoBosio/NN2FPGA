@@ -16,30 +16,30 @@ from backend.util.codegen_utils import (
 )
 from backend.core.tensor_quant import TensorQuant
 from backend.util.par_utils import get_par_attributes
+from backend.custom_op.register_rewrite_rule import register_rules
+from onnxscript.rewriter import pattern
 
 class StreamingGlobalAveragePool(CustomOp):
     """Node implementing the streaming global average pooling operation."""
 
     @staticmethod
-    def from_onnx_node(onnx_node):
-        """ Create a StreamingGlobalAveragePool instance from an ONNX node.
+    def pattern(op, x):
+        return op.GlobalAveragePool(x, _allow_other_attributes=True)
 
-        Args:
-            onnx_node: The ONNX node to convert.
-
-        Returns:
-            StreamingGlobalAveragePool: An instance of the StreamingGlobalAveragePool class.
-        """
-        if onnx_node.op_type != "GlobalAveragePool":
-            raise ValueError(f"Expected GlobalAveragePool node to be converted in StreamingGlobalAveragePool, got {onnx_node.op_type}")
-
-        return helper.make_node(
-            "StreamingGlobalAveragePool",
-            domain="backend.custom_op",
-            inputs=onnx_node.input,
-            outputs=onnx_node.output,
-            name=onnx_node.name,
+    @staticmethod
+    def rewrite(op, x):
+        return op.StreamingGlobalAveragePool(
+            x,
+            _domain="backend.custom_op",
         )
+
+    @register_rules
+    def register_rules():
+        return [
+            pattern.RewriteRule(
+                StreamingGlobalAveragePool.pattern, StreamingGlobalAveragePool.rewrite
+            )
+        ]
 
     def get_nodeattr_types(self):
         return {
@@ -101,7 +101,7 @@ class StreamingGlobalAveragePool(CustomOp):
 
     def verify_node(self):
         pass
-    
+
     def __get_stream_name(self, name: str) -> str:
         """
         Returns the name of the stream for the tensor.
@@ -149,10 +149,10 @@ class StreamingGlobalAveragePool(CustomOp):
             raise ValueError(
                 "Float quantization is currently not supported for StreamingGlobalAveragePool.  "
             )
-    
+
     def get_object_cpp(self, model) -> cpp_object:
         """ Generate the cpp_object for the StreamingGlobalAveragePool operation. """
-        
+
         input_quant = get_custom_tensor_datatype(model, self.onnx_node.input[0])
         if input_quant is None:
             raise ValueError(f"Tensor quantization for input '{self.onnx_node.input[0]}' not found in model.")
@@ -160,7 +160,7 @@ class StreamingGlobalAveragePool(CustomOp):
         output_quant = get_custom_tensor_datatype(model, self.onnx_node.output[0])
         if output_quant is None:
             raise ValueError(f"Tensor quantization for output '{self.onnx_node.output[0]}' not found in model.")
-        
+
         # Retrieve parallelization attributes.
         par_attribute = get_par_attributes(self.onnx_node)
 
@@ -171,7 +171,6 @@ class StreamingGlobalAveragePool(CustomOp):
         output_shape = model.get_tensor_shape(self.onnx_node.output[0])
         if output_shape is None:
             raise ValueError(f"Tensor shape for output '{self.onnx_node.output[0]}' not found in model.")
-
 
         # Create the StreamingGlobalAveragePool object.
         StreamingGlobalAveragePool = cpp_object(
@@ -190,9 +189,9 @@ class StreamingGlobalAveragePool(CustomOp):
                 (output_shape[1], "OUT_CH"),
                 (par_attribute["out_ch_par"], "OUT_CH_PAR"),
             ])
-        
+
         return StreamingGlobalAveragePool
-    
+
     def get_output_stream_cpp(self, model) -> list[cpp_variable]:
         """Get the output stream cpp variables for the StreamingGlobalAveragePool node.
         Args:
@@ -200,7 +199,7 @@ class StreamingGlobalAveragePool(CustomOp):
         Returns:
             list[cpp_variable]: A list of cpp_variable objects representing the output stream variables.
         """
-        
+
         output_quant = get_custom_tensor_datatype(model, self.onnx_node.output[0])
         if output_quant is None:
             raise ValueError(f"Tensor quantization for output '{self.onnx_node.output[0]}' not found in model.")
@@ -223,9 +222,9 @@ class StreamingGlobalAveragePool(CustomOp):
             array=[par_attribute["out_w_par"]],
             pragma=pragma_list,
         )
-        
+
         return [var]
-    
+
     def get_input_stream_cpp(self, model) -> list[cpp_variable]:
         """Get the input stream cpp variables for the StreamingGlobalAveragePool node.
         Args:
@@ -233,7 +232,7 @@ class StreamingGlobalAveragePool(CustomOp):
         Returns:
             list[cpp_variable]: A list of cpp_variable objects representing the input stream variables.
         """
-        
+
         input_quant = get_custom_tensor_datatype(model, self.onnx_node.input[0])
         if input_quant is None:
             raise ValueError(f"Tensor quantization for input '{self.onnx_node.input[0]}' not found in model.")
@@ -256,9 +255,9 @@ class StreamingGlobalAveragePool(CustomOp):
             array=[par_attribute["in_w_par"]],
             pragma=pragma_list,
         )
-        
+
         return [var]
-    
+
     def get_variable_cpp(self, model) -> list[cpp_variable]:
         """ Get the internal cpp variables of the StreamingGlobalAveragePool node.
         Args:

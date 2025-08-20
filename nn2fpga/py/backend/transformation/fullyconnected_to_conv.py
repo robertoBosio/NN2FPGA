@@ -81,7 +81,7 @@ class FullyConnectedToPointwise(Transformation):
       Conv1x1 -> Reshape
     """
 
-    def __init__(self, require_const_WB: bool = True):
+    def __init__(self):
         self._rewrite_rule_set = pattern.RewriteRuleSet(
             [
                 pattern.RewriteRule(reshape_quant_gemm_pattern, repl_conv1x1_from_reshape),

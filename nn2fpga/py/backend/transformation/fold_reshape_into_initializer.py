@@ -1,7 +1,7 @@
 from qonnx.transformation.base import Transformation
 from qonnx.core.modelwrapper import ModelWrapper
-from qonnx.util.basic import remove_by_name
 from backend.core.tensor_quant import is_constant_input_node
+from backend.transformation.remove_squeeze import remove_flatten_reshape
 from onnx import helper, NodeProto
 import numpy as np
 import logging
@@ -60,61 +60,6 @@ def reshape_initializer(model: ModelWrapper, node: NodeProto, new_shape: tuple) 
         new_zero_shape[0] = new_shape[0]
         zeropt_4d = zeropt_array.reshape(new_zero_shape)
         model.set_initializer(node.input[2], zeropt_4d)
-
-def remove_flatten_reshape(model: ModelWrapper, node: NodeProto) -> None:
-    """
-    Removes Flatten or Reshape nodes from the model, as they are not needed
-    after converting fully connected layers to convolutional layers.
-
-    Args:
-        model (ModelWrapper): The ONNX model wrapper.
-        node (onnx.NodeProto): The Flatten or Reshape node to be removed.
-    """
-    graph = model.graph
-
-    # Connect the inputs of the Flatten/Reshape node to its consumers
-    producer = model.find_producer(node.input[0])
-    for i, producer_output in enumerate(producer.output):
-        if producer_output == node.input[0]:
-            # Replace the input with the Flatten/Reshape node's input
-            producer.output[i] = node.output[0]
-
-    # Remove the Flatten/Reshape node from the graph
-    graph.node.remove(node)
-
-def remove_all_shape_info(model: ModelWrapper) -> None:
-    """
-    Removes all inferrable shape/type information from the model's
-    graph.output and and graph.value_info to enable re-inference.
-
-    Args:
-        model (ModelWrapper): The ONNX model wrapper.
-    """
-    for tensor in model.get_all_tensor_names():
-        if tensor not in [init.name for init in model.graph.initializer]:
-            remove_by_name(model.graph.value_info, tensor)
-
-    new_outputs = []
-    for out in model.graph.output:
-        if not out.type.HasField("tensor_type"):
-            new_outputs.append(out)
-            continue
-
-        tensor_type = out.type.tensor_type
-        elem_type = tensor_type.elem_type
-
-        # Create output without shape
-        new_vi = helper.make_tensor_value_info(
-            name=out.name,
-            elem_type=elem_type,
-            shape=None  # No shape -> makes it completely unspecified
-        )
-        new_outputs.append(new_vi)
-
-    # Replace graph outputs with shape-less versions
-    del model.graph.output[:]
-    model.graph.output.extend(new_outputs)
-
 
 class FoldReshapeIntoInitializer(Transformation):
     """
