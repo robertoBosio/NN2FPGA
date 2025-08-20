@@ -36,13 +36,28 @@ QUANT_INVARIANT_NODES = [
 def get_non_constant_inputs(node: NodeProto, model: ModelWrapper) -> list[str]:
     """Get non-constant inputs of a node."""
     init_dict = [init.name for init in model.model.graph.initializer]
-    return [inp for inp in node.input if inp not in init_dict]
-
+    not_constant_inputs = []
+    for inp in node.input:
+        if inp in init_dict:
+            continue
+        node = model.find_producer(inp)
+        if node is not None and node.op_type == "Constant":
+            continue
+        not_constant_inputs.append(inp)
+    return not_constant_inputs
 
 def get_non_constant_outputs(node: NodeProto, model: ModelWrapper) -> list[str]:
     """Get non-constant outputs of a node."""
     init_dict = [init.name for init in model.model.graph.initializer]
-    return [out for out in node.output if out not in init_dict]
+    not_constant_outputs = []
+    for out in node.output:
+        if out in init_dict:
+            continue
+        node = model.find_producer(out)
+        if node is not None and node.op_type == "Constant":
+            continue
+        not_constant_outputs.append(out)
+    return not_constant_outputs
 
 def forward_propagate_quantization(
     producers: list[NodeProto],
