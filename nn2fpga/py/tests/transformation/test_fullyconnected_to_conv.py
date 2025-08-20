@@ -4,7 +4,6 @@ from qonnx.core.modelwrapper import ModelWrapper
 from onnx import TensorProto, helper
 import numpy as np
 
-
 def test_reshape_pattern():
     # Test the substitution of a Reshape -> Quant -> Gemm pattern with a Pointwise Conv -> Reshape pattern.
     input_tensor = helper.make_tensor_value_info(
@@ -204,16 +203,15 @@ def test_reshape_pattern():
     # Apply the FullyConnectedToPointwise transformation
     transformed_model = model.transform(FullyConnectedToPointwise())
 
-    # Check if the quantization was propagated correctly
     assert (
         len(transformed_model.get_nodes_by_op_type("Quant")) == 3
     ), "One Quant node should have been removed."
     assert (
         len(transformed_model.graph.output) == 1
-    ), "The output should still be a single tensor after quantization propagation."
+    ), "The output should still be a single tensor after tranformation."
     assert (
         len(transformed_model.graph.input) == 1
-    ), "The input should still be a single tensor after quantization propagation."
+    ), "The input should still be a single tensor after tranformation."
     assert (
         len(transformed_model.get_nodes_by_op_type("Conv")) == 1
     ), "One Conv node should have been created."
@@ -416,16 +414,15 @@ def test_flatten_pattern():
     transformed_model = model.transform(FullyConnectedToPointwise())
     transformed_model.save("transformed_model.onnx")
 
-    # Check if the quantization was propagated correctly
     assert (
         len(transformed_model.get_nodes_by_op_type("Quant")) == 3
     ), "One Quant node should have been removed."
     assert (
         len(transformed_model.graph.output) == 1
-    ), "The output should still be a single tensor after quantization propagation."
+    ), "The output should still be a single tensor after tranformation."
     assert (
         len(transformed_model.graph.input) == 1
-    ), "The input should still be a single tensor after quantization propagation."
+    ), "The input should still be a single tensor after tranformation."
     assert (
         len(transformed_model.get_nodes_by_op_type("Conv")) == 1
     ), "One Conv node should have been created."

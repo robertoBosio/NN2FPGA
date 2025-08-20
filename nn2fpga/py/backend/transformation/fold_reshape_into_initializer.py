@@ -49,12 +49,16 @@ def reshape_initializer(model: ModelWrapper, node: NodeProto, new_shape: tuple) 
 
     # Per-channel quantization.
     if scale_array.size > 1:
-        scale_4d = scale_array.reshape(new_shape)
+        new_scale_shape = np.ones_like(new_shape)
+        new_scale_shape[0] = new_shape[0]  # Match the output channels
+        scale_4d = scale_array.reshape(new_scale_shape)
         model.set_initializer(node.input[1], scale_4d)
 
     # Asymmetric quantization.
     if zeropt_array.size > 1:
-        zeropt_4d = zeropt_array.reshape(new_shape)
+        new_zero_shape = np.ones_like(new_shape)
+        new_zero_shape[0] = new_shape[0]
+        zeropt_4d = zeropt_array.reshape(new_zero_shape)
         model.set_initializer(node.input[2], zeropt_4d)
 
 def remove_flatten_reshape(model: ModelWrapper, node: NodeProto) -> None:
@@ -69,12 +73,11 @@ def remove_flatten_reshape(model: ModelWrapper, node: NodeProto) -> None:
     graph = model.graph
 
     # Connect the inputs of the Flatten/Reshape node to its consumers
-    for input in node.input:
-        producer = model.find_producer(input)
-        for i, producer_output in enumerate(producer.output):
-            if producer_output == input:
-                # Replace the input with the Flatten/Reshape node's input
-                producer.output[i] = node.output[0]
+    producer = model.find_producer(node.input[0])
+    for i, producer_output in enumerate(producer.output):
+        if producer_output == node.input[0]:
+            # Replace the input with the Flatten/Reshape node's input
+            producer.output[i] = node.output[0]
 
     # Remove the Flatten/Reshape node from the graph
     graph.node.remove(node)
