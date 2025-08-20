@@ -51,19 +51,21 @@ class SetDynamicBatchSize(Transformation):
                 new_shape_tensor = np.array([0] + list(shape_array[1:]))
                 model.set_initializer(shape_input, new_shape_tensor)
 
-        partition_node = model.get_nodes_by_op_type("nn2fpgaPartition")[0] 
-        ap = AcceleratorPackage.from_json(
-            getCustomOp(partition_node).get_nodeattr("accelerator_package")
-        )
-        for output in partition_node.output:
-            output_tensor_shape = ap.output_map[output]["shape"]
-            dynamic_output_shape = [None] + output_tensor_shape[1:]
-            output_quant = TensorQuant.from_canonical_name(
-                ap.output_map[output]["quant"]
+        partition_nodes = model.get_nodes_by_op_type("nn2fpgaPartition")
+        if partition_nodes is not None and len(partition_nodes) > 0:
+            partition_node = partition_nodes[0]
+            ap = AcceleratorPackage.from_json(
+                getCustomOp(partition_node).get_nodeattr("accelerator_package")
             )
-            model.set_tensor_shape(
-                output, dynamic_output_shape, dtype=output_quant.get_tensorproto_dtype()
-            )
+            for output in partition_node.output:
+                output_tensor_shape = ap.output_map[output]["shape"]
+                dynamic_output_shape = [None] + output_tensor_shape[1:]
+                output_quant = TensorQuant.from_canonical_name(
+                    ap.output_map[output]["quant"]
+                )
+                model.set_tensor_shape(
+                    output, dynamic_output_shape, dtype=output_quant.get_tensorproto_dtype()
+                )
 
         # Change the domain of nn2fpgaPartition nodes to support ONNX inference.
         model = model.transform(ChangeDomainOnnxInference())
