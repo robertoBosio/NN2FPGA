@@ -5,10 +5,11 @@ set -euo pipefail
 : "${ONNXRUNTIME_SDK_INCLUDE:=/opt/onnxruntime-sdk/include}"
 : "${XRT_INC:=${SYSROOT}/usr/include/xrt}"
 : "${XRT_LIBDIR:=${SYSROOT}/usr/lib/aarch64-linux-gnu}"
-: "${TP_JSON:=deps/json/single_include}"
-: "${TP_BASE64:=deps/cpp-base64}"
+: "${TP_JSON:=/workspace/NN2FPGA/deps/json/single_include}"
+: "${TP_BASE64:=/workspace/NN2FPGA/deps/cpp-base64}"
+: "${NN2FPGA_HW_LIB:=/workspace/NN2FPGA/nn2fpga/deploy}"
 
-SRC=${1:-nn2fpga/deploy/nn2fpga_custom_op.cpp}
+SRC=${1:-nn2fpga/deploy/register_op.cpp}
 OUT_DIR=${2:-artifacts/aarch64}
 OUT_SO=${OUT_DIR}/libnn2fpga_customop.so
 mkdir -p "${OUT_DIR}"
@@ -36,6 +37,7 @@ cxxflags=(
   -I"${XRT_INC}"
   -I"${TP_JSON}"
   -I"${TP_BASE64}"
+  -I"${NN2FPGA_HW_LIB}"
   --sysroot="${SYSROOT}"
   -isystem "${CXXINC_BASE}"
   -isystem "${CXXINC_ARCH}"
