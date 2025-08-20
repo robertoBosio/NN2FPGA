@@ -10,5 +10,8 @@
             "ff": 548160
         }
     ],
-    "axi_bitwidth": 128
+    "axi_bitwidth": 128,
+    "PLL_frequency": 1500,
+    "board_part": "xilinx.com:zcu102:part0:1.0",
+    "part": "xczu9eg-ffvb1156-2-e"
 }

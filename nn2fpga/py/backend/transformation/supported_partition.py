@@ -506,65 +506,6 @@ class PostProcessPartitionModel(Transformation):
 
         return (model, False)
 
-class AddTransposesToPartition(Transformation):
-    """ Add Transpose nodes around the GenericPartition to ensure that the input and output tensors
-    are in the NHWC format for FPGA execution.
-    This is a bit hacky, because it assumes that input and output tensors are all in NCHW format.
-    """
-
-    def apply(self, model: ModelWrapper) -> tuple[ModelWrapper, bool]:
-
-        for node in model.get_nodes_by_op_type("GenericPartition"):
-            # Add Transpose before the partition node
-
-            transposed_inputs = []
-            for i, inp in enumerate(node.input):
-
-                inp_shape = model.get_tensor_shape(inp)
-                if inp_shape is None or len(inp_shape) != 4:
-                    continue  # Skip if input is not a 4D tensor
-                
-                transpose_before = helper.make_node(
-                    "Transpose",
-                    name=f"{inp}_transpose",
-                    inputs=[inp],
-                    outputs=[f"{inp}_transposed"],
-                    perm=[0, 2, 3, 1],  # NCHW to NHWC
-                )
-                model.set_tensor_shape(f"{inp}_transposed", np.array(inp_shape)[[0, 2, 3, 1]].tolist())
-                model.graph.node.append(transpose_before)
-                transposed_inputs.append((i, f"{inp}_transposed"))
-
-            # Replace the inputs with the transposed versions
-            for i, transposed_inp in transposed_inputs:
-                node.input[i] = transposed_inp
-
-            transposed_outputs = []
-            for i, out in enumerate(node.output):
-
-                out_shape = model.get_tensor_shape(out)
-                if out_shape is None or len(out_shape) != 4:
-                    continue  # Skip if output is not a 4D tensor
-
-                # Add a Transpose node after the partition node
-                transpose_after = helper.make_node(
-                    "Transpose",
-                    name=f"{out}_transpose",
-                    outputs=[out],
-                    inputs=[f"{out}_transposed"],
-                    perm=[0, 3, 1, 2],  # NHWC to NCHW
-                )
-                model.set_tensor_shape(f"{out}_transposed", np.array(out_shape)[[0, 2, 3, 1]].tolist())
-                model.graph.node.append(transpose_after)
-                transposed_outputs.append((i, f"{out}_transposed"))
-            
-            # Replace the outputs with the transposed versions
-            for i, transposed_out in transposed_outputs:
-                node.output[i] = transposed_out
-
-        model = model.transform(SortGraph())
-        return (model, False)
-
 class SupportedPartition(Transformation):
     """ Extracts from the ONNX a subgraph containing only operations supported by nn2FPGA.
     All the other operations are assigned to CPU.
@@ -648,7 +589,6 @@ class SupportedPartition(Transformation):
 
         # Post-process the partitioned model to restore ONNX compliance
         parent_model = parent_model.transform(PostProcessPartitionModel())
-        # parent_model = parent_model.transform(AddTransposesToPartition())
         parent_model = parent_model.transform(ConvertToQCDQ())
         parent_model.save(self.partition_directory + "/wrapper_model.onnx")
 

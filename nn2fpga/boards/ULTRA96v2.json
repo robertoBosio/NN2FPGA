@@ -10,5 +10,8 @@
             "ff": 141000
         }
     ],
-    "axi_bitwidth": 128
+    "axi_bitwidth": 128,
+    "PLL_frequency": 1500,
+    "board_part": "xilinx.com:ultra96v2:part0:1.0",
+    "part": "xczu3eg-sbva484-1-e"
 }

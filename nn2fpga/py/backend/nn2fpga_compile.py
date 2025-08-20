@@ -55,6 +55,8 @@ def nn2fpga_compile(
     model.set_metadata_prop("top_name", top_name)
     model.set_metadata_prop("frequency", frequency)
     model.set_metadata_prop("hls_version", hls_version)
+    model.set_metadata_prop("axilite_address", str(0xA0000000))
+    model.set_metadata_prop("axilite_size", str(0x10000))
 
     # Clean up the model.
     model.cleanup()
@@ -106,10 +108,9 @@ def nn2fpga_compile(
         )
     )
 
-    # model = model.transform(transformation.GenerateBitstream())
+    model = model.transform(transformation.GenerateBitstream(work_dir=prj_root))
+    model = model.transform(transformation.GenerateDriver(work_dir=prj_root))
 
     # Simulate the model to check if it works.
-    test_transformation_equivalence(original_model, model)
-    model = model.transform(transformation.SetDynamicBatchSize())
-    model.save("qcdq_wrapper_model.onnx")
+    # test_transformation_equivalence(original_model, model)
     

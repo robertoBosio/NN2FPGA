@@ -3,7 +3,7 @@ import base64
 import os
 import subprocess
 from backend.core.acceleratorpackage import AcceleratorPackage
-from backend.util.board_util import board_part_names
+from backend.util.board_util import read_board_info
 
 def dump_tcl_script(top_name, part_name, frequency, hls_version, input_files):
     """Dump a TCL script to set up the HLS project and run the simulation."""
@@ -93,10 +93,10 @@ def simulate(accelerator_package_serialized: str, context: dict) -> dict:
         np.save(f"{work_dir}/{tensor_name}.npy", tensor_data)
 
     # Generate the TCL script
-    part_name, _ = board_part_names(ap.board_name)
+    board_info = read_board_info(ap.board_name)
     tcl_script = dump_tcl_script(
         top_name=ap.top_name,
-        part_name=part_name,
+        part_name=board_info["part"],
         frequency=ap.frequency,
         hls_version=ap.hls_version,
         input_files=[f"{work_dir}/{tensor_name}.npy" for tensor_name, _ in internal_context],

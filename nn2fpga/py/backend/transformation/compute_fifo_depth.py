@@ -6,7 +6,7 @@ from backend.core.fifo_depth import (
     TensorFifoDepth
 )
 from backend.util.codegen_utils import cpp_function, cpp_variable, NewCodeWriter
-from backend.util.board_util import board_part_names
+from backend.util.board_util import read_board_info
 import os
 import json
 import subprocess
@@ -250,9 +250,9 @@ class ComputeFifoDepth(Transformation):
             f.write(generate_hls_driver(model))
 
         # Generate the TCL script for the HLS project.
-        part_name, _ = board_part_names(
+        part_name = read_board_info(
             board=model.get_metadata_prop("board_name"),
-        )
+        )['part']
         tcl_script = generate_tcl_script(
             top_name=model.get_metadata_prop("top_name"),
             part_name=part_name,

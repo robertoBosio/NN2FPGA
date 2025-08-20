@@ -2,7 +2,7 @@ from qonnx.transformation.base import Transformation
 from qonnx.core.modelwrapper import ModelWrapper
 from qonnx.custom_op.registry import getCustomOp
 from backend.core.acceleratorpackage import AcceleratorPackage
-from backend.util.board_util import board_part_names, read_board_info
+from backend.util.board_util import read_board_info
 import base64
 import os
 import subprocess
@@ -53,9 +53,11 @@ def vivado_tcl_script(
     board_part_name: str,
     frequency: int,
     hls_version: str,
-    interface_width: int = 128,
-    inputs: list = None,
-    outputs: list = None,
+    axilite_base_addr: int,
+    axilite_dma_window: int,
+    interface_width: int,
+    inputs: list,
+    outputs: list,
 ) -> str:
     """Generate a Vivado TCL script for the HLS project setup."""
 
@@ -91,7 +93,7 @@ def vivado_tcl_script(
         [
             "set_property -dict [list \\",
             f"  CONFIG.PSU__FPGA_PL1_ENABLE {{{0}}} \\",
-            f"  CONFIG.PSU__CRL_APB__PL0_REF_CTRL__FREQMHZ {{{300}}} \\",
+            f"  CONFIG.PSU__CRL_APB__PL0_REF_CTRL__FREQMHZ {{{frequency}}} \\",
             f"  CONFIG.PSU__USE__M_AXI_GP1 {{{0}}} \\",
             f"  CONFIG.PSU__USE__S_AXI_GP2 {{{1}}} \\",
             f"  CONFIG.PSU__USE__S_AXI_GP3 {{{1}}} \\",
@@ -113,7 +115,7 @@ def vivado_tcl_script(
     )
 
     # Add DMAs
-    for input in inputs:
+    for input, _ in inputs:
         lines.append(
             f'create_bd_cell -type ip -vlnv xilinx.com:ip:axi_dma:7.1 {input}_dma'
         )
@@ -122,7 +124,7 @@ def vivado_tcl_script(
         )
         lines.append(f'set_property -dict [list CONFIG.C_M_AXI_MM2S_DATA_WIDTH {{{interface_width}}} CONFIG.C_M_AXIS_MM2S_TDATA_WIDTH {{{interface_width}}}] [get_bd_cells {input}_dma]')
 
-    for output in outputs:
+    for output, _ in outputs:
         lines.append(
             f'create_bd_cell -type ip -vlnv xilinx.com:ip:axi_dma:7.1 {output}_dma'
         )
@@ -149,10 +151,10 @@ def vivado_tcl_script(
     lines.append(f'connect_bd_net -net ps_clk [get_bd_pins zynq_ultra_ps_e_0/pl_clk0] [get_bd_pins zynq_ultra_ps_e_0/saxihp1_fpd_aclk]')
     lines.append(f'connect_bd_net -net ps_clk [get_bd_pins zynq_ultra_ps_e_0/pl_clk0] [get_bd_pins zynq_ultra_ps_e_0/saxihp2_fpd_aclk]')
     lines.append(f'connect_bd_net -net ps_clk [get_bd_pins zynq_ultra_ps_e_0/pl_clk0] [get_bd_pins zynq_ultra_ps_e_0/saxihp3_fpd_aclk]')
-    for input in inputs:
+    for input, _ in inputs:
         lines.append(f'connect_bd_net -net ps_clk [get_bd_pins zynq_ultra_ps_e_0/pl_clk0] [get_bd_pins {input}_dma/s_axi_lite_aclk]')
         lines.append(f'connect_bd_net -net ps_clk [get_bd_pins zynq_ultra_ps_e_0/pl_clk0] [get_bd_pins {input}_dma/m_axi_mm2s_aclk]')
-    for output in outputs:
+    for output, _ in outputs:
         lines.append(f'connect_bd_net -net ps_clk [get_bd_pins zynq_ultra_ps_e_0/pl_clk0] [get_bd_pins {output}_dma/s_axi_lite_aclk]')
         lines.append(f'connect_bd_net -net ps_clk [get_bd_pins zynq_ultra_ps_e_0/pl_clk0] [get_bd_pins {output}_dma/m_axi_s2mm_aclk]')
         lines.append(f'connect_bd_net -net ps_clk [get_bd_pins zynq_ultra_ps_e_0/pl_clk0] [get_bd_pins {output}_dma/m_axi_sg_aclk]')
@@ -162,34 +164,34 @@ def vivado_tcl_script(
     lines.append(f'connect_bd_net -net a_rst [get_bd_pins proc_sys_reset_0/peripheral_aresetn] [get_bd_pins {top_name}_0/ap_rst_n]')
     lines.append(f'connect_bd_net -net a_rst [get_bd_pins proc_sys_reset_0/peripheral_aresetn] [get_bd_pins smartconnect_axilite_0/aresetn]')
     lines.append(f'connect_bd_net -net a_rst [get_bd_pins proc_sys_reset_0/peripheral_aresetn] [get_bd_pins smartconnect_sg_0/aresetn]')
-    for input in inputs:
+    for input, _ in inputs:
         lines.append(f'connect_bd_net -net a_rst [get_bd_pins proc_sys_reset_0/peripheral_aresetn] [get_bd_pins {input}_dma/axi_resetn]')
-    for output in outputs:
+    for output, _ in outputs:
         lines.append(f'connect_bd_net -net a_rst [get_bd_pins proc_sys_reset_0/peripheral_aresetn] [get_bd_pins {output}_dma/axi_resetn]')
 
     # Connect AXI lite interfaces to the smartconnect
-    for i, input in enumerate(inputs):
+    for i, (input, _) in enumerate(inputs):
         lines.append(f'connect_bd_intf_net -intf_net {input}_axi_lite [get_bd_intf_pins {input}_dma/S_AXI_LITE] [get_bd_intf_pins smartconnect_axilite_0/M0{i}_AXI]')
-    for i, output in enumerate(outputs):
+    for i, (output, _) in enumerate(outputs):
         lines.append(f'connect_bd_intf_net -intf_net {output}_axi_lite [get_bd_intf_pins {output}_dma/S_AXI_LITE] [get_bd_intf_pins smartconnect_axilite_0/M0{i + len(inputs)}_AXI]')
 
     # Connect SmartConnect AXI interfaces to the PS
     lines.append(f'connect_bd_intf_net -intf_net ps_axilite [get_bd_intf_pins zynq_ultra_ps_e_0/M_AXI_HPM0_FPD] [get_bd_intf_pins smartconnect_axilite_0/S00_AXI]')
 
     # Connect HLS IP streams to the DMAs
-    for input in inputs:
+    for input, _ in inputs:
         lines.append(f'connect_bd_intf_net -intf_net {input}_axis [get_bd_intf_pins {top_name}_0/{input}_stream] [get_bd_intf_pins {input}_dma/M_AXIS_MM2S]')
-    for output in outputs:
+    for output, _ in outputs:
         lines.append(f'connect_bd_intf_net -intf_net {output}_axis [get_bd_intf_pins {top_name}_0/{output}_stream] [get_bd_intf_pins {output}_dma/S_AXIS_S2MM]')
 
     # Connect DMAs to PS
-    for i, input in enumerate(inputs):
+    for i, (input, _) in enumerate(inputs):
         lines.append(f'connect_bd_intf_net -intf_net {input}_maxi [get_bd_intf_pins zynq_ultra_ps_e_0/S_AXI_HP{i}_FPD] [get_bd_intf_pins {input}_dma/M_AXI_MM2S]')
-    for i, output in enumerate(outputs):
+    for i, (output, _) in enumerate(outputs):
         lines.append(f'connect_bd_intf_net -intf_net {output}_maxi [get_bd_intf_pins zynq_ultra_ps_e_0/S_AXI_HP{i + len(inputs)}_FPD] [get_bd_intf_pins {output}_dma/M_AXI_S2MM]')
 
     # Connect scatter-gather DMA to the smartconnect
-    for i, output in enumerate(outputs):
+    for i, (output, _) in enumerate(outputs):
         lines.append(f'connect_bd_intf_net -intf_net {output}_sg [get_bd_intf_pins {output}_dma/M_AXI_SG] [get_bd_intf_pins smartconnect_sg_0/S0{i}_AXI]')
     
     # Connect smartconnect scatter-gather to the PS
@@ -199,15 +201,13 @@ def vivado_tcl_script(
     lines.append(f'assign_bd_address')
 
     # Reduce the axi_lite range of DMAs to 4 KiB
-    start = 0xA0000000
-    for input in inputs:
+    axilite_window_str = f"{axilite_dma_window / 1024}K"
+    for input, offset in inputs:
         lines.append(f'set_property range 4K [get_bd_addr_segs {{zynq_ultra_ps_e_0/Data/SEG_{input}_dma_Reg}}]')
-        lines.append(f'set_property offset 0x{start:X} [get_bd_addr_segs {{zynq_ultra_ps_e_0/Data/SEG_{input}_dma_Reg}}]')
-        start += 0x1000
-    for output in outputs:
+        lines.append(f'set_property offset 0x{(axilite_base_addr + offset):X} [get_bd_addr_segs {{zynq_ultra_ps_e_0/Data/SEG_{input}_dma_Reg}}]')
+    for output, offset in outputs:
         lines.append(f'set_property range 4K [get_bd_addr_segs {{zynq_ultra_ps_e_0/Data/SEG_{output}_dma_Reg}}]')
-        lines.append(f'set_property offset 0x{start:X} [get_bd_addr_segs {{zynq_ultra_ps_e_0/Data/SEG_{output}_dma_Reg}}]')
-        start += 0x1000
+        lines.append(f'set_property offset 0x{(axilite_base_addr + offset):X} [get_bd_addr_segs {{zynq_ultra_ps_e_0/Data/SEG_{output}_dma_Reg}}]')
 
     # Validate the block design
     lines.append(f'validate_bd_design')
@@ -238,10 +238,27 @@ def make_build_dir(work_dir: str) -> None:
 
 class GenerateBitstream(Transformation):
 
-    def __init__(self, work_dir: str, erase: bool = True):
+    def __init__(
+        self,
+        work_dir: str,
+        erase: bool = True,
+        axilite_dma_window: int = 4096,
+    ):
         super().__init__()
         self.work_dir = work_dir
         self.erase = erase
+
+        # Check axilite_dma_window is a power of two
+        if axilite_dma_window & (axilite_dma_window - 1) != 0:
+            raise ValueError("axilite_dma_window must be a power of two.")
+
+        # Check axilite has not an unreasonable size.
+        # This is not a strict requirement, probably DMA can even fit in less space.
+        if axilite_dma_window < 1024 or axilite_dma_window > 65536:
+            raise ValueError("axilite_dma_window must be between 1K and 64K bytes.")
+
+        # Set the axilite parameters
+        self.axilite_dma_window = axilite_dma_window
 
     def apply(self, model: ModelWrapper) -> tuple[ModelWrapper, bool]:
 
@@ -253,10 +270,18 @@ class GenerateBitstream(Transformation):
 
         top_name = model.get_metadata_prop("top_name")
         board = model.get_metadata_prop("board_name")
-        part_name, board_part_name = board_part_names(board)
         frequency = model.get_metadata_prop("frequency")
         hls_version = model.get_metadata_prop("hls_version")
+        axilite_size = int(model.get_metadata_prop("axilite_size"))
+        axilite_address = int(model.get_metadata_prop("axilite_address"))
         interface_width = read_board_info(board)["axi_bitwidth"]
+        part_name = read_board_info(board)["part"]
+        board_part_name = read_board_info(board)["board_part"]
+
+        if len(ap.input_map) + len(ap.output_map) * self.axilite_dma_window > axilite_size:
+            raise ValueError(
+                f"Total AXI lite size ({len(ap.input_map) + len(ap.output_map) * self.axilite_dma_window}) exceeds the maximum allowed size ({axilite_size})."
+            )
 
         # Generate the TCL script
         tcl_script = dump_tcl_script(
@@ -281,17 +306,22 @@ class GenerateBitstream(Transformation):
             check=True
         )
 
-        # Retrieve input list
+        # Retrieve input list and assign AXI offsets
+        axi_offset = 0x0
         input_list = []
         inputs = ap.input_map
         for value in inputs.values():
-            input_list.append(value["new_name"])
+            value["axi_offset"] = axi_offset
+            input_list.append((value["new_name"], axi_offset))
+            axi_offset += self.axilite_dma_window
 
         # Retrieve output list
         output_list = []
         outputs = ap.output_map
         for value in outputs.values():
-            output_list.append(value["new_name"])
+            value["axi_offset"] = axi_offset
+            output_list.append((value["new_name"], axi_offset))
+            axi_offset += self.axilite_dma_window
 
         # Write the Vivado block design.
         with open(f"{work_dir}/vivado.tcl", "w") as f:
@@ -303,6 +333,8 @@ class GenerateBitstream(Transformation):
                     board_part_name=board_part_name,
                     frequency=frequency,
                     hls_version=hls_version,
+                    axilite_base_addr=axilite_address,
+                    axilite_dma_window=self.axilite_dma_window,
                     interface_width=interface_width,
                     inputs=input_list,
                     outputs=output_list,
@@ -334,5 +366,5 @@ class GenerateBitstream(Transformation):
 
         # Update the accelerator package in the partition node.
         getCustomOp(partition_node).set_nodeattr("accelerator_package", ap.to_json())
-        
+
         return model, False

@@ -5,7 +5,7 @@ import argparse
 from backend.util.qonnx_patch import patch_qonnx_ops
 patch_qonnx_ops()
 from backend.nn2fpga_compile import nn2fpga_compile
-from backend.util.board_util import board_part_names
+from backend.util.board_util import read_board_info
 
 def load_config(config_path: str) -> dict:
     """
@@ -35,7 +35,7 @@ def load_config(config_path: str) -> dict:
         sys.exit(1)
 
     # Check if the board is valid
-    _ = board_part_names(config_dict["board"])
+    _ = read_board_info(config_dict["board"])
 
     if "XILINX_VERSION" not in os.environ:
         raise EnvironmentError(
