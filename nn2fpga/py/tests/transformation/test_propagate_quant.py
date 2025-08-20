@@ -46,6 +46,8 @@ def test_simple_forward_propagate_quant():
 
     # Check if the quantization was propagated correctly
     assert len(transformed_model.get_nodes_by_op_type("Quant")) == 2, "The Quant node should have been propagated forward."
+    assert len(transformed_model.graph.output) == 1, "The output should still be a single tensor after quantization propagation."
+    assert len(transformed_model.graph.input) == 1, "The input should still be a single tensor after quantization propagation."
 
 def test_simple_backward_propagate_quant():
     # Test the backward propagation in a single chain of nodes.
@@ -90,6 +92,8 @@ def test_simple_backward_propagate_quant():
 
     # Check if the quantization was propagated correctly
     assert len(transformed_model.get_nodes_by_op_type("Quant")) == 2, "The Quant node should have been propagated backward."
+    assert len(transformed_model.graph.output) == 1, "The output should still be a single tensor after quantization propagation."
+    assert len(transformed_model.graph.input) == 1, "The input should still be a single tensor after quantization propagation."
 
 def test_propagate_backward_with_multiple_consumers_same_quant():
     # Test propagation with multiple outputs sharing the same quantization parameters.
@@ -148,6 +152,8 @@ def test_propagate_backward_with_multiple_consumers_same_quant():
     assert (
         len(transformed_model.get_nodes_by_op_type("Quant")) == 3
     ), "Quant node should have been propagated to the input as both outputs share the same quantization."
+    assert len(transformed_model.graph.output) == 2, "The outputs should still be two tensors after quantization propagation."
+    assert len(transformed_model.graph.input) == 1, "The input should still be a single tensor after quantization propagation."
 
 def test_propagate_backward_with_multiple_consumers_different_quant():
     # Test propagation with multiple outputs having different quantization parameters.
@@ -209,6 +215,8 @@ def test_propagate_backward_with_multiple_consumers_different_quant():
     assert (
         len(transformed_model.get_nodes_by_op_type("Quant")) == 2
     ), "Quant node should not have been propagated to the input, as outputs have different quantization parameters."
+    assert len(transformed_model.graph.output) == 2, "The outputs should still be two tensors after quantization propagation."
+    assert len(transformed_model.graph.input) == 1, "The input should still be a single tensor after quantization propagation."
 
 def test_propagate_forward_with_multiple_producers_same_quant():
     # Test propagation with multiple inputs to a single quantization node.
@@ -268,6 +276,8 @@ def test_propagate_forward_with_multiple_producers_same_quant():
     assert (
         len(transformed_model.get_nodes_by_op_type("Quant")) == 3
     ), "Quant node should have been propagated to the output as both inputs share the same quantization."
+    assert len(transformed_model.graph.output) == 1, "The output should still be a single tensor after quantization propagation."
+    assert len(transformed_model.graph.input) == 2, "The input should still be two tensors after quantization propagation."
 
 def test_propagate_forward_with_multiple_producers_different_quant():
     # Test propagation with multiple inputs to a single quantization node with different quantization parameters.
@@ -330,3 +340,5 @@ def test_propagate_forward_with_multiple_producers_different_quant():
     assert (
         len(transformed_model.get_nodes_by_op_type("Quant")) == 2
     ), "Quant node should not have been propagated to the output, as inputs have different quantization parameters."
+    assert len(transformed_model.graph.output) == 1, "The output should still be a single tensor after quantization propagation."
+    assert len(transformed_model.graph.input) == 2, "The input should still be two tensors after quantization propagation."

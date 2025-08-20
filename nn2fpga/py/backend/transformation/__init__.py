@@ -7,7 +7,8 @@ from backend.transformation.custom_infershape import CustomInferShapes
 from backend.transformation.embed_hls_code import EmbedHLSCode
 from backend.transformation.fold_asymmetric_act_quant import FoldAsymmetricActQuant
 from backend.transformation.fold_quant import FoldQuant
-from backend.transformation.fullyconnected_to_conv import FullyConnectedToConv
+from backend.transformation.fold_reshape_into_initializer import FoldReshapeIntoInitializer
+from backend.transformation.fullyconnected_to_conv import FullyConnectedToPointwise
 from backend.transformation.generate_bitstream import GenerateBitstream
 from backend.transformation.generate_driver import GenerateDriver
 from backend.transformation.infer_quant import InferQuant
