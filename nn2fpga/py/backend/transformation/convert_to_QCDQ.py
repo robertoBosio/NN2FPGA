@@ -11,6 +11,39 @@ from backend.transformation.add_streaming_params import quant_array
 from backend.core.acceleratorpackage import AcceleratorPackage
 from backend.core.tensor_quant import TensorQuant
 
+def get_tensorproto_dtype(bitwidth, signed):
+    """Get the TensorProto data type based on bitwidth and signedness."""
+    if bitwidth <= 8:
+        if signed:
+            return TensorProto.INT8
+        else:
+            return TensorProto.UINT8
+    elif bitwidth <= 16:
+        if signed:
+            return TensorProto.INT16
+        else:
+            return TensorProto.UINT16
+    elif bitwidth <= 32:
+        if signed:
+            return TensorProto.INT32
+        else:
+            return TensorProto.UINT32
+    else:
+        raise ValueError("Unsupported bitwidth for quantization.")
+
+def toNHWC(tensor_shape):
+    """Convert a tensor shape from NCHW to NHWC format."""
+    NHWC_shape = [tensor_shape[0]]  # Batch size
+    NHWC_shape.extend(tensor_shape[2:])  # Height and Width
+    NHWC_shape.append(tensor_shape[1])  # Channels
+    return NHWC_shape
+
+def toNCHW(tensor_shape):
+    """Convert a tensor shape from NHWC to NCHW format."""
+    NCHW_shape = [tensor_shape[0]]  # Batch size
+    NCHW_shape.append(tensor_shape[-1])  # Channels
+    NCHW_shape.extend(tensor_shape[1:-1])  # Height and Width
+    return NCHW_shape
 
 def constant_quant_pattern(
     qonnx_op, x, scale, zero_point, bitwidth, signed, narrow, rounding_mode
@@ -77,15 +110,7 @@ def quant_constant_to_dequant(
         rounding_mode=rounding_mode_val,
     )
 
-    tensor_quant = TensorQuant(
-        scale=scale_np,
-        zeropt=zero_point_np,
-        bitwidth=bitwidth_np,
-        signed=signed_val,
-        narrow=narrow_val,
-        rounding=rounding_mode_val,
-    )
-    data_type = tensor_quant.get_tensorproto_dtype()
+    data_type = get_tensorproto_dtype(bitwidth_np, signed_val)
 
     # Create the new quantized constant
     quantized_tensor = helper.make_tensor(
@@ -150,20 +175,30 @@ class ConvertToQCDQ(Transformation):
             for i, inp in enumerate(partition_node.input):
 
                 inp_shape = model.get_tensor_shape(inp)
-                if inp_shape is None or len(inp_shape) != 4:
-                    continue  # Skip if input is not a 4D tensor
+                if inp_shape is None:
+                    continue  # Skip if input shape is not available
+            
+                inp_shape_nhwc = toNHWC(inp_shape)
 
-                transpose_before = helper.make_node(
-                    "Transpose",
-                    name=f"{inp}_transpose",
-                    inputs=[inp],
-                    outputs=[f"{inp}_transposed"],
-                    perm=[0, 2, 3, 1],  # NCHW to NHWC
-                )
-                model.set_tensor_shape(
-                    f"{inp}_transposed",
-                    [inp_shape[0], inp_shape[2], inp_shape[3], inp_shape[1]],
-                )
+                # If the input is already in NHWC format, skip the transpose
+                quant_input_name = inp
+                if inp_shape != inp_shape_nhwc:
+                    quant_input_name = f"{inp}_transposed"
+                    
+                    perm = list(range(len(inp_shape_nhwc)))
+                    perm = toNHWC(perm)  # Convert to NHWC permutation
+                    transpose_before = helper.make_node(
+                        "Transpose",
+                        name=f"{inp}_transpose",
+                        inputs=[inp],
+                        outputs=[f"{inp}_transposed"],
+                        perm=perm,
+                    )
+                    model.set_tensor_shape(
+                        f"{inp}_transposed",
+                        inp_shape_nhwc,
+                    )
+                    model.graph.node.append(transpose_before)
 
                 input_tensor_quant = TensorQuant.from_canonical_name(ap.input_map[inp]["quant"])
                 scale_init_name = create_const_initializer(
@@ -179,18 +214,17 @@ class ConvertToQCDQ(Transformation):
 
                 quantize_node = helper.make_node(
                     "QuantizeLinear",
-                    inputs=[f"{inp}_transposed", scale_init_name, zeropt_init_name],
+                    inputs=[quant_input_name, scale_init_name, zeropt_init_name],
                     outputs=[f"{inp}_quantized"],
                     name=f"{inp}_quantize",
                     axis=1,  # Channel axis for NHWC
                 )
                 model.set_tensor_shape(
                     f"{inp}_quantized",
-                    [inp_shape[0], inp_shape[2], inp_shape[3], inp_shape[1]],
+                    inp_shape_nhwc,
                     dtype=input_tensor_quant.get_tensorproto_dtype(),
                 )
 
-                model.graph.node.append(transpose_before)
                 model.graph.node.append(quantize_node)
                 new_inputs_map[inp] = (i, f"{inp}_quantized")
 
@@ -200,14 +234,26 @@ class ConvertToQCDQ(Transformation):
 
                 # Remove the old item from the input map and add the new one
                 ap.input_map[new_name] = ap.input_map.pop(old_name)
+                old_shape = ap.input_map[new_name]["shape"]
+                ap.input_map[new_name]["shape"] = toNHWC(old_shape)
+
 
             new_outputs_map = {}
             for i, out in enumerate(partition_node.output):
 
                 out_shape = model.get_tensor_shape(out)
-                if out_shape is None or len(out_shape) != 4:
-                    continue  # Skip if output is not a 4D tensor
-                
+                if out_shape is None:
+                    continue
+
+                # Compute the shape in output to the nn2fpgaPartition node which is channel last format
+                out_shape_nhwc = toNHWC(out_shape)
+
+                # If the shapes in channel last and channel first formats are the same, skip
+                # the transpose node and assign the output directly to the dequantize node
+                dequant_output_name = f"{out}_dequantized"
+                if out_shape == out_shape_nhwc:
+                    dequant_output_name = out
+
                 output_tensor_quant = TensorQuant.from_canonical_name(ap.output_map[out]["quant"])
                 scale_init_name = create_const_initializer(
                     model,
@@ -223,31 +269,39 @@ class ConvertToQCDQ(Transformation):
                 dequantize_node = helper.make_node(
                     "DequantizeLinear",
                     inputs=[f"{out}_quantized", scale_init_name, zeropt_init_name],
-                    outputs=[f"{out}_dequantized"],
+                    outputs=[dequant_output_name],
                     name=f"{out}_dequantize",
                     axis=1,  # Channel axis for NHWC
                 )
+
                 model.set_tensor_shape(
                     f"{out}_quantized",
-                    [out_shape[0], out_shape[2], out_shape[3], out_shape[1]],
+                    out_shape_nhwc,
                     dtype=output_tensor_quant.get_tensorproto_dtype(),
                 )
 
-                # Add a Transpose node after the partition node
-                transpose_after = helper.make_node(
-                    "Transpose",
-                    name=f"{out}_transpose",
-                    inputs=[f"{out}_dequantized"],
-                    outputs=[out],
-                    perm=[0, 3, 1, 2],  # NHWC to NCHW
-                )
-                model.set_tensor_shape(
-                    f"{out}_dequantized",
-                    [out_shape[0], out_shape[2], out_shape[3], out_shape[1]],
-                )
-
                 model.graph.node.append(dequantize_node)
-                model.graph.node.append(transpose_after)
+                if out_shape != out_shape_nhwc:
+                    # Add a Transpose node after the partition node
+                    perm = list(range(len(out_shape_nhwc)))
+                    perm = toNCHW(perm)  # Convert to NCHW permutation
+                    # Create a Transpose node to convert from NHWC to NCHW
+                    # This is needed because the output of the partition node is in NHWC format
+                    # but the rest of the model expects NCHW format
+
+                    transpose_after = helper.make_node(
+                        "Transpose",
+                        name=f"{out}_transpose",
+                        inputs=[f"{out}_dequantized"],
+                        outputs=[out],
+                        perm=perm,  # NHWC to NCHW
+                    )
+                    model.set_tensor_shape(
+                        f"{out}_dequantized",
+                        out_shape_nhwc,
+                    )
+
+                    model.graph.node.append(transpose_after)
                 new_outputs_map[out] = (i, f"{out}_quantized")
 
             # Replace the outputs with the transposed versions
@@ -258,9 +312,8 @@ class ConvertToQCDQ(Transformation):
                 # Remove the old item from the output map and add the new one
                 ap.output_map[new_name] = ap.output_map.pop(old_name)
                 old_shape = ap.output_map[new_name]["shape"]
-                old_shape_transposed = [old_shape[0], old_shape[2], old_shape[3], old_shape[1]]
-                ap.output_map[new_name]["shape"] = old_shape_transposed
-        
+                ap.output_map[new_name]["shape"] = toNHWC(old_shape)
+
             # Set the updated accelerator package back to the partition node
             getCustomOp(partition_node).set_nodeattr(
                 "accelerator_package", ap.to_json()
