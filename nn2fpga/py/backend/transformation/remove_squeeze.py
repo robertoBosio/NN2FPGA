@@ -6,6 +6,7 @@ from onnx import helper, NodeProto
 import logging
 logger = logging.getLogger(__name__)
 
+
 def remove_flatten_reshape(model: ModelWrapper, node: NodeProto) -> None:
     """
     Removes Flatten or Reshape nodes from the model, as they are not needed
@@ -19,13 +20,25 @@ def remove_flatten_reshape(model: ModelWrapper, node: NodeProto) -> None:
 
     # Connect the inputs of the Flatten/Reshape node to its consumers
     producer = model.find_producer(node.input[0])
-    for i, producer_output in enumerate(producer.output):
-        if producer_output == node.input[0]:
+    if producer is None:
+
+        # If the input is not produced by any node, it's a model input.
+        consumers = model.find_consumers(node.output[0])
+        for consumer in consumers:
             # Replace the input with the Flatten/Reshape node's input
-            producer.output[i] = node.output[0]
+            for i, consumer_input in enumerate(consumer.input):
+                if consumer_input == node.output[0]:
+                    consumer.input[i] = node.input[0]
+    else:
+
+        for i, producer_output in enumerate(producer.output):
+            if producer_output == node.input[0]:
+                # Replace the input with the Flatten/Reshape node's input
+                producer.output[i] = node.output[0]
 
     # Remove the Flatten/Reshape node from the graph
     graph.node.remove(node)
+
 
 def remove_all_shape_info(model: ModelWrapper) -> None:
     """
@@ -84,9 +97,9 @@ class RemoveSqueeze(Transformation):
             logger.info(f"Removed node {node.name} of type {node.op_type} as it acts as a squeeze operation.")
 
         # Remove all shape information to enable re-inference
-        remove_all_shape_info(model)
+        # remove_all_shape_info(model)
 
         # Re-infer shapes after removing squeeze operations
-        model = model.transform(CustomInferShapes())
+        # model = model.transform(CustomInferShapes())
 
         return model, False
