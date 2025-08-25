@@ -6,6 +6,9 @@ from collections import deque
 from backend.util.par_utils import get_par_attributes, check_par_attributes
 import backend.transformation as transformation
 import math
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def insert_comm_node(
@@ -31,6 +34,7 @@ def insert_comm_node(
         in_w_par=w_par_in,
         out_w_par=w_par_out,
     )
+
     model.set_tensor_shape(output_name, tensor_shape)
     model.graph.node.append(node)
     return output_name, ch_par_out, w_par_out
@@ -202,8 +206,8 @@ class AdjustStreamingCommunication(Transformation):
             # If any communication nodes were added, we need to sort the graph
             # and infer shapes again to ensure the model is valid.
             model = model.transform(SortGraph())
-            model = model.transform(transformation.CustomInferShapes())
-            print(
+            # model = model.transform(transformation.CustomInferShapes())
+            logger.info(
                 f"Inserted {len(communication_nodes)} communication nodes to adjust streaming communication."
             )
         return (model, False)

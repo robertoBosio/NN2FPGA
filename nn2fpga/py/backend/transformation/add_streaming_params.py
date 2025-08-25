@@ -6,6 +6,7 @@ from onnx import NodeProto, TensorProto, helper
 from backend.util.par_utils import get_par_attributes
 from backend.core.tensor_quant import TensorQuant
 import numpy as np
+from qonnx.custom_op.registry import getCustomOp
 
 NODE_WITH_PARAMS = [
     "StreamingConv",
@@ -75,6 +76,7 @@ def pack_values_to_int32words(arr: np.ndarray, bitwidth: int) -> np.ndarray:
     Returns:
         np.ndarray: Packed 32-bit words as a 1D array of dtype=np.uint32.
     """
+    bitwidth = int(bitwidth)
     if bitwidth > 32 or bitwidth <= 0:
         raise ValueError("bitwidth must be between 1 and 32")
 
@@ -102,46 +104,39 @@ def get_param_mem_from_node(model: ModelWrapper, node: NodeProto) -> np.ndarray:
     The memory representation is a 1D array of 32-bit unsigned integers."""
 
     mem = np.array([], dtype=np.uint32)
-
+    custom_node = getCustomOp(node)
     if node.op_type == "StreamingConv":
 
-        if len(node.input) > 2:
-            bias_quant_node = model.find_producer(node.input[2])
-            bias_params = TensorQuant.from_quant_node(bias_quant_node, model)
-            bias_array = model.get_initializer(bias_quant_node.input[0])
+        if len(node.input) > 5:
             quant_bias_array = quant_array(
-                bias_array,
-                scale=bias_params.scale,
-                zeropt=bias_params.zeropt,
-                bitwidth=bias_params.bitwidth,
-                signed=bias_params.signed,
-                narrow=bias_params.narrow_range,
-                rounding_mode=bias_params.rounding,
+                model.get_initializer(node.input[5]),
+                scale=model.get_initializer(node.input[6]),
+                zeropt=model.get_initializer(node.input[7]),
+                bitwidth=model.get_initializer(node.input[8]),
+                signed=custom_node.get_nodeattr("b_signed"),
+                narrow=custom_node.get_nodeattr("b_narrow"),
+                rounding_mode=custom_node.get_nodeattr("b_rounding_mode"),
             )
             mem = np.concatenate(
-                (mem, pack_values_to_int32words(quant_bias_array, bias_params.bitwidth))
+                (mem, pack_values_to_int32words(quant_bias_array, model.get_initializer(node.input[8]).item()))
             )
 
-        weight_quant_node = model.find_producer(node.input[1])
-        weight_params = TensorQuant.from_quant_node(weight_quant_node, model)
-
-        weight_array = model.get_initializer(weight_quant_node.input[0])
+        weight_array = model.get_initializer(node.input[1])
         quant_weight_array = quant_array(
             weight_array,
-            scale=weight_params.scale,
-            zeropt=weight_params.zeropt,
-            bitwidth=weight_params.bitwidth,
-            signed=weight_params.signed,
-            narrow=weight_params.narrow_range,
-            rounding_mode=weight_params.rounding,
+            scale=model.get_initializer(node.input[2]),
+            zeropt=model.get_initializer(node.input[3]),
+            bitwidth=model.get_initializer(node.input[4]),
+            signed=custom_node.get_nodeattr("w_signed"),
+            narrow=custom_node.get_nodeattr("w_narrow"),
+            rounding_mode=custom_node.get_nodeattr("w_rounding_mode"),
         )
 
         mem = np.concatenate(
-            (mem, pack_values_to_int32words(quant_weight_array, weight_params.bitwidth))
+            (mem, pack_values_to_int32words(quant_weight_array, model.get_initializer(node.input[4]).item()))
         )
 
     return mem
-
 
 class AddStreamingParams(Transformation):
     """A transformation pass that adds the logic to handle streaming parameters at startup.

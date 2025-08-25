@@ -161,10 +161,10 @@ class StreamingConv(CustomOp):
         input_list = []
         if len(node.input) == 5:
             # Conv without bias
-            input_list = [node.input[0], node.input[1]]
-        elif len(node.input) == 0:
+            input_list = [node.input[0], node.input[1]] + node.input[2:5]
+        elif len(node.input) == 9:
             # Conv with bias
-            input_list = [node.input[0], node.input[1], node.input[6]]
+            input_list = [node.input[0], node.input[1], node.input[6]] + node.input[2:6] + node.input[7:9]
         else:
             raise ValueError(
                 f"Unexpected number of inputs for StreamingConv node {node.name}: {len(node.input)}"

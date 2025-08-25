@@ -171,8 +171,6 @@ bool test_step_simple_square_pipelined() {
       pool_with_delay.step(in_stream, out_stream);
   bool flag = actor_status.empty() && actor_status.get_current_index() == 0;
 
-  std::cout << "Check step function not progressing before any input: " << flag << std::endl;
-
   // Prepare input data.
   for (size_t i = 0; i < IN_HEIGHT * IN_WIDTH; i++) {
     for (size_t c = 0; c < OUT_CH; c += OUT_CH_PAR) {
@@ -192,8 +190,6 @@ bool test_step_simple_square_pipelined() {
     flag &= out_stream[0].empty(); // No output yet
   }
 
-  std::cout << "Check behaviour at the start of the pipeline: " << flag << std::endl;
-
   // Step through pooling
   for (size_t i = PIPELINE_DEPTH;
        i < IN_HEIGHT * IN_WIDTH * OUT_CH / OUT_CH_PAR; i++) {
@@ -202,22 +198,16 @@ bool test_step_simple_square_pipelined() {
     flag &= out_stream[0].empty();
   }
 
-  std::cout << "Step through pooling: " << flag << std::endl;
-
   // Check behaviour at the end of the pipeline
   actor_status = pool_with_delay.step(in_stream, out_stream);
   flag &= actor_status.size() == PIPELINE_DEPTH - 1;
   flag &= actor_status.get_current_index() == 0; // Should have completed one full iteration
   flag &= out_stream[0].empty();    // Should still not have output yet.
 
-  std::cout << "Check behaviour at the end of the pipeline: " << flag << std::endl;
-
   actor_status = pool_with_delay.step(in_stream, out_stream);
   flag &= actor_status.size() == PIPELINE_DEPTH - 2;
   flag &= actor_status.get_current_index() == 0; // Should have completed one full iteration
   flag &= out_stream[0].empty();    // Should still not have output yet.
-
-  std::cout << "Check behaviour at the end of the pipeline after two steps: " << flag << std::endl;
 
   actor_status = pool_with_delay.step(in_stream, out_stream);
   flag &= actor_status.size() == 1;
@@ -225,21 +215,16 @@ bool test_step_simple_square_pipelined() {
   flag &= !out_stream[0].empty();   // First output should be available now
   TOutputStruct output_struct = out_stream[0].read();
 
-  std::cout << "Check behaviour at the end of the pipeline after three steps: " << flag << std::endl;
-
   actor_status = pool_with_delay.step(in_stream, out_stream);
   flag &= actor_status.size() == 0;
   flag &= actor_status.get_current_index() == 0; // Should have completed one full iteration
   flag &= !out_stream[0].empty();   // Second output should be available now
   output_struct = out_stream[0].read();
 
-  std::cout << "Check behaviour at the end of the pipeline after four steps: " << flag << std::endl;
-
   // Check step function after processing all but the last input
   actor_status = pool_with_delay.step(in_stream, out_stream);
   flag &= out_stream[0].empty(); // Should not have output now
 
-  std::cout << "Check step function after processing all but the last input: " << flag << std::endl;
   // Loop through the remaining inputs.
   for (size_t i = 0; i < (OUT_CH / OUT_CH_PAR) - 1; i++) {
     actor_status = pool_with_delay.step(in_stream, out_stream);

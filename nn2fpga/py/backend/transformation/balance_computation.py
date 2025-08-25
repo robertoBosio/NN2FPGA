@@ -14,13 +14,10 @@ from backend.util.board_util import read_board_info
 from backend.transformation.insert_streaming_line_buffer import has_streaming_linebuffer
 from backend.core.tensor_quant import get_custom_tensor_datatype
 from onnx import NodeProto
+import logging
+logger = logging.getLogger(__name__)
 
 PARALLELIZABLE_LAYERS = ["StreamingConv", "StreamingGlobalAveragePool", "StreamingGlobalMaxPool", "AveragePool", "MaxPool", "ProduceStream", "ConsumeStream"]
-
-def extract_quant_bitwidth(node: NodeProto, model: ModelWrapper) -> int:
-    """ Extracts the bitwidth of the quantization parameters from a Quant node. """
-    quant_params = TensorQuant.from_quant_node(node, model)
-    return quant_params.bitwidth
 
 def packing_feature(operands_bitwidth, par, silvia_packing):
     """ Returns the number of operation that can be packed in a single DSP. 
@@ -254,8 +251,8 @@ def layers_extractions(model: ModelWrapper) -> list:
         
 
             # Ensure input and output shapes are 4D (NCHW format)
-            input_shape = [1] * (4 - len(input_shape)) + input_shape
-            output_shape = [1] * (4 - len(output_shape)) + output_shape
+            input_shape = input_shape + [1] * (4 - len(input_shape))
+            output_shape = output_shape + [1] * (4 - len(output_shape))
 
             if node.op_type == "StreamingConv":
                 kernel_shape = get_by_name(node.attribute, "kernel_shape").ints
@@ -269,9 +266,7 @@ def layers_extractions(model: ModelWrapper) -> list:
                     * kernel
                     // group
                 )
-                weight_bits = extract_quant_bitwidth(
-                    model.find_producer(node.input[1]), model
-                )
+                weight_bits = model.get_initializer(node.input[3])
                 act_bits = get_custom_tensor_datatype(model, node.input[0]).bitwidth
                 depth = group == input_shape[1] 
 
@@ -468,7 +463,7 @@ def parallelismILP(layers_info, valid_par_solutions, NUM_DSP, NUM_PORTS, silvia_
     prob.solve(PULP_CBC_CMD(timeLimit=10, msg=0))
     end_time = time.time()
     if (prob.status == pulp.LpStatusInfeasible):
-        print("Throughput problem unfeasible")
+        logger.error("Throughput problem unfeasible")
         exit(0)
 
     # Recovering the values of the paralellism for each layer from the binary variables.
@@ -604,7 +599,7 @@ def resourceILP(layers_info, model_II, valid_par_solutions, parallel_op, NUM_DSP
 
     prob_min.solve(PULP_CBC_CMD(msg=0))
     if (prob_min.status == pulp.LpStatusInfeasible):
-        print("Resource problem unfeasible")
+        logger.error("Resource problem unfeasible")
         exit(0)
 
     parallel_op = {}
@@ -723,18 +718,18 @@ def opt_steps(layers_info, parallel_op, valid_par_solutions, prj_root="/tmp"):
         
         par_in = par[1]
         if (par_prev_out % par_in != 0 and par_in % par_prev_out != 0):
-            print(f"Error: och_ops i -> {par_prev_out} % ich_ops i+1 -> {par_in} != 0, using {find_common_mult(par_prev_out, par_in)}")
-            
+            logger.error(f"Error: och_ops i -> {par_prev_out} % ich_ops i+1 -> {par_in} != 0, using {find_common_mult(par_prev_out, par_in)}")
+
             for i, combination in enumerate(clamped_valid_par_solutions[layer['index']]):
                 if (par_prev_out % combination[1] == 0):
-                    print(f"\t\tAssigning {combination} to {name}")
+                    logger.info(f"\t\tAssigning {combination} to {name}")
                     new_parallel_op[name] = combination
                     break
             else:
                 tot_mismatch_after += find_common_mult(par_prev_out, par_in) - max(par_prev_out, par_in)
         par_prev = par
 
-    print(f"Before: {tot_mismatch_before}, After: {tot_mismatch_after}") 
+    logger.info(f"Before: {tot_mismatch_before}, After: {tot_mismatch_after}") 
     if (tot_mismatch_after > tot_mismatch_before):
         return parallel_op
     else:
@@ -918,5 +913,5 @@ class BalanceComputation(Transformation):
         # Add model II to the model metadata
         model.set_metadata_prop("model_II", str(model_II))
 
-        print(f"Balanced model with II {model_II} using {n_variables} variables and {n_constraints} constraints in {time_spent:.2f}s")
+        logger.info(f"Balanced model with II {model_II} using {n_variables} variables and {n_constraints} constraints in {time_spent:.2f}s")
         return (model, False)

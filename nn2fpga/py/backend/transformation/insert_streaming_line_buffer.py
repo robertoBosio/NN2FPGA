@@ -46,8 +46,8 @@ def has_streaming_linebuffer_wrap(model: ModelWrapper, node: helper.NodeProto) -
 
     w_par = 1  # Default value for width parallelization
     node_par = get_par_attributes(node)
-    if node_par["w_par"] is not None and node_par["w_par"] > 1:
-        w_par = node_par["w_par"]
+    if node_par["in_w_par"] is not None and node_par["in_w_par"] > 1:
+        w_par = node_par["in_w_par"]
 
     return has_streaming_linebuffer(node.op_type, kernel, w_par)
 
@@ -104,8 +104,8 @@ class InsertStreamingLineBuffer(Transformation):
                 kernel_shape=kernel_shape,
                 dilation=dilation,
                 stride=stride,
-                w_par=par["w_par"],
-                ch_par=par["ich_par"],
+                w_par=par["in_w_par"],
+                ch_par=par["in_ch_par"],
                 name=f"{node.name}_streaming_linebuffer"
             )
 
