@@ -7,21 +7,22 @@ from backend.util.codegen_utils import (
     cpp_function,
     cpp_variable,
     cpp_object,
-    NewCodeWriter,
-    get_cpp_quant_type,
     get_struct_type,
     get_stream_type,
     get_hls_quant_type,
+    get_cpp_quant_type
 )
 from backend.util.par_utils import get_par_attributes
 import math
 
-class ConsumeStream(CustomOp):
-    """ Node consuming a streaming tensor to an axi lite interface. """
+class NHWCToStream(CustomOp):
+    """ Node producing a streaming tensor starting from an axi lite interface. """
 
     def get_nodeattr_types(self):
         return {
+            "normalize": ("i", False, 0),  # 0: no normalization, 1: normalize the input tensor
             "axi_bitwidth": ("i", False, 128),  # Bitwidth of the AXI interface
+            "pipeline_depth": ("i", False, 1),  # Depth of the pipeline
         }
 
     def make_shape_compatible_op(self, model):
@@ -66,56 +67,56 @@ class ConsumeStream(CustomOp):
         if output_quant is None:
             raise ValueError(f"Tensor quantization for output '{self.onnx_node.output[0]}' not found in model.")
 
-        fitting_data = int(math.floor(axi_bitwidth / (output_quant.bitwidth * par_attribute["out_ch_par"] * par_attribute["out_w_par"])))
-        return fitting_data * par_attribute["out_ch_par"] * par_attribute["out_w_par"]
+        fitting_data = int(math.floor(axi_bitwidth / (output_quant.bitwidth * par_attribute["in_ch_par"] * par_attribute["in_w_par"])))
+        return fitting_data * par_attribute["in_ch_par"] * par_attribute["in_w_par"]
 
     def get_output_stream_cpp(self, model) -> list[cpp_variable]:
-        """Get the output stream cpp variables for the ConsumeStream node.
+        """Get the output stream cpp variables for the ProduceStream node.
         Args:
             model (ModelWrapper): The model with quantization information.
         Returns:
             list[cpp_variable]: A list of cpp_variable objects representing the output stream variables.
         """
+
+        output_quant = get_custom_tensor_datatype(model, self.onnx_node.output[0])
+        if output_quant is None:
+            raise ValueError(
+                f"Tensor quantization for output '{self.onnx_node.output[0]}' not found in model."
+            )
+
+        par_attribute = get_par_attributes(self.onnx_node)
+
+        fifo_depth = get_custom_tensor_fifo_depth(model, self.onnx_node.output[0])
+        pragma_list = []
+        if fifo_depth is not None:
+            for i, depth in enumerate(fifo_depth.depths):
+                pragma_list.append(
+                    f"#pragma HLS STREAM variable={self.__get_stream_name(self.onnx_node.output[0])}[{i}] depth={depth}"
+                )
+
         var = cpp_variable(
             self.__get_stream_name(self.onnx_node.output[0]),
-            f"hls::stream<ap_axiu<{self.get_nodeattr('axi_bitwidth')}, 0, 0, 0>>",
-            pragma=[
-                f"#pragma HLS INTERFACE axis port={self.__get_stream_name(self.onnx_node.output[0])}"
-            ],
+            primitive=f"{get_stream_type(output_quant, par_attribute['out_ch_par'])}",
+            array=[par_attribute["out_w_par"]],
+            pragma=pragma_list,
         )
 
         return [var]
 
     def get_input_stream_cpp(self, model) -> list[cpp_variable]:
-        """Get the input stream cpp variables for the ConsumeStream node.
+        """Get the input stream cpp variables for the ProduceStream node.
         Args:
             model (ModelWrapper): The model with quantization information.
         Returns:
             list[cpp_variable]: A list of cpp_variable objects representing the input stream variables.
         """
 
-        input_quant = get_custom_tensor_datatype(model, self.onnx_node.input[0])
-        if input_quant is None:
-            raise ValueError(
-                f"Tensor quantization for input '{self.onnx_node.input[0]}' not found in model."
-            )
-
-        par_attribute = get_par_attributes(self.onnx_node)
-
-        # Retrieve the FIFO depth for the input tensor.
-        fifo_depth = get_custom_tensor_fifo_depth(model, self.onnx_node.input[0])
-        pragma_list = []
-        if fifo_depth is not None:
-            for i, depth in enumerate(fifo_depth.depths):
-                pragma_list.append(
-                    f"#pragma HLS STREAM variable={self.__get_stream_name(self.onnx_node.input[0])}[{i}] depth={depth}"
-                )
-
         var = cpp_variable(
             self.__get_stream_name(self.onnx_node.input[0]),
-            f"{get_stream_type(input_quant, par_attribute['in_ch_par'])}",
-            array=[par_attribute["in_w_par"]],
-            pragma=pragma_list,
+            primitive=f"hls::stream<ap_axiu<{self.get_nodeattr('axi_bitwidth')}, 0, 0, 0>>",
+            pragma=[
+                f"#pragma HLS INTERFACE axis port={self.__get_stream_name(self.onnx_node.input[0])}"
+            ],
         )
 
         return [var]
@@ -129,60 +130,64 @@ class ConsumeStream(CustomOp):
         """
         return []
 
-    def get_object_cpp(self, model) -> cpp_object:
-        """ Generates the cpp ConsumeStream object. 
+    def get_object_cpp(self, model, model_II: int = 1) -> cpp_object:
+        """ Generates the cpp ProduceStream object. 
         Args:
             model (ModelWrapper): The model with quantization information.
         Returns:
-            str: The ConsumeStream as cpp_object.
+            str: The ProduceStream as cpp_object.
         """
-        # The output has to be an AXI Lite interface, the bitwidth is defined by the board used.
-        output_bitwidth = self.get_nodeattr("axi_bitwidth")
+        # The input has to be an AXI Lite interface, the bitwidth is defined by the board used.
+        input_bitwidth = self.get_nodeattr("axi_bitwidth")
 
-        # The output quant is the same as the input quant, since the ConsumeStream node
+        # Input and output quantization are the same, since the ProduceStream node
         # does not change the data type of the input tensor.
-        input_quant = get_custom_tensor_datatype(model, self.onnx_node.input[0])
-        if input_quant is None:
-            raise ValueError(f"Tensor quantization for output '{self.onnx_node.input[0]}' not found in model.")
+        output_quant = get_custom_tensor_datatype(model, self.onnx_node.output[0])
+        if output_quant is None:
+            raise ValueError(f"Tensor quantization for output '{self.onnx_node.output[0]}' not found in model.")
 
         # Retrieve parallelization attributes.
         par_attribute = get_par_attributes(self.onnx_node)
 
         # Retrieve tensor shape.
         input_shape = model.get_tensor_shape(self.onnx_node.input[0])
+        if input_shape is None:
+            raise ValueError(f"Tensor shape for input '{self.onnx_node.input[0]}' not found in model.")
 
-        # Create the ConsumeStream object.
-        ConsumeStream = cpp_object(
-            "ConsumeStream",
+        ProduceStream = cpp_object(
+            "ProduceStream",
             f"{self.onnx_node.name}",
             [
+                (f"ap_axiu<{input_bitwidth}, 0, 0, 0>", "TInputStruct"),
+                (f"ap_uint<{input_bitwidth}>", "TInput"),
                 (
-                    f"{get_struct_type(input_quant, par_attribute['in_ch_par'])}",
-                    "TInputStruct",
+                    f"{get_struct_type(output_quant, par_attribute['out_ch_par'])}",
+                    "TOutputStruct",
                 ),
-                (f"{get_hls_quant_type(input_quant)}", "TInput"),
-                (f"ap_axiu<{output_bitwidth}, 0, 0, 0>", "TOutputStruct"),
-                (f"ap_uint<{output_bitwidth}>", "TOutput"),
+                (f"{get_hls_quant_type(output_quant)}", "TOutput"),
                 (
-                    f"DequantQuantEqual<{get_hls_quant_type(input_quant)}>",
+                    f"DequantQuantEqual<{get_hls_quant_type(output_quant)}>",
                     "Quantizer",
                 ),
                 (self.__get_data_per_word(model), "DATA_PER_WORD"),
-                (input_quant.bitwidth, "BITS_PER_DATA"),
+                (output_quant.bitwidth, "BITS_PER_DATA"),
                 (input_shape[2], "IN_HEIGHT"),
                 (input_shape[3], "IN_WIDTH"),
-                (input_shape[1], "IN_CH"),
-                (par_attribute["in_w_par"], "IN_W_PAR"),
-                (par_attribute["in_ch_par"], "IN_CH_PAR"),
+                (input_shape[1], "OUT_CH"),
+                (par_attribute["out_w_par"], "OUT_W_PAR"),
+                (par_attribute["out_ch_par"], "OUT_CH_PAR"),
             ],
+            [
+                (f"{self.get_nodeattr('pipeline_depth')}", "pipeline_depth"),
+                (f"{model_II}", "model_II"),
+            ]
         )
 
-        return ConsumeStream
+        return ProduceStream
 
-    def generate_run_call(self) -> str:
-        """ Generates the C++ code necessary to run the ConsumeStream node. """
+    def generate_run_call(self):
+        """ Generates the C++ code necessary to run the ProduceStream node. """
 
-        # Generate the call to the ConsumeStream run method.
         run = cpp_function(
             name=f"{self.onnx_node.name}.run",
             return_type="void",
@@ -205,17 +210,31 @@ class ConsumeStream(CustomOp):
         )
 
     def generate_step_call(self) -> str:
-        """ Generates the C++ code necessary to step the ConsumeStream node. """
+        """ Generates the C++ code necessary to run the ProduceStream node in step mode. """
 
-        # Generate the call to the ConsumeStream step method.
         step = cpp_function(
             name=f"{self.onnx_node.name}.step",
             return_type="void",
             arguments=(
                 (
-                    f"input_data_stream",
-                    f"hls::stream<TInputStruct>",
+                    f"output_data_stream",
+                    f"hls::stream<TOutputStruct>",
                 ),
+            ),
+        )
+
+        return step.generate_call(
+            [],
+            self.__get_stream_name(self.onnx_node.output[0]),
+        )
+
+    def generate_fixed_throughput_producer_step_call(self) -> str:
+        """Generates the C++ code necessary to run the FixedThroughputProducer node feeding the ProduceStream node in step mode."""
+
+        step = cpp_function(
+            name=f"{self.onnx_node.name}.fixedthroughput_step",
+            return_type="void",
+            arguments=(
                 (
                     f"output_data_stream",
                     f"hls::stream<TOutputStruct>",
@@ -226,14 +245,13 @@ class ConsumeStream(CustomOp):
         return step.generate_call(
             [],
             self.__get_stream_name(self.onnx_node.input[0]),
-            self.__get_stream_name(self.onnx_node.output[0]),
         )
 
-    def generate_call_write_output_to_file(self, model, file_name: str) -> str:
+    def generate_call_read_input_from_file(self, model, file_name: str) -> str:
         """
         Generate the code to read the input from a npy file, quantize it and convert it to an HLS stream.
         """
-        output_bitwidth = self.get_nodeattr("axi_bitwidth")
+        input_bitwidth = self.get_nodeattr("axi_bitwidth")
 
         output_quant = get_custom_tensor_datatype(model, self.onnx_node.output[0])
         if output_quant is None:
@@ -241,14 +259,8 @@ class ConsumeStream(CustomOp):
                 f"Tensor quantization for output '{self.onnx_node.output[0]}' not found in model."
             )
 
-        output_shape = model.get_tensor_shape(self.onnx_node.output[0])
-        if output_shape is None:
-            raise ValueError(
-                f"Tensor shape for output '{self.onnx_node.output[0]}' not found in model."
-            )
-
-        npy_write = cpp_function(
-            name=f"hls_stream_to_npy",
+        npy_read = cpp_function(
+            name=f"npy_to_hls_stream",
             return_type="void",
             templates=["typename TAxi", "typename TData", "typename TDataNumpy"],
             arguments=[
@@ -256,19 +268,17 @@ class ConsumeStream(CustomOp):
                 cpp_variable(f"stream", f"hls::stream<TAxi>&"),
                 cpp_variable("data_per_word", "int"),
                 cpp_variable("bits_per_data", "int"),
-                cpp_variable("shape", "const std::vector<size_t>&"),
             ],
         )
 
-        return npy_write.generate_call(
+        return npy_read.generate_call(
             [
-                f"ap_axiu<{output_bitwidth}, 0, 0, 0>",
+                f"ap_axiu<{input_bitwidth}, 0, 0, 0>",
                 get_hls_quant_type(output_quant),
                 get_cpp_quant_type(output_quant),
             ],
             file_name,
-            self.__get_stream_name(self.onnx_node.output[0]),
+            self.__get_stream_name(self.onnx_node.input[0]),
             self.__get_data_per_word(model),
             output_quant.bitwidth,
-            f"{{{output_shape[0]}, {output_shape[2]}, {output_shape[3]}, {output_shape[1]}}}",
         )

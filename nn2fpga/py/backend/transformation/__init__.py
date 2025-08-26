@@ -12,8 +12,7 @@ from backend.transformation.fullyconnected_to_conv import FullyConnectedToPointw
 from backend.transformation.generate_bitstream import GenerateBitstream
 from backend.transformation.generate_driver import GenerateDriver
 from backend.transformation.infer_quant import InferQuant
-from backend.transformation.insert_consume_stream import InsertConsumeStream
-from backend.transformation.insert_produce_stream import InsertProduceStream
+from NN2FPGA.nn2fpga.py.backend.transformation.insert_axi_converters import InsertAXIConverters
 from backend.transformation.insert_streaming_line_buffer import InsertStreamingLineBuffer
 from backend.transformation.insert_tensor_duplicator import InsertTensorDuplicator
 from backend.transformation.lower_to_nn2fpga_layers import LowerToNN2FPGALayers

@@ -1,5 +1,5 @@
-from backend.custom_op.producestream import ProduceStream
-from backend.custom_op.consumestream import ConsumeStream
+from NN2FPGA.nn2fpga.py.backend.custom_op.nhwctostream import NHWCToStream
+from NN2FPGA.nn2fpga.py.backend.custom_op.streamtonhwc import StreamToNHWC
 from backend.custom_op.tensorduplicator import TensorDuplicator
 from backend.custom_op.bandwidthadjust import (
     BandwidthAdjustIncreaseChannels, BandwidthAdjustDecreaseChannels,
@@ -18,9 +18,9 @@ custom_op = {
     "BandwidthAdjustDecreaseStreams": BandwidthAdjustDecreaseStreams,
     "BandwidthAdjustIncreaseChannels": BandwidthAdjustIncreaseChannels,
     "BandwidthAdjustIncreaseStreams": BandwidthAdjustIncreaseStreams,
-    "ConsumeStream": ConsumeStream,
+    "StreamToNHWC": StreamToNHWC,
     "ParamStream": ParamStream,
-    "ProduceStream": ProduceStream,
+    "NHWCToStream": NHWCToStream,
     "nn2fpgaPartition": nn2fpgaPartition,
     "StreamingAdd": StreamingAdd,
     "StreamingConv": StreamingConv,

@@ -2,11 +2,12 @@ from qonnx.transformation.base import Transformation
 from qonnx.core.modelwrapper import ModelWrapper
 from backend.util.board_util import read_board_info
 from onnx import helper
+from qonnx.util.basic import get_by_name
 
-class InsertProduceStream(Transformation):
+class InsertAXIConverters(Transformation):
     """
-    Inserts a ProduceStream node for each input tensor in the model.
-    This node will stream the input tensor read from an AXI Lite interface.
+    Inserts AXI converters for each input/output tensors in the model.
+    This will convert the input/output tensor from/to AXI format.
     """
     def __init__(self, nn2fpga_root: str):
         """
@@ -30,15 +31,15 @@ class InsertProduceStream(Transformation):
             orig_input_name = inp.name
             produce_stream_output = f"{orig_input_name}_streamed"
 
-            # Create the custom node ProduceStream
+            # Create the custom node NHWCToStream
             produce_node = helper.make_node(
-                op_type="ProduceStream",
+                op_type="NHWCToStream",
                 domain="backend.custom_op",
                 inputs=[orig_input_name],
                 outputs=[produce_stream_output],
                 normalize=0,
                 axi_bitwidth=board_res["axi_bitwidth"],
-                name=f"ProduceStream_{i}",
+                name=f"NHWCToStream_{i}",
             )
 
             # Replace all uses of this input
@@ -53,5 +54,29 @@ class InsertProduceStream(Transformation):
         # Insert all new nodes at the beginning
         for node in reversed(new_nodes):
             model.graph.node.insert(0, node)
+
+        
+        new_nodes = []
+        for i, out in enumerate(model.graph.output):
+            orig_output_name = out.name
+            consume_stream_output = f"{orig_output_name}_streamed"
+
+            # Create the custom node StreamToNHWC
+            consume_node = helper.make_node(
+                op_type="StreamToNHWC",
+                domain="backend.custom_op",
+                outputs=[consume_stream_output],
+                inputs=[orig_output_name],
+                axi_bitwidth=board_res["axi_bitwidth"],
+                name=f"ConsumeStream_{i}"
+            )
+
+            get_by_name(model.graph.output, orig_output_name).name = consume_stream_output 
+            new_nodes.append(consume_node)
+
+        # Insert all new nodes at the beginning
+        for node in new_nodes:
+            model.graph.node.append(node)
+
 
         return (model, False)
