@@ -114,15 +114,16 @@ def generate_config_file(config_dict):
             cwr.add_line(f"const float {key} = {value}f;")
         else:   
             cwr.add_line(f"const int {key} = {value};")
-    cwr.add_line(f"typedef DequantQuantPo2<5, 32, 8> Quantizer;")
-    cwr.add_line(f"typedef ap_int<8> TInput;")
-    cwr.add_line(f"typedef ap_int<8> TWeight;")
-    cwr.add_line(f"typedef ap_int<32> TBias;")
-    cwr.add_line(f"typedef ap_int<8> TOutput;")
-    input_tensor_variable = csnake.Variable("input_tensor", primitive="ap_int<8>", value=input_tensor)
-    weight_tensor_variable = csnake.Variable("weight_tensor", primitive="ap_int<8>", value=weight_tensor)
-    bias_tensor_variable = csnake.Variable("bias_tensor", primitive="ap_int<32>", value=bias_tensor)
-    output_tensor_variable = csnake.Variable("output_tensor", primitive="ap_int<8>", value=y)
+    cwr.add_line(f"typedef DequantQuantPo2<5, {config_dict['ACC_DATAWIDTH']}, {config_dict['OUTPUT_DATAWIDTH']}> Quantizer;")
+    cwr.add_line(f"typedef ap_int<{config_dict['INPUT_DATAWIDTH']}> TInput;")
+    cwr.add_line(f"typedef ap_int<{config_dict['WEIGHT_DATAWIDTH']}> TWeight;")
+    cwr.add_line(f"typedef ap_int<{config_dict['BIAS_DATAWIDTH']}> TBias;")
+    cwr.add_line(f"typedef ap_int<{config_dict['OUTPUT_DATAWIDTH']}> TOutput;")
+    cwr.add_line(f"typedef ap_int<{config_dict['ACC_DATAWIDTH']}> TAcc;")
+    input_tensor_variable = csnake.Variable("input_tensor", primitive=f"ap_int<{config_dict['INPUT_DATAWIDTH']}>", value=input_tensor)
+    weight_tensor_variable = csnake.Variable("weight_tensor", primitive=f"ap_int<{config_dict['WEIGHT_DATAWIDTH']}>", value=weight_tensor)
+    bias_tensor_variable = csnake.Variable("bias_tensor", primitive=f"ap_int<{config_dict['BIAS_DATAWIDTH']}>", value=bias_tensor)
+    output_tensor_variable = csnake.Variable("output_tensor", primitive=f"ap_int<{config_dict['OUTPUT_DATAWIDTH']}>", value=y)
     cwr.add_lines(input_tensor_variable.generate_initialization())
     cwr.add_lines(weight_tensor_variable.generate_initialization())
     cwr.add_lines(bias_tensor_variable.generate_initialization())
@@ -185,6 +186,11 @@ def test_pointwise_pertensor_po2():
     np.random.seed(42)
 
     config_dict = {
+        "ACC_DATAWIDTH": 32,
+        "INPUT_DATAWIDTH": 8,
+        "WEIGHT_DATAWIDTH": 8,
+        "BIAS_DATAWIDTH": 32,
+        "OUTPUT_DATAWIDTH": 8,
         "OUT_HEIGHT": 4,
         "OUT_WIDTH": 4,
         "IN_CH": 4,
@@ -219,6 +225,11 @@ def test_pointwise_pertensor_po2_stride():
     np.random.seed(42)
 
     config_dict = {
+        "ACC_DATAWIDTH": 32,
+        "INPUT_DATAWIDTH": 8,
+        "WEIGHT_DATAWIDTH": 8,
+        "BIAS_DATAWIDTH": 32,
+        "OUTPUT_DATAWIDTH": 8,
         "OUT_HEIGHT": 2,
         "OUT_WIDTH": 2,
         "IN_CH": 4,
@@ -253,6 +264,11 @@ def test_3x3_pertensor_po2():
     np.random.seed(42)
 
     config_dict = {
+        "ACC_DATAWIDTH": 32,
+        "INPUT_DATAWIDTH": 8,
+        "WEIGHT_DATAWIDTH": 8,
+        "BIAS_DATAWIDTH": 32,
+        "OUTPUT_DATAWIDTH": 8,
         "OUT_HEIGHT": 4,
         "OUT_WIDTH": 4,
         "IN_CH": 4,
@@ -287,6 +303,11 @@ def test_1x5_pertensor_po2():
     np.random.seed(42)
 
     config_dict = {
+        "ACC_DATAWIDTH": 32,
+        "INPUT_DATAWIDTH": 8,
+        "WEIGHT_DATAWIDTH": 8,
+        "BIAS_DATAWIDTH": 32,
+        "OUTPUT_DATAWIDTH": 8,
         "OUT_HEIGHT": 2,
         "OUT_WIDTH": 2,
         "IN_CH": 4,

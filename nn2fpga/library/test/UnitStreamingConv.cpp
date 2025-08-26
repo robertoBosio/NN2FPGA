@@ -16,7 +16,6 @@ bool test_run_simple() {
   using TBiasStruct = std::array<test_config::TBias, test_config::OUT_CH_PAR>;
   using TOutputStruct =
       std::array<test_config::TOutput, test_config::OUT_CH_PAR>;
-  using TAcc = test_config::TBias;
   size_t FW_EXPAND =
       test_config::FW + (test_config::W_PAR - 1) * test_config::STRIDE_W;
   size_t IN_HEIGHT = ((test_config::OUT_HEIGHT - 1) * test_config::STRIDE_H +
@@ -107,7 +106,7 @@ bool test_run_simple() {
 
   // Run the convolution
   StreamingConv<TInputStruct, test_config::TInput, TWeightStruct, TBiasStruct,
-                TOutputStruct, test_config::TOutput, TAcc,
+                TOutputStruct, test_config::TOutput, test_config::TAcc,
                 test_config::Quantizer, test_config::OUT_CH, test_config::IN_CH,
                 test_config::OUT_HEIGHT, test_config::OUT_WIDTH, test_config::GROUP,
                 test_config::FH, test_config::FW, test_config::STRIDE_H,
@@ -184,7 +183,6 @@ bool test_step_simple_pipelined() {
   using TBiasStruct = std::array<test_config::TBias, test_config::OUT_CH_PAR>;
   using TOutputStruct =
       std::array<test_config::TOutput, test_config::OUT_CH_PAR>;
-  using TAcc = test_config::TBias;
   size_t FW_EXPAND =
       test_config::FW + (test_config::W_PAR - 1) * test_config::STRIDE_W;
   size_t IN_HEIGHT = ((test_config::OUT_HEIGHT - 1) * test_config::STRIDE_H +
@@ -202,7 +200,7 @@ bool test_step_simple_pipelined() {
 
   // Run the convolution
   StreamingConv<TInputStruct, test_config::TInput, TWeightStruct, TBiasStruct,
-                TOutputStruct, test_config::TOutput, TAcc,
+                TOutputStruct, test_config::TOutput, test_config::TAcc,
                 test_config::Quantizer, test_config::OUT_CH, test_config::IN_CH,
                 test_config::OUT_HEIGHT, test_config::OUT_WIDTH, test_config::GROUP,
                 test_config::FH, test_config::FW, test_config::STRIDE_H,
