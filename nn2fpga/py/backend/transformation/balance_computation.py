@@ -17,7 +17,7 @@ from onnx import NodeProto
 import logging
 logger = logging.getLogger(__name__)
 
-PARALLELIZABLE_LAYERS = ["StreamingConv", "StreamingGlobalAveragePool", "StreamingGlobalMaxPool", "AveragePool", "MaxPool", "ProduceStream", "ConsumeStream"]
+PARALLELIZABLE_LAYERS = ["StreamingConv", "StreamingGlobalAveragePool", "StreamingGlobalMaxPool", "AveragePool", "MaxPool", "NHWCToStream", "StreamToNHWC"]
 
 def packing_feature(operands_bitwidth, par, silvia_packing):
     """ Returns the number of operation that can be packed in a single DSP. 
@@ -199,9 +199,9 @@ def generate_architectures(
                 depth=layer["depth"],
             )
 
-        elif layer["type"] in ["ProduceStream", "ConsumeStream"]:
+        elif layer["type"] in ["StreamToNHWC", "NHWCToStream"]:
 
-            # Clipping the maximum parallelization of ProduceStream and ConsumeStream to the bandwidth of the AXI bus.
+            # Clipping the maximum parallelization of StreamToNHWC and NHWCToStream to the bandwidth of the AXI bus.
             op_clip = axi_bitwidth // layer["act_bits"]
 
             valid_par_solutions_layer = generate_valid_combinations(
@@ -214,7 +214,7 @@ def generate_architectures(
                 depth=layer["depth"],
             )
 
-            # For ProduceStream and ConsumeStream, the output width can be bigger than 1 only if the channels are packed in a single word.
+            # For NHWCToStream and StreamToNHWC, the output width can be bigger than 1 only if the channels are packed in a single word.
             temp_par_solutions = []
             for solution in valid_par_solutions_layer:
                 if solution[2] > 1 and solution[0] != layer["och"]:
@@ -287,14 +287,14 @@ def layers_extractions(model: ModelWrapper) -> list:
                 act_bits = get_custom_tensor_datatype(model, node.input[0]).bitwidth
                 weight_bits = 0
 
-            elif node.op_type == "ConsumeStream":
+            elif node.op_type == "StreamToNHWC":
                 kernel = 1
                 depth = True
                 ops = math.prod(output_shape)
                 weight_bits = 0
                 act_bits = get_custom_tensor_datatype(model, node.input[0]).bitwidth
 
-            elif node.op_type == "ProduceStream":
+            elif node.op_type == "NHWCToStream":
                 kernel = 1
                 depth = True
                 ops = math.prod(input_shape)
@@ -629,8 +629,8 @@ def update_model(model: ModelWrapper, parallel_op: dict) -> ModelWrapper:
 def propagate_parallelism(model: ModelWrapper) -> ModelWrapper:
     """Propagate the parallelism information through the model."""
     
-    # Retrieving the ProduceStream nodes to propagate the parallelism.
-    queue = deque(model.get_nodes_by_op_type("ProduceStream"))
+    # Retrieving the NHWCToStream nodes to propagate the parallelism.
+    queue = deque(model.get_nodes_by_op_type("NHWCToStream"))
     mark_visited = set()
 
     while queue:
