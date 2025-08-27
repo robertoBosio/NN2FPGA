@@ -9,16 +9,6 @@ class InsertAXIConverters(Transformation):
     Inserts AXI converters for each input/output tensors in the model.
     This will convert the input/output tensor from/to AXI format.
     """
-    def __init__(self, nn2fpga_root: str):
-        """
-        Initialize the transformation with the path to the nn2fpga root directory.
-        
-        Args:
-            nn2fpga_root (str): Path to the nn2fpga root directory.
-        """
-        super().__init__()
-        self.nn2fpga_root = nn2fpga_root
-        
 
     def apply(self, model: ModelWrapper) -> tuple[ModelWrapper, bool]:
         
@@ -68,7 +58,7 @@ class InsertAXIConverters(Transformation):
                 outputs=[consume_stream_output],
                 inputs=[orig_output_name],
                 axi_bitwidth=board_res["axi_bitwidth"],
-                name=f"ConsumeStream_{i}"
+                name=f"StreamToNHWC_{i}"
             )
 
             get_by_name(model.graph.output, orig_output_name).name = consume_stream_output 
