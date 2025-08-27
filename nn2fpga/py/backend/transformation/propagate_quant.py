@@ -19,16 +19,16 @@ QUANT_INVARIANT_NODES = [
     "BandwidthAdjustIncreaseChannels",  # nn2FPGA
     "BandwidthAdjustIncreaseStreams",  # nn2FPGA
     "Concat",
-    "ConsumeStream",  # nn2FPGA
     "Flatten",
     "GlobalMaxPool",
     "Identity",
     "MaxPool",
+    "NHWCToStream",  # nn2FPGA
     "Pad",
-    "ProduceStream",  # nn2FPGA
     "Relu",
     "Reshape",
     "Split",
+    "StreamToNHWC",  # nn2FPGA
     "TensorDuplicator",  # nn2FPGA
     "Transpose",
 ]
