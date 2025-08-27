@@ -130,7 +130,7 @@ class AdjustStreamingCommunication(Transformation):
 
         # Traversing the graph to find nodes that require adjustment
         communication_nodes = []
-        queue = deque(model.get_nodes_by_op_type("ProduceStream"))
+        queue = deque(model.get_nodes_by_op_type("NHWCToStream"))
         mark_visited = set()
 
         while queue:
