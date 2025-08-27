@@ -1,17 +1,6 @@
 from qonnx.transformation.base import Transformation
 from qonnx.core.modelwrapper import ModelWrapper
-from backend.transformation.supported_partition import FPGA_SUPPORTED_OPS
-from onnx import helper
-from backend.custom_op.streamingconv import StreamingConv
-from backend.custom_op.streamingglobalaveragepool import StreamingGlobalAveragePool
-from backend.custom_op.streamingadd import StreamingAdd
-from backend.custom_op.streamingrelu import StreamingRelu
-
-from qonnx.transformation.base import Transformation
-from qonnx.core.modelwrapper import ModelWrapper
-from qonnx.transformation.infer_shapes import InferShapes
-from onnx import helper, TensorProto
-from onnxscript.rewriter import pattern, rewrite
+from onnxscript.rewriter import rewrite
 from backend.custom_op.register_rewrite_rule import collect_rules
 from onnxscript import ir
 import logging
