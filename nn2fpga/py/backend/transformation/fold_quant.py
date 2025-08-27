@@ -59,7 +59,7 @@ class FoldQuant(Transformation):
                 != expected_tensor_quant.get_canonical_name()
             ):
                 # This case can happen if there are multiple Quant nodes with different parameters. It is not an error, but we cannot fold the Quant node,
-                # and thsu we have to implement it in the hardware.
+                # and thus we have to implement it in the hardware.
                 not_folded += 1
                 continue
 
@@ -69,6 +69,7 @@ class FoldQuant(Transformation):
             # In case the input to the quant is a model input,
             # we need to update the consumers of the quant to use directly the model input
             if producer is None:
+                set_custom_tensor_datatype(model, quant.input[0], expected_tensor_quant)
                 consumers = model.find_consumers(quant.output[0])
                 for consumer in consumers:
                     for i, inp in enumerate(consumer.input):
