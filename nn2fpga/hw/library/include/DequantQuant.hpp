@@ -26,7 +26,8 @@ template <typename T> struct is_ap_signed {
                    _AP_ROOT_TYPE<T::Base::width, true>>::value;
 };
 
-template <int Shift, typename TAcc, typename TOut> struct DequantQuantPo2 {
+template <int Shift, typename TAcc, typename TOut, int ZeroPoint = 0>
+struct DequantQuantPo2 {
 
   TOut operator()(TAcc acc) const {
 #pragma HLS inline
@@ -35,6 +36,9 @@ template <int Shift, typename TAcc, typename TOut> struct DequantQuantPo2 {
 
 private:
   static TOut run(TAcc acc, std::true_type) {
+    constexpr int WideBits =
+        (TAcc::width > TOut::width ? TAcc::width : TOut::width) + 2;
+    using TWide = ap_int<WideBits>;
 
     // Absolute value in unsigned to get a true remainder magnitude.
     const bool neg = acc.sign();
@@ -58,16 +62,16 @@ private:
       rounded = TAcc(rounded_mag);
     }
 
+    TWide shifted = TWide(rounded) + TWide(ZeroPoint);
+
     // Saturate to OUT_WIDTH
-    if (rounded > LimitsImpl<TOut>::max()) {
-      rounded = LimitsImpl<TOut>::max();
+    if (shifted > TWide(LimitsImpl<TOut>::max())) {
+      shifted = TWide(LimitsImpl<TOut>::max());
     }
-    if (is_ap_signed<TAcc>::value) {
-      if (rounded < LimitsImpl<TOut>::min()) {
-        rounded = LimitsImpl<TOut>::min();
-      }
+    if (shifted < TWide(LimitsImpl<TOut>::min())) {
+      shifted = TWide(LimitsImpl<TOut>::min());
     }
-    return TOut(rounded);
+    return TOut(shifted);
   }
 
   static TOut run(TAcc acc, std::false_type) {
@@ -83,6 +87,7 @@ private:
 
     TWide wide = TWide(acc);
     wide = wide << L;
+    wide += TWide(ZeroPoint);
 
     const TWide wmax = TWide(LimitsImpl<TOut>::max());
     const TWide wmin = TWide(LimitsImpl<TOut>::min());
@@ -96,7 +101,7 @@ private:
   }
 };
 
-template <int Num, int Den, typename TAcc, typename TOut>
+template <int Num, int Den, typename TAcc, typename TOut, int ZeroPoint = 0>
 struct DequantQuantFloat {
 
   TOut operator()(TAcc acc) const {
@@ -117,8 +122,10 @@ struct DequantQuantFloat {
       r = (fi & 1) ? (f + 1.0f) : f;
     }
 
-    float lo = float(LimitsImpl<TOut>::min());
-    float hi = float(LimitsImpl<TOut>::max());
+    r += float(ZeroPoint);
+
+    const float lo = float(LimitsImpl<TOut>::min());
+    const float hi = float(LimitsImpl<TOut>::max());
     if (r < lo)
       r = lo;
     if (r > hi)

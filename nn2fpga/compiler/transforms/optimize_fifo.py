@@ -117,11 +117,12 @@ class OptimizeFifo(Transformation):
 
         candidates = self._find_candidate_fifos(hls_model)
         selected = self._select_candidate_fifos(candidates)
-        logger.info(
-            "Selected %d FIFOs for DDR: %s",
-            len(selected),
-            ", ".join(candidate.fifo_name for candidate in selected),
-        )
+        if len(selected) > 0:
+            logger.info(
+                "Selected %d FIFOs for DDR: %s",
+                len(selected),
+                ", ".join(candidate.fifo_name for candidate in selected),
+            )
 
         for candidate in selected:
             bandwidth_increase = (2 * np.prod(candidate.shape) * candidate.dtype.bitwidth / 8) / (model_II / frequency)

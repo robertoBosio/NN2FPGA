@@ -2,11 +2,13 @@ from qonnx.core.modelwrapper import ModelWrapper
 from qonnx.transformation.base import Transformation
 from qonnx.transformation.qonnx_to_qcdq import QuantToQCDQ
 from qonnx.custom_op.registry import getCustomOp
-from nn2fpga.compiler.transforms.add_streaming_params import quant_array
+from qonnx.util.basic import get_by_name
+from nn2fpga.compiler.utils.quantization import quant_array
 from nn2fpga.compiler.core.acceleratorpackage import AcceleratorPackage
 from nn2fpga.compiler.core.tensor_type import TensorType, QuantizedTensorType
 from nn2fpga.compiler.core.tensor_layout import TensorLayout
 from onnx import TensorProto, helper, numpy_helper
+from onnx.helper import get_attribute_value
 import onnx.shape_inference as si
 from onnxscript.rewriter import pattern, rewrite
 from onnxscript import ir
@@ -73,9 +75,9 @@ def _extract_scalar_const(v):
     if v.const_value is None:
         return None
     arr = v.const_value.numpy()
-    if arr.shape != ():
+    if arr.size != 1:
         return None
-    return arr.item()
+    return arr.reshape(()).item()
 
 
 def _extract_optional_attr_value(v, default=None):
@@ -183,9 +185,11 @@ def is_dynamic_quant_rewritable(
     rounding_mode_val = _extract_optional_attr_value(rounding_mode, "ROUND")
     if not _is_supported_quant_config(bitwidth_scalar, signed_val, narrow_val, rounding_mode_val):
         return False
-    if scale.const_value.numpy().ndim != 0 or zero_point.const_value.numpy().ndim != 0:
+    scale_np = scale.const_value.numpy()
+    zero_point_np = zero_point.const_value.numpy()
+    if scale_np.size != 1 or zero_point_np.size != 1:
         logger.warning(
-            "Skipping Quant lowering: only scalar scale/zero_point handled in dynamic Q/DQ rewrite"
+            "Skipping Quant lowering: only per-tensor single-value scale/zero_point handled in dynamic Q/DQ rewrite"
         )
         return False
     return True
@@ -195,6 +199,34 @@ def create_const_initializer(model, value, dtype):
     init_name = model.make_new_valueinfo_name()
     model.set_initializer(init_name, np.array(value, dtype=dtype))
     return init_name
+
+
+def _get_tensor_dtype(model: ModelWrapper, tensor_name: str):
+    initializer = get_by_name(model.graph.initializer, tensor_name)
+    if initializer is not None:
+        return initializer.data_type
+
+    producer = model.find_producer(tensor_name)
+    if producer is not None and producer.op_type == "Constant":
+        value_attr = next((attr for attr in producer.attribute if attr.name == "value"), None)
+        if value_attr is not None:
+            return get_attribute_value(value_attr).data_type
+
+    return None
+
+
+def _ensure_qlinear_output_shapes(model: ModelWrapper):
+    for node in model.get_nodes_by_op_type("QuantizeLinear"):
+        output_name = node.output[0]
+        if model.get_tensor_shape(output_name) is not None:
+            continue
+
+        input_shape = model.get_tensor_shape(node.input[0])
+        if input_shape is None:
+            continue
+
+        output_dtype = _get_tensor_dtype(model, node.input[2])
+        model.set_tensor_shape(output_name, input_shape, dtype=output_dtype)
 
 
 def quant_to_qcdq(op, x, scale, zero_point, bitwidth, signed, narrow, rounding_mode):
@@ -253,6 +285,7 @@ class ConvertToQCDQ(Transformation):
             model_proto = ir.to_proto(ir_model)
 
             model = ModelWrapper(model_proto)
+            _ensure_qlinear_output_shapes(model)
             assert model.get_nodes_by_op_type("Quant") == [], \
                 "Not all Quant nodes were rewritten to QCDQ pattern"
 

@@ -1,0 +1,54 @@
+from fractions import Fraction
+
+import numpy as np
+
+
+def classify_linear_quantizer(acc_scale, out_scale, same_type, max_den=1 << 20, atol=1e-12):
+    ratio = float(acc_scale) / float(out_scale)
+
+    if np.isclose(ratio, 1.0, atol=atol) and same_type:
+        return "equal", None
+
+    log2_ratio = np.log2(ratio)
+    rounded = np.round(log2_ratio)
+    if np.isclose(log2_ratio, rounded, atol=atol):
+        shift = int(-rounded)
+        return "po2", shift
+
+    frac = Fraction(ratio).limit_denominator(max_den)
+    return "float", (int(frac.numerator), int(frac.denominator))
+
+
+def emit_linear_quantizer_typedef(
+    cwr,
+    alias,
+    acc_type,
+    out_type,
+    acc_scale,
+    out_scale,
+    same_type,
+    max_den=1 << 20,
+    atol=1e-12,
+):
+    mode, params = classify_linear_quantizer(
+        acc_scale,
+        out_scale,
+        same_type,
+        max_den=max_den,
+        atol=atol,
+    )
+
+    if mode == "equal":
+        cwr.add_line(f"typedef DequantQuantEqual<{out_type}> {alias};")
+    elif mode == "po2":
+        cwr.add_line(f"const int {alias}_SHIFT = {int(params)};")
+        cwr.add_line(
+            f"typedef DequantQuantPo2<{alias}_SHIFT, {acc_type}, {out_type}> {alias};"
+        )
+    else:
+        num, den = params
+        cwr.add_line(f"const int {alias}_NUM = {num};")
+        cwr.add_line(f"const int {alias}_DEN = {den};")
+        cwr.add_line(
+            f"typedef DequantQuantFloat<{alias}_NUM, {alias}_DEN, {acc_type}, {out_type}> {alias};"
+        )

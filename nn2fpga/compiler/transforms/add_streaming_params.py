@@ -3,7 +3,6 @@ from nn2fpga.compiler.core.tensor_layout import TensorLayout
 from qonnx.transformation.base import Transformation
 from qonnx.transformation.general import SortGraph, GiveUniqueNodeNames, GiveReadableTensorNames
 from qonnx.core.modelwrapper import ModelWrapper
-import qonnx.custom_op.general.quant as qonnx_quant
 from onnx import NodeProto, TensorProto, helper
 from nn2fpga.compiler.core.tensor_type import (
     QuantizedTensorType,
@@ -15,56 +14,9 @@ from qonnx.custom_op.registry import getCustomOp
 from nn2fpga.compiler.core.acceleratorpackage import AcceleratorPackage
 from nn2fpga.compiler.custom_op.op_base import NodeInterface, HasParameters
 from nn2fpga.compiler.utils.board_util import read_board_info
+from nn2fpga.compiler.utils.quantization import quant_array
 import logging
 logger = logging.getLogger(__name__)
-
-# Save original references before monkey-patching
-_original_min_int = qonnx_quant.min_int
-_original_max_int = qonnx_quant.max_int
-
-
-def _np_min_int(signed: bool, narrow_range: bool, bit_width: int) -> np.generic:
-    val = _original_min_int(signed, narrow_range, bit_width)
-    return np.array(val)
-
-
-def _np_max_int(signed: bool, narrow_range: bool, bit_width: int) -> np.generic:
-    val = _original_max_int(signed, narrow_range, bit_width)
-    return np.array(val)
-
-
-def safe_int_quant_call(*args, **kwargs):
-    # Monkey-patch min/max to return NumPy-safe scalars
-    qonnx_quant.min_int = _np_min_int
-    qonnx_quant.max_int = _np_max_int
-
-    try:
-        return qonnx_quant.quant(*args, **kwargs)
-    finally:
-        # Restore originals
-        qonnx_quant.min_int = _original_min_int
-        qonnx_quant.max_int = _original_max_int
-
-
-def quant_array(inp_tensor, scale, zeropt, bitwidth, signed, narrow, rounding_mode):
-    """Quantize an input tensor to a specified bitwidth and return the quantized tensor."""
-
-    # Let QONNX handle the quantization. This function return the quantized floating tensor.
-    inp_tensor = safe_int_quant_call(
-        inp_tensor,
-        scale=scale,
-        zeropt=zeropt,
-        bitwidth=bitwidth,
-        signed=signed,
-        narrow=narrow,
-        rounding_mode=rounding_mode,
-    )
-
-    # Moving from the quantized floating tensor to a int tensor, knowing that clipping
-    # and rounding have already been applied.
-    inp_tensor = inp_tensor / scale
-    inp_tensor = inp_tensor + zeropt
-    return inp_tensor.astype(np.int32)  # Convert to uint32 for packing
 
 def hoist_param(model: ModelWrapper, node: NodeProto) -> None:
     op = getCustomOp(node)

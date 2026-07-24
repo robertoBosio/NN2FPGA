@@ -1,3 +1,4 @@
+from fractions import Fraction
 import numpy as np
 import onnxruntime as rt
 from onnx import TensorProto, helper
@@ -294,7 +295,7 @@ class StreamingConv(NN2FPGAOp, DSECapable, HasParameters):
         )
         if len(node.input) > 5:
             bias = helper.make_tensor_value_info(
-                node.input[6], TensorProto.FLOAT, bias_values.shape
+                node.input[5], TensorProto.FLOAT, bias_values.shape
             )
 
         graph_conv = helper.make_graph(
@@ -311,7 +312,7 @@ class StreamingConv(NN2FPGAOp, DSECapable, HasParameters):
         if len(node.input) > 5:
             idict = {node.input[0]: inp_values,
                      node.input[1]: weight_values,
-                     node.input[6]: bias_values}
+                     node.input[5]: bias_values}
         else:
             idict = {node.input[0]: inp_values, 
                     node.input[1]: weight_values}
@@ -329,6 +330,19 @@ class StreamingConv(NN2FPGAOp, DSECapable, HasParameters):
         Returns the name of the stream for the tensor.
         """
         return f"{name}_stream"
+
+    def __get_effective_input_quant(self, input_quant):
+        if self.get_nodeattr("asym_folding") == 0:
+            return input_quant
+
+        return QuantizedTensorType(
+            bitwidth=input_quant.bitwidth,
+            signed=input_quant.signed,
+            scale=input_quant.scale,
+            zeropt=0,
+            narrow=input_quant.narrow,
+            rounding_mode=input_quant.rounding_mode,
+        )
 
     def __get_partial_accumulator(self, input_quant, weights_quant, bias_quant, weights_shape) -> str:
         """ Returns the accumulator type for the StreamingConv operation. """
@@ -380,6 +394,8 @@ class StreamingConv(NN2FPGAOp, DSECapable, HasParameters):
     def __get_quantizer(self, input_quant, weights_quant, bias_quant, output_quant, weights_shape) -> str:
         """ Returns the quantizer type for the StreamingConv operation. """
 
+        output_zeropt = int(np.asarray(output_quant.zeropt).reshape(()).item())
+
         # Check if the scale is a power of two
         if isinstance(weights_quant.scale, (list, np.ndarray)):
             if len(weights_quant.scale) != 1:
@@ -404,7 +420,7 @@ class StreamingConv(NN2FPGAOp, DSECapable, HasParameters):
             output_type = output_quant.get_hls_data_type()
             activation = self.get_nodeattr("activation")
             if activation == "NoOp":
-                return f"DequantQuantPo2<{shift}, {accumulator}, {output_type}>"
+                return f"DequantQuantPo2<{shift}, {accumulator}, {output_type}, {output_zeropt}>"
             if activation == "ReLU":
                 return f"ReLUQuantPo2<{shift}, {accumulator}, {output_type}>"
             if activation == "LeakyReLU":
@@ -420,14 +436,15 @@ class StreamingConv(NN2FPGAOp, DSECapable, HasParameters):
                 f"Unsupported activation function '{activation}' for StreamingConv."
             )
         else:
-            inv_scale = output_quant.scale / (weights_scale * input_quant.scale)
-            num = int(inv_scale * (2 ** 16))  # Fixed-point representation
-            den = 2 ** 16
+            ratio = (weights_scale * input_quant.scale) / output_quant.scale
+            frac = Fraction(float(ratio)).limit_denominator(1 << 20)
+            num = int(frac.numerator)
+            den = int(frac.denominator)
             accumulator = self.__get_accumulator(input_quant, weights_quant, bias_quant, weights_shape)
             output_type = output_quant.get_hls_data_type()
             activation = self.get_nodeattr("activation")
             if activation == "NoOp":
-                return f"DequantQuantFloat<{num}, {den}, {accumulator}, {output_type}>"
+                return f"DequantQuantFloat<{num}, {den}, {accumulator}, {output_type}, {output_zeropt}>"
             if activation in ["ReLU", "LeakyReLU"]:
                 raise ValueError(
                     f"Fused {activation} currently requires power-of-two quantization scales."
@@ -439,7 +456,9 @@ class StreamingConv(NN2FPGAOp, DSECapable, HasParameters):
     def __get_object_declaration(self, model) -> cpp_object:
         """ Generate the cpp_object for the StreamingConv operation. """
 
-        input_type = require_tensor_type(model, self.onnx_node.input[0])
+        input_type = self.__get_effective_input_quant(
+            require_tensor_type(model, self.onnx_node.input[0])
+        )
         output_type = require_tensor_type(model, self.onnx_node.output[0])
 
         weights_quant = QuantizedTensorType(

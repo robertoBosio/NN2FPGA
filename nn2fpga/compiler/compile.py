@@ -115,10 +115,11 @@ def _apply_frontend_transforms(
 def _apply_backend_transforms(model: ModelWrapper, prj_root: str) -> ModelWrapper:
     model = model.transform(transformation.FuseElementwiseOps())
     model = model.transform(transformation.FoldQuant())
-    model = model.transform(transformation.FoldAsymmetricActQuant())
+    model = model.transform(transformation.FoldAsymmetricActQuant())    
     model = model.transform(transformation.InferLayouts())
     model = model.transform(transformation.BalanceComputation(nn2fpga_root=prj_root))
     model = model.transform(transformation.AdjustStreamingCommunication())
+    model = model.transform(transformation.InferQuant())
     model = model.transform(transformation.InsertStreamingLineBuffer())
     model = model.transform(transformation.InferQuant())
     return model
@@ -203,18 +204,13 @@ def _run_simulation_check(
         store_intermediate,
         _artifact_path(prj_root, "final_model_before_sim.onnx"),
     )
-    _save_intermediate(
-        original_model,
-        store_intermediate,
-        _artifact_path(prj_root, "original_model_for_sim.onnx"),
-    )
     qcdq_original_model = original_model.transform(transformation.ConvertToQCDQ())
     _save_intermediate(
         qcdq_original_model,
         store_intermediate,
         _artifact_path(prj_root, "original_model_qcdq_for_sim.onnx"),
     )
-    test_transformation_equivalence(qcdq_original_model, model)
+    test_transformation_equivalence(qcdq_original_model, model, intermediate_tensors=[("Quant_177_out0_quantized", "val_179")])
 
 
 def _generate_bitstream(
