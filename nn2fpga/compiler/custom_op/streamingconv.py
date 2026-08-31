@@ -1003,6 +1003,7 @@ class StreamingConv(NN2FPGAOp, DSECapable, HasParameters):
         for in_channel_unroll in self.divisors([input_shape[-1]], input_shape[-1]):
             # Clipping out channel unrolling factor to avoid collapsing the loop,
             # due to a bug which forces Vitis to generate a stp pipeline.
+            # This does not work if there is only a single channel in the output
             for out_channel_unroll in self.divisors(
                 [output_shape[-1]], output_shape[-1] - 1
             ):

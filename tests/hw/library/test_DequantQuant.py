@@ -105,6 +105,7 @@ class TestDequantQuant(BaseHLSTest):
             config_dict["ACC_SCALE"],
             config_dict["OUT_SCALE"],
             same_type,
+            zero_point=config_dict.get("OUT_ZP", 0),
         )
 
         cwr.add_lines(
@@ -410,6 +411,23 @@ class TestDequantQuant(BaseHLSTest):
             "OUT_SIGNED": 1,
             "ACC_SCALE": 0.8,
             "OUT_SCALE": 0.3,
+        }
+        self.run(
+            config_dict,
+            hls_steps,
+        )
+
+    def test_po2_asymmetric(self, hls_steps):
+        config_dict = {
+            "ACC_DATAWIDTH": 32,
+            "OUT_DATAWIDTH": 8,
+            "INPUT": -91,
+            "ACC_SIGNED": 1,
+            "OUT_SIGNED": 1,
+            "ACC_SCALE": 1.0,
+            "OUT_SCALE": 2.0,
+            "ACC_ZP": 0,
+            "OUT_ZP": 77,
         }
         self.run(
             config_dict,

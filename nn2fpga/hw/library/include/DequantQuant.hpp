@@ -26,6 +26,27 @@ template <typename T> struct is_ap_signed {
                    _AP_ROOT_TYPE<T::Base::width, true>>::value;
 };
 
+constexpr int const_bit_width(unsigned x) {
+  int bits = 0;
+  do {
+    ++bits;
+    x >>= 1;
+  } while (x != 0);
+  return bits;
+}
+
+template <typename TAcc>
+inline bool is_negative_value(TAcc, std::false_type) {
+#pragma HLS inline
+  return false;
+}
+
+template <typename TAcc>
+inline bool is_negative_value(TAcc acc, std::true_type) {
+#pragma HLS inline
+  return acc.sign();
+}
+
 template <int Shift, typename TAcc, typename TOut, int ZeroPoint = 0>
 struct DequantQuantPo2 {
 
@@ -41,7 +62,7 @@ private:
     using TWide = ap_int<WideBits>;
 
     // Absolute value in unsigned to get a true remainder magnitude.
-    const bool neg = acc.sign();
+    const bool neg = is_negative_value(acc, std::integral_constant<bool, is_ap_signed<TAcc>::value>{});
     ap_uint<TAcc::width> uacc = hls::abs(acc);
 
     const ap_uint<Shift> half = ap_uint<Shift>(1) << (Shift - 1);
@@ -104,34 +125,81 @@ private:
 template <int Num, int Den, typename TAcc, typename TOut, int ZeroPoint = 0>
 struct DequantQuantFloat {
 
+  static_assert(Num > 0, "Num must be positive");
+  static_assert(Den > 0, "Den must be positive");
+
   TOut operator()(TAcc acc) const {
 #pragma HLS inline
-    constexpr float Scale = float(Num) / float(Den);
-    const float x = float(acc) * Scale;
+    constexpr int NumBits = const_bit_width(Num);
+    constexpr int ProductBits = TAcc::width + NumBits;
+    constexpr int WideBits = ProductBits + 2;
 
-    const float f = hls::floorf(x);
-    const float frac = x - f;
+    const bool neg = acc.sign();
+    ap_uint<TAcc::width> uacc = hls::abs(acc);
+    ap_uint<ProductBits> prod = ap_uint<ProductBits>(uacc) * ap_uint<NumBits>(Num);
 
-    float r;
-    if (frac < 0.5f) {
-      r = f;
-    } else if (frac > 0.5f) {
-      r = f + 1.0f;
-    } else {
-      const int fi = int(f);
-      r = (fi & 1) ? (f + 1.0f) : f;
+    ap_uint<ProductBits> quotient = prod / Den;
+    ap_uint<ProductBits> remainder = prod % Den;
+    ap_uint<ProductBits + 1> double_remainder = ap_uint<ProductBits + 1>(remainder) << 1;
+
+    ap_uint<ProductBits> rounded_mag = quotient;
+    if (double_remainder > Den || (double_remainder == Den && (quotient & 1))) {
+      rounded_mag = quotient + 1;
     }
 
-    r += float(ZeroPoint);
+    ap_int<WideBits> shifted;
+    if (is_ap_signed<TAcc>::value && neg) {
+      shifted = -ap_int<WideBits>(rounded_mag);
+    } else {
+      shifted = ap_int<WideBits>(rounded_mag);
+    }
+    shifted += ap_int<WideBits>(ZeroPoint);
 
-    const float lo = float(LimitsImpl<TOut>::min());
-    const float hi = float(LimitsImpl<TOut>::max());
-    if (r < lo)
-      r = lo;
-    if (r > hi)
-      r = hi;
+    const ap_int<WideBits> lo = ap_int<WideBits>(LimitsImpl<TOut>::min());
+    const ap_int<WideBits> hi = ap_int<WideBits>(LimitsImpl<TOut>::max());
+    if (shifted < lo)
+      shifted = lo;
+    if (shifted > hi)
+      shifted = hi;
 
-    return TOut(r);
+    return TOut(shifted);
+  }
+};
+
+template <int ZeroPoint, typename TIn, typename TAcc>
+struct DequantAlignEqual {
+
+  TAcc operator()(TIn in) const {
+#pragma HLS inline
+    constexpr int WideBits = (TIn::width > TAcc::width ? TIn::width : TAcc::width) + 1;
+    using TWide = ap_int<WideBits>;
+    return TAcc(TWide(in) - TWide(ZeroPoint));
+  }
+};
+
+template <int Shift, int ZeroPoint, typename TIn, typename TAcc>
+struct DequantAlignPo2 {
+
+  TAcc operator()(TIn in) const {
+#pragma HLS inline
+    constexpr int WideBits = (TIn::width > TAcc::width ? TIn::width : TAcc::width) + 1;
+    using TWide = ap_int<WideBits>;
+    DequantQuantPo2<Shift, TAcc, TAcc> quantizer;
+    const TAcc centered = TAcc(TWide(in) - TWide(ZeroPoint));
+    return quantizer(centered);
+  }
+};
+
+template <int Num, int Den, int ZeroPoint, typename TIn, typename TAcc>
+struct DequantAlignFloat {
+
+  TAcc operator()(TIn in) const {
+#pragma HLS inline
+    constexpr int WideBits = (TIn::width > TAcc::width ? TIn::width : TAcc::width) + 1;
+    using TWide = ap_int<WideBits>;
+    DequantQuantFloat<Num, Den, TAcc, TAcc> quantizer;
+    const TAcc centered = TAcc(TWide(in) - TWide(ZeroPoint));
+    return quantizer(centered);
   }
 };
 
@@ -143,6 +211,56 @@ template <typename TIn, int Shift> struct DequantPo2ToFloat {
     exp -= Shift;
     val.exponent_ref() = exp;
     return val;
+  }
+};
+
+template <int InputZeroPoint, int OutputZeroPoint, typename TIn, typename TOut>
+struct RequantizeEqual {
+  TOut operator()(TIn in) const {
+#pragma HLS inline
+    constexpr int WideBits = (TIn::width > TOut::width ? TIn::width : TOut::width) + 1;
+    using TWide = ap_int<WideBits>;
+
+    TWide centered = TWide(in) - TWide(InputZeroPoint);
+    centered += TWide(OutputZeroPoint);
+
+    const TWide wmax = TWide(LimitsImpl<TOut>::max());
+    const TWide wmin = TWide(LimitsImpl<TOut>::min());
+
+    if (centered > wmax)
+      centered = wmax;
+    if (centered < wmin)
+      centered = wmin;
+
+    return TOut(centered);
+  }
+};
+
+template <int Shift, int InputZeroPoint, int OutputZeroPoint, typename TIn,
+          typename TOut>
+struct RequantizePo2 {
+  TOut operator()(TIn in) const {
+#pragma HLS inline
+    constexpr int WideBits = (TIn::width > TOut::width ? TIn::width : TOut::width) + 1;
+    using TWide = ap_int<WideBits>;
+    using TCentered = ap_int<WideBits>;
+    DequantQuantPo2<Shift, TCentered, TOut, OutputZeroPoint> quantizer;
+    const TCentered centered = TCentered(TWide(in) - TWide(InputZeroPoint));
+    return quantizer(centered);
+  }
+};
+
+template <int Num, int Den, int InputZeroPoint, int OutputZeroPoint,
+          typename TIn, typename TOut>
+struct RequantizeFloat {
+  TOut operator()(TIn in) const {
+#pragma HLS inline
+    constexpr int WideBits = (TIn::width > TOut::width ? TIn::width : TOut::width) + 1;
+    using TWide = ap_int<WideBits>;
+    using TCentered = ap_int<WideBits>;
+    DequantQuantFloat<Num, Den, TCentered, TOut, OutputZeroPoint> quantizer;
+    const TCentered centered = TCentered(TWide(in) - TWide(InputZeroPoint));
+    return quantizer(centered);
   }
 };
 
