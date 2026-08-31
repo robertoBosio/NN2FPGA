@@ -88,11 +88,11 @@ def _load_and_prepare_model(config_dict: dict) -> tuple[ModelWrapper, ModelWrapp
 def _apply_frontend_transforms(
     model: ModelWrapper, prj_root: str, steps: dict
 ) -> ModelWrapper:
-    model = model.transform(transformation.SplitConcat())
     model = model.transform(transformation.RemoveNoopNodes())
     model = model.transform(transformation.PropagateQuant())
 
     nn2fpga_model = model.transform(transformation.SupportedPartition(prj_root))
+    nn2fpga_model = nn2fpga_model.transform(transformation.SplitConcat())
     nn2fpga_model = nn2fpga_model.transform(transformation.SlicesToSplitTree())
     nn2fpga_model = nn2fpga_model.transform(transformation.FullyConnectedToPointwise())
     nn2fpga_model = nn2fpga_model.transform(transformation.FoldReshapeIntoInitializer())
@@ -210,7 +210,7 @@ def _run_simulation_check(
         store_intermediate,
         _artifact_path(prj_root, "original_model_qcdq_for_sim.onnx"),
     )
-    test_transformation_equivalence(qcdq_original_model, model, intermediate_tensors=[("Quant_177_out0_quantized", "val_179")])
+    test_transformation_equivalence(qcdq_original_model, model)
 
 
 def _generate_bitstream(

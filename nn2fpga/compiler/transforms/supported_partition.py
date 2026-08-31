@@ -654,8 +654,19 @@ class ResizeQuantUpsampleNearestAsymmetric(Pattern):
 
         # Roi must be empty
         if roi_name != "":
-            reasons.append("Resize roi input must be empty")
-            return Match(False, self.name, covered, reasons)
+            if not _is_initializer(model, roi_name):
+                reasons.append("Resize roi input must be empty or an empty initializer")
+                return Match(False, self.name, covered, reasons)
+
+            roi_init = next((i for i in model.graph.initializer if i.name == roi_name), None)
+            if roi_init is None:
+                reasons.append("Resize roi initializer not found")
+                return Match(False, self.name, covered, reasons)
+
+            roi = numpy_helper.to_array(roi_init)
+            if np.asarray(roi).size != 0:
+                reasons.append("Resize roi input must be empty or an empty initializer")
+                return Match(False, self.name, covered, reasons)
 
         # Scales must exist and be an initializer
         if scales_name == "":
@@ -719,12 +730,13 @@ class AddQuant(Pattern):
         covered.update({anchor_node.name, q0.name, q1.name})
         return Match(True, self.name, covered, reasons)
 
-class ConcatQuantSameParamsAxis(Pattern):
+class ConcatQuantAxis(Pattern):
     """
     Matches Concat where all inputs come from activation Quant/IntQuant
-    AND have identical (scale, zeropt).
+    and the output is consumed by an activation Quant/IntQuant. The output
+    quantizer defines the common domain for binary concat-tree intermediates.
     """
-    name = "Concat(Quant(...)) same params"
+    name = "Concat(Quant(...)) -> Quant supported axis"
     anchor_op = "Concat"
 
     def _match_impl(self, model, anchor_node) -> Match:
@@ -740,6 +752,14 @@ class ConcatQuantSameParamsAxis(Pattern):
             return Match(False, self.name, covered, reasons)
 
         input_shape = model.get_tensor_shape(anchor_node.input[0])
+        if input_shape is None:
+            producer = model.find_producer(anchor_node.input[0])
+            if producer is not None and producer.input:
+                input_shape = model.get_tensor_shape(producer.input[0])
+        if input_shape is None and anchor_node.output:
+            output_shape = model.get_tensor_shape(anchor_node.output[0])
+            if output_shape is not None:
+                input_shape = output_shape
         if input_shape is None:
             reasons.append("Concat input shape unknown")
             return Match(False, self.name, covered, reasons)
@@ -763,14 +783,19 @@ class ConcatQuantSameParamsAxis(Pattern):
 
             qnodes.append(q)
 
-        # all equal to first
-        first = qnodes[0]
-        if any(not _same_quant_params(model, first, q) for q in qnodes[1:]):
-            reasons.append("Concat inputs quant params differ")
+        output_consumers = model.find_consumers(anchor_node.output[0])
+        if len(output_consumers) != 1:
+            reasons.append("Concat output must have exactly one Quant/IntQuant consumer")
+            return Match(False, self.name, covered, reasons)
+
+        output_quant = output_consumers[0]
+        if not check_act_quant(model, output_quant, reasons):
+            reasons.append("Concat output must be consumed by activation Quant/IntQuant")
             return Match(False, self.name, covered, reasons)
 
         covered.add(anchor_node.name)
         covered.update(q.name for q in qnodes)
+        covered.add(output_quant.name)
         return Match(True, self.name, covered, reasons)
 
 class ReshapeFCOnly(Pattern):
@@ -1635,7 +1660,7 @@ class YoloAttentionFromInputReshape(Pattern):
 
 PATTERNS_BY_OP: Dict[str, List[Pattern]] = {
     "Add": [AddQuant()],
-    "Concat": [ConcatQuantSameParamsAxis()],
+    "Concat": [ConcatQuantAxis()],
     "Flatten": [FlattenFCOnly()],
     "Reshape": [YoloAttentionFromInputReshape(), ReshapeFCOnly()],
     "HardSigmoid": [HardSigmoidQuant()],
