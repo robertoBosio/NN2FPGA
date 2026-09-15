@@ -23,6 +23,7 @@ from nn2fpga.compiler.utils.codegen_utils import (
 )
 from nn2fpga.compiler.custom_op.register_rewrite_rule import register_rules
 from nn2fpga.compiler.utils.board_util import bram_usage_evaluator, packing_feature
+from nn2fpga.compiler.utils.quantization import quant_array
 from nn2fpga.compiler.utils.linebuffer_utils import (
     circular_linebuffer_compatible_or_bypassed,
     circular_linebuffer_latency,
@@ -574,12 +575,20 @@ class StreamingConv(NN2FPGAOp, DSECapable, HasParameters):
         # Create weights and biases variable declarations if parameters are stored internally.
         param_storage = self.get_nodeattr("param_storage")
         if param_storage == "INTERNAL":
-            values = np.random.randint(
-                low=0,
-                high=2 ** (weights_quant.bitwidth - 1),
-                size=np.prod(weights_shape),
-                dtype=np.int8,
-            )
+            weight_values = model.get_initializer(self.onnx_node.input[1])
+            if weight_values is None:
+                raise ValueError(
+                    f"Internal weights for StreamingConv node {self.onnx_node.name} must be an initializer."
+                )
+            weight_values = quant_array(
+                weight_values,
+                scale=weights_quant.scale,
+                zeropt=weights_quant.zeropt,
+                bitwidth=weights_quant.bitwidth,
+                signed=weights_quant.signed,
+                narrow=weights_quant.narrow,
+                rounding_mode=weights_quant.rounding_mode,
+            ).astype(weights_quant.get_numpy_dtype(), copy=False)
             weights_var = cpp_variable(
                 name=f"{self.onnx_node.name}_weights",
                 primitive=weights_quant.get_hls_data_type(),
@@ -587,7 +596,7 @@ class StreamingConv(NN2FPGAOp, DSECapable, HasParameters):
                     f"HLS ARRAY_RESHAPE variable={self.onnx_node.name}_weights dim=3 complete",
                     f"HLS ARRAY_RESHAPE variable={self.onnx_node.name}_weights dim=2 complete",
                 ],
-                value=values.reshape(
+                value=weight_values.reshape(
                     output_shape[-1]
                     * input_shape[-1]
                     // (
@@ -601,12 +610,20 @@ class StreamingConv(NN2FPGAOp, DSECapable, HasParameters):
                 ),
             )
 
-            values = np.random.randint(
-                low=0,
-                high=2 ** (bias_quant.bitwidth - 1),
-                size=output_shape[-1],
-                dtype=np.int32,
-            )
+            bias_values = model.get_initializer(self.onnx_node.input[5])
+            if bias_values is None:
+                raise ValueError(
+                    f"Internal biases for StreamingConv node {self.onnx_node.name} must be an initializer."
+                )
+            bias_values = quant_array(
+                bias_values,
+                scale=bias_quant.scale,
+                zeropt=bias_quant.zeropt,
+                bitwidth=bias_quant.bitwidth,
+                signed=bias_quant.signed,
+                narrow=bias_quant.narrow,
+                rounding_mode=bias_quant.rounding_mode,
+            ).astype(bias_quant.get_numpy_dtype(), copy=False)
 
             bias_var = cpp_variable(
                 name=f"{self.onnx_node.name}_biases",
@@ -615,7 +632,7 @@ class StreamingConv(NN2FPGAOp, DSECapable, HasParameters):
                     f"HLS ARRAY_RESHAPE variable={self.onnx_node.name}_biases dim=3 complete",
                     f"HLS ARRAY_RESHAPE variable={self.onnx_node.name}_biases dim=2 complete",
                 ],
-                value=values.reshape(
+                value=bias_values.reshape(
                     output_shape[-1] // self.get_nodeattr("out_channel_unroll"),
                     self.get_nodeattr("out_channel_unroll"),
                     1,
@@ -623,12 +640,12 @@ class StreamingConv(NN2FPGAOp, DSECapable, HasParameters):
             )
 
             return variables_code + (
-                weights_var.generate_declaration() 
-                + ";\n"
+                weights_var.generate_initialization().code
+                + "\n"
                 + weights_var.generate_pragma()
                 + "\n"
-                + bias_var.generate_declaration()
-                + ";\n"
+                + bias_var.generate_initialization().code
+                + "\n"
                 + bias_var.generate_pragma()
             )
         else:
